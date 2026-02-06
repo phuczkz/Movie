@@ -1,5 +1,6 @@
 import client from "./client";
 import { getTmdbDetailBySlug } from "./tmdb";
+import { getKKphimDetail } from "./kkphim";
 
 const demoMovies = [
   {
@@ -13,18 +14,6 @@ const demoMovies = [
     episode_current: "Full",
     category: ["Hành động"],
     content: "Bộ phim minh họa cho layout và player.",
-  },
-  {
-    slug: "demo-movie-2",
-    name: "Demo Series",
-    poster_url:
-      "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=600&q=80",
-    thumb_url:
-      "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=1200&q=80",
-    year: 2023,
-    episode_current: "Tập 1",
-    category: ["Viễn tưởng"],
-    content: "Dữ liệu mẫu khi API chưa sẵn sàng.",
   },
 ];
 
@@ -60,6 +49,7 @@ const normalizeMovie = (raw = {}) => {
     thumb_url: posterNormalized,
     year: raw.year || raw.released || raw.publishYear,
     episode_current: raw.episode_current || raw.episodeCurrent || raw.status,
+    episode_total: raw.episode_total || raw.episodeTotal,
     quality: raw.quality,
     lang: raw.lang,
     time: raw.time,
@@ -69,6 +59,55 @@ const normalizeMovie = (raw = {}) => {
     content: raw.content || raw.description || "",
     origin: raw,
   };
+};
+
+const parseEpisodeNumber = (value) => {
+  if (!value) return null;
+  const match = String(value).match(/(\d+)/);
+  return match ? Number(match[1]) : null;
+};
+
+const mergeEpisodes = (kkList = [], ophimList = []) => {
+  const map = new Map();
+
+  const add = (list, priority) => {
+    list.forEach((ep) => {
+      if (!ep) return;
+      const epNum = parseEpisodeNumber(ep.name || ep.slug);
+      const key = epNum !== null ? `ep-${epNum}` : ep.slug || ep.name;
+      if (!key) return;
+
+      const current = map.get(key);
+      const prefers = !current || priority < current.priority;
+      // Prefer entries that have a playable link
+      const hasLink = Boolean(
+        ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed
+      );
+      const currentHasLink = Boolean(
+        current?.ep?.link_m3u8 ||
+          current?.ep?.m3u8 ||
+          current?.ep?.linkplay ||
+          current?.ep?.link ||
+          current?.ep?.embed
+      );
+
+      if (prefers || (!currentHasLink && hasLink)) {
+        map.set(key, { ep, priority, epNum: epNum ?? -1 });
+      }
+    });
+  };
+
+  // priority: 0 = KKphim, 1 = Ophim
+  add(kkList, 0);
+  add(ophimList, 1);
+
+  const merged = Array.from(map.values()).map(({ ep }) => ep);
+  merged.sort((a, b) => {
+    const na = parseEpisodeNumber(a.name || a.slug) ?? -1;
+    const nb = parseEpisodeNumber(b.name || b.slug) ?? -1;
+    return nb - na;
+  });
+  return merged;
 };
 
 const unwrapItems = (data) =>
@@ -129,25 +168,50 @@ export const getDetail = (slug) =>
         return getTmdbDetailBySlug(slug);
       }
 
-      const { data } = await client.get(`/phim/${slug}`);
-      const payload = data?.data?.item || data?.movie || data?.data || data;
-      const movie = normalizeMovie(payload);
-      const episodes =
-        payload?.episodes?.[0]?.server_data ||
-        data?.data?.episodes?.[0]?.server_data ||
-        data?.episodes?.[0]?.server_data ||
-        payload?.episodes ||
-        data?.episodes ||
-        demoEpisodes;
-      return {
-        movie,
-        episodes: episodes.map((ep, idx) => ({
-          name: ep.name || ep.filename || `Tập ${idx + 1}`,
-          slug: ep.slug || ep.name || `ep-${idx + 1}`,
-          link_m3u8: ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || "",
-          embed: ep.embed || ep.link_embed || ep.embed_url || ep.link || "",
-        })),
-      };
+      let kkResult = null;
+      try {
+        kkResult = await getKKphimDetail(slug);
+      } catch (error) {
+        console.warn("[getDetail] KKphim failed", error.message);
+      }
+
+      let ophimMovie = null;
+      let ophimEpisodes = [];
+      try {
+        const { data } = await client.get(`/phim/${slug}`);
+        const payload = data?.data?.item || data?.movie || data?.data || data;
+        ophimMovie = normalizeMovie(payload);
+        const rawEpisodes =
+          payload?.episodes || data?.data?.episodes || data?.episodes || [];
+        ophimEpisodes = Array.isArray(rawEpisodes)
+          ? rawEpisodes.flatMap((server) => server?.server_data || server || [])
+          : [];
+      } catch (error) {
+        console.warn("[getDetail] Ophim failed", error.message);
+      }
+
+      const kkEpisodes = kkResult?.episodes || [];
+      const mergedEpisodes = mergeEpisodes(kkEpisodes, ophimEpisodes);
+
+      const episodes = (
+        mergedEpisodes.length ? mergedEpisodes : demoEpisodes
+      ).map((ep, idx) => ({
+        name: ep.name || ep.filename || `Tập ${idx + 1}`,
+        slug: ep.slug || ep.name || `ep-${idx + 1}`,
+        link_m3u8:
+          ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed || "",
+        embed: ep.embed || ep.link_embed || ep.embed_url || ep.link || "",
+      }));
+
+      const hasKkLatest =
+        (kkEpisodes?.length || 0) &&
+        parseEpisodeNumber(kkEpisodes[0]?.name || kkEpisodes[0]?.slug) !== null;
+      const movie =
+        hasKkLatest && kkResult?.movie?.name
+          ? kkResult.movie
+          : ophimMovie || kkResult?.movie || normalizeMovie(demoMovies[0]);
+
+      return { movie, episodes };
     },
     { movie: normalizeMovie(demoMovies[0]), episodes: demoEpisodes }
   );

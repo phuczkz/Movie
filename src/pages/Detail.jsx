@@ -13,6 +13,89 @@ const Detail = () => {
   const { movie, episodes = [] } = data || {};
   const isTmdb = movie?.slug?.startsWith("tmdb-");
 
+  const parseEpisodeNumber = (value) => {
+    if (!value) return null;
+    const match = String(value).match(/(\d+)/);
+    return match ? Number(match[1]) : null;
+  };
+
+  const epCurrent = parseEpisodeNumber(movie?.episode_current);
+  const epTotal = parseEpisodeNumber(movie?.episode_total);
+  const statusText = (
+    movie?.status ||
+    movie?.episode_current ||
+    ""
+  ).toLowerCase();
+  const isCompleted =
+    /hoan tat|hoàn tất|hoan thanh|trọn bộ|tron bo|full|completed/.test(
+      statusText
+    ) ||
+    (epCurrent && epTotal && epCurrent >= epTotal);
+
+  const nextEpisodeText =
+    movie?.next_episode_time ||
+    movie?.nextEpisodeTime ||
+    movie?.schedule ||
+    movie?.air_time ||
+    movie?.release_time ||
+    movie?.upcoming_time ||
+    movie?.time ||
+    movie?.origin?.time;
+
+  const latestFromList = episodes.reduce((max, ep) => {
+    const n = parseEpisodeNumber(ep?.name || ep?.slug);
+    return n !== null && n !== undefined ? Math.max(max, n) : max;
+  }, -1);
+  const latestEpisodeNumber = Math.max(epCurrent ?? -1, latestFromList);
+  const nextEpisodeNumber =
+    latestEpisodeNumber >= 0 ? latestEpisodeNumber + 1 : null;
+
+  const formatNextTime = (value) => {
+    if (!value) return null;
+    const raw = String(value).trim();
+    const lower = raw.toLowerCase();
+
+    // Ignore durations like "43 phút/tập"; only show when it looks like a schedule
+    if (/phu?t|phút|min|minute/.test(lower)) return null;
+
+    // Try native Date first (handles ISO or RFC formats)
+    const parsedNative = Date.parse(raw);
+    if (!Number.isNaN(parsedNative)) {
+      const d = new Date(parsedNative);
+      const hh = `${d.getHours()}`.padStart(2, "0");
+      const mm = `${d.getMinutes()}`.padStart(2, "0");
+      const dd = `${d.getDate()}`.padStart(2, "0");
+      const MM = `${d.getMonth() + 1}`.padStart(2, "0");
+      const yyyy = d.getFullYear();
+      return `${hh}h${mm} ngày ${dd}/${MM}/${yyyy}`;
+    }
+
+    // Try pattern: HH:mm DD/MM/YYYY or variants with separators
+    const regex =
+      /(?:(\d{1,2})[:h](\d{2}))?[^\d]*(\d{1,2})[\/](\d{1,2})[\/](\d{2,4})/;
+    const match = raw.match(regex);
+    if (match) {
+      const [, hh, mm, dd, MM, yyyy] = match;
+      const hour = hh ? hh.padStart(2, "0") : null;
+      const minute = mm ? mm.padStart(2, "0") : null;
+      const day = dd.padStart(2, "0");
+      const month = MM.padStart(2, "0");
+      const year = `${yyyy}`.length === 2 ? `20${yyyy}` : yyyy;
+      if (hour && minute)
+        return `${hour}h${minute} ngày ${day}/${month}/${year}`;
+      return `Ngày ${day}/${month}/${year}`;
+    }
+
+    // Fallback: show raw text
+    return raw;
+  };
+
+  const formattedNextTime = formatNextTime(nextEpisodeText);
+  const showUpcomingNotice =
+    !isCompleted &&
+    nextEpisodeNumber &&
+    nextEpisodeNumber > latestEpisodeNumber;
+
   return (
     <div className="grid gap-8 lg:grid-cols-[280px,1fr]">
       <div className="space-y-4">
@@ -63,8 +146,10 @@ const Detail = () => {
             <span className="rounded-full bg-white/10 px-3 py-1">
               {movie.year || "N/A"}
             </span>
-            <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-200">
-              {movie.episode_current || "HD"}
+            <span className="rounded-full bg-white/10 px-3 py-1">
+              {latestEpisodeNumber >= 0
+                ? `Tập ${latestEpisodeNumber}`
+                : movie.episode_current || "HD"}
             </span>
             {movie.quality ? (
               <span className="rounded-full bg-white/10 px-3 py-1">
@@ -107,6 +192,22 @@ const Detail = () => {
 
         <div className="space-y-3">
           <h2 className="text-xl font-semibold text-white">Danh sách tập</h2>
+          {showUpcomingNotice ? (
+            <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
+              <div>
+                {nextEpisodeNumber
+                  ? `Tập ${nextEpisodeNumber} sẽ cập nhật sớm.`
+                  : "Tập mới sẽ có sớm, hãy quay lại để xem ngay khi cập nhật."}
+              </div>
+              {formattedNextTime ? (
+                <div className="mt-1 text-xs font-semibold text-amber-50/90">
+                  {nextEpisodeNumber
+                    ? `Tập ${nextEpisodeNumber} dự kiến: ${formattedNextTime}`
+                    : `Lịch dự kiến: ${formattedNextTime}`}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {episodes.length ? (
             <EpisodeList episodes={episodes} />
           ) : (

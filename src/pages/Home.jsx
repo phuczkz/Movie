@@ -4,9 +4,10 @@ import MovieCard from "../components/MovieCard.jsx";
 import Section from "../components/Section.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
+import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
 
 const Grid = ({ items = [] }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+  <div className="grid-movies">
     {items.map((movie) => (
       <MovieCard key={movie.slug} movie={movie} />
     ))}
@@ -22,11 +23,52 @@ const Home = () => {
     useMoviesList("single");
   const { data: popular = [], isLoading: loadingPopular } = useTmdbPopular();
 
-  const featured = latest?.[0] || popular?.[0];
+  // KKphim
+  const { data: kkLatest = [], isLoading: loadingKKLatest } =
+    useKKphimMovies("latest");
+  const { data: kkSeries = [], isLoading: loadingKKSeries } =
+    useKKphimMovies("series");
+  const { data: kkSingle = [], isLoading: loadingKKSingle } =
+    useKKphimMovies("single");
+
+  const featured = kkLatest?.[0] || latest?.[0] || popular?.[0];
 
   return (
     <div className="space-y-10">
       <Hero movie={featured} />
+
+      <Section
+        title="Phim mới cập nhật (KKphim)"
+        action={<span className="text-sm text-amber-300">KKphim</span>}
+      >
+        {loadingKKLatest ? (
+          <div className="text-slate-400">Đang tải...</div>
+        ) : (
+          <Grid items={kkLatest} />
+        )}
+      </Section>
+
+      <Section
+        title="Phim bộ (KKphim)"
+        action={<span className="text-sm text-amber-300">KKphim</span>}
+      >
+        {loadingKKSeries ? (
+          <div className="text-slate-400">Đang tải...</div>
+        ) : (
+          <Grid items={kkSeries} />
+        )}
+      </Section>
+
+      <Section
+        title="Phim lẻ (KKphim)"
+        action={<span className="text-sm text-amber-300">KKphim</span>}
+      >
+        {loadingKKSingle ? (
+          <div className="text-slate-400">Đang tải...</div>
+        ) : (
+          <Grid items={kkSingle} />
+        )}
+      </Section>
 
       <Section
         title="Phim thịnh hành (TMDB)"

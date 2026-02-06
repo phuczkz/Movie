@@ -100,7 +100,7 @@ const Watch = () => {
         </p>
         <h1 className="text-2xl font-bold text-white">{movie?.name}</h1>
         {activeEpisode ? (
-          <p className="text-slate-300">Tập {activeEpisode.name} </p>
+          <p className="text-slate-300">{activeEpisode.name} </p>
         ) : null}
       </div>
 

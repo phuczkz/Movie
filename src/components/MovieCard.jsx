@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
 
+const fallbackPoster =
+  "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
+
 const MovieCard = ({ movie }) => {
   return (
     <Link
@@ -12,6 +15,10 @@ const MovieCard = ({ movie }) => {
           alt={movie.name}
           className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
           loading="lazy"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = fallbackPoster;
+          }}
         />
         <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950 shadow">
           {movie.episode_current || "HD"}

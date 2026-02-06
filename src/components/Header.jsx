@@ -1,4 +1,5 @@
-import { ChevronDown, LogIn } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, LogIn, Menu, Search, X } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import SearchBar from "./SearchBar.jsx";
@@ -65,7 +66,41 @@ const Dropdown = ({ label, options }) => (
   </div>
 );
 
+const MobileDropdown = ({ label, options, onNavigate }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="col-span-2 rounded-2xl bg-white/5 border border-white/10 px-4 py-3 shadow-inner shadow-black/20">
+      <button
+        className="flex w-full items-center justify-between text-left text-base font-semibold text-white"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>{label}</span>
+        <ChevronDown
+          className={`h-4 w-4 transition ${open ? "rotate-180" : "rotate-0"}`}
+        />
+      </button>
+      {open && (
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-white/90">
+          {options.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={onNavigate}
+              className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-center"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Header = () => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user } = useAuth();
 
   const avatarUrl = user
@@ -75,17 +110,62 @@ const Header = () => {
         : null)
     : null;
 
+  const closeAll = () => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+  };
+
   return (
-    <header className="sticky top-0 z-20 border-b border-white/5 bg-gradient-to-b from-slate-950/80 via-slate-950/60 to-slate-950/30 backdrop-blur-xl">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
-        <div className="flex-1">
+    <header className="sticky top-0 z-20 border-b border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/70 to-slate-950/40 backdrop-blur-xl">
+      {/* Mobile top bar */}
+      <div className="md:hidden px-4 py-3 flex items-center justify-between">
+        <button
+          aria-label="Toggle menu"
+          onClick={() => {
+            setMenuOpen((v) => !v);
+            setSearchOpen(false);
+          }}
+          className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+        >
+          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+
+        <Link
+          to="/"
+          onClick={closeAll}
+          className="flex items-center gap-2 text-white"
+        >
+          <span className="rounded-lg bg-white/10 px-3 py-2 text-base font-bold tracking-tight shadow-lg shadow-black/40">
+            KhoPhim
+          </span>
+        </Link>
+
+        <button
+          aria-label="Open search"
+          onClick={() => {
+            setSearchOpen((v) => !v);
+            setMenuOpen(false);
+          }}
+          className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+        >
+          {searchOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Search className="h-5 w-5" />
+          )}
+        </button>
+      </div>
+
+      {/* Desktop / tablet bar */}
+      <div className="max-w-6xl mx-auto px-4 py-3 hidden md:flex items-center gap-3 md:gap-4">
+        <div className="flex-1 min-w-0">
           <SearchBar
             placeholder="Tìm kiếm phim, diễn viên"
             className="max-w-xl"
           />
         </div>
 
-        <nav className="hidden md:flex items-center gap-1 text-white">
+        <nav className="flex items-center gap-1 text-white">
           {primaryNav.map((item) => (
             <NavLink
               key={item.to}
@@ -105,7 +185,7 @@ const Header = () => {
           <Dropdown label="Thêm" options={moreOptions} />
         </nav>
 
-        <div className="hidden md:flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {user ? (
             <Link
               to="/profile"
@@ -137,48 +217,65 @@ const Header = () => {
         </div>
       </div>
 
-      <div className="md:hidden px-4 pb-3 space-y-2">
-        <SearchBar placeholder="Tìm kiếm phim, diễn viên" />
-        <div className="flex flex-wrap items-center gap-2 text-sm text-white/80">
-          {primaryNav.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="rounded-full border border-white/10 px-3 py-1.5 bg-white/5"
-            >
-              {item.label}
-            </Link>
-          ))}
-          {user ? (
-            <Link
-              to="/profile"
-              className="h-10 w-10 rounded-full border border-white/15 bg-white/10 overflow-hidden"
-            >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="avatar"
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-sm">
-                  {(user.email || "").charAt(0).toUpperCase()}
-                </div>
-              )}
-            </Link>
-          ) : (
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400"
-            >
-              <LogIn className="h-4 w-4" />
-              <span>Đăng nhập</span>
-            </Link>
-          )}
+      {/* Mobile search overlay */}
+      {searchOpen && (
+        <div className="md:hidden px-4 pb-3">
+          <div className="rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl shadow-black/30 p-3">
+            <SearchBar
+              placeholder="Tìm kiếm phim, diễn viên"
+              className="w-full"
+            />
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Mobile mega menu */}
+      {menuOpen && (
+        <div className="md:hidden px-4 pb-4">
+          <div className="rounded-3xl bg-gradient-to-b from-slate-800/95 to-slate-900/95 border border-white/10 shadow-2xl shadow-black/40 p-4 space-y-4">
+            <Link
+              to={user ? "/profile" : "/login"}
+              onClick={closeAll}
+              className="flex items-center justify-center gap-3 rounded-full bg-white/10 border border-white/10 py-3 text-white font-semibold text-base"
+            >
+              {user ? "Hồ sơ của bạn" : "Thành viên"}
+            </Link>
+
+            <div className="grid grid-cols-2 gap-3 text-white text-base font-semibold">
+              {primaryNav.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={closeAll}
+                  className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-center shadow-inner shadow-black/20"
+                >
+                  {item.label}
+                </Link>
+              ))}
+              <MobileDropdown
+                label="Năm"
+                options={yearOptions}
+                onNavigate={closeAll}
+              />
+              <MobileDropdown
+                label="Thể Loại"
+                options={genreOptions}
+                onNavigate={closeAll}
+              />
+              <MobileDropdown
+                label="Quốc Gia"
+                options={countryOptions}
+                onNavigate={closeAll}
+              />
+              <MobileDropdown
+                label="Thêm"
+                options={moreOptions}
+                onNavigate={closeAll}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

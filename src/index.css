@@ -22,6 +22,42 @@ body {
   color: #e5e7eb;
 }
 
+/* Responsive grid utilities for movie layouts */
+.grid-movies {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Mobile ≤575.98px: keep 2 columns, tighter gap */
+@media (max-width: 575.98px) {
+  .grid-movies {
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Tablet 768–991.98px: 3 columns */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .grid-movies {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Desktop 992–1199.98px: 4 columns */
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .grid-movies {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Extra large ≥1200px: 5 columns */
+@media (min-width: 1200px) {
+  .grid-movies {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
 #root {
   min-height: 100vh;
 }
@@ -41,4 +77,13 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #111827;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

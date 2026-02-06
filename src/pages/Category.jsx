@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
-import CountryFilter from "../components/CountryFilter.jsx";
 import MovieCard from "../components/MovieCard.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
-import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
+import {
+  useKKphimByCategory,
+  useKKphimMovies,
+} from "../hooks/useKKphimMovies.js";
+import { searchKKphim } from "../api/kkphim";
 
 const categoryLabels = {
   "hoat-hinh": "Hoạt hình",
@@ -17,40 +21,54 @@ const categoryLabels = {
 
 const Category = () => {
   const { category } = useParams();
-  const [country, setCountry] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   useEffect(() => {
-    setCountry("");
+    setPage(1);
   }, [category]);
 
   const isSeries = category === "phim-bo";
   const isSingle = category === "phim-le";
   const isLatest = category === "phim-moi";
+  const isAnimation = category === "hoat-hinh";
   const isCategory = !isSeries && !isSingle && !isLatest;
-  const hasCountry = Boolean(country);
 
-  const { data: series = [], isLoading: loadingSeries } = useMoviesList(
+  const { data: seriesOphim = [], isLoading: loadingSeriesOphim } =
+    useMoviesList("series", undefined, { enabled: isSeries });
+  const { data: seriesKK = [], isLoading: loadingSeriesKK } = useKKphimMovies(
     "series",
-    undefined,
-    { enabled: !hasCountry && isSeries }
+    { enabled: isSeries }
   );
-  const { data: single = [], isLoading: loadingSingle } = useMoviesList(
+
+  const { data: singleOphim = [], isLoading: loadingSingleOphim } =
+    useMoviesList("single", undefined, { enabled: isSingle });
+  const { data: singleKK = [], isLoading: loadingSingleKK } = useKKphimMovies(
     "single",
-    undefined,
-    { enabled: !hasCountry && isSingle }
+    { enabled: isSingle }
   );
-  const { data: latest = [], isLoading: loadingLatest } = useMoviesList(
+
+  const { data: latestOphim = [], isLoading: loadingLatestOphim } =
+    useMoviesList("latest", undefined, { enabled: isLatest });
+  const { data: latestKK = [], isLoading: loadingLatestKK } = useKKphimMovies(
     "latest",
-    undefined,
-    { enabled: !hasCountry && isLatest }
+    { enabled: isLatest }
   );
+
   const { data: byCategory = [], isLoading: loadingCategory } = useMoviesList(
     "category",
     category,
-    { enabled: !hasCountry && isCategory }
+    { enabled: isCategory }
   );
-  const { data: byCountry = [], isLoading: loadingCountry } =
-    useMoviesByCountry(country);
+  const { data: kkCategory = [], isLoading: loadingKKCategory } =
+    useKKphimByCategory(category, { enabled: isCategory });
+  // KKphim không có slug "hoat-hinh", dùng search để lấy dữ liệu
+  const { data: kkAnimation = [], isLoading: loadingKKAnimation } = useQuery({
+    queryKey: ["kkphim", "search", "hoat-hinh"],
+    queryFn: () => searchKKphim("hoat hinh"),
+    enabled: isAnimation,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const heading = useMemo(() => {
     if (isSeries) return "Phim bộ";
@@ -60,40 +78,69 @@ const Category = () => {
   }, [isSeries, isSingle, isLatest, category]);
 
   const data = useMemo(() => {
-    if (country) return byCountry;
-    if (isSeries) return series;
-    if (isSingle) return single;
-    if (isLatest) return latest;
-    return byCategory;
+    const mergeUnique = (...lists) => {
+      const map = new Map();
+      lists.flat().forEach((m) => {
+        if (!m || !m.slug) return;
+        if (!map.has(m.slug)) map.set(m.slug, m);
+      });
+      return Array.from(map.values());
+    };
+
+    if (isSeries) return mergeUnique(seriesKK, seriesOphim);
+    if (isSingle) return mergeUnique(singleKK, singleOphim);
+    if (isLatest) return mergeUnique(latestKK, latestOphim);
+
+    const mergedCategory = mergeUnique(
+      isAnimation ? kkAnimation : kkCategory,
+      byCategory
+    );
+    return mergedCategory;
   }, [
-    country,
-    byCountry,
     isSeries,
-    series,
+    seriesKK,
+    seriesOphim,
     isSingle,
-    single,
+    singleKK,
+    singleOphim,
     isLatest,
-    latest,
+    latestKK,
+    latestOphim,
     byCategory,
+    kkCategory,
+    kkAnimation,
   ]);
 
   const isLoading = useMemo(() => {
-    if (country) return loadingCountry;
-    if (isSeries) return loadingSeries;
-    if (isSingle) return loadingSingle;
-    if (isLatest) return loadingLatest;
-    return loadingCategory;
+    if (isSeries) return loadingSeriesOphim || loadingSeriesKK;
+    if (isSingle) return loadingSingleOphim || loadingSingleKK;
+    if (isLatest) return loadingLatestOphim || loadingLatestKK;
+    return (
+      loadingCategory ||
+      loadingKKCategory ||
+      (isAnimation ? loadingKKAnimation : false)
+    );
   }, [
-    country,
-    loadingCountry,
-    isSeries,
-    loadingSeries,
-    isSingle,
-    loadingSingle,
-    isLatest,
-    loadingLatest,
-    loadingCategory,
+    loadingSeriesOphim,
+    loadingSeriesKK,
+    loadingSingleOphim,
+    loadingSingleKK,
+    loadingLatestOphim,
+    loadingLatestKK,
+    loadingKKCategory,
+    loadingKKAnimation,
+    isAnimation,
   ]);
+
+  const totalPages = Math.max(1, Math.ceil((data?.length || 0) / pageSize));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedData = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return data.slice(start, start + pageSize);
+  }, [data, page, pageSize]);
 
   return (
     <div className="space-y-6">
@@ -104,17 +151,40 @@ const Category = () => {
           </p>
           <h1 className="text-2xl font-bold text-white">{heading}</h1>
         </div>
-        <CountryFilter value={country} onChange={setCountry} />
       </div>
 
       {isLoading ? (
         <div className="text-slate-400">Đang tải...</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {data.map((movie) => (
-            <MovieCard key={movie.slug} movie={movie} />
-          ))}
-        </div>
+        <>
+          <div className="grid-movies">
+            {pagedData.map((movie) => (
+              <MovieCard key={movie.slug} movie={movie} />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 pt-4 text-sm text-white">
+              <button
+                className="rounded-lg border border-white/10 px-3 py-2 hover:border-white/30 disabled:opacity-50"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Trước
+              </button>
+              <span className="px-2">
+                Trang {page} / {totalPages}
+              </span>
+              <button
+                className="rounded-lg border border-white/10 px-3 py-2 hover:border-white/30 disabled:opacity-50"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Sau
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

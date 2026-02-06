@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import CountryFilter from "../components/CountryFilter.jsx";
 import MovieCard from "../components/MovieCard.jsx";
 import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
+import { useKKphimByCountry } from "../hooks/useKKphimMovies.js";
 
 const countryLabels = {
   "viet-nam": "Việt Nam",
@@ -19,7 +20,23 @@ const Country = () => {
   const { country } = useParams();
   const navigate = useNavigate();
 
-  const { data: movies = [], isLoading } = useMoviesByCountry(country || "");
+  const { data: ophim = [], isLoading: loadingOphim } = useMoviesByCountry(
+    country || ""
+  );
+  const { data: kkphim = [], isLoading: loadingKK } = useKKphimByCountry(
+    country || ""
+  );
+
+  const movies = useMemo(() => {
+    const map = new Map();
+    [...kkphim, ...ophim].forEach((m) => {
+      if (!m || !m.slug) return;
+      if (!map.has(m.slug)) map.set(m.slug, m);
+    });
+    return Array.from(map.values());
+  }, [kkphim, ophim]);
+
+  const isLoading = loadingOphim || loadingKK;
 
   const heading = useMemo(() => countryLabels[country] || country, [country]);
 

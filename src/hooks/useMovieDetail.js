@@ -6,4 +6,8 @@ export const useMovieDetail = (slug) =>
     queryKey: ["movie", slug],
     queryFn: () => getDetail(slug),
     enabled: Boolean(slug),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
