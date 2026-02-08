@@ -13,7 +13,6 @@ import {
   getDoc,
   serverTimestamp,
   setDoc,
-  updateDoc,
 } from "firebase/firestore";
 import {
   auth,
@@ -67,20 +66,39 @@ export const AuthProvider = ({ children }) => {
     try {
       const ref = doc(db, "users", currentUser.uid);
       const snapshot = await getDoc(ref);
+      const base = buildDefaultProfile(currentUser);
+      const normalizeDate = (value) => {
+        if (!value) return "";
+        if (value instanceof Timestamp)
+          return value.toDate().toISOString().slice(0, 10);
+        if (typeof value === "string") return value;
+        return "";
+      };
 
       if (!snapshot.exists()) {
-        const defaults = buildDefaultProfile(currentUser);
-        await setDoc(ref, defaults);
+        await setDoc(ref, base);
         return {
           id: ref.id,
-          ...defaults,
+          ...base,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         };
       }
 
-      const data = snapshot.data();
-      return { id: ref.id, ...data };
+      const data = snapshot.data() || {};
+      return {
+        id: ref.id,
+        email: data.email ?? base.email,
+        displayName: data.displayName ?? base.displayName,
+        phoneNumber:
+          typeof data.phoneNumber === "string"
+            ? data.phoneNumber.trim()
+            : base.phoneNumber,
+        birthday: normalizeDate(data.birthday) || base.birthday,
+        photoURL: data.photoURL ?? base.photoURL,
+        createdAt: data.createdAt ?? Timestamp.now(),
+        updatedAt: data.updatedAt ?? Timestamp.now(),
+      };
     } finally {
       setProfileLoading(false);
     }
@@ -106,7 +124,9 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(
     () => ({
       user,
+      userProfile,
       loading,
+      profileLoading,
       loginGoogle: async () => {
         if (!auth || !googleProvider) return rejectIfMissing();
         const credential = await signInWithPopup(auth, googleProvider);
@@ -158,16 +178,35 @@ export const AuthProvider = ({ children }) => {
           });
         }
 
-        await updateDoc(ref, data);
+        await setDoc(ref, data, { merge: true });
 
+        const updatedSnapshot = await getDoc(ref);
+        const updatedData = updatedSnapshot.data() || {};
+        const normalizeDate = (value) => {
+          if (!value) return "";
+          if (value instanceof Timestamp)
+            return value.toDate().toISOString().slice(0, 10);
+          if (typeof value === "string") return value;
+          return "";
+        };
+        const base = buildDefaultProfile(currentUser);
         setUserProfile((prev) => ({
-          ...(prev || {}),
-          ...data,
-          // Normalize possible Timestamp values when rendering
-          updatedAt:
-            data.updatedAt instanceof Timestamp
-              ? data.updatedAt
-              : Timestamp.now(),
+          id: ref.id,
+          email: updatedData.email ?? prev?.email ?? base.email,
+          displayName:
+            updatedData.displayName ?? prev?.displayName ?? base.displayName,
+          phoneNumber:
+            typeof updatedData.phoneNumber === "string"
+              ? updatedData.phoneNumber.trim()
+              : prev?.phoneNumber ?? base.phoneNumber,
+          birthday:
+            normalizeDate(updatedData.birthday) ||
+            normalizeDate(prev?.birthday) ||
+            base.birthday,
+          photoURL: updatedData.photoURL ?? prev?.photoURL ?? base.photoURL,
+          createdAt:
+            updatedData.createdAt ?? prev?.createdAt ?? Timestamp.now(),
+          updatedAt: updatedData.updatedAt ?? Timestamp.now(),
         }));
       },
       logout: async () => {
@@ -175,7 +214,7 @@ export const AuthProvider = ({ children }) => {
         return signOut(auth);
       },
     }),
-    [user, loading, userProfile]
+    [user, loading, userProfile, profileLoading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
