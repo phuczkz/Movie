@@ -305,7 +305,16 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
         className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
         onClick={handleContainerClick}
       >
-        <video ref={videoRef} poster={poster} className="h-full w-full" />
+        <video
+          ref={videoRef}
+          poster={poster}
+          className="player-native h-full w-full"
+          playsInline
+          autoPlay
+          controls={false}
+          controlsList="nodownload noremoteplayback noplaybackrate"
+          disablePictureInPicture
+        />
         {overlay}
       </div>
     );
@@ -349,6 +358,15 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
         onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
+        config={{
+          file: {
+            attributes: {
+              playsInline: true,
+              controlsList: "nodownload noremoteplayback noplaybackrate",
+              disablePictureInPicture: true,
+            },
+          },
+        }}
       />
       {overlay}
     </div>

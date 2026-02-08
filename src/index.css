@@ -87,3 +87,13 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Hide native media controls for our custom player UI on mobile */
+.player-native::-webkit-media-controls,
+.player-native::-webkit-media-controls-enclosure,
+.player-native::-webkit-media-controls-panel,
+.player-native::-webkit-media-controls-play-button,
+.player-native::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  opacity: 0 !important;
+}
