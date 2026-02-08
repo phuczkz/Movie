@@ -38,6 +38,38 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
   const [muted, setMuted] = useState(false);
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(true);
+  const hideControlsTimeout = useRef(null);
+
+  useEffect(() => {
+    // Reset visual state when source changes
+    setDuration(0);
+    setProgress(0);
+    setIsBuffering(true);
+    setControlsVisible(true);
+  }, [source]);
+
+  const clearHideControlsTimeout = useCallback(() => {
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+      hideControlsTimeout.current = null;
+    }
+  }, []);
+
+  const scheduleHideControls = useCallback(() => {
+    clearHideControlsTimeout();
+    if (!playing) return;
+    hideControlsTimeout.current = setTimeout(
+      () => setControlsVisible(false),
+      3000
+    );
+  }, [playing, clearHideControlsTimeout]);
+
+  const showControls = useCallback(() => {
+    setControlsVisible(true);
+    scheduleHideControls();
+  }, [scheduleHideControls]);
 
   useEffect(() => {
     if (!source || !source.endsWith(".m3u8") || !videoRef.current)
@@ -61,14 +93,25 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
 
     const onTime = () => setProgress(video.currentTime || 0);
     const onDuration = () => setDuration(video.duration || 0);
-    const onPlay = () => setPlaying(true);
+    const onPlay = () => {
+      setPlaying(true);
+      setIsBuffering(false);
+    };
     const onPause = () => setPlaying(false);
+    const onBuffer = () => setIsBuffering(true);
+    const onCanPlay = () => setIsBuffering(false);
 
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("loadedmetadata", onDuration);
     video.addEventListener("durationchange", onDuration);
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
+    video.addEventListener("waiting", onBuffer);
+    video.addEventListener("seeking", onBuffer);
+    video.addEventListener("stalled", onBuffer);
+    video.addEventListener("canplay", onCanPlay);
+    video.addEventListener("canplaythrough", onCanPlay);
+    video.addEventListener("playing", onCanPlay);
 
     return () => {
       video.removeEventListener("timeupdate", onTime);
@@ -76,6 +119,12 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
       video.removeEventListener("durationchange", onDuration);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
+      video.removeEventListener("waiting", onBuffer);
+      video.removeEventListener("seeking", onBuffer);
+      video.removeEventListener("stalled", onBuffer);
+      video.removeEventListener("canplay", onCanPlay);
+      video.removeEventListener("canplaythrough", onCanPlay);
+      video.removeEventListener("playing", onCanPlay);
     };
   }, [isHls, source]);
 
@@ -98,6 +147,18 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
       videoRef.current.volume = muted ? 0 : volume;
     }
   }, [isHls, volume, muted]);
+
+  // Auto-hide controls when playing
+  useEffect(() => {
+    setControlsVisible(true);
+    if (playing) {
+      scheduleHideControls();
+    } else {
+      clearHideControlsTimeout();
+    }
+  }, [playing, scheduleHideControls, clearHideControlsTimeout]);
+
+  useEffect(() => () => clearHideControlsTimeout(), [clearHideControlsTimeout]);
 
   const seekBy = useCallback(
     (delta) => {
@@ -125,16 +186,18 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     const handler = (e) => {
       if (e.key === "ArrowLeft") {
         e.preventDefault();
+        showControls();
         seekBy(-SEEK_STEP);
       }
       if (e.key === "ArrowRight") {
         e.preventDefault();
+        showControls();
         seekBy(SEEK_STEP);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [seekBy]);
+  }, [seekBy, showControls]);
 
   useEffect(() => {
     const onFsChange = () => {
@@ -214,9 +277,14 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
   };
 
+  const handleUserActivity = () => {
+    showControls();
+  };
+
   const handleContainerClick = (e) => {
     if (canUseIframe) return;
     if (e.target.closest("[data-control]") || e.defaultPrevented) return;
+    handleUserActivity();
     togglePlay();
   };
 
@@ -227,9 +295,15 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
   }
 
   const overlay = (
-    <div className="pointer-events-none absolute inset-0 text-white flex flex-col justify-between">
+    <div
+      className="absolute inset-0 text-white flex flex-col justify-between transition-opacity duration-300"
+      style={{
+        opacity: controlsVisible ? 1 : 0,
+        pointerEvents: controlsVisible ? "auto" : "none",
+      }}
+    >
       {!isFullscreen ? (
-        <div className="bg-gradient-to-b from-black/65 via-black/20 to-transparent p-4 sm:p-5 flex items-center justify-between gap-3">
+        <div className="pointer-events-none bg-gradient-to-b from-black/65 via-black/20 to-transparent p-4 sm:p-5 flex items-center justify-between gap-3">
           <div className="space-y-1 drop-shadow">
             {title ? (
               <p className="text-sm font-semibold leading-tight">{title}</p>
@@ -338,12 +412,20 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     </div>
   );
 
+  const loadingOverlay = isBuffering ? (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30">
+      <div className="h-10 w-10 rounded-full border-2 border-white/30 border-t-emerald-400 animate-spin" />
+    </div>
+  ) : null;
+
   if (source.endsWith(".m3u8")) {
     return (
       <div
         ref={containerRef}
         className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
         onClick={handleContainerClick}
+        onMouseMove={handleUserActivity}
+        onTouchStart={handleUserActivity}
       >
         <video
           ref={videoRef}
@@ -356,6 +438,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
           disablePictureInPicture
         />
         {overlay}
+        {loadingOverlay}
       </div>
     );
   }
@@ -366,14 +449,18 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
         ref={containerRef}
         className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black"
         onClick={handleContainerClick}
+        onMouseMove={handleUserActivity}
+        onTouchStart={handleUserActivity}
       >
         <iframe
           title="player"
           src={source}
           className="h-full w-full"
           allowFullScreen
+          onLoad={() => setIsBuffering(false)}
         />
         {overlay}
+        {loadingOverlay}
       </div>
     );
   }
@@ -383,6 +470,8 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
       ref={containerRef}
       className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black"
       onClick={handleContainerClick}
+      onMouseMove={handleUserActivity}
+      onTouchStart={handleUserActivity}
     >
       <ReactPlayer
         ref={reactPlayerRef}
@@ -396,8 +485,14 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
         light={poster}
         onDuration={(d) => setDuration(d)}
         onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
-        onPlay={() => setPlaying(true)}
+        onPlay={() => {
+          setPlaying(true);
+          setIsBuffering(false);
+        }}
         onPause={() => setPlaying(false)}
+        onReady={() => setIsBuffering(false)}
+        onBuffer={() => setIsBuffering(true)}
+        onBufferEnd={() => setIsBuffering(false)}
         config={{
           file: {
             attributes: {
@@ -409,6 +504,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
         }}
       />
       {overlay}
+      {loadingOverlay}
     </div>
   );
 };
