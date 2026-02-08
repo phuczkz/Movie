@@ -24,29 +24,18 @@ const Home = () => {
   const { data: popular = [], isLoading: loadingPopular } = useTmdbPopular();
 
   // KKphim
-  const { data: kkLatest = [], isLoading: loadingKKLatest } =
-    useKKphimMovies("latest");
+  // const { data: kkLatest = [], isLoading: loadingKKLatest } =
+  //   useKKphimMovies("latest");
   const { data: kkSeries = [], isLoading: loadingKKSeries } =
     useKKphimMovies("series");
   const { data: kkSingle = [], isLoading: loadingKKSingle } =
     useKKphimMovies("single");
 
-  const featured = kkLatest?.[0] || latest?.[0] || popular?.[0];
+  const featured = latest?.[0] || popular?.[0];
 
   return (
     <div className="space-y-10">
       <Hero movie={featured} />
-
-      <Section
-        title="Phim mới cập nhật (KKphim)"
-        action={<span className="text-sm text-amber-300">KKphim</span>}
-      >
-        {loadingKKLatest ? (
-          <div className="text-slate-400">Đang tải...</div>
-        ) : (
-          <Grid items={kkLatest} />
-        )}
-      </Section>
 
       <Section
         title="Phim bộ (KKphim)"

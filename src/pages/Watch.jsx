@@ -12,6 +12,7 @@ import {
 import Player from "../components/Player.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
+import { getEpisodeLabel, parseEpisodeNumber } from "../utils/episodes.js";
 
 const Watch = () => {
   const { slug } = useParams();
@@ -29,6 +30,24 @@ const Watch = () => {
     if (!episodes.length) return null;
     return episodes.find((ep) => ep.slug === selectedEpisode) || episodes[0];
   }, [episodes, selectedEpisode]);
+
+  const sortedEpisodes = useMemo(() => {
+    return episodes
+      .map((ep, idx) => ({
+        ep,
+        idx,
+        num: parseEpisodeNumber(ep?.name || ep?.slug),
+      }))
+      .sort((a, b) => {
+        const aHasNum = a.num !== null && a.num !== undefined;
+        const bHasNum = b.num !== null && b.num !== undefined;
+        if (aHasNum && bHasNum) return a.num - b.num;
+        if (aHasNum) return -1;
+        if (bHasNum) return 1;
+        return a.idx - b.idx;
+      })
+      .map(({ ep }) => ep);
+  }, [episodes]);
 
   if (isLoading)
     return <div className="text-slate-300">Đang tải player...</div>;
@@ -87,7 +106,7 @@ const Watch = () => {
     );
   }
 
-  const statusLabel = movie?.episode_current || movie?.status;
+  const statusLabel = getEpisodeLabel(movie, episodes);
   const notifyText = movie?.notify || movie?.showtimes;
   const categoriesText = movie?.category?.map((c) => c.name || c).join(", ");
   const countryText = movie?.country?.map((c) => c.name || c).join(", ");
@@ -107,6 +126,8 @@ const Watch = () => {
       <Player
         source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
         poster={movie?.thumb_url || movie?.poster_url}
+        title={movie?.name}
+        subtitle={activeEpisode?.name}
       />
 
       <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 lg:flex-row lg:items-start lg:gap-6">
@@ -211,7 +232,7 @@ const Watch = () => {
         </div>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="space-y-3" id="episode-list">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">
@@ -227,11 +248,11 @@ const Watch = () => {
           </div>
         </div>
 
-        {episodes.length ? (
+        {sortedEpisodes.length ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {episodes.map((ep, idx) => (
+            {sortedEpisodes.map((ep, idx) => (
               <Link
-                key={ep.slug || idx}
+                key={ep.slug || ep.name || idx}
                 to={`/watch/${slug}?episode=${encodeURIComponent(
                   ep.slug || ep.name || `ep-${idx + 1}`
                 )}`}
@@ -244,9 +265,6 @@ const Watch = () => {
                 <span className="flex items-center gap-2">
                   <Play className="h-4 w-4 text-emerald-300" />
                   {ep.name || `Tập ${idx + 1}`}
-                </span>
-                <span className="text-xs text-slate-400 group-hover:text-emerald-200">
-                  {idx + 1}
                 </span>
               </Link>
             ))}

@@ -1,9 +1,12 @@
 import { Link } from "react-router-dom";
+import { useEpisodeLabel } from "../hooks/useEpisodeLabel.js";
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
 const MovieCard = ({ movie }) => {
+  const episodeLabel = useEpisodeLabel(movie);
+
   return (
     <Link
       to={`/movie/${movie.slug}`}
@@ -21,7 +24,7 @@ const MovieCard = ({ movie }) => {
           }}
         />
         <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950 shadow">
-          {movie.episode_current || "HD"}
+          {episodeLabel}
         </span>
       </div>
       <div className="p-3 space-y-1">

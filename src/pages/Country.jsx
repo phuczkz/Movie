@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CountryFilter from "../components/CountryFilter.jsx";
 import MovieCard from "../components/MovieCard.jsx";
@@ -17,14 +17,29 @@ const countryLabels = {
 };
 
 const Country = () => {
-  const { country } = useParams();
+  const { country, page: pageParam } = useParams();
   const navigate = useNavigate();
+  const pageFromUrl = Math.max(1, Number(pageParam) || 1);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  useEffect(() => {
+    setPage(pageFromUrl);
+  }, [country, pageFromUrl]);
+
+  const goToPage = (nextPage) => {
+    const safePage = Math.max(1, nextPage);
+    setPage(safePage);
+    navigate(`/country/${country}${safePage > 1 ? `/${safePage}` : ""}`);
+  };
 
   const { data: ophim = [], isLoading: loadingOphim } = useMoviesByCountry(
-    country || ""
+    country || "",
+    { page, enabled: Boolean(country) }
   );
   const { data: kkphim = [], isLoading: loadingKK } = useKKphimByCountry(
-    country || ""
+    country || "",
+    { page, enabled: Boolean(country) }
   );
 
   const movies = useMemo(() => {
@@ -35,6 +50,12 @@ const Country = () => {
     });
     return Array.from(map.values());
   }, [kkphim, ophim]);
+
+  const pagedData = useMemo(() => {
+    const limited = movies.slice(0, pageSize);
+    const hasNext = movies.length >= pageSize;
+    return { items: limited, hasNext };
+  }, [movies, pageSize]);
 
   const isLoading = loadingOphim || loadingKK;
 
@@ -60,11 +81,52 @@ const Country = () => {
       {isLoading ? (
         <div className="text-slate-400">Đang tải...</div>
       ) : movies.length ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {movies.map((movie) => (
-            <MovieCard key={movie.slug} movie={movie} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {pagedData.items.map((movie) => (
+              <MovieCard key={movie.slug} movie={movie} />
+            ))}
+          </div>
+          {(pagedData.hasNext || page > 1) && (
+            <div className="flex justify-center items-center gap-2 pt-4 text-sm text-white">
+              <button
+                className="rounded-lg border border-white/10 px-3 py-2 hover:border-white/30 disabled:opacity-50"
+                onClick={() => goToPage(page - 1)}
+                disabled={page === 1}
+              >
+                Trước
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from(
+                  { length: pagedData.hasNext ? page + 1 : page },
+                  (_, idx) => idx + 1
+                ).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    className={`rounded-lg border px-3 py-2 transition-colors ${
+                      p === page
+                        ? "border-white bg-white text-slate-900"
+                        : "border-white/10 hover:border-white/30"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                {pagedData.hasNext && (
+                  <span className="px-2 text-slate-300">...</span>
+                )}
+              </div>
+              <button
+                className="rounded-lg border border-white/10 px-3 py-2 hover:border-white/30 disabled:opacity-50"
+                onClick={() => goToPage(page + 1)}
+                disabled={!pagedData.hasNext}
+              >
+                Sau
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-slate-400">Không có dữ liệu.</div>
       )}

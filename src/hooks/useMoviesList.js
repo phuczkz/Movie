@@ -7,11 +7,15 @@ const map = {
   single: getSingle,
 };
 
-export const useMoviesList = (type = "latest", category, options = {}) => {
-  const queryKey = ["movies", type, category].filter(Boolean);
+export const useMoviesList = (
+  type = "latest",
+  category,
+  { page = 1, ...options } = {}
+) => {
+  const queryKey = ["movies", type, category, page].filter(Boolean);
   const queryFn = category
-    ? () => getCategory(category)
-    : map[type] || getLatest;
+    ? () => getCategory(category, page)
+    : () => (map[type] || getLatest)(page);
 
   return useQuery({ queryKey, queryFn, ...options });
 };

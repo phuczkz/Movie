@@ -2,6 +2,11 @@ import { BookmarkPlus, Play } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
+import {
+  getEpisodeLabel,
+  getLatestEpisodeNumber,
+  parseEpisodeNumber,
+} from "../utils/episodes.js";
 
 const Detail = () => {
   const { slug } = useParams();
@@ -13,13 +18,7 @@ const Detail = () => {
   const { movie, episodes = [] } = data || {};
   const isTmdb = movie?.slug?.startsWith("tmdb-");
 
-  const parseEpisodeNumber = (value) => {
-    if (!value) return null;
-    const match = String(value).match(/(\d+)/);
-    return match ? Number(match[1]) : null;
-  };
-
-  const epCurrent = parseEpisodeNumber(movie?.episode_current);
+  const latestEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
   const epTotal = parseEpisodeNumber(movie?.episode_total);
   const statusText = (
     movie?.status ||
@@ -30,7 +29,7 @@ const Detail = () => {
     /hoan tat|hoàn tất|hoan thanh|trọn bộ|tron bo|full|completed/.test(
       statusText
     ) ||
-    (epCurrent && epTotal && epCurrent >= epTotal);
+    (latestEpisodeNumber >= 0 && epTotal && latestEpisodeNumber >= epTotal);
 
   const nextEpisodeText =
     movie?.next_episode_time ||
@@ -42,11 +41,6 @@ const Detail = () => {
     movie?.time ||
     movie?.origin?.time;
 
-  const latestFromList = episodes.reduce((max, ep) => {
-    const n = parseEpisodeNumber(ep?.name || ep?.slug);
-    return n !== null && n !== undefined ? Math.max(max, n) : max;
-  }, -1);
-  const latestEpisodeNumber = Math.max(epCurrent ?? -1, latestFromList);
   const nextEpisodeNumber =
     latestEpisodeNumber >= 0 ? latestEpisodeNumber + 1 : null;
 

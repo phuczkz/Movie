@@ -13,15 +13,24 @@ const apiMap = {
   single: getKKphimSingle,
 };
 
-export const useKKphimMovies = (type = "latest", options = {}) => {
-  const queryKey = ["kkphim", type];
-  const queryFn = apiMap[type] || getKKphimLatest;
-  return useQuery({ queryKey, queryFn, staleTime: 5 * 60 * 1000, ...options });
+export const useKKphimMovies = (
+  type = "latest",
+  { page = 1, ...options } = {}
+) => {
+  const queryKey = ["kkphim", type, page];
+  const queryFn = () => (apiMap[type] || getKKphimLatest)(page);
+  return useQuery({
+    queryKey,
+    queryFn,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    ...options,
+  });
 };
 
-export const useKKphimByCategory = (slug, options = {}) => {
-  const queryKey = ["kkphim", "category", slug];
-  const queryFn = () => getKKphimByCategory(slug);
+export const useKKphimByCategory = (slug, { page = 1, ...options } = {}) => {
+  const queryKey = ["kkphim", "category", slug, page];
+  const queryFn = () => getKKphimByCategory(slug, page);
   return useQuery({
     queryKey,
     queryFn,
@@ -31,9 +40,9 @@ export const useKKphimByCategory = (slug, options = {}) => {
   });
 };
 
-export const useKKphimByCountry = (slug, options = {}) => {
-  const queryKey = ["kkphim", "country", slug];
-  const queryFn = () => getKKphimByCountry(slug);
+export const useKKphimByCountry = (slug, { page = 1, ...options } = {}) => {
+  const queryKey = ["kkphim", "country", slug, page];
+  const queryFn = () => getKKphimByCountry(slug, page);
   return useQuery({
     queryKey,
     queryFn,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import {
@@ -20,13 +20,21 @@ const categoryLabels = {
 };
 
 const Category = () => {
-  const { category } = useParams();
+  const { category, page: pageParam } = useParams();
+  const navigate = useNavigate();
+  const pageFromUrl = Math.max(1, Number(pageParam) || 1);
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
   useEffect(() => {
-    setPage(1);
-  }, [category]);
+    setPage(pageFromUrl);
+  }, [category, pageFromUrl]);
+
+  const goToPage = (nextPage) => {
+    const safePage = Math.max(1, nextPage);
+    setPage(safePage);
+    navigate(`/category/${category}${safePage > 1 ? `/${safePage}` : ""}`);
+  };
 
   const isSeries = category === "phim-bo";
   const isSingle = category === "phim-le";
@@ -35,37 +43,37 @@ const Category = () => {
   const isCategory = !isSeries && !isSingle && !isLatest;
 
   const { data: seriesOphim = [], isLoading: loadingSeriesOphim } =
-    useMoviesList("series", undefined, { enabled: isSeries });
+    useMoviesList("series", undefined, { enabled: isSeries, page });
   const { data: seriesKK = [], isLoading: loadingSeriesKK } = useKKphimMovies(
     "series",
-    { enabled: isSeries }
+    { enabled: isSeries, page }
   );
 
   const { data: singleOphim = [], isLoading: loadingSingleOphim } =
-    useMoviesList("single", undefined, { enabled: isSingle });
+    useMoviesList("single", undefined, { enabled: isSingle, page });
   const { data: singleKK = [], isLoading: loadingSingleKK } = useKKphimMovies(
     "single",
-    { enabled: isSingle }
+    { enabled: isSingle, page }
   );
 
   const { data: latestOphim = [], isLoading: loadingLatestOphim } =
-    useMoviesList("latest", undefined, { enabled: isLatest });
+    useMoviesList("latest", undefined, { enabled: isLatest, page });
   const { data: latestKK = [], isLoading: loadingLatestKK } = useKKphimMovies(
     "latest",
-    { enabled: isLatest }
+    { enabled: isLatest, page }
   );
 
   const { data: byCategory = [], isLoading: loadingCategory } = useMoviesList(
     "category",
     category,
-    { enabled: isCategory }
+    { enabled: isCategory, page }
   );
   const { data: kkCategory = [], isLoading: loadingKKCategory } =
-    useKKphimByCategory(category, { enabled: isCategory });
+    useKKphimByCategory(category, { enabled: isCategory, page });
   // KKphim không có slug "hoat-hinh", dùng search để lấy dữ liệu
   const { data: kkAnimation = [], isLoading: loadingKKAnimation } = useQuery({
-    queryKey: ["kkphim", "search", "hoat-hinh"],
-    queryFn: () => searchKKphim("hoat hinh"),
+    queryKey: ["kkphim", "search", "hoat-hinh", page],
+    queryFn: () => searchKKphim("hoat hinh", page),
     enabled: isAnimation,
     staleTime: 5 * 60 * 1000,
   });
@@ -77,7 +85,7 @@ const Category = () => {
     return categoryLabels[category] || category;
   }, [isSeries, isSingle, isLatest, category]);
 
-  const data = useMemo(() => {
+  const mergedData = useMemo(() => {
     const mergeUnique = (...lists) => {
       const map = new Map();
       lists.flat().forEach((m) => {
@@ -109,6 +117,8 @@ const Category = () => {
     byCategory,
     kkCategory,
     kkAnimation,
+    isAnimation,
+    page,
   ]);
 
   const isLoading = useMemo(() => {
@@ -121,26 +131,31 @@ const Category = () => {
       (isAnimation ? loadingKKAnimation : false)
     );
   }, [
+    isSeries,
     loadingSeriesOphim,
     loadingSeriesKK,
+    isSingle,
     loadingSingleOphim,
     loadingSingleKK,
+    isLatest,
     loadingLatestOphim,
     loadingLatestKK,
+    loadingCategory,
     loadingKKCategory,
     loadingKKAnimation,
     isAnimation,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil((data?.length || 0) / pageSize));
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-
   const pagedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return data.slice(start, start + pageSize);
-  }, [data, page, pageSize]);
+    const limited = mergedData.slice(0, pageSize);
+    const hasNext = mergedData.length >= pageSize;
+    return { items: limited, hasNext };
+  }, [mergedData, pageSize]);
+
+  const pages = useMemo(() => {
+    const maxPage = pagedData.hasNext ? page + 1 : page;
+    return Array.from({ length: maxPage }, (_, idx) => idx + 1);
+  }, [page, pagedData.hasNext]);
 
   return (
     <div className="space-y-6">
@@ -158,27 +173,42 @@ const Category = () => {
       ) : (
         <>
           <div className="grid-movies">
-            {pagedData.map((movie) => (
+            {pagedData.items.map((movie) => (
               <MovieCard key={movie.slug} movie={movie} />
             ))}
           </div>
 
-          {totalPages > 1 && (
+          {(pagedData.hasNext || page > 1) && (
             <div className="flex justify-center items-center gap-2 pt-4 text-sm text-white">
               <button
                 className="rounded-lg border border-white/10 px-3 py-2 hover:border-white/30 disabled:opacity-50"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => goToPage(page - 1)}
                 disabled={page === 1}
               >
                 Trước
               </button>
-              <span className="px-2">
-                Trang {page} / {totalPages}
-              </span>
+              <div className="flex items-center gap-1">
+                {pages.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    className={`rounded-lg border px-3 py-2 transition-colors ${
+                      p === page
+                        ? "border-white bg-white text-slate-900"
+                        : "border-white/10 hover:border-white/30"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                {pagedData.hasNext && (
+                  <span className="px-2 text-slate-300">...</span>
+                )}
+              </div>
               <button
                 className="rounded-lg border border-white/10 px-3 py-2 hover:border-white/30 disabled:opacity-50"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
+                onClick={() => goToPage(page + 1)}
+                disabled={!pagedData.hasNext}
               >
                 Sau
               </button>

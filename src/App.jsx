@@ -16,7 +16,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/category/:category" element={<Category />} />
+        <Route path="/category/:category/:page" element={<Category />} />
         <Route path="/country/:country" element={<Country />} />
+        <Route path="/country/:country/:page" element={<Country />} />
         <Route path="/movie/:slug" element={<Detail />} />
         <Route path="/watch/:slug" element={<Watch />} />
         <Route path="/login" element={<Login />} />

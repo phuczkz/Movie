@@ -15,15 +15,22 @@ const Search = () => {
           Tìm kiếm
         </p>
         <h1 className="text-2xl font-bold text-white">
-          {query ? `Kết quả cho "${query}"` : "Nhập từ khóa để tìm phim"}
+          {query
+            ? `Kết quả cho "${query}"`
+            : "Nhập tên, thể loại hoặc quốc gia"}
         </h1>
-        <SearchBar autoFocus placeholder="Nhập tên phim..." />
+        <SearchBar
+          autoFocus
+          placeholder="Nhập tên phim, thể loại (ví dụ: hoạt hình), quốc gia..."
+        />
       </div>
 
       {isFetching && <div className="text-slate-300">Đang tìm kiếm...</div>}
 
       {!query && (
-        <p className="text-slate-400">Bắt đầu với một từ khóa bất kỳ.</p>
+        <p className="text-slate-400">
+          Thử: "hoạt hình", "hàn quốc", "hành động"...
+        </p>
       )}
 
       {query ? (

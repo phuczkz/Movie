@@ -121,6 +121,29 @@ const unwrapItems = (data) =>
 const mapOrFallback = (items = [], fallback = demoMovies) =>
   items && items.length ? items.map(normalizeMovie) : fallback;
 
+const uniqueBySlug = (items = []) => {
+  const seen = new Set();
+  const out = [];
+  for (const item of items) {
+    const key = item?.slug || item?._id || item?.id;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+};
+
+const fetchPaged = async (path, pages = 3) => {
+  const all = [];
+  for (let i = 1; i <= pages; i += 1) {
+    const { data } = await client.get(path, { params: { page: i } });
+    const items = unwrapItems(data);
+    if (!items?.length) break;
+    all.push(...items);
+  }
+  return all;
+};
+
 const withFallback = async (fn, fallback = {}) => {
   try {
     if (!client.defaults.baseURL) throw new Error("Missing baseURL");
@@ -131,34 +154,44 @@ const withFallback = async (fn, fallback = {}) => {
   }
 };
 
-export const getLatest = () =>
+export const getLatest = (page = 1) =>
   withFallback(async () => {
-    const { data } = await client.get("/danh-sach/phim-moi");
+    const { data } = await client.get("/danh-sach/phim-moi", {
+      params: { page },
+    });
     return mapOrFallback(unwrapItems(data));
   }, demoMovies);
 
-export const getSeries = () =>
+export const getSeries = (page = 1) =>
   withFallback(async () => {
-    const { data } = await client.get("/danh-sach/phim-bo");
+    const { data } = await client.get("/danh-sach/phim-bo", {
+      params: { page },
+    });
     return mapOrFallback(unwrapItems(data));
   }, demoMovies);
 
-export const getSingle = () =>
+export const getSingle = (page = 1) =>
   withFallback(async () => {
-    const { data } = await client.get("/danh-sach/phim-le");
+    const { data } = await client.get("/danh-sach/phim-le", {
+      params: { page },
+    });
     return mapOrFallback(unwrapItems(data));
   }, demoMovies);
 
-export const getCategory = (category) =>
+export const getCategory = (category, page = 1) =>
   withFallback(async () => {
-    const { data } = await client.get(`/the-loai/${category}`);
-    return mapOrFallback(unwrapItems(data));
+    const { data } = await client.get(`/the-loai/${category}`, {
+      params: { page },
+    });
+    return mapOrFallback(uniqueBySlug(unwrapItems(data)));
   }, demoMovies);
 
-export const getCountry = (country) =>
+export const getCountry = (country, page = 1) =>
   withFallback(async () => {
-    const { data } = await client.get(`/quoc-gia/${country}`);
-    return mapOrFallback(unwrapItems(data));
+    const { data } = await client.get(`/quoc-gia/${country}`, {
+      params: { page },
+    });
+    return mapOrFallback(uniqueBySlug(unwrapItems(data)));
   }, demoMovies);
 
 export const getDetail = (slug) =>

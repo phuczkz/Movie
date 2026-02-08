@@ -59,36 +59,30 @@ const normalizeKKphimMovie = (raw = {}) => {
   };
 };
 
+const uniqueBySlug = (items = []) => {
+  const seen = new Set();
+  const result = [];
+  for (const item of items) {
+    const key = item?.slug || item?._id || item?.id;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+};
+
 const fetchList = async (path, page = 1) => {
   const { data } = await kkphim.get(path, { params: { page } });
   const items = data?.data?.items || data?.items || [];
-  return items.map(normalizeKKphimMovie);
+  return uniqueBySlug(items).map(normalizeKKphimMovie);
 };
 
 export const getKKphimLatest = (page = 1) =>
   fetchList("/danh-sach/phim-moi-cap-nhat", page);
-export const getKKphimSeries = async (page = 1, limit = 24) => {
-  const pagesToFetch = Math.ceil(limit / 10);
-  const requests = Array.from({ length: pagesToFetch }, (_, i) =>
-    kkphim.get("/danh-sach/phim-bo", { params: { page: page + i } })
-  );
-  const responses = await Promise.all(requests);
-  const allItems = responses.flatMap(
-    ({ data }) => data?.data?.items || data?.items || []
-  );
-  return allItems.slice(0, limit).map(normalizeKKphimMovie);
-};
-export const getKKphimSingle = async (page = 1, limit = 24) => {
-  const pagesToFetch = Math.ceil(limit / 10);
-  const requests = Array.from({ length: pagesToFetch }, (_, i) =>
-    kkphim.get("/danh-sach/phim-le", { params: { page: page + i } })
-  );
-  const responses = await Promise.all(requests);
-  const allItems = responses.flatMap(
-    ({ data }) => data?.data?.items || data?.items || []
-  );
-  return allItems.slice(0, limit).map(normalizeKKphimMovie);
-};
+export const getKKphimSeries = (page = 1) =>
+  fetchList("/danh-sach/phim-bo", page);
+export const getKKphimSingle = (page = 1) =>
+  fetchList("/danh-sach/phim-le", page);
 
 export const getKKphimDetail = async (slug) => {
   const { data } = await kkphim.get(`/phim/${slug}`);
@@ -122,13 +116,13 @@ export const searchKKphim = async (keyword, page = 1) => {
 export const getKKphimByCategory = async (slug, page = 1) => {
   const { data } = await kkphim.get(`/the-loai/${slug}`, { params: { page } });
   const items = data?.data?.items || data?.items || [];
-  return items.map(normalizeKKphimMovie);
+  return uniqueBySlug(items).map(normalizeKKphimMovie);
 };
 
 export const getKKphimByCountry = async (slug, page = 1) => {
   const { data } = await kkphim.get(`/quoc-gia/${slug}`, { params: { page } });
   const items = data?.data?.items || data?.items || [];
-  return items.map(normalizeKKphimMovie);
+  return uniqueBySlug(items).map(normalizeKKphimMovie);
 };
 
 export default kkphim;
