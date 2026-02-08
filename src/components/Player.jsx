@@ -18,6 +18,9 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
   const videoRef = useRef(null);
   const reactPlayerRef = useRef(null);
   const containerRef = useRef(null);
+  const [isDocFullscreen, setIsDocFullscreen] = useState(false);
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
+  const isFullscreen = isDocFullscreen || isPseudoFullscreen;
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -135,6 +138,20 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     return () => window.removeEventListener("keydown", handler);
   }, [seekBy]);
 
+  useEffect(() => {
+    const onFsChange = () => {
+      const fsEl =
+        document.fullscreenElement || document.webkitFullscreenElement;
+      setIsDocFullscreen(Boolean(fsEl));
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    document.addEventListener("webkitfullscreenchange", onFsChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFsChange);
+      document.removeEventListener("webkitfullscreenchange", onFsChange);
+    };
+  }, []);
+
   const togglePlay = () => setPlaying((p) => !p);
 
   const toggleMute = () => setMuted((m) => !m);
@@ -154,15 +171,34 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     setProgress(target);
   };
 
+  const exitFullscreen = () => {
+    setIsPseudoFullscreen(false);
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      document.exitFullscreen?.();
+      document.webkitExitFullscreen?.();
+    }
+  };
+
   const handleFullscreen = () => {
     const el = containerRef.current;
     if (!el) return;
-    const isFs = document.fullscreenElement;
-    if (isFs) {
-      document.exitFullscreen?.();
-    } else {
-      el.requestFullscreen?.();
+
+    if (isFullscreen) {
+      exitFullscreen();
+      return;
     }
+
+    if (el.requestFullscreen) {
+      el.requestFullscreen();
+      return;
+    }
+    if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+      return;
+    }
+
+    // Fallback pseudo fullscreen for platforms without fullscreen API (mobile Safari)
+    setIsPseudoFullscreen(true);
   };
 
   const formatTime = (value) => {
@@ -302,7 +338,14 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     return (
       <div
         ref={containerRef}
-        className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+        className={`relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl ${
+          isFullscreen
+            ? "fixed inset-0 z-50 !rounded-none !border-none"
+            : "aspect-video"
+        }`}
+        style={
+          isPseudoFullscreen ? { width: "100vw", height: "100vh" } : undefined
+        }
         onClick={handleContainerClick}
       >
         <video
@@ -341,7 +384,14 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black"
+      className={`relative overflow-hidden rounded-2xl border border-white/10 bg-black ${
+        isFullscreen
+          ? "fixed inset-0 z-50 !rounded-none !border-none"
+          : "aspect-video"
+      }`}
+      style={
+        isPseudoFullscreen ? { width: "100vw", height: "100vh" } : undefined
+      }
       onClick={handleContainerClick}
     >
       <ReactPlayer
