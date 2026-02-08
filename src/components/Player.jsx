@@ -18,9 +18,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
   const videoRef = useRef(null);
   const reactPlayerRef = useRef(null);
   const containerRef = useRef(null);
-  const [isDocFullscreen, setIsDocFullscreen] = useState(false);
-  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
-  const isFullscreen = isDocFullscreen || isPseudoFullscreen;
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -142,7 +140,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     const onFsChange = () => {
       const fsEl =
         document.fullscreenElement || document.webkitFullscreenElement;
-      setIsDocFullscreen(Boolean(fsEl));
+      setIsFullscreen(Boolean(fsEl));
     };
     document.addEventListener("fullscreenchange", onFsChange);
     document.addEventListener("webkitfullscreenchange", onFsChange);
@@ -171,34 +169,36 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     setProgress(target);
   };
 
-  const exitFullscreen = () => {
-    setIsPseudoFullscreen(false);
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
+  const handleFullscreen = async () => {
+    const container = containerRef.current;
+    const video = videoRef.current;
+    if (!container) return;
+
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fsEl) {
       document.exitFullscreen?.();
       document.webkitExitFullscreen?.();
-    }
-  };
-
-  const handleFullscreen = () => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    if (isFullscreen) {
-      exitFullscreen();
+      if (video?.webkitExitFullscreen) video.webkitExitFullscreen();
       return;
     }
 
-    if (el.requestFullscreen) {
-      el.requestFullscreen();
-      return;
-    }
-    if (el.webkitRequestFullscreen) {
-      el.webkitRequestFullscreen();
-      return;
+    // Only trigger from user gesture; container preferred, fallback to video for iOS.
+    try {
+      if (container.requestFullscreen) {
+        await container.requestFullscreen();
+        return;
+      }
+      if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+        return;
+      }
+    } catch (_) {
+      // ignore, try video fallback
     }
 
-    // Fallback pseudo fullscreen for platforms without fullscreen API (mobile Safari)
-    setIsPseudoFullscreen(true);
+    if (video?.webkitEnterFullscreen) {
+      video.webkitEnterFullscreen();
+    }
   };
 
   const formatTime = (value) => {
@@ -228,21 +228,25 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
 
   const overlay = (
     <div className="pointer-events-none absolute inset-0 text-white flex flex-col justify-between">
-      <div className="bg-gradient-to-b from-black/65 via-black/20 to-transparent p-4 sm:p-5 flex items-center justify-between gap-3">
-        <div className="space-y-1 drop-shadow">
-          {title ? (
-            <p className="text-sm font-semibold leading-tight">{title}</p>
-          ) : null}
-          {subtitle ? (
-            <p className="text-xs text-slate-200 leading-tight">{subtitle}</p>
+      {!isFullscreen ? (
+        <div className="bg-gradient-to-b from-black/65 via-black/20 to-transparent p-4 sm:p-5 flex items-center justify-between gap-3">
+          <div className="space-y-1 drop-shadow">
+            {title ? (
+              <p className="text-sm font-semibold leading-tight">{title}</p>
+            ) : null}
+            {subtitle ? (
+              <p className="text-xs text-slate-200 leading-tight">{subtitle}</p>
+            ) : null}
+          </div>
+          {actionSlot ? (
+            <div className="pointer-events-auto flex-shrink-0" data-control>
+              {actionSlot}
+            </div>
           ) : null}
         </div>
-        {actionSlot ? (
-          <div className="pointer-events-auto flex-shrink-0" data-control>
-            {actionSlot}
-          </div>
-        ) : null}
-      </div>
+      ) : (
+        <div />
+      )}
 
       {!canUseIframe ? (
         <div className="pointer-events-auto px-4 pb-3 space-y-2" data-control>
@@ -321,7 +325,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
                 onClick={handleFullscreen}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
               >
-                {document.fullscreenElement ? (
+                {isFullscreen ? (
                   <Minimize2 className="h-3.5 w-3.5" />
                 ) : (
                   <Maximize2 className="h-3.5 w-3.5" />
@@ -338,14 +342,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     return (
       <div
         ref={containerRef}
-        className={`relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl ${
-          isFullscreen
-            ? "fixed inset-0 z-50 !rounded-none !border-none"
-            : "aspect-video"
-        }`}
-        style={
-          isPseudoFullscreen ? { width: "100vw", height: "100vh" } : undefined
-        }
+        className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
         onClick={handleContainerClick}
       >
         <video
@@ -384,14 +381,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
   return (
     <div
       ref={containerRef}
-      className={`relative overflow-hidden rounded-2xl border border-white/10 bg-black ${
-        isFullscreen
-          ? "fixed inset-0 z-50 !rounded-none !border-none"
-          : "aspect-video"
-      }`}
-      style={
-        isPseudoFullscreen ? { width: "100vw", height: "100vh" } : undefined
-      }
+      className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black"
       onClick={handleContainerClick}
     >
       <ReactPlayer
