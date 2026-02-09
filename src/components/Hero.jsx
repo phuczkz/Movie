@@ -1,6 +1,6 @@
 import { Info, Play, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEpisodeLabel } from "../hooks/useEpisodeLabel.js";
+import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
 
 const normalizeList = (items = []) => {
   if (!Array.isArray(items)) return [];
@@ -10,6 +10,7 @@ const normalizeList = (items = []) => {
 };
 
 const Hero = ({ movie }) => {
+  const episodeLabel = useEpisodeLabel(movie);
   if (!movie) return null;
 
   const isTmdb = movie.slug?.startsWith("tmdb-");
@@ -25,7 +26,6 @@ const Hero = ({ movie }) => {
     movie.thumb_url || movie.poster_url || "https://placehold.co/1600x900";
   const rating =
     typeof movie.rating === "number" ? movie.rating.toFixed(1) : undefined;
-  const episodeLabel = useEpisodeLabel(movie);
 
   return (
     <section className="relative isolate -mx-4 md:-mx-6 lg:-mx-8 overflow-hidden rounded-none md:rounded-[32px] border border-white/5 bg-slate-950 shadow-[0_40px_120px_-60px_rgba(0,0,0,0.9)] min-h-[520px]">
