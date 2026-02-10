@@ -1,5 +1,11 @@
-import { useMemo } from "react";
-import { Link, useParams, useSearchParams, Navigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import {
+  Link,
+  useParams,
+  useSearchParams,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import {
   Bell,
   Globe2,
@@ -16,38 +22,50 @@ import { getEpisodeLabel, parseEpisodeNumber } from "../utils/episodes.js";
 
 const Watch = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
+  const playerRef = useRef(null);
   const [params] = useSearchParams();
   const selectedEpisode = params.get("episode");
   const { data, isLoading } = useMovieDetail(slug);
 
   const { movie, episodes = [] } = data || {};
+  const episodesList = Array.isArray(episodes) ? [...episodes] : [];
   const isTmdb = movie?.slug?.startsWith("tmdb-");
   const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
     isTmdb ? movie?.name : ""
   );
 
-  const activeEpisode = useMemo(() => {
-    if (!episodes.length) return null;
-    return episodes.find((ep) => ep.slug === selectedEpisode) || episodes[0];
-  }, [episodes, selectedEpisode]);
+  const activeEpisode =
+    episodesList.find((ep) => ep.slug === selectedEpisode) ||
+    episodesList[0] ||
+    null;
 
-  const sortedEpisodes = useMemo(() => {
-    return episodes
-      .map((ep, idx) => ({
-        ep,
-        idx,
-        num: parseEpisodeNumber(ep?.name || ep?.slug),
-      }))
-      .sort((a, b) => {
-        const aHasNum = a.num !== null && a.num !== undefined;
-        const bHasNum = b.num !== null && b.num !== undefined;
-        if (aHasNum && bHasNum) return a.num - b.num;
-        if (aHasNum) return -1;
-        if (bHasNum) return 1;
-        return a.idx - b.idx;
-      })
-      .map(({ ep }) => ep);
-  }, [episodes]);
+  const sortedEpisodes = episodesList
+    .map((ep, idx) => ({
+      ep,
+      idx,
+      num: parseEpisodeNumber(ep?.name || ep?.slug),
+    }))
+    .sort((a, b) => {
+      const aHasNum = a.num !== null && a.num !== undefined;
+      const bHasNum = b.num !== null && b.num !== undefined;
+      if (aHasNum && bHasNum) return a.num - b.num;
+      if (aHasNum) return -1;
+      if (bHasNum) return 1;
+      return a.idx - b.idx;
+    })
+    .map(({ ep }) => ep);
+
+  const currentIndex = activeEpisode
+    ? sortedEpisodes.findIndex((ep) => ep.slug === activeEpisode.slug)
+    : -1;
+  const nextEpisode =
+    currentIndex >= 0 ? sortedEpisodes[currentIndex + 1] || null : null;
+
+  useEffect(() => {
+    if (!selectedEpisode || !playerRef.current) return;
+    playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedEpisode]);
 
   if (isLoading)
     return <div className="text-slate-300">Đang tải player...</div>;
@@ -123,12 +141,23 @@ const Watch = () => {
         ) : null}
       </div>
 
-      <Player
-        source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
-        poster={movie?.thumb_url || movie?.poster_url}
-        title={movie?.name}
-        subtitle={activeEpisode?.name}
-      />
+      <div ref={playerRef}>
+        <Player
+          source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
+          poster={movie?.thumb_url || movie?.poster_url}
+          title={movie?.name}
+          subtitle={activeEpisode?.name}
+          onNextEpisode={() => {
+            if (!nextEpisode) return;
+            navigate(
+              `/watch/${slug}?episode=${encodeURIComponent(
+                nextEpisode.slug || nextEpisode.name
+              )}`
+            );
+          }}
+          hasNextEpisode={Boolean(nextEpisode)}
+        />
+      </div>
 
       <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 lg:flex-row lg:items-start lg:gap-6">
         <div className="w-full max-w-[140px] overflow-hidden rounded-xl border border-white/10 shadow-lg lg:max-w-[180px]">

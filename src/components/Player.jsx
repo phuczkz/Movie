@@ -8,16 +8,26 @@ import {
   Play,
   RotateCcw,
   RotateCw,
+  SkipForward,
   Volume2,
   VolumeX,
 } from "lucide-react";
 
 const SEEK_STEP = 10; // seconds
 
-const Player = ({ source, poster, title, subtitle, actionSlot }) => {
+const Player = ({
+  source,
+  poster,
+  title,
+  subtitle,
+  actionSlot,
+  onNextEpisode,
+  hasNextEpisode = true,
+}) => {
   const videoRef = useRef(null);
   const reactPlayerRef = useRef(null);
   const containerRef = useRef(null);
+  const ignoreNextClickRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const canUseIframe = useMemo(
@@ -28,12 +38,8 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
     () => Boolean(source && source.endsWith(".m3u8")),
     [source]
   );
-  const isReactPlayer = useMemo(
-    () => Boolean(source && !isHls && !canUseIframe),
-    [source, isHls, canUseIframe]
-  );
 
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -44,10 +50,14 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
 
   useEffect(() => {
     // Reset visual state when source changes
-    setDuration(0);
-    setProgress(0);
-    setIsBuffering(true);
-    setControlsVisible(true);
+    const resetId = setTimeout(() => {
+      setDuration(0);
+      setProgress(0);
+      setIsBuffering(true);
+      setControlsVisible(true);
+      setPlaying(false);
+    }, 0);
+    return () => clearTimeout(resetId);
   }, [source]);
 
   const clearHideControlsTimeout = useCallback(() => {
@@ -150,12 +160,15 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
 
   // Auto-hide controls when playing
   useEffect(() => {
-    setControlsVisible(true);
-    if (playing) {
-      scheduleHideControls();
-    } else {
-      clearHideControlsTimeout();
-    }
+    const controlId = setTimeout(() => {
+      setControlsVisible(true);
+      if (playing) {
+        scheduleHideControls();
+      } else {
+        clearHideControlsTimeout();
+      }
+    }, 0);
+    return () => clearTimeout(controlId);
   }, [playing, scheduleHideControls, clearHideControlsTimeout]);
 
   useEffect(() => () => clearHideControlsTimeout(), [clearHideControlsTimeout]);
@@ -255,7 +268,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
         container.webkitRequestFullscreen();
         return;
       }
-    } catch (_) {
+    } catch {
       // ignore, try video fallback
     }
 
@@ -283,6 +296,7 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
 
   const handleContainerClick = (e) => {
     if (canUseIframe) return;
+    if (ignoreNextClickRef.current) return;
     if (e.target.closest("[data-control]") || e.defaultPrevented) return;
     handleUserActivity();
     togglePlay();
@@ -369,6 +383,21 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
               >
                 <RotateCw className="h-3.5 w-3.5" />
               </button>
+              {onNextEpisode ? (
+                <button
+                  type="button"
+                  onClick={onNextEpisode}
+                  disabled={!hasNextEpisode}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
+                    hasNextEpisode
+                      ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
+                      : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
+                  }`}
+                  aria-label="Sang tập tiếp theo"
+                >
+                  <SkipForward className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
               <div className="flex items-center gap-2 pl-2">
                 <button
                   type="button"
@@ -483,6 +512,14 @@ const Player = ({ source, poster, title, subtitle, actionSlot }) => {
         width="100%"
         height="100%"
         light={poster}
+        onClickPreview={() => {
+          ignoreNextClickRef.current = true;
+          setPlaying(true);
+          showControls();
+          setTimeout(() => {
+            ignoreNextClickRef.current = false;
+          }, 0);
+        }}
         onDuration={(d) => setDuration(d)}
         onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
         onPlay={() => {

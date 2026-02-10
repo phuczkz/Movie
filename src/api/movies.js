@@ -2,33 +2,6 @@ import client from "./client";
 import { getTmdbDetailBySlug } from "./tmdb";
 import { getKKphimDetail } from "./kkphim";
 
-const demoMovies = [
-  {
-    slug: "demo-movie-1",
-    name: "Demo Movie 1",
-    poster_url:
-      "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=600&q=80",
-    thumb_url:
-      "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=1200&q=80",
-    year: 2024,
-    episode_current: "Full",
-    category: ["Hành động"],
-    content: "Bộ phim minh họa cho layout và player.",
-  },
-];
-
-const demoEpisodes = [
-  {
-    name: "Tập 1",
-    slug: "ep-1",
-    link_m3u8: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-  },
-  {
-    name: "Tập 2",
-    slug: "ep-2",
-    link_m3u8: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-  },
-];
 
 const normalizePoster = (url = "") => {
   if (!url) return "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
@@ -118,7 +91,7 @@ const unwrapItems = (data) =>
   data?.data?.item ||
   [];
 
-const mapOrFallback = (items = [], fallback = demoMovies) =>
+const mapOrFallback = (items = [], fallback = []) =>
   items && items.length ? items.map(normalizeMovie) : fallback;
 
 const uniqueBySlug = (items = []) => {
@@ -133,18 +106,7 @@ const uniqueBySlug = (items = []) => {
   return out;
 };
 
-const fetchPaged = async (path, pages = 3) => {
-  const all = [];
-  for (let i = 1; i <= pages; i += 1) {
-    const { data } = await client.get(path, { params: { page: i } });
-    const items = unwrapItems(data);
-    if (!items?.length) break;
-    all.push(...items);
-  }
-  return all;
-};
-
-const withFallback = async (fn, fallback = {}) => {
+const withFallback = async (fn, fallback = null) => {
   try {
     if (!client.defaults.baseURL) throw new Error("Missing baseURL");
     return await fn();
@@ -160,7 +122,7 @@ export const getLatest = (page = 1) =>
       params: { page },
     });
     return mapOrFallback(unwrapItems(data));
-  }, demoMovies);
+  }, []);
 
 export const getSeries = (page = 1) =>
   withFallback(async () => {
@@ -168,7 +130,7 @@ export const getSeries = (page = 1) =>
       params: { page },
     });
     return mapOrFallback(unwrapItems(data));
-  }, demoMovies);
+  }, []);
 
 export const getSingle = (page = 1) =>
   withFallback(async () => {
@@ -176,7 +138,7 @@ export const getSingle = (page = 1) =>
       params: { page },
     });
     return mapOrFallback(unwrapItems(data));
-  }, demoMovies);
+  }, []);
 
 export const getCategory = (category, page = 1) =>
   withFallback(async () => {
@@ -184,15 +146,14 @@ export const getCategory = (category, page = 1) =>
       params: { page },
     });
     return mapOrFallback(uniqueBySlug(unwrapItems(data)));
-  }, demoMovies);
-
+  }, []);
 export const getCountry = (country, page = 1) =>
   withFallback(async () => {
     const { data } = await client.get(`/quoc-gia/${country}`, {
       params: { page },
     });
     return mapOrFallback(uniqueBySlug(unwrapItems(data)));
-  }, demoMovies);
+  }, []);
 
 export const getDetail = (slug) =>
   withFallback(
@@ -226,27 +187,26 @@ export const getDetail = (slug) =>
       const kkEpisodes = kkResult?.episodes || [];
       const mergedEpisodes = mergeEpisodes(kkEpisodes, ophimEpisodes);
 
-      const episodes = (
-        mergedEpisodes.length ? mergedEpisodes : demoEpisodes
-      ).map((ep, idx) => ({
+      const episodes = (mergedEpisodes.length ? mergedEpisodes : []).map(
+        (ep, idx) => ({
         name: ep.name || ep.filename || `Tập ${idx + 1}`,
         slug: ep.slug || ep.name || `ep-${idx + 1}`,
         link_m3u8:
           ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed || "",
         embed: ep.embed || ep.link_embed || ep.embed_url || ep.link || "",
-      }));
+        })
+      );
 
+      const kkMovie = kkResult?.movie ? normalizeMovie(kkResult.movie) : null;
       const hasKkLatest =
         (kkEpisodes?.length || 0) &&
         parseEpisodeNumber(kkEpisodes[0]?.name || kkEpisodes[0]?.slug) !== null;
       const movie =
-        hasKkLatest && kkResult?.movie?.name
-          ? kkResult.movie
-          : ophimMovie || kkResult?.movie || normalizeMovie(demoMovies[0]);
+        hasKkLatest && kkMovie?.name ? kkMovie : ophimMovie || kkMovie || null;
 
       return { movie, episodes };
     },
-    { movie: normalizeMovie(demoMovies[0]), episodes: demoEpisodes }
+    { movie: null, episodes: [] }
   );
 
 export const searchMovies = (query, page = 1) =>
@@ -257,13 +217,11 @@ export const searchMovies = (query, page = 1) =>
       });
       return mapOrFallback(unwrapItems(data));
     },
-    demoMovies.filter((movie) =>
-      movie.name.toLowerCase().includes((query || "").toLowerCase())
-    )
+    []
   );
 
 export const getEpisodes = (slug) =>
   withFallback(async () => {
     const detail = await getDetail(slug);
-    return detail.episodes || demoEpisodes;
-  }, demoEpisodes);
+    return detail.episodes || [];
+  }, []);
