@@ -31,11 +31,12 @@ const Home = () => {
   const { data: kkSingle = [], isLoading: loadingKKSingle } =
     useKKphimMovies("single");
 
-  const featured = latest?.[0] || popular?.[0];
+  const heroSource = (popular?.length ? popular : latest) || [];
+  const heroMovies = heroSource.slice(0, 5);
 
   return (
     <div className="space-y-10">
-      <Hero movie={featured} />
+      <Hero movies={heroMovies} />
 
       <Section
         title="Phim bộ (KKphim)"
