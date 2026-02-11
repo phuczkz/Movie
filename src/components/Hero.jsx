@@ -21,12 +21,9 @@ const Hero = ({ movie, movies = [] }) => {
   const slideCount = slides.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const activeMovie = slides[activeIndex] || slides[0];
+  const safeIndex = slideCount ? Math.min(activeIndex, slideCount - 1) : 0;
+  const activeMovie = slides[safeIndex] || slides[0];
   const episodeLabel = useEpisodeLabel(activeMovie);
-
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [slideCount]);
 
   useEffect(() => {
     if (slideCount <= 1 || isPaused) return undefined;
@@ -88,7 +85,7 @@ const Hero = ({ movie, movies = [] }) => {
             Đề cử hôm nay
             {slides.length > 1 ? (
               <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] md:text-[10px] font-bold">
-                {activeIndex + 1}/{slides.length}
+                {safeIndex + 1}/{slides.length}
               </span>
             ) : null}
           </div>
@@ -172,7 +169,7 @@ const Hero = ({ movie, movies = [] }) => {
         {slides.length > 1 ? (
           <div className="absolute left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex gap-1.5 md:gap-2 rounded-2xl bg-black/10 px-2 py-2 lg:bg-black/35 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
             {slides.slice(0, 6).map((item, idx) => {
-              const isActive = idx === activeIndex;
+              const isActive = idx === safeIndex;
               return (
                 <button
                   key={item.slug}
