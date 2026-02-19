@@ -48,13 +48,6 @@ const Profile = () => {
     return null;
   }, [user]);
 
-  const createdAt = useMemo(() => {
-    const value = userProfile?.createdAt;
-    if (!value) return "";
-    if (value instanceof Timestamp) return value.toDate().toLocaleDateString();
-    return value;
-  }, [userProfile]);
-
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!isFirebaseConfigured) {

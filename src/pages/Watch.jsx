@@ -18,54 +18,124 @@ import {
 import Player from "../components/Player.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
-import { getEpisodeLabel, parseEpisodeNumber } from "../utils/episodes.js";
+import {
+  getEpisodeLabel,
+  normalizeServerLabel,
+  parseEpisodeNumber,
+} from "../utils/episodes.js";
 
 const Watch = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const playerRef = useRef(null);
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const selectedEpisode = params.get("episode");
+  const selectedServerParam = params.get("server");
   const { data, isLoading } = useMovieDetail(slug);
 
   const { movie, episodes = [] } = data || {};
-  const episodesList = Array.isArray(episodes) ? [...episodes] : [];
+  const episodesList = Array.isArray(episodes) ? episodes : [];
   const isTmdb = movie?.slug?.startsWith("tmdb-");
+  const serverGroups = {};
+  episodesList.forEach((ep) => {
+    if (!ep) return;
+    const label = normalizeServerLabel(ep.server_name);
+    serverGroups[label] = serverGroups[label] || [];
+    serverGroups[label].push(ep);
+  });
+
+  const preferredServer =
+    serverGroups.Vietsub?.length
+      ? "Vietsub"
+      : serverGroups["Thuyết Minh"]?.length
+      ? "Thuyết Minh"
+      : Object.keys(serverGroups)[0];
+
+  const requestedServer = normalizeServerLabel(selectedServerParam);
+  const activeServer =
+    requestedServer && serverGroups[requestedServer]?.length
+      ? requestedServer
+      : preferredServer;
+
+  const sortEpisodes = (list = []) =>
+    list
+      .map((ep, idx) => ({
+        ep,
+        idx,
+        num: parseEpisodeNumber(ep?.name || ep?.slug),
+      }))
+      .sort((a, b) => {
+        const aHasNum = a.num !== null && a.num !== undefined;
+        const bHasNum = b.num !== null && b.num !== undefined;
+        if (aHasNum && bHasNum) return a.num - b.num;
+        if (aHasNum) return -1;
+        if (bHasNum) return 1;
+        return a.idx - b.idx;
+      })
+      .map(({ ep }) => ep);
+
+  const episodesForServer = sortEpisodes(serverGroups[activeServer] || []);
+
+  const hasVietsub = Boolean(serverGroups.Vietsub?.length);
+  const hasThuyetMinh = Boolean(serverGroups["Thuyết Minh"]?.length);
   const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
     isTmdb ? movie?.name : ""
   );
 
   const activeEpisode =
-    episodesList.find((ep) => ep.slug === selectedEpisode) ||
-    episodesList[0] ||
+    episodesForServer.find((ep) => ep.slug === selectedEpisode) ||
+    episodesForServer[0] ||
     null;
 
-  const sortedEpisodes = episodesList
-    .map((ep, idx) => ({
-      ep,
-      idx,
-      num: parseEpisodeNumber(ep?.name || ep?.slug),
-    }))
-    .sort((a, b) => {
-      const aHasNum = a.num !== null && a.num !== undefined;
-      const bHasNum = b.num !== null && b.num !== undefined;
-      if (aHasNum && bHasNum) return a.num - b.num;
-      if (aHasNum) return -1;
-      if (bHasNum) return 1;
-      return a.idx - b.idx;
-    })
-    .map(({ ep }) => ep);
-
   const currentIndex = activeEpisode
-    ? sortedEpisodes.findIndex((ep) => ep.slug === activeEpisode.slug)
+    ? episodesForServer.findIndex((ep) => ep.slug === activeEpisode.slug)
     : -1;
   const nextEpisode =
-    currentIndex >= 0 ? sortedEpisodes[currentIndex + 1] || null : null;
+    currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
+
+  const handleServerChange = (serverLabel) => {
+    const targetLabel = normalizeServerLabel(serverLabel);
+    if (!targetLabel || targetLabel === activeServer) return;
+    const candidates = sortEpisodes(serverGroups[targetLabel] || []);
+    if (!candidates.length) return;
+
+    const currentSlug = params.get("episode");
+    const matched = candidates.find((ep) => ep.slug === currentSlug);
+    const nextSlug = (matched || candidates[0]).slug;
+
+    const nextParams = new URLSearchParams(params);
+    nextParams.set("server", targetLabel);
+    nextParams.set("episode", nextSlug);
+    setParams(nextParams, { replace: true });
+  };
 
   useEffect(() => {
     if (!selectedEpisode || !playerRef.current) return;
     playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedEpisode]);
+
+  useEffect(() => {
+    if (!episodesForServer.length) return;
+
+    const nextParams = new URLSearchParams(params);
+    let changed = false;
+
+    if (activeServer && params.get("server") !== activeServer) {
+      nextParams.set("server", activeServer);
+      changed = true;
+    }
+
+    const currentEpisode = params.get("episode");
+    const hasEpisode = episodesForServer.some((ep) => ep.slug === currentEpisode);
+    if (!hasEpisode) {
+      nextParams.set("episode", episodesForServer[0].slug);
+      changed = true;
+    }
+
+    if (changed) {
+      setParams(nextParams, { replace: true });
+    }
+  }, [episodesForServer, activeServer, params, setParams]);
 
   if (isLoading)
     return <div className="text-slate-300">Đang tải player...</div>;
@@ -141,18 +211,67 @@ const Watch = () => {
         ) : null}
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+          <button
+            type="button"
+            onClick={() => handleServerChange("Vietsub")}
+            disabled={!hasVietsub}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+              activeServer === "Vietsub"
+                ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
+                : "text-slate-200 hover:bg-white/10"
+            } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
+          >
+            Vietsub
+          </button>
+          {hasThuyetMinh ? (
+            <button
+              type="button"
+              onClick={() => handleServerChange("Thuyết Minh")}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+                activeServer === "Thuyết Minh"
+                  ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
+                  : "text-slate-200 hover:bg-white/10"
+              }`}
+            >
+              Thuyết Minh
+            </button>
+          ) : null}
+        </div>
+        {!hasThuyetMinh ? (
+          hasVietsub ? (
+            <p className="text-xs text-slate-400">
+              Hiện chỉ có nguồn Vietsub.
+            </p>
+          ) : activeServer ? (
+            <p className="text-xs text-slate-400">
+              Đang dùng nguồn {activeServer}.
+            </p>
+          ) : null
+        ) : null}
+      </div>
+
       <div ref={playerRef}>
         <Player
           source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
           poster={movie?.thumb_url || movie?.poster_url}
           title={movie?.name}
-          subtitle={activeEpisode?.name}
+          subtitle={
+            activeEpisode?.name
+              ? `${activeEpisode.name} • ${activeServer || "Vietsub"}`
+              : undefined
+          }
           onNextEpisode={() => {
             if (!nextEpisode) return;
             navigate(
               `/watch/${slug}?episode=${encodeURIComponent(
                 nextEpisode.slug || nextEpisode.name
-              )}`
+              )}${
+                activeServer
+                  ? `&server=${encodeURIComponent(activeServer)}`
+                  : ""
+              }`
             );
           }}
           hasNextEpisode={Boolean(nextEpisode)}
@@ -243,7 +362,7 @@ const Watch = () => {
         </div>
       </div>
 
-      {episodes.length ? (
+      {episodesForServer.length ? (
         <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-emerald-500/15 via-purple-500/10 to-blue-500/15 px-4 py-3 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
             <Bell className="h-5 w-5" />
@@ -255,7 +374,7 @@ const Watch = () => {
                 : "Chọn tập để xem"}
             </p>
             <p className="text-xs text-slate-200/80">
-              Tổng cộng {episodes.length} tập, chọn bên dưới.
+              Tổng cộng {episodesForServer.length} tập, chọn bên dưới.
             </p>
           </div>
         </div>
@@ -268,7 +387,7 @@ const Watch = () => {
               Phần 1
             </p>
             <h2 className="text-lg font-semibold text-white">
-              Danh sách tập {episodes.length ? `(${episodes.length})` : ""}
+              Danh sách tập {episodesForServer.length ? `(${episodesForServer.length})` : ""}
             </h2>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-300">
@@ -277,14 +396,18 @@ const Watch = () => {
           </div>
         </div>
 
-        {sortedEpisodes.length ? (
+        {episodesForServer.length ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {sortedEpisodes.map((ep, idx) => (
+            {episodesForServer.map((ep, idx) => (
               <Link
-                key={ep.slug || ep.name || idx}
+                key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
                 to={`/watch/${slug}?episode=${encodeURIComponent(
                   ep.slug || ep.name || `ep-${idx + 1}`
-                )}`}
+                )}${
+                  activeServer
+                    ? `&server=${encodeURIComponent(activeServer)}`
+                    : ""
+                }`}
                 className={`group flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${
                   activeEpisode?.slug === ep.slug
                     ? "border-emerald-400 bg-emerald-500/10"

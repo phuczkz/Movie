@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
@@ -23,16 +23,11 @@ const Category = () => {
   const { category, page: pageParam } = useParams();
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
-  const [page, setPage] = useState(1);
+  const page = pageFromUrl;
   const pageSize = 20;
-
-  useEffect(() => {
-    setPage(pageFromUrl);
-  }, [category, pageFromUrl]);
 
   const goToPage = (nextPage) => {
     const safePage = Math.max(1, nextPage);
-    setPage(safePage);
     navigate(`/category/${category}${safePage > 1 ? `/${safePage}` : ""}`);
   };
 
@@ -118,7 +113,6 @@ const Category = () => {
     kkCategory,
     kkAnimation,
     isAnimation,
-    page,
   ]);
 
   const isLoading = useMemo(() => {

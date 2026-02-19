@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -39,6 +46,16 @@ const rejectIfMissing = () => {
   );
 };
 
+const buildDefaultProfile = (currentUser) => ({
+  email: currentUser.email,
+  displayName: currentUser.displayName || "Người dùng",
+  phoneNumber: currentUser.phoneNumber || "",
+  birthday: "",
+  photoURL: currentUser.photoURL || "",
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+});
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,59 +67,52 @@ export const AuthProvider = ({ children }) => {
     return true;
   };
 
-  const buildDefaultProfile = (currentUser) => ({
-    email: currentUser.email,
-    displayName: currentUser.displayName || "Người dùng",
-    phoneNumber: currentUser.phoneNumber || "",
-    birthday: "",
-    photoURL: currentUser.photoURL || "",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const fetchProfile = useCallback(
+    async (currentUser) => {
+      if (!currentUser || !db) return null;
+      setProfileLoading(true);
+      try {
+        const ref = doc(db, "users", currentUser.uid);
+        const snapshot = await getDoc(ref);
+        const base = buildDefaultProfile(currentUser);
+        const normalizeDate = (value) => {
+          if (!value) return "";
+          if (value instanceof Timestamp)
+            return value.toDate().toISOString().slice(0, 10);
+          if (typeof value === "string") return value;
+          return "";
+        };
 
-  const fetchProfile = async (currentUser) => {
-    if (!currentUser || !db) return null;
-    setProfileLoading(true);
-    try {
-      const ref = doc(db, "users", currentUser.uid);
-      const snapshot = await getDoc(ref);
-      const base = buildDefaultProfile(currentUser);
-      const normalizeDate = (value) => {
-        if (!value) return "";
-        if (value instanceof Timestamp)
-          return value.toDate().toISOString().slice(0, 10);
-        if (typeof value === "string") return value;
-        return "";
-      };
+        if (!snapshot.exists()) {
+          await setDoc(ref, base);
+          return {
+            id: ref.id,
+            ...base,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          };
+        }
 
-      if (!snapshot.exists()) {
-        await setDoc(ref, base);
+        const data = snapshot.data() || {};
         return {
           id: ref.id,
-          ...base,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
+          email: data.email ?? base.email,
+          displayName: data.displayName ?? base.displayName,
+          phoneNumber:
+            typeof data.phoneNumber === "string"
+              ? data.phoneNumber.trim()
+              : base.phoneNumber,
+          birthday: normalizeDate(data.birthday) || base.birthday,
+          photoURL: data.photoURL ?? base.photoURL,
+          createdAt: data.createdAt ?? Timestamp.now(),
+          updatedAt: data.updatedAt ?? Timestamp.now(),
         };
+      } finally {
+        setProfileLoading(false);
       }
-
-      const data = snapshot.data() || {};
-      return {
-        id: ref.id,
-        email: data.email ?? base.email,
-        displayName: data.displayName ?? base.displayName,
-        phoneNumber:
-          typeof data.phoneNumber === "string"
-            ? data.phoneNumber.trim()
-            : base.phoneNumber,
-        birthday: normalizeDate(data.birthday) || base.birthday,
-        photoURL: data.photoURL ?? base.photoURL,
-        createdAt: data.createdAt ?? Timestamp.now(),
-        updatedAt: data.updatedAt ?? Timestamp.now(),
-      };
-    } finally {
-      setProfileLoading(false);
-    }
-  };
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -119,7 +129,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
     return unsubscribe;
-  }, []);
+  }, [fetchProfile]);
 
   const value = useMemo(
     () => ({
@@ -214,10 +224,11 @@ export const AuthProvider = ({ children }) => {
         return signOut(auth);
       },
     }),
-    [user, loading, userProfile, profileLoading]
+    [user, loading, userProfile, profileLoading, fetchProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);

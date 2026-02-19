@@ -69,7 +69,7 @@ const Hero = ({ movie, movies = [] }) => {
     >
       <div className="absolute inset-0">
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-110 contrast-[1.08] transition duration-700 ease-out"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-105 contrast-[1.08] transition duration-700 ease-out"
           style={{ backgroundImage: `url(${background})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/25" />
@@ -170,12 +170,23 @@ const Hero = ({ movie, movies = [] }) => {
           <div className="absolute left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex gap-1.5 md:gap-2 rounded-2xl bg-black/10 px-2 py-2 lg:bg-black/35 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
             {slides.slice(0, 6).map((item, idx) => {
               const isActive = idx === safeIndex;
+              const thumbSource =
+                item.backdrop_url ||
+                item.banner ||
+                (item.thumb_url !== item.poster_url ? item.thumb_url : null) ||
+                item.thumb_url ||
+                item.poster_url ||
+                "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
+              const hasLandscape = Boolean(
+                item.backdrop_url || item.banner || item.thumb_url !== item.poster_url
+              );
+              const fitClass = hasLandscape ? "object-cover" : "object-contain";
               return (
                 <button
                   key={item.slug}
                   type="button"
                   onClick={() => setActiveIndex(idx)}
-                  className={`group relative h-11 w-11 md:h-12 md:w-12 lg:h-16 lg:w-28 overflow-hidden rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${
+                  className={`group relative aspect-video w-24 md:w-28 lg:w-32 overflow-hidden rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${
                     isActive
                       ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
                       : "border-white/15 hover:border-white/25"
@@ -183,9 +194,9 @@ const Hero = ({ movie, movies = [] }) => {
                   aria-label={`Chọn ${item.name}`}
                 >
                   <img
-                    src={item.thumb_url || item.poster_url}
+                    src={thumbSource}
                     alt={item.name}
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    className={`h-full w-full ${fitClass} transition duration-500 group-hover:scale-105`}
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />

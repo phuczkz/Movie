@@ -2,11 +2,7 @@ import { BookmarkPlus, Play } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
-import {
-  getEpisodeLabel,
-  getLatestEpisodeNumber,
-  parseEpisodeNumber,
-} from "../utils/episodes.js";
+import { getLatestEpisodeNumber, parseEpisodeNumber } from "../utils/episodes.js";
 
 const Detail = () => {
   const { slug } = useParams();
@@ -66,7 +62,7 @@ const Detail = () => {
 
     // Try pattern: HH:mm DD/MM/YYYY or variants with separators
     const regex =
-      /(?:(\d{1,2})[:h](\d{2}))?[^\d]*(\d{1,2})[\/](\d{1,2})[\/](\d{2,4})/;
+      /(?:(\d{1,2})[:h](\d{2}))?[^\d]*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/;
     const match = raw.match(regex);
     if (match) {
       const [, hh, mm, dd, MM, yyyy] = match;

@@ -6,10 +6,10 @@ import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
 
-const Grid = ({ items = [] }) => (
-  <div className="grid-movies">
+const Grid = ({ items = [], variant = "portrait", className = "" }) => (
+  <div className={`grid-movies ${className}`.trim()}>
     {items.map((movie) => (
-      <MovieCard key={movie.slug} movie={movie} />
+      <MovieCard key={movie.slug} movie={movie} variant={variant} />
     ))}
   </div>
 );
@@ -31,8 +31,9 @@ const Home = () => {
   const { data: kkSingle = [], isLoading: loadingKKSingle } =
     useKKphimMovies("single");
 
-  const heroSource = (popular?.length ? popular : latest) || [];
+  const heroSource = popular && popular.length >= 4 ? popular : latest;
   const heroMovies = heroSource.slice(0, 5);
+  const latestHot = heroSource.slice(0, 7);
 
   return (
     <div className="space-y-10">
@@ -82,7 +83,11 @@ const Home = () => {
         {loadingLatest ? (
           <div className="text-slate-400">Đang tải...</div>
         ) : (
-          <Grid items={latest} />
+          <Grid
+            items={latestHot}
+            variant="landscape"
+            className="grid-movies-landscape"
+          />
         )}
       </Section>
 

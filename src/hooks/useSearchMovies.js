@@ -39,7 +39,7 @@ export const useSearchMovies = (query, page = 1) =>
         try {
           const res = await fn();
           return res || [];
-        } catch (e) {
+        } catch {
           return [];
         }
       };

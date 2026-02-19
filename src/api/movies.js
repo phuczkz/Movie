@@ -3,23 +3,37 @@ import { getTmdbDetailBySlug } from "./tmdb";
 import { getKKphimDetail } from "./kkphim";
 
 
+const fallbackPortrait =
+  "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
+const fallbackLandscape =
+  "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
+
 const normalizePoster = (url = "") => {
-  if (!url) return "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
+  if (!url) return fallbackPortrait;
+  if (url.startsWith("http")) return url;
+  const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
+  return cdn ? `${cdn}${url}` : url;
+};
+
+const normalizeLandscape = (url = "") => {
+  if (!url) return fallbackLandscape;
   if (url.startsWith("http")) return url;
   const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
   return cdn ? `${cdn}${url}` : url;
 };
 
 const normalizeMovie = (raw = {}) => {
-  const poster =
-    raw.thumb_url || raw.poster_url || raw.poster || raw.banner || "";
+  const poster = raw.poster_url || raw.poster || raw.thumb_url || raw.banner || "";
+  const backdrop =
+    raw.banner || raw.backdrop_url || raw.thumb_url || raw.poster_url || "";
   const posterNormalized = normalizePoster(poster);
+  const thumbNormalized = normalizeLandscape(backdrop);
 
   return {
     slug: raw.slug || raw._id || raw.id || "unknown",
     name: raw.name || raw.title || raw.origin_name || "Chưa có tên",
     poster_url: posterNormalized,
-    thumb_url: posterNormalized,
+    thumb_url: thumbNormalized,
     year: raw.year || raw.released || raw.publishYear,
     episode_current: raw.episode_current || raw.episodeCurrent || raw.status,
     episode_total: raw.episode_total || raw.episodeTotal,
@@ -40,6 +54,20 @@ const parseEpisodeNumber = (value) => {
   return match ? Number(match[1]) : null;
 };
 
+const stripDiacritics = (text = "") =>
+  text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const normalizeServerName = (name) => {
+  const raw = (name || "").toString().trim();
+  const plain = stripDiacritics(raw).toLowerCase();
+
+  if (!raw) return "Vietsub";
+  if (plain.includes("thuyet") || plain.includes("thuy minh"))
+    return "Thuyết Minh";
+  if (plain.includes("viet")) return "Vietsub";
+  return raw;
+};
+
 const mergeEpisodes = (kkList = [], ophimList = []) => {
   const map = new Map();
 
@@ -47,8 +75,12 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
     list.forEach((ep) => {
       if (!ep) return;
       const epNum = parseEpisodeNumber(ep.name || ep.slug);
-      const key = epNum !== null ? `ep-${epNum}` : ep.slug || ep.name;
-      if (!key) return;
+      const serverLabel = normalizeServerName(
+        ep.server_name || ep.server || ep.serverName
+      );
+      const baseKey = epNum !== null ? `ep-${epNum}` : ep.slug || ep.name;
+      const key = `${serverLabel || "default"}__${baseKey}`;
+      if (!baseKey) return;
 
       const current = map.get(key);
       const prefers = !current || priority < current.priority;
@@ -65,7 +97,11 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
       );
 
       if (prefers || (!currentHasLink && hasLink)) {
-        map.set(key, { ep, priority, epNum: epNum ?? -1 });
+        map.set(key, {
+          ep: { ...ep, server_name: serverLabel },
+          priority,
+          epNum: epNum ?? -1,
+        });
       }
     });
   };
@@ -78,7 +114,8 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
   merged.sort((a, b) => {
     const na = parseEpisodeNumber(a.name || a.slug) ?? -1;
     const nb = parseEpisodeNumber(b.name || b.slug) ?? -1;
-    return nb - na;
+    if (na !== nb) return na - nb;
+    return (a.server_name || "").localeCompare(b.server_name || "");
   });
   return merged;
 };
@@ -178,7 +215,19 @@ export const getDetail = (slug) =>
         const rawEpisodes =
           payload?.episodes || data?.data?.episodes || data?.episodes || [];
         ophimEpisodes = Array.isArray(rawEpisodes)
-          ? rawEpisodes.flatMap((server) => server?.server_data || server || [])
+          ? rawEpisodes.flatMap((server, serverIdx) => {
+              const serverName =
+                server?.server_name || server?.name || server?.server || "";
+              const list = server?.server_data || server || [];
+              return Array.isArray(list)
+                ? list.map((ep, idx) => ({
+                    ...ep,
+                    server_name: serverName,
+                    _serverIndex: serverIdx,
+                    _epIndex: idx,
+                  }))
+                : [];
+            })
           : [];
       } catch (error) {
         console.warn("[getDetail] Ophim failed", error.message);
@@ -189,11 +238,17 @@ export const getDetail = (slug) =>
 
       const episodes = (mergedEpisodes.length ? mergedEpisodes : []).map(
         (ep, idx) => ({
-        name: ep.name || ep.filename || `Tập ${idx + 1}`,
-        slug: ep.slug || ep.name || `ep-${idx + 1}`,
-        link_m3u8:
-          ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed || "",
-        embed: ep.embed || ep.link_embed || ep.embed_url || ep.link || "",
+          name: ep.name || ep.filename || `Tập ${idx + 1}`,
+          slug: ep.slug || ep.name || `ep-${idx + 1}`,
+          server_name: normalizeServerName(ep.server_name),
+          link_m3u8:
+            ep.link_m3u8 ||
+            ep.m3u8 ||
+            ep.linkplay ||
+            ep.link ||
+            ep.embed ||
+            "",
+          embed: ep.embed || ep.link_embed || ep.embed_url || ep.link || "",
         })
       );
 

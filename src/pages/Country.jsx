@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CountryFilter from "../components/CountryFilter.jsx";
 import MovieCard from "../components/MovieCard.jsx";
@@ -20,16 +20,11 @@ const Country = () => {
   const { country, page: pageParam } = useParams();
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
-  const [page, setPage] = useState(1);
+  const page = pageFromUrl;
   const pageSize = 20;
-
-  useEffect(() => {
-    setPage(pageFromUrl);
-  }, [country, pageFromUrl]);
 
   const goToPage = (nextPage) => {
     const safePage = Math.max(1, nextPage);
-    setPage(safePage);
     navigate(`/country/${country}${safePage > 1 ? `/${safePage}` : ""}`);
   };
 

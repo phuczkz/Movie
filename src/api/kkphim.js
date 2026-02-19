@@ -33,7 +33,9 @@ const normalizePosterUrl = (url = "") => {
 
 const normalizeKKphimMovie = (raw = {}) => {
   const poster_url = normalizePosterUrl(raw.poster_url || raw.thumb_url);
-  const thumb_url = normalizePosterUrl(raw.thumb_url || raw.poster_url);
+  const thumb_url = normalizePosterUrl(
+    raw.banner || raw.backdrop_url || raw.thumb_url || raw.poster_url
+  );
 
   return {
     slug: raw.slug || raw._id || raw.id || "unknown",
@@ -89,16 +91,26 @@ export const getKKphimDetail = async (slug) => {
   const movieData = data?.data?.item || data?.item || data?.movie || data;
   const movie = normalizeKKphimMovie(movieData);
   const episodesData = movieData?.episodes || [];
-  const flattenedEpisodes = Array.isArray(episodesData)
-    ? episodesData.flatMap((server) => server?.server_data || server || [])
+  const episodes = Array.isArray(episodesData)
+    ? episodesData.flatMap((server) => {
+        const serverName = server?.server_name || server?.name || "";
+        const list = server?.server_data || server || [];
+        return Array.isArray(list)
+          ? list.map((ep, idx) => ({
+              ...ep,
+              server_name: serverName,
+              _serverIndex: idx,
+            }))
+          : [];
+      })
     : [];
-  const episodes = flattenedEpisodes.length ? flattenedEpisodes : [];
 
   return {
     movie,
     episodes: episodes.map((ep, idx) => ({
       name: ep.name || `Tập ${idx + 1}`,
       slug: ep.slug || `ep-${idx + 1}`,
+      server_name: ep.server_name || "",
       link_m3u8: ep.link_m3u8 || ep.link_embed || ep.link || "",
       embed: ep.link_embed || ep.link_m3u8 || ep.link || "",
     })),
