@@ -18,6 +18,7 @@ import {
   Timestamp,
   doc,
   getDoc,
+  deleteDoc,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -38,6 +39,8 @@ const AuthContext = createContext({
   registerEmail: async () => {},
   updateProfileData: async () => {},
   logout: async () => {},
+  saveMovie: async () => {},
+  removeSavedMovie: async () => {},
 });
 
 const rejectIfMissing = () => {
@@ -65,6 +68,14 @@ export const AuthProvider = ({ children }) => {
   const ensureFirebase = () => {
     if (!auth || !db) return rejectIfMissing();
     return true;
+  };
+
+  const ensureCurrentUser = () => {
+    ensureFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser)
+      throw new Error("Bạn cần đăng nhập để lưu hoặc quản lý phim.");
+    return currentUser;
   };
 
   const fetchProfile = useCallback(
@@ -222,6 +233,34 @@ export const AuthProvider = ({ children }) => {
       logout: async () => {
         if (!auth) return rejectIfMissing();
         return signOut(auth);
+      },
+      saveMovie: async (movie) => {
+        const currentUser = ensureCurrentUser();
+        if (!movie || !movie.slug)
+          throw new Error("Thiếu thông tin phim để lưu.");
+
+        const ref = doc(db, "users", currentUser.uid, "savedMovies", movie.slug);
+        const payload = {
+          slug: movie.slug,
+          name: movie.name || "Phim chưa đặt tên",
+          poster_url: movie.poster_url || movie.thumb_url || "",
+          year: movie.year || null,
+          quality: movie.quality || null,
+          lang: movie.lang || movie.language || null,
+          type: movie.type || null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(ref, payload, { merge: true });
+        return true;
+      },
+      removeSavedMovie: async (slug) => {
+        const currentUser = ensureCurrentUser();
+        if (!slug) throw new Error("Thiếu slug phim cần xoá.");
+        const ref = doc(db, "users", currentUser.uid, "savedMovies", slug);
+        await deleteDoc(ref);
+        return true;
       },
     }),
     [user, loading, userProfile, profileLoading, fetchProfile]

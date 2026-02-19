@@ -9,6 +9,7 @@ const primaryNav = [
   { label: "Phim Bộ", to: "/category/phim-bo" },
   { label: "Hoạt Hình", to: "/category/hoat-hinh" },
   { label: "Phim Lẻ", to: "/category/phim-le" },
+  { label: "Yêu Thích", to: "/saved" },
 ];
 
 const yearOptions = [
@@ -42,6 +43,7 @@ const moreOptions = [
   { label: "TV Show", to: "/search?q=tv-show" },
   { label: "Phim Sắp Chiếu", to: "/search?q=sap-chieu" },
   { label: "Thuyết Minh", to: "/search?q=thuyet-minh" },
+  { label: "Phim Yêu Thích", to: "/saved" },
 ];
 
 const Dropdown = ({ label, options }) => (

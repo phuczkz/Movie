@@ -1,17 +1,27 @@
-import { BookmarkPlus, Play } from "lucide-react";
+import { Heart, Play } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
+import { useSavedMovie } from "../hooks/useSavedMovie.js";
 import { getLatestEpisodeNumber, parseEpisodeNumber } from "../utils/episodes.js";
 
 const Detail = () => {
   const { slug } = useParams();
   const { data, isLoading } = useMovieDetail(slug);
 
+  const { movie, episodes = [] } = data || {};
+  const {
+    isSaved,
+    loading: saving,
+    error,
+    message,
+    lastAction,
+    toggleSave,
+  } = useSavedMovie(movie);
+
   if (isLoading)
     return <div className="text-slate-300">Đang tải chi tiết...</div>;
 
-  const { movie, episodes = [] } = data || {};
   const isTmdb = movie?.slug?.startsWith("tmdb-");
 
   const latestEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
@@ -98,9 +108,23 @@ const Detail = () => {
           />
         </div>
         <div className="flex gap-3">
-          <button className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
-            <BookmarkPlus className="inline h-4 w-4 mr-2" />
-            Lưu phim
+          <button
+            type="button"
+            onClick={toggleSave}
+            disabled={saving}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition border ${
+              isSaved
+                ? "bg-rose-500/20 text-rose-100 hover:bg-rose-500/30 border-rose-400/50"
+                : "bg-emerald-500 text-slate-950 hover:bg-emerald-400 border-emerald-400/60"
+            } ${saving ? "opacity-80" : ""}`}
+          >
+            <Heart
+              className="h-4 w-4"
+              fill={isSaved ? "currentColor" : "none"}
+            />
+            <span className="whitespace-nowrap">
+              {saving ? "Đang lưu..." : isSaved ? "Bỏ yêu thích" : "Yêu thích"}
+            </span>
           </button>
           <Link
             to={`/watch/${movie.slug}`}
@@ -112,6 +136,20 @@ const Detail = () => {
             {episodes.length ? "Xem ngay" : "Mở trang xem"}
           </Link>
         </div>
+        {message ? (
+          <p
+            className={`text-xs font-semibold ${
+              lastAction === "remove" ? "text-rose-200" : "text-emerald-200"
+            }`}
+          >
+            {message}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="text-xs text-amber-200">
+            {error.message || "Không thể cập nhật Yêu thích, thử lại sau."}
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-6">

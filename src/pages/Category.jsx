@@ -27,7 +27,7 @@ const Category = () => {
   const pageSize = 20;
 
   const goToPage = (nextPage) => {
-    const safePage = Math.max(1, nextPage);
+    const safePage = Math.max(1, 2, nextPage);
     navigate(`/category/${category}${safePage > 1 ? `/${safePage}` : ""}`);
   };
 

@@ -32,7 +32,7 @@ const Home = () => {
     useKKphimMovies("single");
 
   const heroSource = popular && popular.length >= 4 ? popular : latest;
-  const heroMovies = heroSource.slice(0, 5);
+  const heroMovies = heroSource.slice(0, 4);
   const latestHot = heroSource.slice(0, 7);
 
   return (
