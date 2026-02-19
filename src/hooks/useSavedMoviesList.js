@@ -11,7 +11,7 @@ export const useSavedMoviesList = () => {
 
   const colRef = useMemo(() => {
     if (!user || !db) return null;
-    return collection(db, "users", user.uid, "savedMovies");
+    return collection(db, "users", user.uid, "FavoriteMovies");
   }, [user, db]);
 
   useEffect(() => {

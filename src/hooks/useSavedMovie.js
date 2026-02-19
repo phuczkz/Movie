@@ -22,7 +22,7 @@ export const useSavedMovie = (movieOrSlug) => {
 			return undefined;
 		}
 
-		const ref = doc(db, "users", user.uid, "savedMovies", slug);
+		const ref = doc(db, "users", user.uid, "FavoriteMovies", slug);
 		const unsubscribe = onSnapshot(
 			ref,
 			(snapshot) => setIsSaved(snapshot.exists()),
