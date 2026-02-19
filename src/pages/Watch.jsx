@@ -211,47 +211,6 @@ const Watch = () => {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
-          <button
-            type="button"
-            onClick={() => handleServerChange("Vietsub")}
-            disabled={!hasVietsub}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
-              activeServer === "Vietsub"
-                ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
-                : "text-slate-200 hover:bg-white/10"
-            } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
-          >
-            Vietsub
-          </button>
-          {hasThuyetMinh ? (
-            <button
-              type="button"
-              onClick={() => handleServerChange("Thuyết Minh")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
-                activeServer === "Thuyết Minh"
-                  ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
-                  : "text-slate-200 hover:bg-white/10"
-              }`}
-            >
-              Thuyết Minh
-            </button>
-          ) : null}
-        </div>
-        {!hasThuyetMinh ? (
-          hasVietsub ? (
-            <p className="text-xs text-slate-400">
-              Hiện chỉ có nguồn Vietsub.
-            </p>
-          ) : activeServer ? (
-            <p className="text-xs text-slate-400">
-              Đang dùng nguồn {activeServer}.
-            </p>
-          ) : null
-        ) : null}
-      </div>
-
       <div ref={playerRef}>
         <Player
           source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
@@ -390,9 +349,40 @@ const Watch = () => {
               Danh sách tập {episodesForServer.length ? `(${episodesForServer.length})` : ""}
             </h2>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-300">
-            <ListChecks className="h-4 w-4" />
-            <span>Chọn tập để xem</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {hasVietsub || hasThuyetMinh ? (
+              <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+                <button
+                  type="button"
+                  onClick={() => handleServerChange("Vietsub")}
+                  disabled={!hasVietsub}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+                    activeServer === "Vietsub"
+                      ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
+                      : "text-slate-200 hover:bg-white/10"
+                  } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  Vietsub
+                </button>
+                {hasThuyetMinh ? (
+                  <button
+                    type="button"
+                    onClick={() => handleServerChange("Thuyết Minh")}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+                      activeServer === "Thuyết Minh"
+                        ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
+                        : "text-slate-200 hover:bg-white/10"
+                    }`}
+                  >
+                    Thuyết Minh
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <ListChecks className="h-4 w-4" />
+              <span>Chọn tập để xem</span>
+            </div>
           </div>
         </div>
 

@@ -1,30 +1,10 @@
 import { Link, useParams } from "react-router-dom";
-import {
-  normalizeServerLabel,
-  parseEpisodeNumber,
-} from "../utils/episodes";
+import { parseEpisodeNumber } from "../utils/episodes";
 
-const EpisodeList = ({ episodes = [] }) => {
+const EpisodeList = ({ episodes = [], serverLabel }) => {
   const { slug } = useParams();
 
-  const grouped = episodes.reduce((acc, ep) => {
-    if (!ep) return acc;
-    const label = normalizeServerLabel(ep.server_name);
-    acc[label] = acc[label] || [];
-    acc[label].push(ep);
-    return acc;
-  }, {});
-
-  const preferredServer =
-    grouped.Vietsub?.length
-      ? "Vietsub"
-      : grouped["Thuyết Minh"]?.length
-      ? "Thuyết Minh"
-      : Object.keys(grouped)[0];
-
-  const list = (preferredServer ? grouped[preferredServer] : episodes) || [];
-
-  const sortedEpisodes = list
+  const sortedEpisodes = (episodes || [])
     .map((ep, idx) => ({
       ep,
       idx,
@@ -40,15 +20,15 @@ const EpisodeList = ({ episodes = [] }) => {
     })
     .map(({ ep }) => ep);
 
-  const serverParam = preferredServer
-    ? `&server=${encodeURIComponent(preferredServer)}`
+  const serverParam = serverLabel
+    ? `&server=${encodeURIComponent(serverLabel)}`
     : "";
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
       {sortedEpisodes.map((episode, idx) => (
         <Link
-          key={`${preferredServer || "default"}-${episode.slug || idx}`}
+          key={`${serverLabel || "default"}-${episode.slug || idx}`}
           to={`/watch/${slug}?episode=${encodeURIComponent(
             episode.slug
           )}${serverParam}`}

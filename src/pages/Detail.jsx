@@ -1,9 +1,14 @@
 import { Heart, Play } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSavedMovie } from "../hooks/useSavedMovie.js";
-import { getLatestEpisodeNumber, parseEpisodeNumber } from "../utils/episodes.js";
+import {
+  getLatestEpisodeNumber,
+  normalizeServerLabel,
+  parseEpisodeNumber,
+} from "../utils/episodes.js";
 
 const Detail = () => {
   const { slug } = useParams();
@@ -18,6 +23,40 @@ const Detail = () => {
     lastAction,
     toggleSave,
   } = useSavedMovie(movie);
+
+  const serverGroups = useMemo(() => {
+    if (!episodes?.length) return {};
+    return episodes.reduce((acc, ep) => {
+      if (!ep) return acc;
+      const label = normalizeServerLabel(ep.server_name);
+      acc[label] = acc[label] || [];
+      acc[label].push(ep);
+      return acc;
+    }, {});
+  }, [episodes]);
+
+  const hasVietsub = !!serverGroups.Vietsub?.length;
+  const hasThuyetMinh = !!serverGroups["Thuyết Minh"]?.length;
+
+  const preferredServer = useMemo(() => {
+    if (hasVietsub) return "Vietsub";
+    if (hasThuyetMinh) return "Thuyết Minh";
+    return Object.keys(serverGroups)[0] || null;
+  }, [hasThuyetMinh, hasVietsub, serverGroups]);
+
+  const [userSelectedServer, setUserSelectedServer] = useState(null);
+
+  const selectedServer = useMemo(() => {
+    if (userSelectedServer && serverGroups[userSelectedServer])
+      return userSelectedServer;
+    return preferredServer;
+  }, [preferredServer, serverGroups, userSelectedServer]);
+
+  const selectedEpisodes = useMemo(() => {
+    if (selectedServer && serverGroups[selectedServer])
+      return serverGroups[selectedServer];
+    return episodes;
+  }, [episodes, selectedServer, serverGroups]);
 
   if (isLoading)
     return <div className="text-slate-300">Đang tải chi tiết...</div>;
@@ -220,6 +259,36 @@ const Detail = () => {
 
         <div className="space-y-3">
           <h2 className="text-xl font-semibold text-white">Danh sách tập</h2>
+          {Object.keys(serverGroups).length ? (
+            <div className="flex items-center gap-2 pt-1">
+              {hasVietsub ? (
+                <button
+                  type="button"
+                  onClick={() => setUserSelectedServer("Vietsub")}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                    selectedServer === "Vietsub"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                  }`}
+                >
+                  Vietsub
+                </button>
+              ) : null}
+              {hasThuyetMinh ? (
+                <button
+                  type="button"
+                  onClick={() => setUserSelectedServer("Thuyết Minh")}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                    selectedServer === "Thuyết Minh"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                  }`}
+                >
+                  Thuyết minh
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {showUpcomingNotice ? (
             <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
               <div>
@@ -237,7 +306,10 @@ const Detail = () => {
             </div>
           ) : null}
           {episodes.length ? (
-            <EpisodeList episodes={episodes} />
+            <EpisodeList
+              episodes={selectedEpisodes}
+              serverLabel={selectedServer || undefined}
+            />
           ) : (
             <p className="text-slate-400">
               {isTmdb ? "Nguồn TMDB chưa có tập phát online." : "Chưa có tập."}

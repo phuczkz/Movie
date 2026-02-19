@@ -77,7 +77,7 @@ const Country = () => {
         <div className="text-slate-400">Đang tải...</div>
       ) : movies.length ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4">
             {pagedData.items.map((movie) => (
               <MovieCard key={movie.slug} movie={movie} />
             ))}
@@ -93,7 +93,7 @@ const Country = () => {
               </button>
               <div className="flex items-center gap-1">
                 {Array.from(
-                  { length: pagedData.hasNext ? page + 1 : page },
+                  { length: pagedData.hasNext ? page + 4 : page },
                   (_, idx) => idx + 1
                 ).map((p) => (
                   <button
