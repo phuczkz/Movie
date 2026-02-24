@@ -142,7 +142,13 @@ const Profile = () => {
             <input
               type="date"
               value={birthday || ""}
-              onChange={(e) => setBirthday(e.target.value)}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                const value = e.target.value;
+                const today = new Date().toISOString().slice(0, 10);
+                const clamped = value && value > today ? today : value;
+                setBirthday(clamped);
+              }}
               className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-400 focus:border-white/40 focus:outline-none"
             />
           </div>
@@ -150,10 +156,15 @@ const Profile = () => {
             <label className="text-sm text-slate-200">Số điện thoại</label>
             <input
               type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
+              onChange={(e) => {
+                const digits = (e.target.value || "").replace(/\D+/g, "");
+                setPhoneNumber(digits.slice(0, 10));
+              }}
               className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-400 focus:border-white/40 focus:outline-none"
-              placeholder="0123 456 789"
+              placeholder="0123456789"
             />
           </div>
         </div>

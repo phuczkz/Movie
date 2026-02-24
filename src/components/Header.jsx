@@ -133,7 +133,7 @@ const Header = () => {
 
   return (
     <header
-      className={`sticky top-0 z-30 border-b transition-all duration-300 relative ${
+      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${
         showTransparent
           ? "border-transparent bg-transparent backdrop-blur-none"
           : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
