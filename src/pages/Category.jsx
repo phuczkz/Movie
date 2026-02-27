@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
@@ -23,16 +23,11 @@ const Category = () => {
   const { category, page: pageParam } = useParams();
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
-  const [page, setPage] = useState(1);
+  const page = pageFromUrl;
   const pageSize = 20;
 
-  useEffect(() => {
-    setPage(pageFromUrl);
-  }, [category, pageFromUrl]);
-
   const goToPage = (nextPage) => {
-    const safePage = Math.max(1, nextPage);
-    setPage(safePage);
+    const safePage = Math.max(1, 2, nextPage);
     navigate(`/category/${category}${safePage > 1 ? `/${safePage}` : ""}`);
   };
 
@@ -118,7 +113,6 @@ const Category = () => {
     kkCategory,
     kkAnimation,
     isAnimation,
-    page,
   ]);
 
   const isLoading = useMemo(() => {
@@ -153,7 +147,7 @@ const Category = () => {
   }, [mergedData, pageSize]);
 
   const pages = useMemo(() => {
-    const maxPage = pagedData.hasNext ? page + 1 : page;
+    const maxPage = pagedData.hasNext ? page + 3 : page;
     return Array.from({ length: maxPage }, (_, idx) => idx + 1);
   }, [page, pagedData.hasNext]);
 
@@ -187,12 +181,12 @@ const Category = () => {
               >
                 Trước
               </button>
-              <div className="flex items-center gap-1">
+              <div className="grid w-full max-w-[520px] grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 auto-rows-min">
                 {pages.map((p) => (
                   <button
                     key={p}
                     onClick={() => goToPage(p)}
-                    className={`rounded-lg border px-3 py-2 transition-colors ${
+                    className={`min-w-[44px] text-center rounded-lg border px-3 py-2 transition-colors ${
                       p === page
                         ? "border-white bg-white text-slate-900"
                         : "border-white/10 hover:border-white/30"

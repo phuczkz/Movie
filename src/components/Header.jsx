@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, LogIn, Menu, Search, X } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import SearchBar from "./SearchBar.jsx";
 
@@ -9,6 +9,7 @@ const primaryNav = [
   { label: "Phim Bộ", to: "/category/phim-bo" },
   { label: "Hoạt Hình", to: "/category/hoat-hinh" },
   { label: "Phim Lẻ", to: "/category/phim-le" },
+  { label: "Yêu Thích", to: "/favorites" },
 ];
 
 const yearOptions = [
@@ -42,6 +43,7 @@ const moreOptions = [
   { label: "TV Show", to: "/search?q=tv-show" },
   { label: "Phim Sắp Chiếu", to: "/search?q=sap-chieu" },
   { label: "Thuyết Minh", to: "/search?q=thuyet-minh" },
+  { label: "Phim Yêu Thích", to: "/favorites" },
 ];
 
 const Dropdown = ({ label, options }) => (
@@ -101,6 +103,8 @@ const MobileDropdown = ({ label, options, onNavigate }) => {
 const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const location = useLocation();
   const { user } = useAuth();
 
   const avatarUrl = user
@@ -115,10 +119,28 @@ const Header = () => {
     setSearchOpen(false);
   };
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 40);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const isHome = location.pathname === "/";
+  const showTransparent = isHome && !scrolled;
+
   return (
-    <header className="sticky top-0 z-20 border-b border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/70 to-slate-950/40 backdrop-blur-xl">
+    <header
+      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${
+        showTransparent
+          ? "border-transparent bg-transparent backdrop-blur-none"
+          : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
+      }`}
+    >
       {/* Mobile top bar */}
-      <div className="md:hidden px-4 py-3 flex items-center justify-between">
+      <div className="lg:hidden px-4 py-3 flex items-center justify-between">
         <button
           aria-label="Toggle menu"
           onClick={() => {
@@ -157,7 +179,7 @@ const Header = () => {
       </div>
 
       {/* Desktop / tablet bar */}
-      <div className="max-w-6xl mx-auto px-4 py-3 hidden md:flex items-center gap-3 md:gap-4">
+      <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-3 md:gap-4 md:px-8 lg:px-10">
         <div className="flex-1 min-w-0">
           <SearchBar
             placeholder="Tìm kiếm phim, diễn viên"
@@ -219,7 +241,7 @@ const Header = () => {
 
       {/* Mobile search overlay */}
       {searchOpen && (
-        <div className="md:hidden px-4 pb-3">
+        <div className="lg:hidden absolute left-0 right-0 top-full px-4 pb-3 z-40">
           <div className="rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl shadow-black/30 p-3">
             <SearchBar
               placeholder="Tìm kiếm phim, diễn viên"
@@ -231,7 +253,7 @@ const Header = () => {
 
       {/* Mobile mega menu */}
       {menuOpen && (
-        <div className="md:hidden px-4 pb-4">
+        <div className="lg:hidden absolute left-0 right-0 top-full px-4 pb-4 z-40">
           <div className="rounded-3xl bg-gradient-to-b from-slate-800/95 to-slate-900/95 border border-white/10 shadow-2xl shadow-black/40 p-4 space-y-4">
             <Link
               to={user ? "/profile" : "/login"}

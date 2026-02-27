@@ -19,10 +19,7 @@ const Search = () => {
             ? `Kết quả cho "${query}"`
             : "Nhập tên, thể loại hoặc quốc gia"}
         </h1>
-        <SearchBar
-          autoFocus
-          placeholder="Nhập tên phim, thể loại (ví dụ: hoạt hình), quốc gia..."
-        />
+
       </div>
 
       {isFetching && <div className="text-slate-300">Đang tìm kiếm...</div>}

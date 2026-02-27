@@ -4,6 +4,20 @@ export const parseEpisodeNumber = (value) => {
   return match ? Number(match[1]) : null;
 };
 
+const stripDiacritics = (text = "") =>
+  text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+export const normalizeServerLabel = (name) => {
+  const raw = (name || "").toString().trim();
+  const plain = stripDiacritics(raw).toLowerCase();
+
+  if (!raw) return "Vietsub";
+  if (plain.includes("thuyet") || plain.includes("thuy minh"))
+    return "Thuyết Minh";
+  if (plain.includes("viet")) return "Vietsub";
+  return raw;
+};
+
 export const getLatestEpisodeNumber = (movie, episodes = []) => {
   const epCurrent = parseEpisodeNumber(movie?.episode_current);
   const latestFromList = episodes.reduce((max, ep) => {

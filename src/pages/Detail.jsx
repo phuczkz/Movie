@@ -1,10 +1,12 @@
-import { BookmarkPlus, Play } from "lucide-react";
+import { Heart, Play } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
+import { useSavedMovie } from "../hooks/useSavedMovie.js";
 import {
-  getEpisodeLabel,
   getLatestEpisodeNumber,
+  normalizeServerLabel,
   parseEpisodeNumber,
 } from "../utils/episodes.js";
 
@@ -12,10 +14,53 @@ const Detail = () => {
   const { slug } = useParams();
   const { data, isLoading } = useMovieDetail(slug);
 
+  const { movie, episodes = [] } = data || {};
+  const {
+    isSaved,
+    loading: saving,
+    error,
+    message,
+    lastAction,
+    toggleSave,
+  } = useSavedMovie(movie);
+
+  const serverGroups = useMemo(() => {
+    if (!episodes?.length) return {};
+    return episodes.reduce((acc, ep) => {
+      if (!ep) return acc;
+      const label = normalizeServerLabel(ep.server_name);
+      acc[label] = acc[label] || [];
+      acc[label].push(ep);
+      return acc;
+    }, {});
+  }, [episodes]);
+
+  const hasVietsub = !!serverGroups.Vietsub?.length;
+  const hasThuyetMinh = !!serverGroups["Thuyết Minh"]?.length;
+
+  const preferredServer = useMemo(() => {
+    if (hasVietsub) return "Vietsub";
+    if (hasThuyetMinh) return "Thuyết Minh";
+    return Object.keys(serverGroups)[0] || null;
+  }, [hasThuyetMinh, hasVietsub, serverGroups]);
+
+  const [userSelectedServer, setUserSelectedServer] = useState(null);
+
+  const selectedServer = useMemo(() => {
+    if (userSelectedServer && serverGroups[userSelectedServer])
+      return userSelectedServer;
+    return preferredServer;
+  }, [preferredServer, serverGroups, userSelectedServer]);
+
+  const selectedEpisodes = useMemo(() => {
+    if (selectedServer && serverGroups[selectedServer])
+      return serverGroups[selectedServer];
+    return episodes;
+  }, [episodes, selectedServer, serverGroups]);
+
   if (isLoading)
     return <div className="text-slate-300">Đang tải chi tiết...</div>;
 
-  const { movie, episodes = [] } = data || {};
   const isTmdb = movie?.slug?.startsWith("tmdb-");
 
   const latestEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
@@ -66,7 +111,7 @@ const Detail = () => {
 
     // Try pattern: HH:mm DD/MM/YYYY or variants with separators
     const regex =
-      /(?:(\d{1,2})[:h](\d{2}))?[^\d]*(\d{1,2})[\/](\d{1,2})[\/](\d{2,4})/;
+      /(?:(\d{1,2})[:h](\d{2}))?[^\d]*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/;
     const match = raw.match(regex);
     if (match) {
       const [, hh, mm, dd, MM, yyyy] = match;
@@ -102,9 +147,23 @@ const Detail = () => {
           />
         </div>
         <div className="flex gap-3">
-          <button className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
-            <BookmarkPlus className="inline h-4 w-4 mr-2" />
-            Lưu phim
+          <button
+            type="button"
+            onClick={toggleSave}
+            disabled={saving}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition border ${
+              isSaved
+                ? "bg-rose-500/20 text-rose-100 hover:bg-rose-500/30 border-rose-400/50"
+                : "bg-emerald-500 text-slate-950 hover:bg-emerald-400 border-emerald-400/60"
+            } ${saving ? "opacity-80" : ""}`}
+          >
+            <Heart
+              className="h-4 w-4"
+              fill={isSaved ? "currentColor" : "none"}
+            />
+            <span className="whitespace-nowrap">
+              {saving ? "Đang lưu..." : isSaved ? "Bỏ yêu thích" : "Yêu thích"}
+            </span>
           </button>
           <Link
             to={`/watch/${movie.slug}`}
@@ -116,6 +175,20 @@ const Detail = () => {
             {episodes.length ? "Xem ngay" : "Mở trang xem"}
           </Link>
         </div>
+        {message ? (
+          <p
+            className={`text-xs font-semibold ${
+              lastAction === "remove" ? "text-rose-200" : "text-emerald-200"
+            }`}
+          >
+            {message}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="text-xs text-amber-200">
+            {error.message || "Không thể cập nhật Yêu thích, thử lại sau."}
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-6">
@@ -186,6 +259,36 @@ const Detail = () => {
 
         <div className="space-y-3">
           <h2 className="text-xl font-semibold text-white">Danh sách tập</h2>
+          {Object.keys(serverGroups).length ? (
+            <div className="flex items-center gap-2 pt-1">
+              {hasVietsub ? (
+                <button
+                  type="button"
+                  onClick={() => setUserSelectedServer("Vietsub")}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                    selectedServer === "Vietsub"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                  }`}
+                >
+                  Vietsub
+                </button>
+              ) : null}
+              {hasThuyetMinh ? (
+                <button
+                  type="button"
+                  onClick={() => setUserSelectedServer("Thuyết Minh")}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                    selectedServer === "Thuyết Minh"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                  }`}
+                >
+                  Thuyết minh
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {showUpcomingNotice ? (
             <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
               <div>
@@ -203,7 +306,10 @@ const Detail = () => {
             </div>
           ) : null}
           {episodes.length ? (
-            <EpisodeList episodes={episodes} />
+            <EpisodeList
+              episodes={selectedEpisodes}
+              serverLabel={selectedServer || undefined}
+            />
           ) : (
             <p className="text-slate-400">
               {isTmdb ? "Nguồn TMDB chưa có tập phát online." : "Chưa có tập."}

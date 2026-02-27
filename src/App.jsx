@@ -8,6 +8,7 @@ import Login from "./pages/Login.jsx";
 import Profile from "./pages/Profile.jsx";
 import Register from "./pages/Register.jsx";
 import Search from "./pages/Search.jsx";
+import Saved from "./pages/Saved.jsx";
 import Watch from "./pages/Watch.jsx";
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/favorites" element={<Saved />} />
         <Route path="/search" element={<Search />} />
         <Route path="*" element={<Home />} />
       </Routes>

@@ -34,10 +34,7 @@ const buildImage = (path, base) => {
 const normalizeTmdbMovie = (raw = {}) => {
   const slug = raw.id ? `tmdb-${raw.id}` : "tmdb-unknown";
   const poster_url = buildImage(raw.poster_path, posterBase);
-  const thumb_url = buildImage(
-    raw.backdrop_path || raw.poster_path,
-    backdropBase
-  );
+  const thumb_url = buildImage(raw.backdrop_path || raw.backdrop || raw.still_path, backdropBase);
 
   const year = raw.release_date || raw.first_air_date || "";
 

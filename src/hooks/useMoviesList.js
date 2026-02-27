@@ -10,7 +10,7 @@ const map = {
 export const useMoviesList = (
   type = "latest",
   category,
-  { page = 1, ...options } = {}
+  { page = 1,...options } = {}
 ) => {
   const queryKey = ["movies", type, category, page].filter(Boolean);
   const queryFn = category
