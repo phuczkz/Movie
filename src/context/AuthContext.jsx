@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -11,6 +18,7 @@ import {
   Timestamp,
   doc,
   getDoc,
+  deleteDoc,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -31,6 +39,8 @@ const AuthContext = createContext({
   registerEmail: async () => {},
   updateProfileData: async () => {},
   logout: async () => {},
+  saveMovie: async () => {},
+  removeSavedMovie: async () => {},
 });
 
 const rejectIfMissing = () => {
@@ -38,6 +48,16 @@ const rejectIfMissing = () => {
     "Firebase chưa được cấu hình. Kiểm tra các biến môi trường VITE_FIREBASE_*"
   );
 };
+
+const buildDefaultProfile = (currentUser) => ({
+  email: currentUser.email,
+  displayName: currentUser.displayName || "Người dùng",
+  phoneNumber: currentUser.phoneNumber || "",
+  birthday: "",
+  photoURL: currentUser.photoURL || "",
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -50,17 +70,15 @@ export const AuthProvider = ({ children }) => {
     return true;
   };
 
-  const buildDefaultProfile = (currentUser) => ({
-    email: currentUser.email,
-    displayName: currentUser.displayName || "Người dùng",
-    phoneNumber: currentUser.phoneNumber || "",
-    birthday: "",
-    photoURL: currentUser.photoURL || "",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  const ensureCurrentUser = () => {
+    ensureFirebase();
+    const currentUser = auth.currentUser;
+    if (!currentUser)
+      throw new Error("Bạn cần đăng nhập để lưu hoặc quản lý phim.");
+    return currentUser;
+  };
 
-  const fetchProfile = async (currentUser) => {
+  const fetchProfile = useCallback(async (currentUser) => {
     if (!currentUser || !db) return null;
     setProfileLoading(true);
     try {
@@ -102,7 +120,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setProfileLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isFirebaseConfigured || !auth) {
@@ -119,7 +137,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
     return unsubscribe;
-  }, []);
+  }, [fetchProfile]);
 
   const value = useMemo(
     () => ({
@@ -213,11 +231,46 @@ export const AuthProvider = ({ children }) => {
         if (!auth) return rejectIfMissing();
         return signOut(auth);
       },
+      saveMovie: async (movie) => {
+        const currentUser = ensureCurrentUser();
+        if (!movie || !movie.slug)
+          throw new Error("Thiếu thông tin phim để lưu.");
+
+        const ref = doc(
+          db,
+          "users",
+          currentUser.uid,
+          "FavoriteMovies",
+          movie.slug
+        );
+        const payload = {
+          slug: movie.slug,
+          name: movie.name || "Phim chưa đặt tên",
+          poster_url: movie.poster_url || movie.thumb_url || "",
+          year: movie.year || null,
+          quality: movie.quality || null,
+          lang: movie.lang || movie.language || null,
+          type: movie.type || null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        await setDoc(ref, payload, { merge: true });
+        return true;
+      },
+      removeSavedMovie: async (slug) => {
+        const currentUser = ensureCurrentUser();
+        if (!slug) throw new Error("Thiếu slug phim cần xoá.");
+        const ref = doc(db, "users", currentUser.uid, "FavoriteMovies", slug);
+        await deleteDoc(ref);
+        return true;
+      },
     }),
-    [user, loading, userProfile, profileLoading]
+    [user, loading, userProfile, profileLoading, fetchProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
