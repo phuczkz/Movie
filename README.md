@@ -1,17 +1,50 @@
-# React + Vite
+<div align="center">
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Movie – Ứng dụng xem phim
 
-Currently, two official plugins are available:
+Khám phá, xem và lưu phim/series với trải nghiệm mượt mà trên web.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+</div>
 
-## React Compiler
+### Giới thiệu
+Ứng dụng React + Vite giúp người dùng duyệt, tìm kiếm và xem phim/series. Dữ liệu lấy từ nhiều nguồn (KKphim, TMDB), hỗ trợ đăng nhập qua Firebase, lưu danh sách yêu thích và xem trực tiếp qua HLS.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Yêu cầu
+- Node.js >= 18
+- npm (đi kèm Node) hoặc pnpm/yarn nếu bạn thích
 
-## Expanding the ESLint configuration
+### Cài đặt & chạy
+1) Cài dependencies
+```bash
+npm install
+```
+2) Tạo file `.env.local` ở thư mục gốc và điền các biến môi trường:
+```bash
+# Firebase
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-# Movie
+# TMDB
+VITE_TMDB_API_KEY=...
+VITE_TMDB_API=https://api.themoviedb.org/3
+VITE_TMDB_IMAGE_BASE=https://image.tmdb.org/t/p/w500
+VITE_TMDB_BACKDROP_BASE=https://image.tmdb.org/t/p/w780
+
+# Nguồn phim KKphim/Ophim
+VITE_KKPHIM_API=https://phimapi.com/v1/api
+VITE_KKPHIM_IMAGE_CDN=https://phimimg.com
+VITE_MOVIE_API=<api goc cho ophim nếu có>
+VITE_MOVIE_IMAGE_CDN=<cdn ảnh cho ophim nếu có>
+```
+3) Chạy dev server
+```bash
+npm run dev
+```
+
+
+### Góp ý & phát triển
+- Pull request và issue luôn được hoan nghênh. Hãy đảm bảo chạy `npm run lint` trước khi gửi PR.
