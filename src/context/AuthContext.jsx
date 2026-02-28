@@ -65,18 +65,18 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  const ensureFirebase = () => {
+  const ensureFirebase = useCallback(() => {
     if (!auth || !db) return rejectIfMissing();
     return true;
-  };
+  }, []);
 
-  const ensureCurrentUser = () => {
+  const ensureCurrentUser = useCallback(() => {
     ensureFirebase();
     const currentUser = auth.currentUser;
     if (!currentUser)
       throw new Error("Bạn cần đăng nhập để lưu hoặc quản lý phim.");
     return currentUser;
-  };
+  }, [ensureFirebase]);
 
   const fetchProfile = useCallback(async (currentUser) => {
     if (!currentUser || !db) return null;
@@ -266,7 +266,15 @@ export const AuthProvider = ({ children }) => {
         return true;
       },
     }),
-    [user, loading, userProfile, profileLoading, fetchProfile]
+    [
+      user,
+      loading,
+      userProfile,
+      profileLoading,
+      fetchProfile,
+      ensureFirebase,
+      ensureCurrentUser,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
