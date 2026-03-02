@@ -28,11 +28,11 @@ const releaseSlot = () => {
   }
 };
 
-const withWidthParam = (url) => {
+const withWidthParam = (url, w = 360) => {
   if (!url) return url;
   try {
     const u = new URL(url);
-    if (!u.searchParams.has("w")) u.searchParams.set("w", "360");
+    u.searchParams.set("w", String(w));
     return u.toString();
   } catch {
     return url;
@@ -71,12 +71,24 @@ const MovieCard = ({ movie }) => {
     });
     return () => {
       cancelled = true;
+      if (canLoad && !loaded) releaseSlot();
     };
-  }, [shouldLoad, canLoad]);
+  }, [shouldLoad, canLoad, loaded]);
 
-  const posterSrc = shouldLoad && canLoad
-    ? withWidthParam(movie.poster_url) || fallbackPoster
-    : undefined;
+  const basePoster = movie.poster_url;
+  const posterSrc =
+    shouldLoad && canLoad
+      ? withWidthParam(basePoster, 360) || fallbackPoster
+      : undefined;
+
+  const posterSrcSet =
+    shouldLoad && canLoad && basePoster
+      ? [
+          `${withWidthParam(basePoster, 240)} 240w`,
+          `${withWidthParam(basePoster, 360)} 360w`,
+          `${withWidthParam(basePoster, 480)} 480w`,
+        ].join(", ")
+      : undefined;
 
   return (
     <Link
@@ -84,10 +96,13 @@ const MovieCard = ({ movie }) => {
       className="group relative overflow-hidden rounded-2xl border border-white/5 bg-slate-900/40 shadow-lg transition hover:-translate-y-1 hover:shadow-emerald-500/20"
     >
       <div className="aspect-[2/3] w-full overflow-hidden bg-slate-800 relative">
-        {!loaded && <div className="absolute inset-0 animate-pulse bg-slate-700/50" />}
+        {!loaded && (
+          <div className="absolute inset-0 animate-pulse bg-slate-700/50" />
+        )}
         <img
           ref={imgRef}
           src={posterSrc}
+          srcSet={posterSrcSet}
           alt={movie.name}
           className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
             loaded ? "opacity-100" : "opacity-0"

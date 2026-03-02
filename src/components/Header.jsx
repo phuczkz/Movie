@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, LogIn, Menu, Search, X } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -46,27 +46,46 @@ const moreOptions = [
   { label: "Phim Yêu Thích", to: "/favorites" },
 ];
 
-const Dropdown = ({ label, options }) => (
-  <div className="relative group">
-    <button className="flex items-center gap-1 px-3 py-2 text-base font-semibold text-white/90 hover:text-white">
-      <span>{label}</span>
-      <ChevronDown className="h-4 w-4" />
-    </button>
-    <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 w-48 -translate-x-1/2 opacity-0 transition duration-200 group-hover:opacity-100 group-hover:pointer-events-auto">
-      <div className="rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-2 space-y-1">
-        {options.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to}
-            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10"
-          >
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </div>
+const Dropdown = ({ label, options }) => {
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef(null);
+
+  const openNow = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setOpen(true);
+  };
+
+  const closeLater = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setOpen(false), 100);
+  };
+
+  return (
+    <div className="relative" onMouseEnter={openNow} onMouseLeave={closeLater}>
+      <button className="flex items-center gap-1 px-3 py-2 text-base font-semibold text-white/90 hover:text-white">
+        <span>{label}</span>
+        <ChevronDown
+          className={`h-4 w-4 transition ${open ? "rotate-180" : "rotate-0"}`}
+        />
+      </button>
+      {open && (
+        <div className="absolute left-1/2 top-full z-30 mt-2 w-48 -translate-x-1/2 pt-1">
+          <div className="rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-2 space-y-1">
+            {options.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10"
+              >
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const MobileDropdown = ({ label, options, onNavigate }) => {
   const [open, setOpen] = useState(false);
