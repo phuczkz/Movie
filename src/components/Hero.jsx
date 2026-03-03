@@ -35,14 +35,10 @@ const Hero = ({ movie, movies = [] }) => {
 
   if (!activeMovie) return null;
 
-  const isTmdb = activeMovie.slug?.startsWith("tmdb-");
-  const primaryLink = isTmdb
-    ? `/movie/${activeMovie.slug}`
-    : `/watch/${activeMovie.slug}`;
-  const secondaryLink = isTmdb
-    ? `/watch/${activeMovie.slug}`
-    : `/movie/${activeMovie.slug}`;
-  const primaryLabel = isTmdb ? "Xem chi tiết" : "Xem ngay";
+  // Yêu cầu: mọi CTA từ hero dẫn qua trang chi tiết trước khi xem
+  const primaryLink = `/movie/${activeMovie.slug}`;
+  const secondaryLink = `/watch/${activeMovie.slug}`;
+  const primaryLabel = "Xem chi tiết";
 
   const categories = normalizeList(activeMovie.category);
   const countries = normalizeList(activeMovie.country);
@@ -63,7 +59,7 @@ const Hero = ({ movie, movies = [] }) => {
 
   return (
     <section
-      className="relative isolate -mx-4 md:-mx-8 lg:-mx-10 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[78vh] md:h-[62vh] lg:h-[120vh] min-h-[460px] md:min-h-[460px] lg:min-h-[420px] max-h-[780px] md:max-h-[680px] lg:max-h-[720px]"
+      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[78vh] md:h-[62vh] lg:h-[120vh] min-h-[460px] md:min-h-[460px] lg:min-h-[420px] max-h-[780px] md:max-h-[680px] lg:max-h-[720px]"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -178,7 +174,9 @@ const Hero = ({ movie, movies = [] }) => {
                 item.poster_url ||
                 "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
               const hasLandscape = Boolean(
-                item.backdrop_url || item.banner || item.thumb_url !== item.poster_url
+                item.backdrop_url ||
+                  item.banner ||
+                  item.thumb_url !== item.poster_url
               );
               const fitClass = hasLandscape ? "object-cover" : "object-contain";
               return (
@@ -201,7 +199,10 @@ const Hero = ({ movie, movies = [] }) => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
                   {isActive ? (
-                    <span className="absolute inset-0 ring-2 ring-[rgb(16,185,129)]/90" aria-hidden="true" />
+                    <span
+                      className="absolute inset-0 ring-2 ring-[rgb(16,185,129)]/90"
+                      aria-hidden="true"
+                    />
                   ) : null}
                 </button>
               );
