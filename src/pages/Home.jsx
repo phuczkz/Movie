@@ -50,7 +50,7 @@ const Home = () => {
   const [refSeries, showSeries] = useSectionVisibility();
   const [refSingle, showSingle] = useSectionVisibility();
   const [refLatest, showLatest] = useSectionVisibility();
-  const [, showPopular] = useSectionVisibility(); //refPopular
+  const [refPopular, showPopular] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
 
@@ -69,8 +69,7 @@ const Home = () => {
     undefined,
     { enabled: showSingle, ...commonQueryOpts }
   );
-  // const { data: popular = [], isLoading: loadingPopular }
-  const { data: popular = [] } = useTmdbPopular(1, {
+  const { data: popular = [], isLoading: loadingPopular } = useTmdbPopular(1, {
     enabled: showPopular,
     ...commonQueryOpts,
   });
@@ -119,9 +118,9 @@ const Home = () => {
         </Section>
       </div>
 
-      {/* <div ref={refPopular}>
+      <div ref={refPopular}>
         <Section
-          title="Phim thịnh hành (TMDB)"
+          title="Phim thịnh hành (Poster)"
           action={<span className="text-sm text-emerald-300">TMDB</span>}
         >
           {loadingPopular ? (
@@ -130,7 +129,7 @@ const Home = () => {
             <Grid items={cap(popular)} />
           )}
         </Section>
-      </div> */}
+      </div>
 
       <div ref={refLatest}>
         <Section
