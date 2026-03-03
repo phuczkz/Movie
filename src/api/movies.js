@@ -2,7 +2,6 @@ import client from "./client";
 import { getTmdbDetailBySlug } from "./tmdb";
 import { getKKphimDetail } from "./kkphim";
 
-
 const fallbackPortrait =
   "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 const fallbackLandscape =
@@ -23,7 +22,8 @@ const normalizeLandscape = (url = "") => {
 };
 
 const normalizeMovie = (raw = {}) => {
-  const poster = raw.poster_url || raw.poster || raw.thumb_url || raw.banner || "";
+  const poster =
+    raw.poster_url || raw.poster || raw.thumb_url || raw.banner || "";
   const backdrop =
     raw.banner || raw.backdrop_url || raw.thumb_url || raw.poster_url || "";
   const posterNormalized = normalizePoster(poster);
@@ -64,6 +64,7 @@ const normalizeServerName = (name) => {
   if (!raw) return "Vietsub";
   if (plain.includes("thuyet") || plain.includes("thuy minh"))
     return "Thuyết Minh";
+  if (plain.includes("long") && plain.includes("tieng")) return "Lồng Tiếng";
   if (plain.includes("viet")) return "Vietsub";
   return raw;
 };
@@ -242,12 +243,7 @@ export const getDetail = (slug) =>
           slug: ep.slug || ep.name || `ep-${idx + 1}`,
           server_name: normalizeServerName(ep.server_name),
           link_m3u8:
-            ep.link_m3u8 ||
-            ep.m3u8 ||
-            ep.linkplay ||
-            ep.link ||
-            ep.embed ||
-            "",
+            ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed || "",
           embed: ep.embed || ep.link_embed || ep.embed_url || ep.link || "",
         })
       );
@@ -265,15 +261,12 @@ export const getDetail = (slug) =>
   );
 
 export const searchMovies = (query, page = 1) =>
-  withFallback(
-    async () => {
-      const { data } = await client.get("/tim-kiem", {
-        params: { keyword: query, page },
-      });
-      return mapOrFallback(unwrapItems(data));
-    },
-    []
-  );
+  withFallback(async () => {
+    const { data } = await client.get("/tim-kiem", {
+      params: { keyword: query, page },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
 
 export const getEpisodes = (slug) =>
   withFallback(async () => {

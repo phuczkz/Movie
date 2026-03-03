@@ -14,6 +14,7 @@ export const normalizeServerLabel = (name) => {
   if (!raw) return "Vietsub";
   if (plain.includes("thuyet") || plain.includes("thuy minh"))
     return "Thuyết Minh";
+  if (plain.includes("long") && plain.includes("tieng")) return "Lồng Tiếng";
   if (plain.includes("viet")) return "Vietsub";
   return raw;
 };
