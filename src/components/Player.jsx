@@ -13,6 +13,7 @@ import {
   VolumeX,
   Gauge,
   SlidersHorizontal,
+  MoreVertical,
 } from "lucide-react";
 
 const SEEK_STEP = 10; // seconds
@@ -32,6 +33,8 @@ const Player = ({
   const ignoreNextClickRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const hlsRef = useRef(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -348,6 +351,15 @@ const Player = ({
     showControls();
   };
 
+  const handleVolumeButton = () => {
+    const isSmallScreen = window.matchMedia("(max-width: 640px)").matches;
+    if (isSmallScreen) {
+      setShowVolumeSlider((v) => !v);
+      return;
+    }
+    toggleMute();
+  };
+
   const handleChangePlaybackRate = (rate) => {
     setPlaybackRate(rate);
     if (isHls && videoRef.current) {
@@ -369,6 +381,18 @@ const Player = ({
     togglePlay();
   };
 
+  // Close floating menus when clicking outside controls (helps on mobile)
+  useEffect(() => {
+    const handleDocClick = (e) => {
+      if (!containerRef.current) return;
+      if (containerRef.current.contains(e.target)) return;
+      setShowMoreMenu(false);
+      setShowVolumeSlider(false);
+    };
+    document.addEventListener("mousedown", handleDocClick);
+    return () => document.removeEventListener("mousedown", handleDocClick);
+  }, []);
+
   if (!source) {
     return (
       <div className="aspect-video rounded-2xl border border-white/10 bg-slate-900/60" />
@@ -384,13 +408,17 @@ const Player = ({
       }}
     >
       {!isFullscreen ? (
-        <div className="pointer-events-none bg-gradient-to-b from-black/65 via-black/20 to-transparent p-4 sm:p-5 flex items-center justify-between gap-3">
+        <div className="pointer-events-none bg-gradient-to-b from-black/65 via-black/20 to-transparent p-3 sm:p-5 flex items-start sm:items-center justify-between gap-3">
           <div className="space-y-1 drop-shadow">
             {title ? (
-              <p className="text-sm font-semibold leading-tight">{title}</p>
+              <p className="text-xs sm:text-sm font-semibold leading-tight">
+                {title}
+              </p>
             ) : null}
             {subtitle ? (
-              <p className="text-xs text-slate-200 leading-tight">{subtitle}</p>
+              <p className="text-[11px] sm:text-xs text-slate-200 leading-tight">
+                {subtitle}
+              </p>
             ) : null}
           </div>
           {actionSlot ? (
@@ -404,14 +432,17 @@ const Player = ({
       )}
 
       {!canUseIframe ? (
-        <div className="pointer-events-auto px-4 pb-3 space-y-2" data-control>
-          <div className="flex items-center justify-between text-[11px] text-white/80">
+        <div
+          className="pointer-events-auto px-3 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-2"
+          data-control
+        >
+          <div className="flex items-center justify-between text-[11px] sm:text-xs text-white/80">
             <span>
               {formatTime(progress)} / {formatTime(duration)}
             </span>
           </div>
           <div
-            className="relative h-1.5 rounded-full bg-white/15 cursor-pointer"
+            className="relative h-2 sm:h-1.5 rounded-full bg-white/15 cursor-pointer"
             onClick={handleSeekBar}
           >
             <div
@@ -421,8 +452,8 @@ const Player = ({
               }}
             />
           </div>
-          <div className="flex items-center justify-between gap-3 text-[13px]">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-[12px] sm:text-[13px]">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={togglePlay}
@@ -465,11 +496,15 @@ const Player = ({
                   <SkipForward className="h-3.5 w-3.5" />
                 </button>
               ) : null}
-              <div className="flex items-center gap-2 pl-2">
+              <div
+                className="relative flex items-center gap-2 pl-2"
+                data-control
+              >
                 <button
                   type="button"
-                  onClick={toggleMute}
-                  className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                  onClick={handleVolumeButton}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                  aria-label="Bật/tắt tiếng"
                 >
                   {muted || volume === 0 ? (
                     <VolumeX className="h-3 w-3" />
@@ -477,94 +512,115 @@ const Player = ({
                     <Volume2 className="h-3 w-3" />
                   )}
                 </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={muted ? 0 : volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                  className="w-20 accent-emerald-400"
-                />
+                <div className="hidden sm:block">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={muted ? 0 : volume}
+                    onChange={(e) => setVolume(Number(e.target.value))}
+                    className="w-20 accent-emerald-400"
+                  />
+                </div>
+                {showVolumeSlider ? (
+                  <div className="sm:hidden absolute left-0 bottom-full mb-2 rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-3 text-xs text-white/90 z-30 w-44">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={muted ? 0 : volume}
+                        onChange={(e) => setVolume(Number(e.target.value))}
+                        className="w-full accent-emerald-400"
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap justify-end">
+            <div
+              className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end"
+              data-control
+            >
               <div className="relative">
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] text-white/90 hover:border-emerald-300/50"
-                  onClick={(e) => {
-                    const menu = e.currentTarget.nextElementSibling;
-                    if (!menu) return;
-                    menu.classList.toggle("hidden");
-                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                  onClick={() => setShowMoreMenu((v) => !v)}
+                  aria-label="Thêm tuỳ chọn"
                 >
-                  <Gauge className="h-3.5 w-3.5" />
-                  {playbackRate}x
+                  <MoreVertical className="h-4 w-4" />
                 </button>
-                <div className="absolute right-0 bottom-full mb-1 hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-2 text-xs text-white/90 z-20">
-                  {[0.75, 1, 1.25, 1.5, 2].map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={(evt) => {
-                        handleChangePlaybackRate(r);
-                        evt.currentTarget.parentElement?.classList.add(
-                          "hidden"
-                        );
-                      }}
-                      className={`block w-full rounded-lg px-3 py-1 text-left transition ${
-                        playbackRate === r
-                          ? "bg-emerald-500/20 text-white"
-                          : "hover:bg-white/10"
-                      }`}
-                    >
-                      {r}x
-                    </button>
-                  ))}
-                </div>
-              </div>
+                {showMoreMenu ? (
+                  <div className="absolute right-2 sm:right-0 bottom-full mb-1 rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-3 text-xs text-white/90 z-20 min-w-[180px] max-w-[90vw] sm:max-w-[340px] space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-white/60">
+                        <Gauge className="h-3.5 w-3.5" />
+                        <span>Tốc độ</span>
+                        <span className="ml-auto text-white/80">
+                          {playbackRate}x
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[0.75, 1, 1.25, 1.5, 2].map((r) => (
+                          <button
+                            key={r}
+                            type="button"
+                            onClick={() => {
+                              handleChangePlaybackRate(r);
+                              setShowMoreMenu(false);
+                            }}
+                            className={`rounded-lg px-2.5 py-1 text-center transition ${
+                              playbackRate === r
+                                ? "bg-emerald-500/20 text-white"
+                                : "bg-white/5 hover:bg-white/10"
+                            }`}
+                          >
+                            {r}x
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-              {isHls && qualityLevels.length ? (
-                <div className="relative">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] text-white/90 hover:border-emerald-300/50"
-                    onClick={(e) => {
-                      const menu = e.currentTarget.nextElementSibling;
-                      if (!menu) return;
-                      menu.classList.toggle("hidden");
-                    }}
-                  >
-                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                    {currentLevel === -1
-                      ? "Auto"
-                      : qualityLevels.find((l) => l.level === currentLevel)
-                          ?.label || "Auto"}
-                  </button>
-                  <div className="absolute right-0 bottom-full mb-1 hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-2 text-xs text-white/90 z-20 min-w-[120px]">
-                    {qualityLevels.map((lvl) => (
-                      <button
-                        key={lvl.level}
-                        type="button"
-                        onClick={(evt) => {
-                          handleQualityChange(lvl.level);
-                          evt.currentTarget.parentElement?.classList.add(
-                            "hidden"
-                          );
-                        }}
-                        className={`block w-full rounded-lg px-3 py-1 text-left transition ${
-                          currentLevel === lvl.level
-                            ? "bg-emerald-500/20 text-white"
-                            : "hover:bg-white/10"
-                        }`}
-                      >
-                        {lvl.label}
-                      </button>
-                    ))}
+                    {isHls && qualityLevels.length ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-white/60">
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                          <span>Chất lượng</span>
+                          <span className="ml-auto text-white/80">
+                            {currentLevel === -1
+                              ? "Auto"
+                              : qualityLevels.find(
+                                  (l) => l.level === currentLevel
+                                )?.label || "Auto"}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {qualityLevels.map((lvl) => (
+                            <button
+                              key={lvl.level}
+                              type="button"
+                              onClick={() => {
+                                handleQualityChange(lvl.level);
+                                setShowMoreMenu(false);
+                              }}
+                              className={`rounded-lg px-2.5 py-1 text-left transition ${
+                                currentLevel === lvl.level
+                                  ? "bg-emerald-500/20 text-white"
+                                  : "bg-white/5 hover:bg-white/10"
+                              }`}
+                            >
+                              {lvl.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
 
               <button
                 type="button"
@@ -594,7 +650,7 @@ const Player = ({
     return (
       <div
         ref={containerRef}
-        className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+        className="relative aspect-video overflow-visible rounded-2xl border border-white/10 bg-black shadow-2xl"
         onClick={handleContainerClick}
         onMouseMove={handleUserActivity}
         onTouchStart={handleUserActivity}
@@ -602,7 +658,7 @@ const Player = ({
         <video
           ref={videoRef}
           poster={poster}
-          className="player-native h-full w-full"
+          className="player-native h-full w-full rounded-2xl"
           playsInline
           autoPlay
           controls={false}
@@ -619,7 +675,7 @@ const Player = ({
     return (
       <div
         ref={containerRef}
-        className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black"
+        className="relative aspect-video overflow-visible rounded-2xl border border-white/10 bg-black"
         onClick={handleContainerClick}
         onMouseMove={handleUserActivity}
         onTouchStart={handleUserActivity}
@@ -627,7 +683,7 @@ const Player = ({
         <iframe
           title="player"
           src={source}
-          className="h-full w-full"
+          className="h-full w-full rounded-2xl"
           allowFullScreen
           onLoad={() => setIsBuffering(false)}
         />
@@ -640,7 +696,7 @@ const Player = ({
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black"
+      className="relative aspect-video overflow-visible rounded-2xl border border-white/10 bg-black"
       onClick={handleContainerClick}
       onMouseMove={handleUserActivity}
       onTouchStart={handleUserActivity}
@@ -674,6 +730,7 @@ const Player = ({
         onReady={() => setIsBuffering(false)}
         onBuffer={() => setIsBuffering(true)}
         onBufferEnd={() => setIsBuffering(false)}
+        style={{ borderRadius: "1rem", overflow: "hidden" }}
         config={{
           file: {
             attributes: {
