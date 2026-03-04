@@ -47,13 +47,15 @@ const Detail = () => {
   }, [episodes]);
 
   const hasVietsub = !!serverGroups.Vietsub?.length;
+  const hasLongTieng = !!serverGroups["Lồng Tiếng"]?.length;
   const hasThuyetMinh = !!serverGroups["Thuyết Minh"]?.length;
 
   const preferredServer = useMemo(() => {
     if (hasVietsub) return "Vietsub";
+    if (hasLongTieng) return "Lồng Tiếng";
     if (hasThuyetMinh) return "Thuyết Minh";
     return Object.keys(serverGroups)[0] || null;
-  }, [hasThuyetMinh, hasVietsub, serverGroups]);
+  }, [hasLongTieng, hasThuyetMinh, hasVietsub, serverGroups]);
 
   const [userSelectedServer, setUserSelectedServer] = useState(null);
 
@@ -348,7 +350,9 @@ const Detail = () => {
                     {selectedServer || "Nguồn"}
                   </span>
                   <span className="text-slate-200/80">
-                    {episodes.length ? `${episodes.length} tập` : ""}
+                    {selectedEpisodes.length
+                      ? `${selectedEpisodes.length} tập`
+                      : ""}
                   </span>
                 </span>
                 {isCompleted ? (
@@ -373,6 +377,19 @@ const Detail = () => {
                   }`}
                 >
                   Vietsub
+                </button>
+              ) : null}
+              {hasLongTieng ? (
+                <button
+                  type="button"
+                  onClick={() => setUserSelectedServer("Lồng Tiếng")}
+                  className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                    selectedServer === "Lồng Tiếng"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                  }`}
+                >
+                  Lồng Tiếng
                 </button>
               ) : null}
               {hasThuyetMinh ? (
