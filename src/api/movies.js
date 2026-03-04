@@ -7,6 +7,9 @@ const fallbackPortrait =
 const fallbackLandscape =
   "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
 
+const tmdbProfileBase =
+  import.meta.env.VITE_TMDB_PROFILE_BASE || "https://image.tmdb.org/t/p/w185";
+
 const normalizePoster = (url = "") => {
   if (!url) return fallbackPortrait;
   if (url.startsWith("http")) return url;
@@ -46,6 +49,31 @@ const normalizeMovie = (raw = {}) => {
     content: raw.content || raw.description || "",
     origin: raw,
   };
+};
+
+const normalizePeople = (peoples = []) => {
+  if (!Array.isArray(peoples)) return [];
+  const seen = new Set();
+  const list = peoples
+    .map((p) => {
+      const name = p?.name || p?.original_name || "";
+      if (!name) return null;
+      const image = p?.profile_path
+        ? `${tmdbProfileBase}${p.profile_path}`
+        : null;
+      return {
+        name,
+        image,
+        character: p?.character,
+      };
+    })
+    .filter(Boolean);
+
+  return list.filter((item) => {
+    if (seen.has(item.name)) return false;
+    seen.add(item.name);
+    return true;
+  });
 };
 
 const parseEpisodeNumber = (value) => {
@@ -213,6 +241,12 @@ export const getDetail = (slug) =>
         const { data } = await client.get(`/phim/${slug}`);
         const payload = data?.data?.item || data?.movie || data?.data || data;
         ophimMovie = normalizeMovie(payload);
+        const ophimActors = normalizePeople(
+          payload?.peoples || payload?.people
+        );
+        if (ophimMovie && ophimActors.length) {
+          ophimMovie.actor = ophimActors;
+        }
         const rawEpisodes =
           payload?.episodes || data?.data?.episodes || data?.episodes || [];
         ophimEpisodes = Array.isArray(rawEpisodes)

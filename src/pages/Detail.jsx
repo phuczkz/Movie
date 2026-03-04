@@ -71,6 +71,52 @@ const Detail = () => {
     return episodes;
   }, [episodes, selectedServer, serverGroups]);
 
+  const actors = useMemo(() => {
+    const pools = [
+      movie?.actor,
+      movie?.actors,
+      movie?.cast,
+      movie?.origin?.actor,
+      movie?.origin?.actors,
+      movie?.origin?.cast,
+    ];
+
+    const collect = pools.flatMap((item) => {
+      if (!item) return [];
+      if (Array.isArray(item)) return item;
+      if (typeof item === "string") return item.split(/[,/|]/);
+      return [];
+    });
+
+    const normalized = collect
+      .map((entry) => {
+        if (!entry) return null;
+        if (typeof entry === "string")
+          return { name: entry.trim(), image: null };
+        if (typeof entry === "object")
+          return {
+            name: String(
+              entry.name || entry.full_name || entry.title || ""
+            ).trim(),
+            image:
+              entry.avatar ||
+              entry.image ||
+              entry.photo ||
+              entry.thumbnail ||
+              null,
+          };
+        return null;
+      })
+      .filter((item) => item && item.name);
+
+    const seen = new Set();
+    return normalized.filter((item) => {
+      if (seen.has(item.name)) return false;
+      seen.add(item.name);
+      return true;
+    });
+  }, [movie]);
+
   if (isLoading)
     return <div className="text-slate-300">Đang tải chi tiết...</div>;
 
@@ -180,14 +226,8 @@ const Detail = () => {
   return (
     <div className="space-y-8">
       {heroImage ? (
-        <div
-          className="overflow-hidden rounded-none border border-white/5 bg-slate-950/70 shadow-2xl lg:rounded-3xl"
-          style={{
-            width: "100vw",
-            marginLeft: "calc(50% - 50vw)",
-          }}
-        >
-          <div className="relative aspect-[16/5] w-full">
+        <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none overflow-hidden border border-white/5 bg-slate-950/70 shadow-2xl">
+          <div className="relative aspect-[16/7] w-full">
             <img
               src={heroImage}
               alt={movie.name}
@@ -301,7 +341,11 @@ const Detail = () => {
                       className="h-4 w-4"
                       fill={isSaved ? "currentColor" : "none"}
                     />
-                    {saving ? "Đang lưu..." : isSaved ? "Đã lưu" : "Yêu thích"}
+                    {saving
+                      ? "Đang lưu..."
+                      : isSaved
+                      ? "Hủy Yêu thích"
+                      : "Yêu thích"}
                   </button>
 
                   {message ? (
@@ -340,101 +384,146 @@ const Detail = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-white">Tập phim</h2>
-              <div className="flex items-center gap-2 text-sm text-slate-300">
-                <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1">
-                  <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-200">
-                    {selectedServer || "Nguồn"}
+        <div className="space-y-5">
+          <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold text-white">Tập phim</h2>
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1">
+                    <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-200">
+                      {selectedServer || "Nguồn"}
+                    </span>
+                    <span className="text-slate-200/80">
+                      {selectedEpisodes.length
+                        ? `${selectedEpisodes.length} tập`
+                        : ""}
+                    </span>
                   </span>
-                  <span className="text-slate-200/80">
-                    {selectedEpisodes.length
-                      ? `${selectedEpisodes.length} tập`
-                      : ""}
-                  </span>
-                </span>
-                {isCompleted ? (
-                  <span className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">
-                    Hoàn tất
-                  </span>
+                  {isCompleted ? (
+                    <span className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">
+                      Hoàn tất
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {Object.keys(serverGroups).length ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {hasVietsub ? (
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectedServer("Vietsub")}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                      selectedServer === "Vietsub"
+                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                    }`}
+                  >
+                    Vietsub
+                  </button>
+                ) : null}
+                {hasLongTieng ? (
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectedServer("Lồng Tiếng")}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                      selectedServer === "Lồng Tiếng"
+                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                    }`}
+                  >
+                    Lồng Tiếng
+                  </button>
+                ) : null}
+                {hasThuyetMinh ? (
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectedServer("Thuyết Minh")}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                      selectedServer === "Thuyết Minh"
+                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                    }`}
+                  >
+                    Thuyết minh
+                  </button>
                 ) : null}
               </div>
-            </div>
+            ) : null}
+
+            {showUpcomingNotice ? (
+              <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
+                <div>
+                  {nextEpisodeNumber
+                    ? `Tập ${nextEpisodeNumber} sẽ cập nhật sớm.`
+                    : "Tập mới sẽ có sớm, hãy quay lại để xem ngay khi cập nhật."}
+                </div>
+                {formattedNextTime ? (
+                  <div className="mt-1 text-xs font-semibold text-amber-50/90">
+                    {nextEpisodeNumber
+                      ? `Tập ${nextEpisodeNumber} dự kiến: ${formattedNextTime}`
+                      : `Lịch dự kiến: ${formattedNextTime}`}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {episodes.length ? (
+              <div className="max-h-48 overflow-y-auto pr-1">
+                <EpisodeList
+                  episodes={selectedEpisodes}
+                  serverLabel={selectedServer || undefined}
+                />
+              </div>
+            ) : (
+              <p className="text-slate-400">
+                {isTmdb
+                  ? "Nguồn TMDB chưa có tập phát online."
+                  : "Chưa có tập."}
+              </p>
+            )}
           </div>
 
-          {Object.keys(serverGroups).length ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {hasVietsub ? (
-                <button
-                  type="button"
-                  onClick={() => setUserSelectedServer("Vietsub")}
-                  className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                    selectedServer === "Vietsub"
-                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                  }`}
-                >
-                  Vietsub
-                </button>
-              ) : null}
-              {hasLongTieng ? (
-                <button
-                  type="button"
-                  onClick={() => setUserSelectedServer("Lồng Tiếng")}
-                  className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                    selectedServer === "Lồng Tiếng"
-                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                  }`}
-                >
-                  Lồng Tiếng
-                </button>
-              ) : null}
-              {hasThuyetMinh ? (
-                <button
-                  type="button"
-                  onClick={() => setUserSelectedServer("Thuyết Minh")}
-                  className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                    selectedServer === "Thuyết Minh"
-                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                  }`}
-                >
-                  Thuyết minh
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
-          {showUpcomingNotice ? (
-            <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
-              <div>
-                {nextEpisodeNumber
-                  ? `Tập ${nextEpisodeNumber} sẽ cập nhật sớm.`
-                  : "Tập mới sẽ có sớm, hãy quay lại để xem ngay khi cập nhật."}
+          {actors.length ? (
+            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-4">
+              <div className="flex items-center gap-3">
+                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
+                  Diễn viên
+                </p>
+                <span className="text-xs font-semibold text-slate-400">
+                  {actors.length}
+                </span>
               </div>
-              {formattedNextTime ? (
-                <div className="mt-1 text-xs font-semibold text-amber-50/90">
-                  {nextEpisodeNumber
-                    ? `Tập ${nextEpisodeNumber} dự kiến: ${formattedNextTime}`
-                    : `Lịch dự kiến: ${formattedNextTime}`}
-                </div>
-              ) : null}
+              <div className="flex flex-wrap gap-4">
+                {actors.map((actor) => {
+                  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    actor.name
+                  )}&background=0f172a&color=94a3b8&bold=true&size=128&format=png`;
+                  const src = actor.image || fallback;
+                  return (
+                    <div
+                      key={actor.name}
+                      className="flex flex-col items-center gap-2 w-24"
+                    >
+                      <div className="h-16 w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg">
+                        <img
+                          src={src}
+                          alt={actor.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      <span className="text-center text-sm text-slate-100 line-clamp-2 leading-tight">
+                        {actor.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
-
-          {episodes.length ? (
-            <EpisodeList
-              episodes={selectedEpisodes}
-              serverLabel={selectedServer || undefined}
-            />
-          ) : (
-            <p className="text-slate-400">
-              {isTmdb ? "Nguồn TMDB chưa có tập phát online." : "Chưa có tập."}
-            </p>
-          )}
         </div>
       </div>
     </div>

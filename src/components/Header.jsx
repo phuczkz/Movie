@@ -148,7 +148,8 @@ const Header = () => {
   }, []);
 
   const isHome = location.pathname === "/";
-  const showTransparent = isHome && !scrolled;
+  const isDetail = location.pathname.startsWith("/movie/");
+  const showTransparent = (isHome || isDetail) && !scrolled;
 
   return (
     <header

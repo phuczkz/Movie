@@ -6,6 +6,8 @@ const posterBase =
   import.meta.env.VITE_TMDB_IMAGE_BASE || "https://image.tmdb.org/t/p/w500";
 const backdropBase =
   import.meta.env.VITE_TMDB_BACKDROP_BASE || "https://image.tmdb.org/t/p/w780";
+const profileBase =
+  import.meta.env.VITE_TMDB_PROFILE_BASE || "https://image.tmdb.org/t/p/w185";
 
 const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
@@ -34,7 +36,10 @@ const buildImage = (path, base) => {
 const normalizeTmdbMovie = (raw = {}) => {
   const slug = raw.id ? `tmdb-${raw.id}` : "tmdb-unknown";
   const poster_url = buildImage(raw.poster_path, posterBase);
-  const thumb_url = buildImage(raw.backdrop_path || raw.backdrop || raw.still_path, backdropBase);
+  const thumb_url = buildImage(
+    raw.backdrop_path || raw.backdrop || raw.still_path,
+    backdropBase
+  );
 
   const year = raw.release_date || raw.first_air_date || "";
 
@@ -67,9 +72,22 @@ export const getPopular = async (page = 1) => {
 export const getTmdbDetailBySlug = async (slug) => {
   if (!apiKey) throw new Error("Missing VITE_TMDB_API_KEY");
   const id = slug.replace("tmdb-", "");
-  const { data } = await tmdb.get(`/movie/${id}`, {
-    params: { api_key: apiKey },
-  });
-  const movie = normalizeTmdbMovie(data);
+  const [detailRes, creditRes] = await Promise.all([
+    tmdb.get(`/movie/${id}`, { params: { api_key: apiKey } }),
+    tmdb
+      .get(`/movie/${id}/credits`, { params: { api_key: apiKey } })
+      .catch(() => null),
+  ]);
+
+  const movie = normalizeTmdbMovie(detailRes.data);
+  const cast = creditRes?.data?.cast || [];
+  const actors = cast.slice(0, 20).map((c) => ({
+    name: c.name || c.original_name || "",
+    image: c.profile_path ? buildImage(c.profile_path, profileBase) : null,
+    character: c.character,
+  }));
+
+  if (actors.length) movie.actor = actors;
+
   return { movie, episodes: [] };
 };
