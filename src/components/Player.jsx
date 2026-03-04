@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 
 const SEEK_STEP = 10; // seconds
+const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
+const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
 const Player = ({
   source,
@@ -55,6 +57,7 @@ const Player = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [qualityLevels, setQualityLevels] = useState([]); // [{label, level}]
   const [currentLevel, setCurrentLevel] = useState(-1); // -1 auto
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
   const hideControlsTimeout = useRef(null);
 
   useEffect(() => {
@@ -68,6 +71,14 @@ const Player = ({
     }, 0);
     return () => clearTimeout(resetId);
   }, [source]);
+
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_MEDIA_QUERY);
+    const update = () => setIsSmallScreen(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   const clearHideControlsTimeout = useCallback(() => {
     if (hideControlsTimeout.current) {
@@ -352,13 +363,16 @@ const Player = ({
   };
 
   const handleVolumeButton = () => {
-    const isSmallScreen = window.matchMedia("(max-width: 640px)").matches;
     if (isSmallScreen) {
       setShowVolumeSlider((v) => !v);
       return;
     }
     toggleMute();
   };
+
+  const handleVolumeChange = useCallback((value) => {
+    setVolume(value);
+  }, []);
 
   const handleChangePlaybackRate = (rate) => {
     setPlaybackRate(rate);
@@ -372,6 +386,13 @@ const Player = ({
     hlsRef.current.currentLevel = level;
     setCurrentLevel(level);
   };
+
+  const currentQualityLabel = useMemo(() => {
+    if (currentLevel === -1) return "Auto";
+    return (
+      qualityLevels.find((l) => l.level === currentLevel)?.label || "Auto"
+    );
+  }, [currentLevel, qualityLevels]);
 
   const handleContainerClick = (e) => {
     if (canUseIframe) return;
@@ -519,7 +540,7 @@ const Player = ({
                     max="1"
                     step="0.01"
                     value={muted ? 0 : volume}
-                    onChange={(e) => setVolume(Number(e.target.value))}
+                    onChange={(e) => handleVolumeChange(Number(e.target.value))}
                     className="w-20 accent-emerald-400"
                   />
                 </div>
@@ -532,7 +553,7 @@ const Player = ({
                         max="1"
                         step="0.01"
                         value={muted ? 0 : volume}
-                        onChange={(e) => setVolume(Number(e.target.value))}
+                        onChange={(e) => handleVolumeChange(Number(e.target.value))}
                         className="w-full accent-emerald-400"
                       />
                     </div>
@@ -564,7 +585,7 @@ const Player = ({
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        {[0.75, 1, 1.25, 1.5, 2].map((r) => (
+                        {PLAYBACK_RATES.map((r) => (
                           <button
                             key={r}
                             type="button"
@@ -590,11 +611,7 @@ const Player = ({
                           <SlidersHorizontal className="h-3.5 w-3.5" />
                           <span>Chất lượng</span>
                           <span className="ml-auto text-white/80">
-                            {currentLevel === -1
-                              ? "Auto"
-                              : qualityLevels.find(
-                                  (l) => l.level === currentLevel
-                                )?.label || "Auto"}
+                            {currentQualityLabel}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2">

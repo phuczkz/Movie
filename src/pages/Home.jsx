@@ -30,10 +30,20 @@ const useSectionVisibility = () => {
   return [ref, visible];
 };
 
-const Grid = ({ items = [], variant = "portrait", className = "" }) => (
+const Grid = ({
+  items = [],
+  variant = "portrait",
+  className = "",
+  priorityCount = 0,
+}) => (
   <div className={`grid-movies ${className}`.trim()}>
-    {items.map((movie) => (
-      <MovieCard key={movie.slug} movie={movie} variant={variant} />
+    {items.map((movie, idx) => (
+      <MovieCard
+        key={movie.slug}
+        movie={movie}
+        variant={variant}
+        priority={idx < priorityCount}
+      />
     ))}
   </div>
 );
@@ -100,7 +110,7 @@ const Home = () => {
           {loadingKKSeries ? (
             <div className="text-slate-400">Đang tải...</div>
           ) : (
-            <Grid items={cap(kkSeries)} />
+            <Grid items={cap(kkSeries)} priorityCount={4} />
           )}
         </Section>
       </div>
@@ -113,7 +123,7 @@ const Home = () => {
           {loadingKKSingle ? (
             <div className="text-slate-400">Đang tải...</div>
           ) : (
-            <Grid items={cap(kkSingle)} />
+            <Grid items={cap(kkSingle)} priorityCount={4} />
           )}
         </Section>
       </div>
@@ -126,7 +136,7 @@ const Home = () => {
           {loadingPopular ? (
             <div className="text-slate-400">Đang tải...</div>
           ) : (
-            <Grid items={cap(popular)} />
+            <Grid items={cap(popular)} priorityCount={4} />
           )}
         </Section>
       </div>
@@ -147,6 +157,7 @@ const Home = () => {
               items={latestHot}
               variant="landscape"
               className="grid-movies-landscape"
+              priorityCount={4}
             />
           )}
         </Section>
@@ -164,7 +175,7 @@ const Home = () => {
           {loadingSeries ? (
             <div className="text-slate-400">Đang tải...</div>
           ) : (
-            <Grid items={cap(series)} />
+            <Grid items={cap(series)} priorityCount={3} />
           )}
         </Section>
       </div>
@@ -181,7 +192,7 @@ const Home = () => {
           {loadingSingle ? (
             <div className="text-slate-400">Đang tải...</div>
           ) : (
-            <Grid items={cap(single)} />
+            <Grid items={cap(single)} priorityCount={3} />
           )}
         </Section>
       </div>

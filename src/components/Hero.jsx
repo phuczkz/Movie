@@ -15,6 +15,17 @@ const getHiRes = (url) => {
   return url.replace(/\/w(92|154|185|300|342|500|780)\//, "/original/");
 };
 
+const withWidthParam = (url, w = 640) => {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set("w", String(w));
+    return u.toString();
+  } catch {
+    return url;
+  }
+};
+
 const Hero = ({ movie, movies = [] }) => {
   const movieList = Array.isArray(movies) ? movies.filter(Boolean) : [];
   const slides = movieList.length ? movieList : movie ? [movie] : [];
@@ -48,6 +59,7 @@ const Hero = ({ movie, movies = [] }) => {
       activeMovie.poster_url ||
       "https://placehold.co/1600x900"
   );
+  const backgroundPreview = withWidthParam(background, 640) || background;
   const ratingValue =
     typeof activeMovie.rating === "number"
       ? activeMovie.rating
@@ -64,6 +76,15 @@ const Hero = ({ movie, movies = [] }) => {
       onMouseLeave={() => setIsPaused(false)}
     >
       <div className="absolute inset-0">
+        <img
+          src={backgroundPreview}
+          alt=""
+          className="absolute inset-0 h-0 w-0 opacity-0"
+          loading="eager"
+          decoding="async"
+          fetchPriority="high"
+          aria-hidden
+        />
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-105 contrast-[1.08] transition duration-700 ease-out"
           style={{ backgroundImage: `url(${background})` }}
@@ -192,7 +213,7 @@ const Hero = ({ movie, movies = [] }) => {
                   aria-label={`Chọn ${item.name}`}
                 >
                   <img
-                    src={thumbSource}
+                    src={withWidthParam(thumbSource, 320) || thumbSource}
                     alt={item.name}
                     className={`h-full w-full ${fitClass} transition duration-500 group-hover:scale-105`}
                     loading="lazy"

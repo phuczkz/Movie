@@ -42,7 +42,7 @@ const withWidthParam = (url, w = 360) => {
   }
 };
 
-const MovieCard = ({ movie }) => {
+const MovieCard = ({ movie, priority = false }) => {
   const episodeLabel = useEpisodeLabel(movie);
   const imgRef = useRef(null);
   const [shouldLoad, setShouldLoad] = useState(false);
@@ -127,7 +127,7 @@ const MovieCard = ({ movie }) => {
   const basePoster = movie.poster_url;
   const posterSrc =
     shouldLoad && canLoad
-      ? withWidthParam(basePoster, 360) || fallbackPoster
+      ? withWidthParam(basePoster, priority ? 420 : 360) || fallbackPoster
       : undefined;
 
   const posterSrcSet =
@@ -156,9 +156,9 @@ const MovieCard = ({ movie }) => {
           className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
           decoding="async"
-          fetchPriority="low"
+          fetchPriority={priority ? "high" : "low"}
           sizes="(min-width: 1280px) 220px, (min-width: 1024px) 200px, (min-width: 640px) 30vw, 45vw"
           onLoad={() => {
             setLoaded(true);
