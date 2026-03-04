@@ -33,7 +33,7 @@ const buildImage = (path, base) => {
   return `${base}${path}`;
 };
 
-const normalizeTmdbMovie = (raw = {}) => {
+const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
   const slug = raw.id ? `tmdb-${raw.id}` : "tmdb-unknown";
   const poster_url = buildImage(raw.poster_path, posterBase);
   const thumb_url = buildImage(
@@ -42,23 +42,48 @@ const normalizeTmdbMovie = (raw = {}) => {
   );
 
   const year = raw.release_date || raw.first_air_date || "";
+  const runtime = raw.runtime || (raw.episode_run_time?.[0] ?? null);
 
   return {
     slug,
     name: raw.title || raw.name || "Chưa có tên",
     poster_url,
     thumb_url,
+    backdrop_url: thumb_url,
     year: year ? year.slice(0, 4) : undefined,
     episode_current: raw.status || "",
     quality: raw.original_language?.toUpperCase(),
     lang: raw.original_language?.toUpperCase(),
-    time: raw.runtime ? `${raw.runtime} phút` : undefined,
+    time: runtime ? `${runtime} phút` : undefined,
     category: raw.genres?.map((g) => g.name) || raw.genre_ids || [],
     content: raw.overview,
     rating: raw.vote_average,
     origin_source: "tmdb",
+    origin_type: mediaType,
     origin: raw,
   };
+};
+
+const fetchTmdbDetail = async (id) => {
+  const params = { api_key: apiKey, append_to_response: "credits" };
+
+  let detail = null;
+  let mediaType = "movie";
+
+  try {
+    const res = await tmdb.get(`/movie/${id}`, { params });
+    detail = res.data;
+  } catch (error) {
+    // Fallback to TV if movie lookup fails
+  }
+
+  if (!detail) {
+    const res = await tmdb.get(`/tv/${id}`, { params });
+    detail = res.data;
+    mediaType = "tv";
+  }
+
+  return { detail, mediaType };
 };
 
 export const getPopular = async (page = 1) => {
@@ -72,15 +97,11 @@ export const getPopular = async (page = 1) => {
 export const getTmdbDetailBySlug = async (slug) => {
   if (!apiKey) throw new Error("Missing VITE_TMDB_API_KEY");
   const id = slug.replace("tmdb-", "");
-  const [detailRes, creditRes] = await Promise.all([
-    tmdb.get(`/movie/${id}`, { params: { api_key: apiKey } }),
-    tmdb
-      .get(`/movie/${id}/credits`, { params: { api_key: apiKey } })
-      .catch(() => null),
-  ]);
+  const { detail, mediaType } = await fetchTmdbDetail(id);
+  if (!detail) return { movie: null, episodes: [] };
 
-  const movie = normalizeTmdbMovie(detailRes.data);
-  const cast = creditRes?.data?.cast || [];
+  const movie = normalizeTmdbMovie(detail, mediaType);
+  const cast = detail?.credits?.cast || [];
   const actors = cast.slice(0, 20).map((c) => ({
     name: c.name || c.original_name || "",
     image: c.profile_path ? buildImage(c.profile_path, profileBase) : null,

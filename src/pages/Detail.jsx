@@ -1,6 +1,6 @@
 import { Heart, Play } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSavedMovie } from "../hooks/useSavedMovie.js";
@@ -21,11 +21,36 @@ const Detail = () => {
   const { slug } = useParams();
   const { data, isLoading } = useMovieDetail(slug);
 
-  const { movie, episodes = [] } = data || {};
-  const isTmdb = movie?.slug?.startsWith("tmdb-");
+  const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
+  const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
   const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
-    isTmdb ? movie?.name : ""
+    isTmdb ? baseMovie?.name : ""
   );
+
+  const bestAltMatch = useMemo(() => {
+    if (!isTmdb || loadingAlts) return null;
+    const normalized = (text) => (text || "").toLowerCase().trim();
+    const namesToMatch = [baseMovie?.name, baseMovie?.origin_name]
+      .map(normalized)
+      .filter(Boolean);
+    const targetYear = baseMovie?.year;
+
+    return altResults.find((m) => {
+      const nameHit =
+        namesToMatch.includes(normalized(m.name)) ||
+        namesToMatch.includes(normalized(m.origin_name));
+      const yearHit =
+        targetYear && m.year ? String(m.year) === String(targetYear) : true;
+      return nameHit && yearHit;
+    });
+  }, [
+    altResults,
+    baseMovie?.name,
+    baseMovie?.origin_name,
+    baseMovie?.year,
+    isTmdb,
+    loadingAlts,
+  ]);
   const {
     isSaved,
     loading: saving,
@@ -33,7 +58,25 @@ const Detail = () => {
     message,
     lastAction,
     toggleSave,
-  } = useSavedMovie(movie);
+  } = useSavedMovie(baseMovie);
+
+  const altSlug =
+    bestAltMatch && bestAltMatch.slug !== slug ? bestAltMatch.slug : null;
+
+  const { data: altDetail } = useMovieDetail(
+    altSlug && altSlug !== slug ? altSlug : null
+  );
+
+  const episodes = useMemo(() => {
+    const altEpisodes = altDetail?.episodes || [];
+    if (isTmdb && altEpisodes.length) return altEpisodes;
+    return baseEpisodes;
+  }, [altDetail?.episodes, baseEpisodes, isTmdb]);
+
+  const movie = useMemo(
+    () => baseMovie || altDetail?.movie || baseMovie,
+    [altDetail?.movie, baseMovie]
+  );
 
   const serverGroups = useMemo(() => {
     if (!episodes?.length) return {};
@@ -119,30 +162,6 @@ const Detail = () => {
 
   if (isLoading)
     return <div className="text-slate-300">Đang tải chi tiết...</div>;
-
-  // Nếu là TMDB và chưa có tập, thử chuyển sang bản Ophim khớp tên/năm
-  if (isTmdb && !episodes.length) {
-    const normalized = (text) => (text || "").toLowerCase().trim();
-    const namesToMatch = [movie?.name, movie?.origin_name]
-      .map(normalized)
-      .filter(Boolean);
-    const targetYear = movie?.year;
-
-    const bestMatch = loadingAlts
-      ? null
-      : altResults.find((m) => {
-          const nameHit =
-            namesToMatch.includes(normalized(m.name)) ||
-            namesToMatch.includes(normalized(m.origin_name));
-          const yearHit =
-            targetYear && m.year ? String(m.year) === String(targetYear) : true;
-          return nameHit && yearHit;
-        });
-
-    if (bestMatch && bestMatch.slug !== movie?.slug) {
-      return <Navigate to={`/movie/${bestMatch.slug}`} replace />;
-    }
-  }
 
   const latestEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
   const epTotal = parseEpisodeNumber(movie?.episode_total);

@@ -54,13 +54,29 @@ const normalizeMovie = (raw = {}) => {
 const normalizePeople = (peoples = []) => {
   if (!Array.isArray(peoples)) return [];
   const seen = new Set();
+
+  const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
+
+  const pickImage = (p) => {
+    const raw =
+      p?.profile_path ||
+      p?.avatar ||
+      p?.image ||
+      p?.photo ||
+      p?.thumbnail ||
+      p?.thumb ||
+      "";
+    if (!raw) return null;
+    if (raw.startsWith("http")) return raw;
+    if (raw.startsWith("/")) return `${tmdbProfileBase}${raw}`;
+    return cdn ? `${cdn}${raw}` : raw;
+  };
+
   const list = peoples
     .map((p) => {
-      const name = p?.name || p?.original_name || "";
+      const name = p?.name || p?.original_name || p?.full_name || "";
       if (!name) return null;
-      const image = p?.profile_path
-        ? `${tmdbProfileBase}${p.profile_path}`
-        : null;
+      const image = pickImage(p);
       return {
         name,
         image,

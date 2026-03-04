@@ -11,6 +11,8 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
+  Gauge,
+  SlidersHorizontal,
 } from "lucide-react";
 
 const SEEK_STEP = 10; // seconds
@@ -29,6 +31,7 @@ const Player = ({
   const containerRef = useRef(null);
   const ignoreNextClickRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const hlsRef = useRef(null);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -46,6 +49,9 @@ const Player = ({
   const [progress, setProgress] = useState(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [qualityLevels, setQualityLevels] = useState([]); // [{label, level}]
+  const [currentLevel, setCurrentLevel] = useState(-1); // -1 auto
   const hideControlsTimeout = useRef(null);
 
   useEffect(() => {
@@ -87,9 +93,50 @@ const Player = ({
 
     if (Hls.isSupported()) {
       const hls = new Hls({ capLevelToPlayerSize: true });
+      hlsRef.current = hls;
       hls.loadSource(source);
       hls.attachMedia(videoRef.current);
-      return () => hls.destroy();
+
+      hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+        const preferredHeights = [320, 480, 720, 1080];
+        const levels = (data?.levels || [])
+          .map((lvl, idx) => ({ height: lvl.height, level: idx }))
+          .sort((a, b) => (a.height || 0) - (b.height || 0))
+          .map((lvl) => ({
+            label: lvl.height ? `${lvl.height}p` : "Auto",
+            level: lvl.level,
+          }))
+          .filter(
+            (lvl) => !lvl.height || preferredHeights.includes(lvl.height)
+          );
+
+        const uniqueByHeight = [];
+        const seen = new Set();
+        for (const lvl of levels) {
+          const key = lvl.label;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniqueByHeight.push(lvl);
+        }
+
+        const finalLevels = [{ label: "Auto", level: -1 }, ...uniqueByHeight];
+
+        if (finalLevels.length) {
+          setQualityLevels(finalLevels);
+          setCurrentLevel(-1);
+        }
+      });
+
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+        setCurrentLevel(typeof data?.level === "number" ? data.level : -1);
+      });
+
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+        setQualityLevels([]);
+        setCurrentLevel(-1);
+      };
     }
 
     videoRef.current.src = source;
@@ -123,6 +170,8 @@ const Player = ({
     video.addEventListener("canplaythrough", onCanPlay);
     video.addEventListener("playing", onCanPlay);
 
+    video.playbackRate = playbackRate;
+
     return () => {
       video.removeEventListener("timeupdate", onTime);
       video.removeEventListener("loadedmetadata", onDuration);
@@ -136,7 +185,7 @@ const Player = ({
       video.removeEventListener("canplaythrough", onCanPlay);
       video.removeEventListener("playing", onCanPlay);
     };
-  }, [isHls, source]);
+  }, [isHls, source, playbackRate]);
 
   // Sync play/pause
   useEffect(() => {
@@ -195,6 +244,8 @@ const Player = ({
     [source, isHls]
   );
 
+  const togglePlay = useCallback(() => setPlaying((p) => !p), []);
+
   useEffect(() => {
     const handler = (e) => {
       if (e.key === "ArrowLeft") {
@@ -207,10 +258,15 @@ const Player = ({
         showControls();
         seekBy(SEEK_STEP);
       }
+      if (e.code === "Space") {
+        e.preventDefault();
+        showControls();
+        togglePlay();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [seekBy, showControls]);
+  }, [seekBy, showControls, togglePlay]);
 
   useEffect(() => {
     const onFsChange = () => {
@@ -225,8 +281,6 @@ const Player = ({
       document.removeEventListener("webkitfullscreenchange", onFsChange);
     };
   }, []);
-
-  const togglePlay = () => setPlaying((p) => !p);
 
   const toggleMute = () => setMuted((m) => !m);
 
@@ -292,6 +346,19 @@ const Player = ({
 
   const handleUserActivity = () => {
     showControls();
+  };
+
+  const handleChangePlaybackRate = (rate) => {
+    setPlaybackRate(rate);
+    if (isHls && videoRef.current) {
+      videoRef.current.playbackRate = rate;
+    }
+  };
+
+  const handleQualityChange = (level) => {
+    if (!hlsRef.current) return;
+    hlsRef.current.currentLevel = level;
+    setCurrentLevel(level);
   };
 
   const handleContainerClick = (e) => {
@@ -421,8 +488,84 @@ const Player = ({
                 />
               </div>
             </div>
+            <div className="flex items-center gap-3 flex-wrap justify-end">
+              <div className="relative">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] text-white/90 hover:border-emerald-300/50"
+                  onClick={(e) => {
+                    const menu = e.currentTarget.nextElementSibling;
+                    if (!menu) return;
+                    menu.classList.toggle("hidden");
+                  }}
+                >
+                  <Gauge className="h-3.5 w-3.5" />
+                  {playbackRate}x
+                </button>
+                <div className="absolute right-0 bottom-full mb-1 hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-2 text-xs text-white/90 z-20">
+                  {[0.75, 1, 1.25, 1.5, 2].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={(evt) => {
+                        handleChangePlaybackRate(r);
+                        evt.currentTarget.parentElement?.classList.add(
+                          "hidden"
+                        );
+                      }}
+                      className={`block w-full rounded-lg px-3 py-1 text-left transition ${
+                        playbackRate === r
+                          ? "bg-emerald-500/20 text-white"
+                          : "hover:bg-white/10"
+                      }`}
+                    >
+                      {r}x
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            <div className="flex items-center gap-2">
+              {isHls && qualityLevels.length ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] text-white/90 hover:border-emerald-300/50"
+                    onClick={(e) => {
+                      const menu = e.currentTarget.nextElementSibling;
+                      if (!menu) return;
+                      menu.classList.toggle("hidden");
+                    }}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    {currentLevel === -1
+                      ? "Auto"
+                      : qualityLevels.find((l) => l.level === currentLevel)
+                          ?.label || "Auto"}
+                  </button>
+                  <div className="absolute right-0 bottom-full mb-1 hidden rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-2 text-xs text-white/90 z-20 min-w-[120px]">
+                    {qualityLevels.map((lvl) => (
+                      <button
+                        key={lvl.level}
+                        type="button"
+                        onClick={(evt) => {
+                          handleQualityChange(lvl.level);
+                          evt.currentTarget.parentElement?.classList.add(
+                            "hidden"
+                          );
+                        }}
+                        className={`block w-full rounded-lg px-3 py-1 text-left transition ${
+                          currentLevel === lvl.level
+                            ? "bg-emerald-500/20 text-white"
+                            : "hover:bg-white/10"
+                        }`}
+                      >
+                        {lvl.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 onClick={handleFullscreen}
@@ -509,6 +652,7 @@ const Player = ({
         controls={false}
         volume={muted ? 0 : volume}
         muted={muted}
+        playbackRate={playbackRate}
         width="100%"
         height="100%"
         light={poster}
