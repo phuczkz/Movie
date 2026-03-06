@@ -243,7 +243,7 @@ const Detail = () => {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-2">
       {heroImage ? (
         <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none overflow-hidden border border-white/5 bg-slate-950/70 shadow-2xl">
           <div className="relative aspect-[16/7] w-full">
