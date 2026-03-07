@@ -261,7 +261,16 @@ const Player = ({
   const togglePlay = useCallback(() => setPlaying((p) => !p), []);
 
   useEffect(() => {
+    const isTypingTarget = (target) => {
+      if (!target) return false;
+      if (target.isContentEditable) return true;
+      const tag = target.tagName?.toLowerCase?.();
+      if (!tag) return false;
+      return tag === "input" || tag === "textarea" || tag === "select";
+    };
+
     const handler = (e) => {
+      if (isTypingTarget(e.target)) return;
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         showControls();
@@ -389,9 +398,7 @@ const Player = ({
 
   const currentQualityLabel = useMemo(() => {
     if (currentLevel === -1) return "Auto";
-    return (
-      qualityLevels.find((l) => l.level === currentLevel)?.label || "Auto"
-    );
+    return qualityLevels.find((l) => l.level === currentLevel)?.label || "Auto";
   }, [currentLevel, qualityLevels]);
 
   const handleContainerClick = (e) => {
@@ -553,7 +560,9 @@ const Player = ({
                         max="1"
                         step="0.01"
                         value={muted ? 0 : volume}
-                        onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                        onChange={(e) =>
+                          handleVolumeChange(Number(e.target.value))
+                        }
                         className="w-full accent-emerald-400"
                       />
                     </div>
