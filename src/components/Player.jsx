@@ -47,6 +47,11 @@ const Player = ({
     [source]
   );
 
+  const [filteredSource, setFilteredSource] = useState(null);
+  const playlistObjectUrlRef = useRef(null);
+  const needsFilter = isHls && Boolean(source) && !Hls.isSupported();
+  const effectiveSource = needsFilter ? filteredSource || source : source;
+
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
@@ -87,6 +92,68 @@ const Player = ({
     }
   }, []);
 
+  // Safari/native HLS: fetch playlist, drop ad fragments, and serve filtered blob
+  useEffect(() => {
+    let cancelled = false;
+    const revoke = () => {
+      if (playlistObjectUrlRef.current) {
+        URL.revokeObjectURL(playlistObjectUrlRef.current);
+        playlistObjectUrlRef.current = null;
+      }
+    };
+
+    if (!needsFilter || !source) {
+      revoke();
+      return undefined;
+    }
+
+    const fetchAndFilter = async () => {
+      try {
+        const res = await fetch(source, { cache: "no-store" });
+        const text = await res.text();
+        if (cancelled) return;
+
+        const lines = text.split(/\r?\n/);
+        const out = [];
+        for (let i = 0; i < lines.length; i += 1) {
+          const line = lines[i];
+          if (line.startsWith("#EXTINF")) {
+            const next = lines[i + 1];
+            if (next && next.includes("adjump")) {
+              if (
+                out.length &&
+                out[out.length - 1] === "#EXT-X-DISCONTINUITY"
+              ) {
+                out.pop();
+              }
+              i += 1;
+              continue;
+            }
+          }
+          if (line.includes("adjump")) continue;
+          out.push(line);
+        }
+
+        const filtered = out.join("\n");
+        const blob = new Blob([filtered], {
+          type: "application/vnd.apple.mpegurl",
+        });
+        revoke();
+        playlistObjectUrlRef.current = URL.createObjectURL(blob);
+        setFilteredSource(playlistObjectUrlRef.current);
+      } catch {
+        if (!cancelled) setFilteredSource(null);
+      }
+    };
+
+    fetchAndFilter();
+    return () => {
+      cancelled = true;
+      revoke();
+      setFilteredSource(null);
+    };
+  }, [needsFilter, source]);
+
   const scheduleHideControls = useCallback(() => {
     clearHideControlsTimeout();
     if (!playing) return;
@@ -102,14 +169,35 @@ const Player = ({
   }, [scheduleHideControls]);
 
   useEffect(() => {
-    if (!source || !source.endsWith(".m3u8") || !videoRef.current)
-      return undefined;
+    if (!effectiveSource || !isHls || !videoRef.current) return undefined;
 
     if (Hls.isSupported()) {
       const hls = new Hls({ capLevelToPlayerSize: true });
       hlsRef.current = hls;
-      hls.loadSource(source);
+      hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
+
+      hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
+        const details = data?.details;
+        const fragments = details?.fragments || [];
+        if (!details || !Array.isArray(fragments)) return;
+
+        const filtered = fragments.filter((frag) => {
+          const url = frag?.relurl || frag?.url;
+          return !(url && url.includes("adjump"));
+        });
+
+        let cursor = 0;
+        filtered.forEach((frag, idx) => {
+          frag.start = cursor;
+          frag.sn = idx;
+          cursor += Number(frag?.duration) || 0;
+        });
+
+        details.fragments = filtered;
+        details.totalduration = cursor;
+        details.endSN = filtered.length ? filtered[filtered.length - 1].sn : 0;
+      });
 
       hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
         const preferredHeights = [320, 480, 720, 1080];
@@ -153,9 +241,9 @@ const Player = ({
       };
     }
 
-    videoRef.current.src = source;
+    videoRef.current.src = effectiveSource;
     return undefined;
-  }, [source]);
+  }, [effectiveSource, isHls]);
 
   // Native video listeners
   useEffect(() => {
@@ -171,7 +259,6 @@ const Player = ({
     const onPause = () => setPlaying(false);
     const onBuffer = () => setIsBuffering(true);
     const onCanPlay = () => setIsBuffering(false);
-
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("loadedmetadata", onDuration);
     video.addEventListener("durationchange", onDuration);
@@ -199,7 +286,7 @@ const Player = ({
       video.removeEventListener("canplaythrough", onCanPlay);
       video.removeEventListener("playing", onCanPlay);
     };
-  }, [isHls, source, playbackRate]);
+  }, [isHls, effectiveSource, playbackRate]);
 
   // Sync play/pause
   useEffect(() => {
@@ -421,7 +508,7 @@ const Player = ({
     return () => document.removeEventListener("mousedown", handleDocClick);
   }, []);
 
-  if (!source) {
+  if (!effectiveSource) {
     return (
       <div className="aspect-video rounded-2xl border border-white/10 bg-slate-900/60" />
     );
@@ -672,7 +759,7 @@ const Player = ({
     </div>
   ) : null;
 
-  if (source.endsWith(".m3u8")) {
+  if (isHls) {
     return (
       <div
         ref={containerRef}
@@ -729,7 +816,7 @@ const Player = ({
     >
       <ReactPlayer
         ref={reactPlayerRef}
-        url={source}
+        url={effectiveSource}
         playing={playing}
         controls={false}
         volume={muted ? 0 : volume}
