@@ -51,9 +51,9 @@ const Grid = ({
 const Home = () => {
   const commonQueryOpts = {
     staleTime: 10 * 60 * 1000,
-    cacheTime: 20 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
     refetchOnMount: false,
   };
 
