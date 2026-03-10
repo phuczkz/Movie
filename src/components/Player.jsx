@@ -20,6 +20,32 @@ const SEEK_STEP = 10; // seconds
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
+// Remove ad fragments from HLS playlists by filtering out any lines/segments containing known ad markers.
+const stripAdSegmentsFromPlaylist = (text = "") => {
+  const lines = text.split(/\r?\n/);
+  const out = [];
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+
+    if (line.startsWith("#EXTINF")) {
+      const next = lines[i + 1];
+      if (next && next.includes("adjump")) {
+        if (out.length && out[out.length - 1] === "#EXT-X-DISCONTINUITY") {
+          out.pop();
+        }
+        i += 1;
+        continue;
+      }
+    }
+
+    if (line.includes("adjump")) continue;
+    out.push(line);
+  }
+
+  return out.join("\n");
+};
+
 const Player = ({
   source,
   poster,
@@ -113,28 +139,7 @@ const Player = ({
         const text = await res.text();
         if (cancelled) return;
 
-        const lines = text.split(/\r?\n/);
-        const out = [];
-        for (let i = 0; i < lines.length; i += 1) {
-          const line = lines[i];
-          if (line.startsWith("#EXTINF")) {
-            const next = lines[i + 1];
-            if (next && next.includes("adjump")) {
-              if (
-                out.length &&
-                out[out.length - 1] === "#EXT-X-DISCONTINUITY"
-              ) {
-                out.pop();
-              }
-              i += 1;
-              continue;
-            }
-          }
-          if (line.includes("adjump")) continue;
-          out.push(line);
-        }
-
-        const filtered = out.join("\n");
+        const filtered = stripAdSegmentsFromPlaylist(text);
         const blob = new Blob([filtered], {
           type: "application/vnd.apple.mpegurl",
         });
@@ -172,7 +177,40 @@ const Player = ({
     if (!effectiveSource || !isHls || !videoRef.current) return undefined;
 
     if (Hls.isSupported()) {
-      const hls = new Hls({ capLevelToPlayerSize: true });
+      const BaseLoader = Hls.DefaultConfig?.loader;
+      const AdFreeLoader = BaseLoader
+        ? class extends BaseLoader {
+            load(context, config, callbacks) {
+              const onSuccess = callbacks?.onSuccess;
+              const wrappedCallbacks = {
+                ...callbacks,
+                onSuccess: (response, stats, ctx, networkDetails) => {
+                  let nextResponse = response;
+                  if (
+                    typeof response?.data === "string" &&
+                    (ctx?.type === "manifest" || ctx?.type === "level")
+                  ) {
+                    nextResponse = {
+                      ...response,
+                      data: stripAdSegmentsFromPlaylist(response.data),
+                    };
+                  }
+
+                  if (onSuccess) {
+                    onSuccess(nextResponse, stats, ctx, networkDetails);
+                  }
+                },
+              };
+
+              super.load(context, config, wrappedCallbacks);
+            }
+          }
+        : null;
+
+      const hls = new Hls({
+        capLevelToPlayerSize: true,
+        ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
+      });
       hlsRef.current = hls;
       hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
