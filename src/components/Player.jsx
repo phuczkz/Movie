@@ -196,7 +196,7 @@ const Player = ({
     if (!effectiveSource || !isHls || !videoRef.current) return undefined;
 
     if (Hls.isSupported()) {
-      const hls = new Hls({ capLevelToPlayerSize: true });
+      const hls = new Hls(hlsConfig);
       hlsRef.current = hls;
       hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
