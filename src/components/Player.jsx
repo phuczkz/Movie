@@ -84,6 +84,23 @@ const Player = ({
     [source]
   );
 
+  const hlsConfig = useMemo(
+    () => ({
+      capLevelToPlayerSize: true,
+      lowLatencyMode: true,
+      maxBufferLength: 10,
+      maxMaxBufferLength: 20,
+      backBufferLength: 60,
+      liveSyncDurationCount: 3,
+      maxBufferHole: 0.5,
+      startLevel: -1,
+      fragLoadingRetryDelay: 500,
+      manifestLoadingRetryDelay: 800,
+      enableWorker: true,
+    }),
+    []
+  );
+
   const [filteredSource, setFilteredSource] = useState(null);
   const playlistObjectUrlRef = useRef(null);
   const needsFilter = isHls && Boolean(source) && !Hls.isSupported();
@@ -101,6 +118,8 @@ const Player = ({
   const [currentLevel, setCurrentLevel] = useState(-1); // -1 auto
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const hideControlsTimeout = useRef(null);
+  const bufferingSinceRef = useRef(null);
+  const lastRecoveryRef = useRef(0);
 
   useEffect(() => {
     // Reset visual state when source changes
@@ -218,44 +237,10 @@ const Player = ({
         }
         : null;
 
-      // ================================================================
-      // Optimized HLS config — tuned for reduced buffering on external
-      // .m3u8 sources where network latency and CDN jitter are common.
-      // ================================================================
       const hls = new Hls({
-        // --- Buffer tuning ---
-        maxBufferLength: 60,              // Buffer 60s ahead (default 30s)
-        maxMaxBufferLength: 600,          // Hard cap at 10 min
-        maxBufferSize: 120 * 1000 * 1000, // 120 MB (default 60 MB)
-        maxBufferHole: 1.0,               // Tolerate 1s gaps (default 0.5s)
-        backBufferLength: 30,             // Only keep 30s of watched buffer
-
-        // --- ABR (Adaptive Bitrate) tuning ---
-        abrEwmaDefaultEstimate: 1_500_000,   // Start assuming 1.5 Mbps
-        abrEwmaDefaultEstimateMax: 5_000_000,
-        abrBandWidthFactor: 0.9,          // More aggressive when BW is good
-        abrBandWidthUpFactor: 0.7,        // Switch up quality faster
         capLevelToPlayerSize: true,
-
-        // --- Loading & Retry ---
-        fragLoadingMaxRetry: 6,
-        fragLoadingRetryDelay: 1000,
-        fragLoadingMaxRetryTimeout: 64000,
-        manifestLoadingMaxRetry: 4,
-        manifestLoadingRetryDelay: 1000,
-        levelLoadingMaxRetry: 4,
-        levelLoadingRetryDelay: 1000,
-
-        // --- Performance ---
-        enableWorker: true,           // Decode in Web Worker thread
-        lowLatencyMode: false,        // VOD — no need for low-latency
-        progressive: true,            // Progressive segment loading
-        testBandwidth: true,
-
-        // --- Custom loader (ad filter) ---
         ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
       });
-
       hlsRef.current = hls;
       hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
@@ -338,6 +323,20 @@ const Player = ({
         setCurrentLevel(typeof data?.level === "number" ? data.level : -1);
       });
 
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (!data?.fatal) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          hls.startLoad();
+          return;
+        }
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+          return;
+        }
+        hls.destroy();
+        hlsRef.current = null;
+      });
+
       return () => {
         hls.destroy();
         hlsRef.current = null;
@@ -348,7 +347,7 @@ const Player = ({
 
     videoRef.current.src = effectiveSource;
     return undefined;
-  }, [effectiveSource, isHls]);
+  }, [effectiveSource, isHls, hlsConfig]);
 
   // Native video listeners
   // NOTE: playbackRate is intentionally NOT in the dependency array here.
@@ -426,6 +425,41 @@ const Player = ({
       videoRef.current.volume = muted ? 0 : volume;
     }
   }, [isHls, volume, muted]);
+
+  // Drop quality and restart load if buffering lingers
+  useEffect(() => {
+    if (!isHls || !hlsRef.current) return undefined;
+    if (!isBuffering) {
+      bufferingSinceRef.current = null;
+      return undefined;
+    }
+
+    bufferingSinceRef.current = performance.now();
+    const id = setInterval(() => {
+      const hls = hlsRef.current;
+      if (!hls || !isBuffering) return;
+      const now = performance.now();
+      const elapsed = now - (bufferingSinceRef.current || now);
+      if (elapsed < 2500) return;
+      if (now - lastRecoveryRef.current < 3000) return;
+
+      lastRecoveryRef.current = now;
+      const manualLevels = qualityLevels.filter((lvl) => lvl.level >= 0);
+      const lowestLevel = manualLevels.length ? manualLevels[0].level : -1;
+
+      if (lowestLevel !== -1 && hls.currentLevel !== lowestLevel) {
+        hls.currentLevel = lowestLevel;
+        setCurrentLevel(lowestLevel);
+      } else {
+        hls.currentLevel = -1;
+        setCurrentLevel(-1);
+      }
+
+      hls.startLoad();
+    }, 500);
+
+    return () => clearInterval(id);
+  }, [isBuffering, isHls, qualityLevels]);
 
   // Auto-hide controls when playing
   useEffect(() => {
@@ -721,8 +755,8 @@ const Player = ({
                   onClick={onNextEpisode}
                   disabled={!hasNextEpisode}
                   className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${hasNextEpisode
-                      ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
-                      : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
+                    ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
+                    : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
                     }`}
                   aria-label="Sang tập tiếp theo"
                 >
@@ -808,8 +842,8 @@ const Player = ({
                               setShowMoreMenu(false);
                             }}
                             className={`rounded-lg px-2.5 py-1 text-center transition ${playbackRate === r
-                                ? "bg-emerald-500/20 text-white"
-                                : "bg-white/5 hover:bg-white/10"
+                              ? "bg-emerald-500/20 text-white"
+                              : "bg-white/5 hover:bg-white/10"
                               }`}
                           >
                             {r}x
@@ -837,8 +871,8 @@ const Player = ({
                                 setShowMoreMenu(false);
                               }}
                               className={`rounded-lg px-2.5 py-1 text-left transition ${currentLevel === lvl.level
-                                  ? "bg-emerald-500/20 text-white"
-                                  : "bg-white/5 hover:bg-white/10"
+                                ? "bg-emerald-500/20 text-white"
+                                : "bg-white/5 hover:bg-white/10"
                                 }`}
                             >
                               {lvl.label}
@@ -891,6 +925,7 @@ const Player = ({
           className="player-native h-full w-full rounded-2xl"
           playsInline
           autoPlay
+          preload="auto"
           controls={false}
           controlsList="nodownload noremoteplayback noplaybackrate"
           disablePictureInPicture
