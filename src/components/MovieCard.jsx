@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel.js";
@@ -8,26 +8,47 @@ import { normalizeServerLabel } from "../utils/episodes.js";
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
 
-// Cap concurrent image fetches to avoid long pending queues
+// ---------------------------------------------------------------------------
+// Concurrent image-fetch limiter — module-level singleton.
+//
+// Previous implementation leaked slots when components unmounted while their
+// callback was still queued in `waiters`. The fix: each waiter is now a
+// { cb, cancelled } token. On cleanup we mark it cancelled AND proactively
+// remove it from the queue so the slot is never "stuck".
+// ---------------------------------------------------------------------------
 const MAX_INFLIGHT_IMAGES = 8;
 let inflight = 0;
-const waiters = [];
+const waiters = []; // Array<{ cb: () => void, cancelled: boolean }>
 
 const acquireSlot = (cb) => {
   if (inflight < MAX_INFLIGHT_IMAGES) {
     inflight += 1;
     cb();
-    return;
+    return { cb, cancelled: false };
   }
-  waiters.push(cb);
+  const token = { cb, cancelled: false };
+  waiters.push(token);
+  return token;
+};
+
+const cancelSlot = (token) => {
+  if (!token) return;
+  token.cancelled = true;
+  // Remove from queue so the slot is freed for the next waiter
+  const idx = waiters.indexOf(token);
+  if (idx !== -1) waiters.splice(idx, 1);
 };
 
 const releaseSlot = () => {
   inflight = Math.max(0, inflight - 1);
-  const next = waiters.shift();
-  if (next) {
-    inflight += 1;
-    next();
+  // Skip cancelled tokens that somehow remain
+  while (waiters.length) {
+    const token = waiters.shift();
+    if (!token.cancelled) {
+      inflight += 1;
+      token.cb();
+      return;
+    }
   }
 };
 
@@ -48,6 +69,21 @@ const MovieCard = ({ movie, priority = false }) => {
   const [shouldLoad, setShouldLoad] = useState(false);
   const [canLoad, setCanLoad] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const slotTokenRef = useRef(null);
+  const slotAcquiredRef = useRef(false); // true once we hold an inflight slot
+
+  // -----------------------------------------------------------------------
+  // Reset all image-loading state when the movie changes (component reuse).
+  // Without this, navigating away and back can leave stale flags that
+  // prevent the image from loading.
+  // -----------------------------------------------------------------------
+  const slug = movie?.slug;
+  useEffect(() => {
+    setShouldLoad(false);
+    setCanLoad(false);
+    setLoaded(false);
+    slotAcquiredRef.current = false;
+  }, [slug]);
 
   const { data: episodeList = [] } = useQuery({
     queryKey: ["card-episodes", movie?.slug],
@@ -95,9 +131,10 @@ const MovieCard = ({ movie, priority = false }) => {
     return badges;
   }, [audioSummary, fallbackAudioLabel]);
 
-  // Defer starting load until near viewport
+  // Defer starting load until near viewport.
+  // Deps include `slug` so we re-observe after a route change resets state.
   useEffect(() => {
-    if (!imgRef.current) return;
+    if (!imgRef.current || shouldLoad) return undefined;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -109,20 +146,28 @@ const MovieCard = ({ movie, priority = false }) => {
     );
     observer.observe(imgRef.current);
     return () => observer.disconnect();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, shouldLoad]);
 
-  // Acquire slot to cap concurrent fetches
+  // Acquire a concurrency slot when ready to load.
   useEffect(() => {
     if (!shouldLoad || canLoad) return undefined;
-    let cancelled = false;
-    acquireSlot(() => {
-      if (!cancelled) setCanLoad(true);
+
+    const token = acquireSlot(() => {
+      slotAcquiredRef.current = true;
+      setCanLoad(true);
     });
+    slotTokenRef.current = token;
+
     return () => {
-      cancelled = true;
-      if (canLoad && !loaded) releaseSlot();
+      // If the callback already ran, `slotAcquiredRef` is true — we must
+      // NOT cancel or release here because the <img> onLoad/onError will
+      // call releaseSlot. If it hasn't run yet, cancel the pending waiter.
+      if (!slotAcquiredRef.current) {
+        cancelSlot(token);
+      }
     };
-  }, [shouldLoad, canLoad, loaded]);
+  }, [shouldLoad, canLoad]);
 
   const basePoster = movie.poster_url;
   const posterSrc =
@@ -161,14 +206,24 @@ const MovieCard = ({ movie, priority = false }) => {
           fetchPriority={priority ? "high" : "low"}
           sizes="(min-width: 1280px) 220px, (min-width: 1024px) 200px, (min-width: 640px) 30vw, 45vw"
           onLoad={() => {
-            setLoaded(true);
-            releaseSlot();
+            if (!loaded) {
+              setLoaded(true);
+              if (slotAcquiredRef.current) {
+                slotAcquiredRef.current = false;
+                releaseSlot();
+              }
+            }
           }}
           onError={(e) => {
             e.currentTarget.onerror = null;
             e.currentTarget.src = fallbackPoster;
-            setLoaded(true);
-            releaseSlot();
+            if (!loaded) {
+              setLoaded(true);
+              if (slotAcquiredRef.current) {
+                slotAcquiredRef.current = false;
+                releaseSlot();
+              }
+            }
           }}
         />
         <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950 shadow">

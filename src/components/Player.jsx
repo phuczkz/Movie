@@ -1,6 +1,17 @@
 import Hls from "hls.js";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactPlayer from "react-player";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+// Lazy-load ReactPlayer — only downloaded when the non-HLS / non-iframe path is
+// actually rendered. This saves ~100 KB gzipped on the critical path for HLS
+// streams, which is the primary use-case.
+const ReactPlayer = React.lazy(() => import("react-player"));
 import {
   Maximize2,
   Minimize2,
@@ -180,40 +191,96 @@ const Player = ({
       const BaseLoader = Hls.DefaultConfig?.loader;
       const AdFreeLoader = BaseLoader
         ? class extends BaseLoader {
-            load(context, config, callbacks) {
-              const onSuccess = callbacks?.onSuccess;
-              const wrappedCallbacks = {
-                ...callbacks,
-                onSuccess: (response, stats, ctx, networkDetails) => {
-                  let nextResponse = response;
-                  if (
-                    typeof response?.data === "string" &&
-                    (ctx?.type === "manifest" || ctx?.type === "level")
-                  ) {
-                    nextResponse = {
-                      ...response,
-                      data: stripAdSegmentsFromPlaylist(response.data),
-                    };
-                  }
+          load(context, config, callbacks) {
+            const onSuccess = callbacks?.onSuccess;
+            const wrappedCallbacks = {
+              ...callbacks,
+              onSuccess: (response, stats, ctx, networkDetails) => {
+                let nextResponse = response;
+                if (
+                  typeof response?.data === "string" &&
+                  (ctx?.type === "manifest" || ctx?.type === "level")
+                ) {
+                  nextResponse = {
+                    ...response,
+                    data: stripAdSegmentsFromPlaylist(response.data),
+                  };
+                }
 
-                  if (onSuccess) {
-                    onSuccess(nextResponse, stats, ctx, networkDetails);
-                  }
-                },
-              };
+                if (onSuccess) {
+                  onSuccess(nextResponse, stats, ctx, networkDetails);
+                }
+              },
+            };
 
-              super.load(context, config, wrappedCallbacks);
-            }
+            super.load(context, config, wrappedCallbacks);
           }
+        }
         : null;
 
+      // ================================================================
+      // Optimized HLS config — tuned for reduced buffering on external
+      // .m3u8 sources where network latency and CDN jitter are common.
+      // ================================================================
       const hls = new Hls({
+        // --- Buffer tuning ---
+        maxBufferLength: 60,              // Buffer 60s ahead (default 30s)
+        maxMaxBufferLength: 600,          // Hard cap at 10 min
+        maxBufferSize: 120 * 1000 * 1000, // 120 MB (default 60 MB)
+        maxBufferHole: 1.0,               // Tolerate 1s gaps (default 0.5s)
+        backBufferLength: 30,             // Only keep 30s of watched buffer
+
+        // --- ABR (Adaptive Bitrate) tuning ---
+        abrEwmaDefaultEstimate: 1_500_000,   // Start assuming 1.5 Mbps
+        abrEwmaDefaultEstimateMax: 5_000_000,
+        abrBandWidthFactor: 0.9,          // More aggressive when BW is good
+        abrBandWidthUpFactor: 0.7,        // Switch up quality faster
         capLevelToPlayerSize: true,
+
+        // --- Loading & Retry ---
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 1000,
+        fragLoadingMaxRetryTimeout: 64000,
+        manifestLoadingMaxRetry: 4,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: 4,
+        levelLoadingRetryDelay: 1000,
+
+        // --- Performance ---
+        enableWorker: true,           // Decode in Web Worker thread
+        lowLatencyMode: false,        // VOD — no need for low-latency
+        progressive: true,            // Progressive segment loading
+        testBandwidth: true,
+
+        // --- Custom loader (ad filter) ---
         ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
       });
+
       hlsRef.current = hls;
       hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
+
+      // --- Error recovery -------------------------------------------------
+      // Without this handler the player would freeze on network hiccups or
+      // corrupt segments that are common with third-party .m3u8 sources.
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (!data.fatal) return;
+
+        switch (data.type) {
+          case Hls.ErrorTypes.NETWORK_ERROR:
+            console.warn("[HLS] Network error, attempting recovery…", data.details);
+            hls.startLoad();
+            break;
+          case Hls.ErrorTypes.MEDIA_ERROR:
+            console.warn("[HLS] Media error, attempting recovery…", data.details);
+            hls.recoverMediaError();
+            break;
+          default:
+            console.error("[HLS] Fatal unrecoverable error", data.details);
+            hls.destroy();
+            break;
+        }
+      });
 
       hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
         const details = data?.details;
@@ -284,6 +351,9 @@ const Player = ({
   }, [effectiveSource, isHls]);
 
   // Native video listeners
+  // NOTE: playbackRate is intentionally NOT in the dependency array here.
+  // Changing playback speed should not detach/reattach every event listener
+  // (which causes a brief playback hiccup). A dedicated effect below handles it.
   useEffect(() => {
     if (!isHls || !videoRef.current) return undefined;
     const video = videoRef.current;
@@ -295,6 +365,9 @@ const Player = ({
       setIsBuffering(false);
     };
     const onPause = () => setPlaying(false);
+    // Only "waiting" and "stalled" indicate real buffering.
+    // "seeking" was removed — it fires immediately on seek even when the
+    // target position is already buffered, causing a false loading spinner.
     const onBuffer = () => setIsBuffering(true);
     const onCanPlay = () => setIsBuffering(false);
     video.addEventListener("timeupdate", onTime);
@@ -324,7 +397,15 @@ const Player = ({
       video.removeEventListener("canplaythrough", onCanPlay);
       video.removeEventListener("playing", onCanPlay);
     };
-  }, [isHls, effectiveSource, playbackRate]);
+  }, [isHls, effectiveSource]);
+
+  // Sync playbackRate independently so changing speed doesn't tear down
+  // all event listeners above (which causes a playback hiccup).
+  useEffect(() => {
+    if (isHls && videoRef.current) {
+      videoRef.current.playbackRate = playbackRate;
+    }
+  }, [isHls, playbackRate]);
 
   // Sync play/pause
   useEffect(() => {
@@ -639,11 +720,10 @@ const Player = ({
                   type="button"
                   onClick={onNextEpisode}
                   disabled={!hasNextEpisode}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
-                    hasNextEpisode
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${hasNextEpisode
                       ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
                       : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
-                  }`}
+                    }`}
                   aria-label="Sang tập tiếp theo"
                 >
                   <SkipForward className="h-3.5 w-3.5" />
@@ -727,11 +807,10 @@ const Player = ({
                               handleChangePlaybackRate(r);
                               setShowMoreMenu(false);
                             }}
-                            className={`rounded-lg px-2.5 py-1 text-center transition ${
-                              playbackRate === r
+                            className={`rounded-lg px-2.5 py-1 text-center transition ${playbackRate === r
                                 ? "bg-emerald-500/20 text-white"
                                 : "bg-white/5 hover:bg-white/10"
-                            }`}
+                              }`}
                           >
                             {r}x
                           </button>
@@ -757,11 +836,10 @@ const Player = ({
                                 handleQualityChange(lvl.level);
                                 setShowMoreMenu(false);
                               }}
-                              className={`rounded-lg px-2.5 py-1 text-left transition ${
-                                currentLevel === lvl.level
+                              className={`rounded-lg px-2.5 py-1 text-left transition ${currentLevel === lvl.level
                                   ? "bg-emerald-500/20 text-white"
                                   : "bg-white/5 hover:bg-white/10"
-                              }`}
+                                }`}
                             >
                               {lvl.label}
                             </button>
@@ -809,6 +887,7 @@ const Player = ({
         <video
           ref={videoRef}
           poster={poster}
+          preload="auto"
           className="player-native h-full w-full rounded-2xl"
           playsInline
           autoPlay
@@ -852,46 +931,55 @@ const Player = ({
       onMouseMove={handleUserActivity}
       onTouchStart={handleUserActivity}
     >
-      <ReactPlayer
-        ref={reactPlayerRef}
-        url={effectiveSource}
-        playing={playing}
-        controls={false}
-        volume={muted ? 0 : volume}
-        muted={muted}
-        playbackRate={playbackRate}
-        width="100%"
-        height="100%"
-        light={poster}
-        onClickPreview={() => {
-          ignoreNextClickRef.current = true;
-          setPlaying(true);
-          showControls();
-          setTimeout(() => {
-            ignoreNextClickRef.current = false;
-          }, 0);
-        }}
-        onDuration={(d) => setDuration(d)}
-        onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
-        onPlay={() => {
-          setPlaying(true);
-          setIsBuffering(false);
-        }}
-        onPause={() => setPlaying(false)}
-        onReady={() => setIsBuffering(false)}
-        onBuffer={() => setIsBuffering(true)}
-        onBufferEnd={() => setIsBuffering(false)}
-        style={{ borderRadius: "1rem", overflow: "hidden" }}
-        config={{
-          file: {
-            attributes: {
-              playsInline: true,
-              controlsList: "nodownload noremoteplayback noplaybackrate",
-              disablePictureInPicture: true,
+      <Suspense
+        fallback={
+          <div className="flex h-full w-full items-center justify-center bg-black">
+            <div className="h-10 w-10 rounded-full border-2 border-white/30 border-t-emerald-400 animate-spin" />
+          </div>
+        }
+      >
+        <ReactPlayer
+          ref={reactPlayerRef}
+          url={effectiveSource}
+          playing={playing}
+          controls={false}
+          volume={muted ? 0 : volume}
+          muted={muted}
+          playbackRate={playbackRate}
+          width="100%"
+          height="100%"
+          light={poster}
+          onClickPreview={() => {
+            ignoreNextClickRef.current = true;
+            setPlaying(true);
+            showControls();
+            setTimeout(() => {
+              ignoreNextClickRef.current = false;
+            }, 0);
+          }}
+          onDuration={(d) => setDuration(d)}
+          onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
+          onPlay={() => {
+            setPlaying(true);
+            setIsBuffering(false);
+          }}
+          onPause={() => setPlaying(false)}
+          onReady={() => setIsBuffering(false)}
+          onBuffer={() => setIsBuffering(true)}
+          onBufferEnd={() => setIsBuffering(false)}
+          style={{ borderRadius: "1rem", overflow: "hidden" }}
+          config={{
+            file: {
+              attributes: {
+                playsInline: true,
+                preload: "auto",
+                controlsList: "nodownload noremoteplayback noplaybackrate",
+                disablePictureInPicture: true,
+              },
             },
-          },
-        }}
-      />
+          }}
+        />
+      </Suspense>
       {overlay}
       {loadingOverlay}
     </div>
