@@ -618,13 +618,13 @@ const Detail = () => {
                 Tiếp tục xem phim?
               </h3>
               <p className="text-sm font-medium text-slate-200 drop-shadow-md">
-                {resumeData.episodeName &&
-                resumeData.episodeName !== "Full" &&
-                resumeData.episodeName !== "Tập Full"
-                  ? `Bạn đang xem ${resumeData.episodeName} ở phút ${formatTime(
-                      resumeData.currentTime
-                    )}`
-                  : `Bạn đang xem ở phút ${formatTime(resumeData.currentTime)}`}
+                Bạn đang xem {
+                  (resumeData.episodeName === "Full" || resumeData.episodeName === "Tập Full" || !resumeData.episodeName)
+                    ? "Tập Full"
+                    : (resumeData.episodeName.toLowerCase().startsWith("tập")
+                        ? resumeData.episodeName
+                        : `Tập ${resumeData.episodeName}`)
+                } - phút {formatTime(resumeData.currentTime)} / {formatTime(resumeData.duration)}
               </p>
 
               <div className="mt-8 flex flex-col gap-3">

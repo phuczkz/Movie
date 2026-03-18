@@ -148,16 +148,30 @@ const Watch = () => {
     [user, slug, activeEpisode, activeServer, saveProgress]
   );
 
+  const metaRef = useRef({ slug: null, name: null, server: null });
+
+  // Keep track of the current episode meta for the unmount flush
+  useEffect(() => {
+    if (activeEpisode) {
+      metaRef.current = {
+        slug: activeEpisode.slug || activeEpisode.name,
+        name: activeEpisode.name,
+        server: activeServer || null,
+      };
+    }
+  }, [activeEpisode, activeServer]);
+
   // Force-save on pause or unmount
   useEffect(() => {
     return () => {
       if (!user || !slug) return;
       const { currentTime, duration } = progressRef.current;
+      const { slug: epSlug, name: epName, server: epServer } = metaRef.current;
       if (currentTime > 10) {
         forceSave(slug, {
-          episodeSlug: null,
-          episodeName: null,
-          server: null,
+          episodeSlug: epSlug,
+          episodeName: epName,
+          server: epServer,
           currentTime,
           duration,
         });

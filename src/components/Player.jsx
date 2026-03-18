@@ -28,30 +28,57 @@ const SEEK_STEP = 10; // seconds
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
-// Remove ad fragments from HLS playlists by filtering out any lines/segments containing known ad markers.
+// Remove ad fragments from HLS playlists.
+// It strips explicitly known ad segments (e.g. "adjump") and 
+// cleanly removes entire injected ad blocks by splitting at #EXT-X-DISCONTINUITY
+// and measuring the total block duration. Ad blocks are typically short (< 90s).
 const stripAdSegmentsFromPlaylist = (text = "") => {
-  const lines = text.split(/\r?\n/);
-  const out = [];
+  const blocks = text.split(/(?:^|\n)#EXT-X-DISCONTINUITY\b/);
 
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-
-    if (line.startsWith("#EXTINF")) {
-      const next = lines[i + 1];
-      if (next && next.includes("adjump")) {
-        if (out.length && out[out.length - 1] === "#EXT-X-DISCONTINUITY") {
-          out.pop();
-        }
+  const stripAdjump = (blockText) => {
+    const lines = blockText.split(/\r?\n/);
+    const out = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      if (lines[i].startsWith("#EXTINF") && lines[i + 1] && lines[i + 1].includes("adjump")) {
         i += 1;
         continue;
       }
+      if (lines[i].includes("adjump")) continue;
+      out.push(lines[i]);
     }
+    return out.join("\n");
+  };
 
-    if (line.includes("adjump")) continue;
-    out.push(line);
+  if (blocks.length <= 1) {
+    return stripAdjump(text);
   }
 
-  return out.join("\n");
+  const validBlocks = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    
+    // Calculate total duration of this block
+    const infMatches = block.match(/#EXTINF:([\d.]+)/g);
+    let duration = 0;
+    if (infMatches) {
+      duration = infMatches.reduce((acc, str) => {
+        const match = str.match(/[\d.]+/);
+        return acc + (match ? parseFloat(match[0]) : 0);
+      }, 0);
+    }
+    
+    // Very short blocks (< 90s) bounded by discontinuity are typically injected video ads
+    let isAd = false;
+    if (duration > 0 && duration < 90) {
+      isAd = true;
+    }
+
+    if (!isAd || blocks.length === 1) {
+      validBlocks.push(stripAdjump(block).trim());
+    }
+  }
+
+  return validBlocks.join("\n#EXT-X-DISCONTINUITY\n");
 };
 
 const Player = ({
@@ -85,14 +112,10 @@ const Player = ({
 
   const hlsConfig = useMemo(
     () => ({
-      capLevelToPlayerSize: true,
-      lowLatencyMode: true,
-      maxBufferLength: 10,
-      maxMaxBufferLength: 20,
-      backBufferLength: 60,
-      liveSyncDurationCount: 3,
-      maxBufferHole: 0.5,
-      startLevel: -1,
+      // Optimized for VOD streaming (Movies/Episodes)
+      maxBufferLength: 30, // Keep 30s actively buffered
+      maxMaxBufferLength: 600, // Allow up to 10 mins if memory permits
+      startLevel: -1, // Auto quality start
       fragLoadingRetryDelay: 500,
       manifestLoadingRetryDelay: 800,
       enableWorker: true,
@@ -248,16 +271,7 @@ const Player = ({
       hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (
-          initialTime > 0 &&
-          !initialTimeConsumed.current &&
-          videoRef.current
-        ) {
-          videoRef.current.currentTime = initialTime;
-          initialTimeConsumed.current = true;
-        }
-      });
+      // HLS error handling
 
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (!data.fatal) return;
@@ -389,7 +403,14 @@ const Player = ({
     const onPause = () => setPlaying(false);
 
     const onBuffer = () => setIsBuffering(true);
-    const onCanPlay = () => setIsBuffering(false);
+    const onCanPlay = () => {
+      setIsBuffering(false);
+      // Ensure the resume feature jumps to the right mark as soon as video provides frame data
+      if (initialTime > 0 && !initialTimeConsumed.current) {
+        video.currentTime = initialTime;
+        initialTimeConsumed.current = true;
+      }
+    };
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("loadedmetadata", onDuration);
     video.addEventListener("durationchange", onDuration);
