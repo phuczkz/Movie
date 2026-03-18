@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   Link,
   useParams,
   useSearchParams,
   Navigate,
   useNavigate,
+  useLocation,
 } from "react-router-dom";
 import {
   Bell,
@@ -18,16 +19,33 @@ import {
 import Player from "../components/Player.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
+import { useWatchProgress } from "../hooks/useWatchProgress.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   getEpisodeLabel,
   normalizeServerLabel,
   parseEpisodeNumber,
 } from "../utils/episodes.js";
 
+const formatTime = (secs) => {
+  const s = Math.floor(secs);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${m}:${String(sec).padStart(2, "0")}`;
+};
+
 const Watch = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const playerRef = useRef(null);
+  const { user } = useAuth();
+  const { saveProgress, forceSave } = useWatchProgress();
+
+  const initialTime = location.state?.initialTime || 0;
+  const progressRef = useRef({ currentTime: 0, duration: 0 });
   const [params, setParams] = useSearchParams();
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
@@ -113,6 +131,39 @@ const Watch = () => {
     if (!selectedEpisode || !playerRef.current) return;
     playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedEpisode]);
+
+  // Save progress periodically via Player's onTimeUpdate
+  const onTimeUpdate = useCallback(
+    (currentTime, duration) => {
+      progressRef.current = { currentTime, duration };
+      if (!user || !slug || !activeEpisode) return;
+      saveProgress(slug, {
+        episodeSlug: activeEpisode.slug || activeEpisode.name,
+        episodeName: activeEpisode.name,
+        server: activeServer || null,
+        currentTime,
+        duration,
+      });
+    },
+    [user, slug, activeEpisode, activeServer, saveProgress]
+  );
+
+  // Force-save on pause or unmount
+  useEffect(() => {
+    return () => {
+      if (!user || !slug) return;
+      const { currentTime, duration } = progressRef.current;
+      if (currentTime > 10) {
+        forceSave(slug, {
+          episodeSlug: null,
+          episodeName: null,
+          server: null,
+          currentTime,
+          duration,
+        });
+      }
+    };
+  }, [user, slug, forceSave]);
 
   useEffect(() => {
     if (!episodesForServer.length) return;
@@ -234,6 +285,8 @@ const Watch = () => {
             );
           }}
           hasNextEpisode={Boolean(nextEpisode)}
+          onTimeUpdate={onTimeUpdate}
+          initialTime={initialTime}
         />
       </div>
 

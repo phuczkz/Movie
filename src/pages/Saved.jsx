@@ -35,7 +35,7 @@ const Saved = () => {
       {loading && !movies.length ? (
         <p className="text-slate-400">Đang tải...</p>
       ) : movies.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid-movies">
           {movies.map((movie) => (
             <MovieCard key={movie.slug || movie.id} movie={movie} />
           ))}

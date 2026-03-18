@@ -1,10 +1,12 @@
 import { Heart, Play } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSavedMovie } from "../hooks/useSavedMovie.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
+import { useWatchProgress } from "../hooks/useWatchProgress.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   getLatestEpisodeNumber,
   normalizeServerLabel,
@@ -17,9 +19,51 @@ const getHiRes = (url) => {
   return url.replace(/\/w(92|154|185|300|342|500|780)\//, "/original/");
 };
 
+const formatTime = (secs) => {
+  const s = Math.floor(secs);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  return `${m}:${String(sec).padStart(2, "0")}`;
+};
+
 const Detail = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const { data, isLoading } = useMovieDetail(slug);
+  const { user } = useAuth();
+  const { loadProgress, clearProgress } = useWatchProgress();
+
+  const [resumeData, setResumeData] = useState(null);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+
+  // Load watch progress for the modal
+  useEffect(() => {
+    if (!user || !slug) return;
+    let cancelled = false;
+    loadProgress(slug).then((data) => {
+      if (cancelled || !data) return;
+      if (data.currentTime > 10) {
+        setResumeData(data);
+        setShowResumeModal(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [user, slug, loadProgress]);
+
+  const handleResume = useCallback(() => {
+    if (!resumeData) return;
+    const q = new URLSearchParams();
+    if (resumeData.episodeSlug) q.set("episode", resumeData.episodeSlug);
+    if (resumeData.server) q.set("server", resumeData.server);
+    navigate(`/watch/${slug}?${q.toString()}`, { state: { initialTime: resumeData.currentTime } });
+  }, [resumeData, slug, navigate]);
+
+  const handleStartFromBeginning = useCallback(() => {
+    clearProgress(slug);
+    setShowResumeModal(false);
+  }, [slug, clearProgress]);
 
   const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
   const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
@@ -237,9 +281,9 @@ const Detail = () => {
 
   const heroImage = getHiRes(
     movie?.backdrop_url ||
-      movie?.banner ||
-      movie?.thumb_url ||
-      movie?.poster_url
+    movie?.banner ||
+    movie?.thumb_url ||
+    movie?.poster_url
   );
 
   return (
@@ -338,9 +382,8 @@ const Detail = () => {
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   <Link
                     to={`/watch/${movie.slug}`}
-                    className={`flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 ${
-                      episodes.length ? "" : "opacity-80"
-                    }`}
+                    className={`flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 ${episodes.length ? "" : "opacity-80"
+                      }`}
                   >
                     <Play className="h-4 w-4" />
                     {episodes.length ? "Xem ngay" : "Mở trang xem"}
@@ -350,11 +393,10 @@ const Detail = () => {
                     type="button"
                     onClick={toggleSave}
                     disabled={saving}
-                    className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                      isSaved
-                        ? "border-rose-400/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
-                        : "border-white/15 bg-white/5 text-white hover:border-emerald-300/60 hover:text-emerald-100"
-                    } ${saving ? "opacity-80" : ""}`}
+                    className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${isSaved
+                      ? "border-rose-400/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
+                      : "border-white/15 bg-white/5 text-white hover:border-emerald-300/60 hover:text-emerald-100"
+                      } ${saving ? "opacity-80" : ""}`}
                   >
                     <Heart
                       className="h-4 w-4"
@@ -363,17 +405,16 @@ const Detail = () => {
                     {saving
                       ? "Đang lưu..."
                       : isSaved
-                      ? "Hủy Yêu thích"
-                      : "Yêu thích"}
+                        ? "Hủy Yêu thích"
+                        : "Yêu thích"}
                   </button>
 
                   {message ? (
                     <span
-                      className={`text-xs font-semibold ${
-                        lastAction === "remove"
-                          ? "text-rose-200"
-                          : "text-emerald-200"
-                      }`}
+                      className={`text-xs font-semibold ${lastAction === "remove"
+                        ? "text-rose-200"
+                        : "text-emerald-200"
+                        }`}
                     >
                       {message}
                     </span>
@@ -434,11 +475,10 @@ const Detail = () => {
                   <button
                     type="button"
                     onClick={() => setUserSelectedServer("Vietsub")}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                      selectedServer === "Vietsub"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                    }`}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Vietsub"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
                   >
                     Vietsub
                   </button>
@@ -447,11 +487,10 @@ const Detail = () => {
                   <button
                     type="button"
                     onClick={() => setUserSelectedServer("Lồng Tiếng")}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                      selectedServer === "Lồng Tiếng"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                    }`}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Lồng Tiếng"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
                   >
                     Lồng Tiếng
                   </button>
@@ -460,11 +499,10 @@ const Detail = () => {
                   <button
                     type="button"
                     onClick={() => setUserSelectedServer("Thuyết Minh")}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                      selectedServer === "Thuyết Minh"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                    }`}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Thuyết Minh"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
                   >
                     Thuyết minh
                   </button>
@@ -545,6 +583,56 @@ const Detail = () => {
           ) : null}
         </div>
       </div>
+
+      {/* Fullscreen Resume Modal */}
+      {showResumeModal && resumeData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
+            {/* Background Poster Full Width */}
+            {(movie?.thumb_url || movie?.poster_url) && (
+              <div className="absolute inset-0 z-0">
+                <img
+                  src={getHiRes(movie?.poster_url || movie?.thumb_url)}
+                  alt="cover"
+                  className="h-full w-full object-cover object-top opacity-100"
+                />
+                {/* Gradient masks to make text readable */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent" />
+              </div>
+            )}
+
+            {/* Modal Content */}
+            <div className="relative z-10 px-6 pb-6 pt-36 text-center">
+              <h3 className="mb-2 text-xl font-bold text-white tracking-tight drop-shadow-md">Tiếp tục xem phim?</h3>
+              <p className="text-sm font-medium text-slate-200 drop-shadow-md">
+                {resumeData.episodeName &&
+                  resumeData.episodeName !== "Full" &&
+                  resumeData.episodeName !== "Tập Full"
+                  ? `Bạn đang xem ${resumeData.episodeName} ở phút ${formatTime(resumeData.currentTime)}`
+                  : `Bạn đang xem ở phút ${formatTime(resumeData.currentTime)}`}
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={handleResume}
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:-translate-y-[2px] hover:bg-emerald-400 active:scale-[0.98]"
+                >
+                  <Play className="h-4 w-4 transition-transform group-hover:scale-110" fill="currentColor" />
+                  Có, tiếp tục xem
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartFromBeginning}
+                  className="w-full rounded-xl border border-white/20 bg-slate-900/40 backdrop-blur-md px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10 active:scale-[0.98]"
+                >
+                  Tôi muốn xem từ đầu
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

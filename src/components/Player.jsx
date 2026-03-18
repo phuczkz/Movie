@@ -8,9 +8,7 @@ import React, {
   useState,
 } from "react";
 
-// Lazy-load ReactPlayer — only downloaded when the non-HLS / non-iframe path is
-// actually rendered. This saves ~100 KB gzipped on the critical path for HLS
-// streams, which is the primary use-case.
+
 const ReactPlayer = React.lazy(() => import("react-player"));
 import {
   Maximize2,
@@ -65,6 +63,8 @@ const Player = ({
   actionSlot,
   onNextEpisode,
   hasNextEpisode = true,
+  onTimeUpdate,
+  initialTime,
 }) => {
   const videoRef = useRef(null);
   const reactPlayerRef = useRef(null);
@@ -120,6 +120,7 @@ const Player = ({
   const hideControlsTimeout = useRef(null);
   const bufferingSinceRef = useRef(null);
   const lastRecoveryRef = useRef(0);
+  const initialTimeConsumed = useRef(false);
 
   useEffect(() => {
     // Reset visual state when source changes
@@ -237,18 +238,25 @@ const Player = ({
         }
         : null;
 
-      const hls = new Hls({
+      let hlsConfigOpts = {
         capLevelToPlayerSize: true,
         ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
-      });
+      };
+
+      const hls = new Hls(hlsConfigOpts);
+
       hlsRef.current = hls;
       hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
 
-      // --- Error recovery -------------------------------------------------
-      // Without this handler the player would freeze on network hiccups or
-      // corrupt segments that are common with third-party .m3u8 sources.
-      hls.on(Hls.Events.ERROR, (_, data) => {
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (initialTime > 0 && !initialTimeConsumed.current && videoRef.current) {
+          videoRef.current.currentTime = initialTime;
+          initialTimeConsumed.current = true;
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (_, data) => {  
         if (!data.fatal) return;
 
         switch (data.type) {
@@ -345,28 +353,33 @@ const Player = ({
       };
     }
 
-    videoRef.current.src = effectiveSource;
+    if (videoRef.current) {
+      videoRef.current.src = effectiveSource;
+      if (initialTime > 0 && !initialTimeConsumed.current) {
+        videoRef.current.currentTime = initialTime;
+        initialTimeConsumed.current = true;
+      }
+    }
     return undefined;
-  }, [effectiveSource, isHls, hlsConfig]);
+  }, [effectiveSource, isHls, hlsConfig, initialTime]);
 
-  // Native video listeners
-  // NOTE: playbackRate is intentionally NOT in the dependency array here.
-  // Changing playback speed should not detach/reattach every event listener
-  // (which causes a brief playback hiccup). A dedicated effect below handles it.
+
   useEffect(() => {
     if (!isHls || !videoRef.current) return undefined;
     const video = videoRef.current;
 
-    const onTime = () => setProgress(video.currentTime || 0);
+    const onTime = () => {
+      const t = video.currentTime || 0;
+      setProgress(t);
+      if (onTimeUpdate) onTimeUpdate(t, video.duration || 0);
+    };
     const onDuration = () => setDuration(video.duration || 0);
     const onPlay = () => {
       setPlaying(true);
       setIsBuffering(false);
     };
     const onPause = () => setPlaying(false);
-    // Only "waiting" and "stalled" indicate real buffering.
-    // "seeking" was removed — it fires immediately on seek even when the
-    // target position is already buffered, causing a false loading spinner.
+
     const onBuffer = () => setIsBuffering(true);
     const onCanPlay = () => setIsBuffering(false);
     video.addEventListener("timeupdate", onTime);
@@ -398,8 +411,13 @@ const Player = ({
     };
   }, [isHls, effectiveSource]);
 
-  // Sync playbackRate independently so changing speed doesn't tear down
-  // all event listeners above (which causes a playback hiccup).
+  useEffect(() => {
+    if (isHls && videoRef.current) {
+      videoRef.current.playbackRate = playbackRate;
+    }
+  }, [isHls, playbackRate]);
+
+
   useEffect(() => {
     if (isHls && videoRef.current) {
       videoRef.current.playbackRate = playbackRate;
