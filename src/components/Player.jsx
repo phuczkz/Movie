@@ -925,7 +925,6 @@ const Player = ({
           className="player-native h-full w-full rounded-2xl"
           playsInline
           autoPlay
-          preload="auto"
           controls={false}
           controlsList="nodownload noremoteplayback noplaybackrate"
           disablePictureInPicture
