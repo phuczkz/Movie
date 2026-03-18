@@ -8,7 +8,6 @@ import React, {
   useState,
 } from "react";
 
-
 const ReactPlayer = React.lazy(() => import("react-player"));
 import {
   Maximize2,
@@ -211,31 +210,31 @@ const Player = ({
       const BaseLoader = Hls.DefaultConfig?.loader;
       const AdFreeLoader = BaseLoader
         ? class extends BaseLoader {
-          load(context, config, callbacks) {
-            const onSuccess = callbacks?.onSuccess;
-            const wrappedCallbacks = {
-              ...callbacks,
-              onSuccess: (response, stats, ctx, networkDetails) => {
-                let nextResponse = response;
-                if (
-                  typeof response?.data === "string" &&
-                  (ctx?.type === "manifest" || ctx?.type === "level")
-                ) {
-                  nextResponse = {
-                    ...response,
-                    data: stripAdSegmentsFromPlaylist(response.data),
-                  };
-                }
+            load(context, config, callbacks) {
+              const onSuccess = callbacks?.onSuccess;
+              const wrappedCallbacks = {
+                ...callbacks,
+                onSuccess: (response, stats, ctx, networkDetails) => {
+                  let nextResponse = response;
+                  if (
+                    typeof response?.data === "string" &&
+                    (ctx?.type === "manifest" || ctx?.type === "level")
+                  ) {
+                    nextResponse = {
+                      ...response,
+                      data: stripAdSegmentsFromPlaylist(response.data),
+                    };
+                  }
 
-                if (onSuccess) {
-                  onSuccess(nextResponse, stats, ctx, networkDetails);
-                }
-              },
-            };
+                  if (onSuccess) {
+                    onSuccess(nextResponse, stats, ctx, networkDetails);
+                  }
+                },
+              };
 
-            super.load(context, config, wrappedCallbacks);
+              super.load(context, config, wrappedCallbacks);
+            }
           }
-        }
         : null;
 
       let hlsConfigOpts = {
@@ -250,22 +249,32 @@ const Player = ({
       hls.attachMedia(videoRef.current);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (initialTime > 0 && !initialTimeConsumed.current && videoRef.current) {
+        if (
+          initialTime > 0 &&
+          !initialTimeConsumed.current &&
+          videoRef.current
+        ) {
           videoRef.current.currentTime = initialTime;
           initialTimeConsumed.current = true;
         }
       });
 
-      hls.on(Hls.Events.ERROR, (_, data) => {  
+      hls.on(Hls.Events.ERROR, (_, data) => {
         if (!data.fatal) return;
 
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            console.warn("[HLS] Network error, attempting recovery…", data.details);
+            console.warn(
+              "[HLS] Network error, attempting recovery…",
+              data.details
+            );
             hls.startLoad();
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
-            console.warn("[HLS] Media error, attempting recovery…", data.details);
+            console.warn(
+              "[HLS] Media error, attempting recovery…",
+              data.details
+            );
             hls.recoverMediaError();
             break;
           default:
@@ -363,7 +372,6 @@ const Player = ({
     return undefined;
   }, [effectiveSource, isHls, hlsConfig, initialTime]);
 
-
   useEffect(() => {
     if (!isHls || !videoRef.current) return undefined;
     const video = videoRef.current;
@@ -416,7 +424,6 @@ const Player = ({
       videoRef.current.playbackRate = playbackRate;
     }
   }, [isHls, playbackRate]);
-
 
   useEffect(() => {
     if (isHls && videoRef.current) {
@@ -772,10 +779,11 @@ const Player = ({
                   type="button"
                   onClick={onNextEpisode}
                   disabled={!hasNextEpisode}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${hasNextEpisode
-                    ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
-                    : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
-                    }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
+                    hasNextEpisode
+                      ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
+                      : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
+                  }`}
                   aria-label="Sang tập tiếp theo"
                 >
                   <SkipForward className="h-3.5 w-3.5" />
@@ -859,10 +867,11 @@ const Player = ({
                               handleChangePlaybackRate(r);
                               setShowMoreMenu(false);
                             }}
-                            className={`rounded-lg px-2.5 py-1 text-center transition ${playbackRate === r
-                              ? "bg-emerald-500/20 text-white"
-                              : "bg-white/5 hover:bg-white/10"
-                              }`}
+                            className={`rounded-lg px-2.5 py-1 text-center transition ${
+                              playbackRate === r
+                                ? "bg-emerald-500/20 text-white"
+                                : "bg-white/5 hover:bg-white/10"
+                            }`}
                           >
                             {r}x
                           </button>
@@ -888,10 +897,11 @@ const Player = ({
                                 handleQualityChange(lvl.level);
                                 setShowMoreMenu(false);
                               }}
-                              className={`rounded-lg px-2.5 py-1 text-left transition ${currentLevel === lvl.level
-                                ? "bg-emerald-500/20 text-white"
-                                : "bg-white/5 hover:bg-white/10"
-                                }`}
+                              className={`rounded-lg px-2.5 py-1 text-left transition ${
+                                currentLevel === lvl.level
+                                  ? "bg-emerald-500/20 text-white"
+                                  : "bg-white/5 hover:bg-white/10"
+                              }`}
                             >
                               {lvl.label}
                             </button>
