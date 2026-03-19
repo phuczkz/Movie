@@ -109,7 +109,7 @@ const Player = ({
 
   const hlsConfig = useMemo(
     () => ({
-      // Tăng buffer lên 120s để nó ngầm tải trước đoạn giới thiệu 
+      // Tăng buffer lên 120s để nó ngầm tải trước đoạn giới thiệu
       maxBufferLength: 120,
       maxMaxBufferLength: 600,
       startLevel: -1,
@@ -714,27 +714,10 @@ const Player = ({
     );
   }
 
-  const showSkipIntro = progress > 0 && progress < 85;
-  const isEnding = duration > 0 && progress >= duration - 60;
+  const isEnding = duration > 0 && Math.floor(progress) >= Math.floor(duration - 90);
 
   const uxButtons = (
     <div className="absolute bottom-12 sm:bottom-16 md:bottom-20 right-2 sm:right-6 flex flex-col items-end gap-2 sm:gap-3 z-20 pointer-events-none">
-      {showSkipIntro ? (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isHls && videoRef.current) {
-              videoRef.current.currentTime = 85;
-            } else if (reactPlayerRef.current?.seekTo) {
-              reactPlayerRef.current.seekTo(85, "seconds");
-            }
-          }}
-          className="pointer-events-auto rounded-md sm:rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/20 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all animate-in fade-in slide-in-from-right-4"
-        >
-          Bỏ qua giới thiệu
-        </button>
-      ) : null}
-
       {isEnding && hasNextEpisode && onNextEpisode ? (
         <button
           onClick={(e) => {
