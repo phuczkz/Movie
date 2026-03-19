@@ -28,10 +28,7 @@ const SEEK_STEP = 10; // seconds
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
-// Remove ad fragments from HLS playlists.
-// It strips explicitly known ad segments (e.g. "adjump") and 
-// cleanly removes entire injected ad blocks by splitting at #EXT-X-DISCONTINUITY
-// and measuring the total block duration. Ad blocks are typically short (< 90s).
+
 const stripAdSegmentsFromPlaylist = (text = "") => {
   const blocks = text.split(/(?:^|\n)#EXT-X-DISCONTINUITY\b/);
 
@@ -56,7 +53,7 @@ const stripAdSegmentsFromPlaylist = (text = "") => {
   const validBlocks = [];
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
-    
+
     // Calculate total duration of this block
     const infMatches = block.match(/#EXTINF:([\d.]+)/g);
     let duration = 0;
@@ -66,7 +63,7 @@ const stripAdSegmentsFromPlaylist = (text = "") => {
         return acc + (match ? parseFloat(match[0]) : 0);
       }, 0);
     }
-    
+
     // Very short blocks (< 90s) bounded by discontinuity are typically injected video ads
     let isAd = false;
     if (duration > 0 && duration < 90) {
@@ -113,9 +110,9 @@ const Player = ({
   const hlsConfig = useMemo(
     () => ({
       // Optimized for VOD streaming (Movies/Episodes)
-      maxBufferLength: 30, // Keep 30s actively buffered
-      maxMaxBufferLength: 600, // Allow up to 10 mins if memory permits
-      startLevel: -1, // Auto quality start
+      maxBufferLength: 30,
+      maxMaxBufferLength: 600,
+      startLevel: -1,
       fragLoadingRetryDelay: 500,
       manifestLoadingRetryDelay: 800,
       enableWorker: true,
@@ -136,8 +133,8 @@ const Player = ({
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isBuffering, setIsBuffering] = useState(true);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [qualityLevels, setQualityLevels] = useState([]); // [{label, level}]
-  const [currentLevel, setCurrentLevel] = useState(-1); // -1 auto
+  const [qualityLevels, setQualityLevels] = useState([]);
+  const [currentLevel, setCurrentLevel] = useState(-1);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const hideControlsTimeout = useRef(null);
   const bufferingSinceRef = useRef(null);
@@ -233,31 +230,31 @@ const Player = ({
       const BaseLoader = Hls.DefaultConfig?.loader;
       const AdFreeLoader = BaseLoader
         ? class extends BaseLoader {
-            load(context, config, callbacks) {
-              const onSuccess = callbacks?.onSuccess;
-              const wrappedCallbacks = {
-                ...callbacks,
-                onSuccess: (response, stats, ctx, networkDetails) => {
-                  let nextResponse = response;
-                  if (
-                    typeof response?.data === "string" &&
-                    (ctx?.type === "manifest" || ctx?.type === "level")
-                  ) {
-                    nextResponse = {
-                      ...response,
-                      data: stripAdSegmentsFromPlaylist(response.data),
-                    };
-                  }
+          load(context, config, callbacks) {
+            const onSuccess = callbacks?.onSuccess;
+            const wrappedCallbacks = {
+              ...callbacks,
+              onSuccess: (response, stats, ctx, networkDetails) => {
+                let nextResponse = response;
+                if (
+                  typeof response?.data === "string" &&
+                  (ctx?.type === "manifest" || ctx?.type === "level")
+                ) {
+                  nextResponse = {
+                    ...response,
+                    data: stripAdSegmentsFromPlaylist(response.data),
+                  };
+                }
 
-                  if (onSuccess) {
-                    onSuccess(nextResponse, stats, ctx, networkDetails);
-                  }
-                },
-              };
+                if (onSuccess) {
+                  onSuccess(nextResponse, stats, ctx, networkDetails);
+                }
+              },
+            };
 
-              super.load(context, config, wrappedCallbacks);
-            }
+            super.load(context, config, wrappedCallbacks);
           }
+        }
         : null;
 
       let hlsConfigOpts = {
@@ -800,11 +797,10 @@ const Player = ({
                   type="button"
                   onClick={onNextEpisode}
                   disabled={!hasNextEpisode}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
-                    hasNextEpisode
-                      ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
-                      : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
-                  }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${hasNextEpisode
+                    ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
+                    : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
+                    }`}
                   aria-label="Sang tập tiếp theo"
                 >
                   <SkipForward className="h-3.5 w-3.5" />
@@ -888,11 +884,10 @@ const Player = ({
                               handleChangePlaybackRate(r);
                               setShowMoreMenu(false);
                             }}
-                            className={`rounded-lg px-2.5 py-1 text-center transition ${
-                              playbackRate === r
-                                ? "bg-emerald-500/20 text-white"
-                                : "bg-white/5 hover:bg-white/10"
-                            }`}
+                            className={`rounded-lg px-2.5 py-1 text-center transition ${playbackRate === r
+                              ? "bg-emerald-500/20 text-white"
+                              : "bg-white/5 hover:bg-white/10"
+                              }`}
                           >
                             {r}x
                           </button>
@@ -918,11 +913,10 @@ const Player = ({
                                 handleQualityChange(lvl.level);
                                 setShowMoreMenu(false);
                               }}
-                              className={`rounded-lg px-2.5 py-1 text-left transition ${
-                                currentLevel === lvl.level
-                                  ? "bg-emerald-500/20 text-white"
-                                  : "bg-white/5 hover:bg-white/10"
-                              }`}
+                              className={`rounded-lg px-2.5 py-1 text-left transition ${currentLevel === lvl.level
+                                ? "bg-emerald-500/20 text-white"
+                                : "bg-white/5 hover:bg-white/10"
+                                }`}
                             >
                               {lvl.label}
                             </button>
