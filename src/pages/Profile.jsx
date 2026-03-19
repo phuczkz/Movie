@@ -150,7 +150,7 @@ const Profile = () => {
                 const clamped = value && value > today ? today : value;
                 setBirthday(clamped);
               }}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-400 focus:border-white/40 focus:outline-none"
+              className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-400 focus:border-white/40 focus:outline-none text-left [&::-webkit-datetime-edit]:text-left [&::-webkit-date-and-time-value]:text-left"
             />
           </div>
           <div className="space-y-2">

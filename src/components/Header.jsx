@@ -160,7 +160,7 @@ const Header = () => {
       }`}
     >
       {/* Mobile top bar */}
-      <div className="lg:hidden px-4 py-3 flex items-center justify-between">
+      <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
         <button
           aria-label="Toggle menu"
           onClick={() => {
@@ -175,7 +175,7 @@ const Header = () => {
         <Link
           to="/"
           onClick={closeAll}
-          className="flex items-center gap-2 text-white"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 text-white"
         >
           <span className="rounded-lg bg-white/10 px-3 py-2 text-base font-bold tracking-tight shadow-lg shadow-black/40">
             KhoPhim
@@ -183,6 +183,21 @@ const Header = () => {
         </Link>
 
         <div className="flex items-center gap-2">
+          <button
+            aria-label="Open search"
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setMenuOpen(false);
+            }}
+            className="inline-flex flex-shrink-0 items-center justify-center text-white p-2"
+          >
+            {searchOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Search className="h-5 w-5" />
+            )}
+          </button>
+
           {user ? (
             <Link
               to="/profile"
@@ -201,26 +216,11 @@ const Header = () => {
             <Link
               to="/login"
               onClick={closeAll}
-              className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200 transition-colors"
+              className="h-10 w-10 flex-shrink-0 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200 transition-colors"
             >
               <User className="h-5 w-5" />
             </Link>
           )}
-
-          <button
-            aria-label="Open search"
-            onClick={() => {
-              setSearchOpen((v) => !v);
-              setMenuOpen(false);
-            }}
-            className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
-          >
-            {searchOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Search className="h-5 w-5" />
-            )}
-          </button>
         </div>
       </div>
 
