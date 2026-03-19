@@ -109,8 +109,8 @@ const Player = ({
 
   const hlsConfig = useMemo(
     () => ({
-      // Optimized for VOD streaming (Movies/Episodes)
-      maxBufferLength: 30,
+      // Tăng buffer lên 120s để nó ngầm tải trước đoạn giới thiệu 
+      maxBufferLength: 120,
       maxMaxBufferLength: 600,
       startLevel: -1,
       fragLoadingRetryDelay: 500,
