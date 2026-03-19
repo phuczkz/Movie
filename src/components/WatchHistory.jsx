@@ -123,6 +123,7 @@ export default function WatchHistory() {
   const { user } = useAuth();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     if (!user || !db) return;
@@ -141,15 +142,19 @@ export default function WatchHistory() {
     return () => unsub();
   }, [user]);
 
-  const handleDelete = async (slug) => {
-    if (!user || !db) return;
-    if (!window.confirm("Bạn có chắc chắn muốn xóa phim này khỏi lịch sử?")) return;
+  const handleDeleteClick = (slug) => {
+    setDeleteTarget(slug);
+  };
+
+  const confirmDelete = async () => {
+    if (!user || !db || !deleteTarget) return;
     try {
-      await deleteDoc(doc(db, `users/${user.uid}/WatchProgress`, slug));
+      await deleteDoc(doc(db, `users/${user.uid}/WatchProgress`, deleteTarget));
     } catch (err) {
       console.error(err);
       alert("Lỗi khi xóa phim.");
     }
+    setDeleteTarget(null);
   };
 
 
@@ -174,8 +179,33 @@ export default function WatchHistory() {
         <div className="max-h-[85vh] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
           <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {history.map((item) => (
-              <WatchHistoryCard key={item.id} item={item} handleDelete={handleDelete} user={user} />
+              <WatchHistoryCard key={item.id} item={item} handleDelete={handleDeleteClick} user={user} />
             ))}
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="mb-2 text-lg font-bold text-white">Xóa phim này?</h3>
+            <p className="mb-6 text-sm text-slate-300">
+              Bạn có chắc chắn muốn xóa bộ phim này khỏi lịch sử không? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                Không, giữ lại
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-500 hover:text-white"
+              >
+                Có, xóa ngay
+              </button>
+            </div>
           </div>
         </div>
       )}
