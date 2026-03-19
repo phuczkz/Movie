@@ -8,6 +8,7 @@ import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
 import LoginBanner from "../components/LoginBanner.jsx";
+import TrendingSection from "../components/TrendingSection.jsx";
 
 // Observe once per section to lazy-enable fetching and rendering
 const useSectionVisibility = () => {
@@ -105,6 +106,8 @@ const Home = () => {
       <LoginBanner />
       
       <Hero movies={heroMovies} />
+
+      <TrendingSection movies={kkSeries.slice(0, 10)} loading={loadingKKSeries} />
 
       <div ref={refKKSeries}>
         <Section
