@@ -21,6 +21,7 @@ import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import Comments from "../components/Comments.jsx";
 import {
   getEpisodeLabel,
   normalizeServerLabel,
@@ -143,12 +144,14 @@ const Watch = () => {
         server: activeServer || null,
         currentTime,
         duration,
+        movieName: movie?.name,
+        posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
       });
     },
-    [user, slug, activeEpisode, activeServer, saveProgress]
+    [user, slug, activeEpisode, activeServer, saveProgress, movie?.name, movie?.poster_url, movie?.thumb_url, movie?.backdrop_url]
   );
 
-  const metaRef = useRef({ slug: null, name: null, server: null });
+  const metaRef = useRef({ slug: null, name: null, server: null, movieName: null, posterUrl: null });
 
   // Keep track of the current episode meta for the unmount flush
   useEffect(() => {
@@ -157,16 +160,18 @@ const Watch = () => {
         slug: activeEpisode.slug || activeEpisode.name,
         name: activeEpisode.name,
         server: activeServer || null,
+        movieName: movie?.name,
+        posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
       };
     }
-  }, [activeEpisode, activeServer]);
+  }, [activeEpisode, activeServer, movie?.name, movie?.poster_url, movie?.thumb_url, movie?.backdrop_url]);
 
   // Force-save on pause or unmount
   useEffect(() => {
     return () => {
       if (!user || !slug) return;
       const { currentTime, duration } = progressRef.current;
-      const { slug: epSlug, name: epName, server: epServer } = metaRef.current;
+      const { slug: epSlug, name: epName, server: epServer, movieName, posterUrl } = metaRef.current;
       if (currentTime > 10) {
         forceSave(slug, {
           episodeSlug: epSlug,
@@ -174,6 +179,8 @@ const Watch = () => {
           server: epServer,
           currentTime,
           duration,
+          movieName,
+          posterUrl,
         });
       }
     };
@@ -454,33 +461,39 @@ const Watch = () => {
         </div>
 
         {episodesForServer.length ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {episodesForServer.map((ep, idx) => (
-              <Link
-                key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
-                to={`/watch/${slug}?episode=${encodeURIComponent(
-                  ep.slug || ep.name || `ep-${idx + 1}`
-                )}${
-                  activeServer
-                    ? `&server=${encodeURIComponent(activeServer)}`
-                    : ""
-                }`}
-                className={`group flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${
-                  activeEpisode?.slug === ep.slug
-                    ? "border-emerald-400 bg-emerald-500/10"
-                    : ""
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <Play className="h-4 w-4 text-emerald-300" />
-                  {ep.name || `Tập ${idx + 1}`}
-                </span>
-              </Link>
-            ))}
+          <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {episodesForServer.map((ep, idx) => (
+                <Link
+                  key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
+                  to={`/watch/${slug}?episode=${encodeURIComponent(
+                    ep.slug || ep.name || `ep-${idx + 1}`
+                  )}${
+                    activeServer
+                      ? `&server=${encodeURIComponent(activeServer)}`
+                      : ""
+                  }`}
+                  className={`group flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${
+                    activeEpisode?.slug === ep.slug
+                      ? "border-emerald-400 bg-emerald-500/10"
+                      : ""
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Play className="h-4 w-4 text-emerald-300" />
+                    {ep.name || `Tập ${idx + 1}`}
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
         ) : (
           <p className="text-slate-400">Chưa có tập.</p>
         )}
+      </div>
+
+      <div className="pt-8 border-t border-white/10 mt-8">
+        <Comments movieSlug={slug} />
       </div>
     </div>
   );

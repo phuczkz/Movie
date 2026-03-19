@@ -22,7 +22,8 @@ export const useKKphimMovies = (
   return useQuery({
     queryKey,
     queryFn,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     ...options,
   });
@@ -35,7 +36,9 @@ export const useKKphimByCategory = (slug, { page = 1, ...options } = {}) => {
     queryKey,
     queryFn,
     enabled: !!slug,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
     ...options,
   });
 };
@@ -47,7 +50,9 @@ export const useKKphimByCountry = (slug, { page = 1, ...options } = {}) => {
     queryKey,
     queryFn,
     enabled: !!slug,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
     ...options,
   });
 };

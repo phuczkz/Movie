@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Timestamp } from "firebase/firestore";
 import { isFirebaseConfigured } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
+import WatchHistory from "../components/WatchHistory.jsx";
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -188,6 +189,9 @@ const Profile = () => {
           {saving ? "Đang lưu..." : "Lưu thay đổi"}
         </button>
       </form>
+
+      {/* Gắn thêm Lịch sử xem phim ở dưới */}
+      <WatchHistory />
     </div>
   );
 };

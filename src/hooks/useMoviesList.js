@@ -17,5 +17,12 @@ export const useMoviesList = (
     ? () => getCategory(category, page)
     : () => (map[type] || getLatest)(page);
 
-  return useQuery({ queryKey, queryFn, ...options });
+  return useQuery({ 
+    queryKey, 
+    queryFn, 
+    staleTime: 10 * 60 * 1000, 
+    gcTime: 30 * 60 * 1000, 
+    refetchOnWindowFocus: false,
+    ...options 
+  });
 };

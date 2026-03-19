@@ -2,6 +2,8 @@ import { Heart, Play } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
+import Comments from "../components/Comments.jsx";
+import Rating from "../components/Rating.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSavedMovie } from "../hooks/useSavedMovie.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
@@ -348,6 +350,8 @@ const Detail = () => {
                   </p>
                 ) : null}
 
+                <Rating movieSlug={slug} apiRating={movie.rating} />
+
                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-200/90">
                   <span className="rounded-full bg-white/10 px-3 py-1">
                     {movie.year || "N/A"}
@@ -593,6 +597,10 @@ const Detail = () => {
             </div>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-8">
+        <Comments movieSlug={slug} />
       </div>
 
       {/* Fullscreen Resume Modal */}

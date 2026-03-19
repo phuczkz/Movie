@@ -1,5 +1,6 @@
 import MovieCard from "../components/MovieCard.jsx";
 import SearchBar from "../components/SearchBar.jsx";
+import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useSearchParams } from "react-router-dom";
 
@@ -22,7 +23,7 @@ const Search = () => {
 
       </div>
 
-      {isFetching && <div className="text-slate-300">Đang tìm kiếm...</div>}
+      {isFetching && <GridSkeleton count={8} />}
 
       {!query && (
         <p className="text-slate-400">

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
+import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import {
   useKKphimByCategory,
@@ -163,7 +164,7 @@ const Category = () => {
       </div>
 
       {isLoading ? (
-        <div className="text-slate-400">Đang tải...</div>
+        <GridSkeleton count={12} />
       ) : (
         <>
           <div className="grid-movies">

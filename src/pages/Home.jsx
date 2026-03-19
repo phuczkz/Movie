@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Hero from "../components/Hero.jsx";
 import MovieCard from "../components/MovieCard.jsx";
 import Section from "../components/Section.jsx";
+import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
@@ -108,7 +109,7 @@ const Home = () => {
           action={<span className="text-sm text-amber-300">KKphim</span>}
         >
           {loadingKKSeries ? (
-            <div className="text-slate-400">Đang tải...</div>
+            <GridSkeleton count={4} />
           ) : (
             <Grid items={cap(kkSeries)} priorityCount={4} />
           )}
@@ -121,7 +122,7 @@ const Home = () => {
           action={<span className="text-sm text-amber-300">KKphim</span>}
         >
           {loadingKKSingle ? (
-            <div className="text-slate-400">Đang tải...</div>
+            <GridSkeleton count={4} />
           ) : (
             <Grid items={cap(kkSingle)} priorityCount={4} />
           )}
@@ -134,7 +135,7 @@ const Home = () => {
           action={<span className="text-sm text-emerald-300">TMDB</span>}
         >
           {loadingPopular ? (
-            <div className="text-slate-400">Đang tải...</div>
+            <GridSkeleton count={4} />
           ) : (
             <Grid items={cap(popular)} priorityCount={4} />
           )}
@@ -151,7 +152,7 @@ const Home = () => {
           }
         >
           {loadingLatest ? (
-            <div className="text-slate-400">Đang tải...</div>
+            <GridSkeleton count={4} variant="landscape" className="grid-movies-landscape" />
           ) : (
             <Grid
               items={latestHot}
@@ -173,7 +174,7 @@ const Home = () => {
           }
         >
           {loadingSeries ? (
-            <div className="text-slate-400">Đang tải...</div>
+            <GridSkeleton count={3} />
           ) : (
             <Grid items={cap(series)} priorityCount={3} />
           )}
@@ -190,7 +191,7 @@ const Home = () => {
           }
         >
           {loadingSingle ? (
-            <div className="text-slate-400">Đang tải...</div>
+            <GridSkeleton count={3} />
           ) : (
             <Grid items={cap(single)} priorityCount={3} />
           )}

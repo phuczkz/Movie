@@ -33,6 +33,8 @@ export const useWatchProgress = () => {
             server: data.server || null,
             currentTime: Math.floor(data.currentTime),
             duration: Math.floor(data.duration || 0),
+            movieName: data.movieName || null,
+            posterUrl: data.posterUrl || null,
             updatedAt: serverTimestamp(),
           },
           { merge: true }
@@ -63,6 +65,8 @@ export const useWatchProgress = () => {
             server: data.server || null,
             currentTime: Math.floor(data.currentTime),
             duration: Math.floor(data.duration || 0),
+            movieName: data.movieName || null,
+            posterUrl: data.posterUrl || null,
             updatedAt: serverTimestamp(),
           },
           { merge: true }

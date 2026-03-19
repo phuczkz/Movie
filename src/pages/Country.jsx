@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CountryFilter from "../components/CountryFilter.jsx";
 import MovieCard from "../components/MovieCard.jsx";
+import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
 import { useKKphimByCountry } from "../hooks/useKKphimMovies.js";
 
@@ -74,7 +75,9 @@ const Country = () => {
       </div>
 
       {isLoading ? (
-        <div className="text-slate-400">Đang tải...</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4">
+          <GridSkeleton count={14} className="" />
+        </div>
       ) : movies.length ? (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4">

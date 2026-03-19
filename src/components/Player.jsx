@@ -569,6 +569,10 @@ const Player = ({
         showControls();
         togglePlay();
       }
+      if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        handleFullscreen();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -709,6 +713,43 @@ const Player = ({
       <div className="aspect-video rounded-2xl border border-white/10 bg-slate-900/60" />
     );
   }
+
+  const showSkipIntro = progress > 0 && progress < 85;
+  const isEnding = duration > 0 && progress >= duration - 60;
+
+  const uxButtons = (
+    <div className="absolute bottom-12 sm:bottom-16 md:bottom-20 right-2 sm:right-6 flex flex-col items-end gap-2 sm:gap-3 z-20 pointer-events-none">
+      {showSkipIntro ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isHls && videoRef.current) {
+              videoRef.current.currentTime = 85;
+            } else if (reactPlayerRef.current?.seekTo) {
+              reactPlayerRef.current.seekTo(85, "seconds");
+            }
+          }}
+          className="pointer-events-auto rounded-md sm:rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/20 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all animate-in fade-in slide-in-from-right-4"
+        >
+          Bỏ qua giới thiệu
+        </button>
+      ) : null}
+
+      {isEnding && hasNextEpisode && onNextEpisode ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNextEpisode();
+          }}
+          className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 rounded-md sm:rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/20 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all animate-in fade-in slide-in-from-right-4 hover:scale-105"
+        >
+          <span className="hidden sm:inline">Tập tiếp theo</span>
+          <span className="sm:hidden">Tập tiếp</span>
+          <SkipForward className="h-3 w-3 sm:h-4 sm:w-4" />
+        </button>
+      ) : null}
+    </div>
+  );
 
   const overlay = (
     <div
@@ -972,6 +1013,7 @@ const Player = ({
           controlsList="nodownload noremoteplayback noplaybackrate"
           disablePictureInPicture
         />
+        {uxButtons}
         {overlay}
         {loadingOverlay}
       </div>
@@ -994,6 +1036,7 @@ const Player = ({
           allowFullScreen
           onLoad={() => setIsBuffering(false)}
         />
+        {uxButtons}
         {overlay}
         {loadingOverlay}
       </div>
@@ -1057,6 +1100,7 @@ const Player = ({
           }}
         />
       </Suspense>
+      {uxButtons}
       {overlay}
       {loadingOverlay}
     </div>

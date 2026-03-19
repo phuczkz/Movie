@@ -8,56 +8,16 @@ import { normalizeServerLabel } from "../utils/episodes.js";
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
 
-// ---------------------------------------------------------------------------
-// Concurrent image-fetch limiter — module-level singleton.
-//
-// Previous implementation leaked slots when components unmounted while their
-// callback was still queued in `waiters`. The fix: each waiter is now a
-// { cb, cancelled } token. On cleanup we mark it cancelled AND proactively
-// remove it from the queue so the slot is never "stuck".
-// ---------------------------------------------------------------------------
-const MAX_INFLIGHT_IMAGES = 8;
-let inflight = 0;
-const waiters = []; // Array<{ cb: () => void, cancelled: boolean }>
-
-const acquireSlot = (cb) => {
-  if (inflight < MAX_INFLIGHT_IMAGES) {
-    inflight += 1;
-    cb();
-    return { cb, cancelled: false };
-  }
-  const token = { cb, cancelled: false };
-  waiters.push(token);
-  return token;
-};
-
-const cancelSlot = (token) => {
-  if (!token) return;
-  token.cancelled = true;
-  // Remove from queue so the slot is freed for the next waiter
-  const idx = waiters.indexOf(token);
-  if (idx !== -1) waiters.splice(idx, 1);
-};
-
-const releaseSlot = () => {
-  inflight = Math.max(0, inflight - 1);
-  // Skip cancelled tokens that somehow remain
-  while (waiters.length) {
-    const token = waiters.shift();
-    if (!token.cancelled) {
-      inflight += 1;
-      token.cb();
-      return;
-    }
-  }
-};
-
-const withWidthParam = (url, w = 360) => {
+const getOptimizedPoster = (url, w = 360) => {
   if (!url) return url;
   try {
-    const u = new URL(url);
-    u.searchParams.set("w", String(w));
-    return u.toString();
+    const rawHost = new URL(url).hostname;
+    // TMDB handled natively
+    if (rawHost.includes("tmdb.org")) {
+      return url.replace(/\/w(92|154|185|300|342|500|780|original)\//, `/w${w > 400 ? 500 : 342}/`);
+    }
+    // Sử dụng proxy wsrv.nl để nén thành WebP siêu nhẹ và tận dụng Cloudflare CDN toàn cầu
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=webp&w=${w}&fit=cover&q=80`;
   } catch {
     return url;
   }
@@ -67,22 +27,12 @@ const MovieCard = ({ movie, priority = false }) => {
   const episodeLabel = useEpisodeLabel(movie);
   const imgRef = useRef(null);
   const [shouldLoad, setShouldLoad] = useState(false);
-  const [canLoad, setCanLoad] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const slotTokenRef = useRef(null);
-  const slotAcquiredRef = useRef(false); // true once we hold an inflight slot
 
-  // -----------------------------------------------------------------------
-  // Reset all image-loading state when the movie changes (component reuse).
-  // Without this, navigating away and back can leave stale flags that
-  // prevent the image from loading.
-  // -----------------------------------------------------------------------
   const slug = movie?.slug;
   useEffect(() => {
     setShouldLoad(false);
-    setCanLoad(false);
     setLoaded(false);
-    slotAcquiredRef.current = false;
   }, [slug]);
 
   const { data: episodeList = [] } = useQuery({
@@ -149,40 +99,11 @@ const MovieCard = ({ movie, priority = false }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, shouldLoad]);
 
-  // Acquire a concurrency slot when ready to load.
-  useEffect(() => {
-    if (!shouldLoad || canLoad) return undefined;
-
-    const token = acquireSlot(() => {
-      slotAcquiredRef.current = true;
-      setCanLoad(true);
-    });
-    slotTokenRef.current = token;
-
-    return () => {
-      // If the callback already ran, `slotAcquiredRef` is true — we must
-      // NOT cancel or release here because the <img> onLoad/onError will
-      // call releaseSlot. If it hasn't run yet, cancel the pending waiter.
-      if (!slotAcquiredRef.current) {
-        cancelSlot(token);
-      }
-    };
-  }, [shouldLoad, canLoad]);
-
-  const basePoster = movie.poster_url;
+  const basePoster = movie.poster_url || movie.thumb_url;
   const posterSrc =
-    shouldLoad && canLoad
-      ? withWidthParam(basePoster, priority ? 420 : 360) || fallbackPoster
-      : undefined;
-
-  const posterSrcSet =
-    shouldLoad && canLoad && basePoster
-      ? [
-          `${withWidthParam(basePoster, 240)} 240w`,
-          `${withWidthParam(basePoster, 360)} 360w`,
-          `${withWidthParam(basePoster, 480)} 480w`,
-        ].join(", ")
-      : undefined;
+    shouldLoad
+      ? getOptimizedPoster(basePoster, priority ? 480 : 360) || fallbackPoster
+      : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"; // Transparent pixel placeholder
 
   return (
     <Link
@@ -196,34 +117,21 @@ const MovieCard = ({ movie, priority = false }) => {
         <img
           ref={imgRef}
           src={posterSrc}
-          srcSet={posterSrcSet}
           alt={movie.name}
-          className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
+          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           fetchPriority={priority ? "high" : "low"}
-          sizes="(min-width: 1280px) 220px, (min-width: 1024px) 200px, (min-width: 640px) 30vw, 45vw"
           onLoad={() => {
-            if (!loaded) {
-              setLoaded(true);
-              if (slotAcquiredRef.current) {
-                slotAcquiredRef.current = false;
-                releaseSlot();
-              }
-            }
+            if (!loaded) setLoaded(true);
           }}
           onError={(e) => {
             e.currentTarget.onerror = null;
-            e.currentTarget.src = fallbackPoster;
-            if (!loaded) {
-              setLoaded(true);
-              if (slotAcquiredRef.current) {
-                slotAcquiredRef.current = false;
-                releaseSlot();
-              }
-            }
+            // Nếu wsrv proxy lỗi, tải ảnh gốc
+            e.currentTarget.src = basePoster || fallbackPoster;
+            if (!loaded) setLoaded(true);
           }}
         />
         <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950 shadow">
