@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, LogIn, Menu, Search, X } from "lucide-react";
+import { ChevronDown, LogIn, Menu, Search, X, User } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import SearchBar from "./SearchBar.jsx";
@@ -182,20 +182,46 @@ const Header = () => {
           </span>
         </Link>
 
-        <button
-          aria-label="Open search"
-          onClick={() => {
-            setSearchOpen((v) => !v);
-            setMenuOpen(false);
-          }}
-          className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
-        >
-          {searchOpen ? (
-            <X className="h-5 w-5" />
+        <div className="flex items-center gap-2">
+          {user ? (
+            <Link
+              to="/profile"
+              onClick={closeAll}
+              className="h-10 w-10 flex-shrink-0 rounded-full border border-white/15 bg-slate-800/80 overflow-hidden shadow-lg shadow-black/20"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-white font-bold text-sm uppercase">
+                  {(user.email || "U").charAt(0)}
+                </div>
+              )}
+            </Link>
           ) : (
-            <Search className="h-5 w-5" />
+            <Link
+              to="/login"
+              onClick={closeAll}
+              className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <User className="h-5 w-5" />
+            </Link>
           )}
-        </button>
+
+          <button
+            aria-label="Open search"
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setMenuOpen(false);
+            }}
+            className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+          >
+            {searchOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Search className="h-5 w-5" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Desktop / tablet bar */}
@@ -275,14 +301,6 @@ const Header = () => {
       {menuOpen && (
         <div className="lg:hidden absolute left-0 right-0 top-full px-4 pb-4 z-40">
           <div className="rounded-3xl bg-gradient-to-b from-slate-800/95 to-slate-900/95 border border-white/10 shadow-2xl shadow-black/40 p-4 space-y-4">
-            <Link
-              to={user ? "/profile" : "/login"}
-              onClick={closeAll}
-              className="flex items-center justify-center gap-3 rounded-full bg-white/10 border border-white/10 py-3 text-white font-semibold text-base"
-            >
-              {user ? "Hồ sơ của bạn" : "Thành viên"}
-            </Link>
-
             <div className="grid grid-cols-2 gap-3 text-white text-base font-semibold">
               {primaryNav.map((item) => (
                 <Link

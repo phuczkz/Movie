@@ -7,6 +7,7 @@ import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
+import LoginBanner from "../components/LoginBanner.jsx";
 
 // Observe once per section to lazy-enable fetching and rendering
 const useSectionVisibility = () => {
@@ -101,6 +102,8 @@ const Home = () => {
 
   return (
     <div className="space-y-10">
+      <LoginBanner />
+      
       <Hero movies={heroMovies} />
 
       <div ref={refKKSeries}>
