@@ -77,62 +77,68 @@ export default function AvatarModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-950/90 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-300">
+      <div className="relative w-full max-w-xl bg-slate-900 border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-500 sm:duration-300 max-h-[90vh] flex flex-col">
+        <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between shrink-0">
           <div>
-            <h3 className="text-xl font-bold text-white">Chọn ảnh đại diện</h3>
-            <p className="text-slate-400 text-sm">Chọn từ thư viện anime hoặc tải lên ảnh của bạn</p>
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">Chọn ảnh đại diện</h3>
+            <p className="text-slate-400 text-sm sm:text-base mt-1">Chọn từ thư viện anime hoặc tải lên ảnh của bạn</p>
           </div>
           <button
             onClick={() => !uploading && onClose()}
-            className="p-2 rounded-xl text-slate-400 hover:bg-white/5 transition-colors"
+            className="p-2.5 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white transition-all active:scale-90"
             disabled={uploading}
           >
-            <X size={20} />
+            <X size={24} />
           </button>
         </div>
 
-        <div className="p-6">
-          <div className="relative mb-8">
-            <div className="max-h-[235px] overflow-y-auto no-scrollbar pb-6">
-              <div className="grid grid-cols-5 gap-3">
+        <div className="p-6 sm:p-8 overflow-y-auto custom-scrollbar">
+          <div className="relative mb-10">
+            <div className="max-h-[280px] sm:max-h-[340px] md:max-h-[400px] overflow-y-auto no-scrollbar pb-4 pr-1">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                 {PRESET_AVATARS.map((avatar) => (
                   <button
                     key={avatar.id}
                     onClick={() => handleSelectPreset(avatar.url)}
                     disabled={uploading}
-                    className={`relative group aspect-square rounded-2xl overflow-hidden border-2 transition-all ${currentAvatarUrl === avatar.url ? "border-emerald-500 scale-95" : "border-transparent hover:border-white/20"
+                    className={`relative group aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border-4 transition-all ${currentAvatarUrl === avatar.url 
+                      ? "border-emerald-500 scale-95 shadow-lg shadow-emerald-500/20" 
+                      : "border-transparent hover:border-white/20 hover:scale-105"
                       }`}
                   >
                     <img
                       src={avatar.url}
                       alt={avatar.name}
-                      className={`h-full w-full object-cover transition-transform group-hover:scale-110 ${uploading ? "opacity-30" : ""}`}
+                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 ${uploading ? "opacity-30" : ""}`}
                     />
-                    {currentAvatarUrl === avatar.url && (
+                    {currentAvatarUrl === avatar.url ? (
                       <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
-                        <Check className="text-white" size={24} />
+                        <div className="bg-emerald-500 rounded-full p-1.5 shadow-lg">
+                          <Check className="text-slate-950" size={20} />
+                        </div>
                       </div>
+                    ) : (
+                       <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
                     )}
                   </button>
                 ))}
               </div>
             </div>
             {/* Gradient overlay indicator */}
-            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none z-10" />
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent pointer-events-none z-10" />
           </div>
 
-          <div className="relative">
+          <div className="relative mb-10">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-white/5"></div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase tracking-widest text-slate-500">
-              <span className="bg-slate-900 px-4">Hoặc</span>
+            <div className="relative flex justify-center text-[10px] sm:text-xs uppercase tracking-[0.3em] font-black text-slate-500">
+              <span className="bg-slate-900 px-6">Hoặc tải lên</span>
             </div>
           </div>
 
-          <div className="mt-8">
+          <div className="mb-4">
             <input
               type="file"
               accept="image/*"
@@ -143,29 +149,32 @@ export default function AvatarModal({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="w-full flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all group disabled:opacity-50"
+              className="w-full flex flex-col items-center justify-center gap-4 p-8 sm:p-10 rounded-3xl border-2 border-dashed border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-emerald-500/50 transition-all group disabled:opacity-50"
             >
-              <div className="p-4 rounded-full bg-slate-800 text-slate-400 group-hover:text-emerald-400 transition-colors">
+              <div className="p-5 rounded-3xl bg-slate-800 text-slate-400 group-hover:bg-emerald-500 group-hover:text-slate-950 group-hover:scale-110 transition-all duration-300 shadow-xl">
                 {uploading ? (
-                  <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Upload size={24} />
+                  <Upload size={32} />
                 )}
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold">Tải ảnh lên từ máy tính</p>
-                <p className="text-slate-400 text-xs mt-1">Hệ thống sẽ tự động nén ảnh cho bạn (Tối đa 5MB)</p>
+                <p className="text-white text-lg font-bold">Thêm ảnh từ thiết bị</p>
+                <p className="text-slate-400 text-sm mt-1 max-w-[240px]">Hệ thống sẽ tự động tối ưu dung lượng ảnh cho bạn (Tối đa 5MB)</p>
               </div>
             </button>
           </div>
         </div>
 
         {uploading && (
-          <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
-            <div className="bg-slate-800 rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-4">
-              <div className="h-5 w-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm font-bold text-white">Đang xử lý ảnh...</span>
-            </div>
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[110] flex items-center justify-center p-6 text-center">
+             <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-xs animate-in zoom-in-95 duration-300">
+                <div className="h-12 w-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                <div>
+                  <h4 className="text-white font-bold text-lg">Đang xử lý ảnh</h4>
+                  <p className="text-slate-400 text-sm mt-1">Vui lòng chờ trong giây lát...</p>
+                </div>
+             </div>
           </div>
         )}
       </div>

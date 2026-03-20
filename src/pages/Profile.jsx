@@ -84,10 +84,11 @@ const Profile = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 md:p-8 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8 space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-white/5">
         <div className="relative group shrink-0">
-          <div className="h-24 w-24 rounded-full border-2 border-white/10 bg-white/5 overflow-hidden shadow-2xl">
+          <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-full border-4 border-white/10 bg-white/5 overflow-hidden shadow-2xl transition-transform hover:scale-105 duration-300">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
@@ -97,39 +98,41 @@ const Profile = () => {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-2xl">
+              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-3xl">
                 {(user?.email || "").charAt(0).toUpperCase()}
               </div>
             )}
           </div>
           <button
             onClick={() => setShowAvatarModal(true)}
-            className="absolute -right-1 -bottom-1 p-2 rounded-full bg-emerald-500 text-slate-900 shadow-lg border-2 border-slate-950 transition-transform hover:scale-110 active:scale-95"
+            className="absolute right-0 bottom-0 p-2.5 rounded-full bg-emerald-500 text-slate-950 shadow-xl border-4 border-slate-950 transition-all hover:scale-110 active:scale-95 z-20"
             title="Đổi ảnh đại diện"
           >
-            <Camera size={16} />
+            <Camera size={20} />
           </button>
         </div>
 
-        <div className="flex-1">
-          <p className="text-sm uppercase tracking-[0.16em] text-slate-400 font-medium">
-            Tài khoản
+        <div className="flex-1 text-center sm:text-left space-y-2">
+          <div>
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-emerald-500 font-black mb-1">
+              Thành viên Movie
+            </p>
+            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight break-words">
+              {displayName || "Người dùng"}
+            </h1>
+          </div>
+          <p className="text-slate-400 text-sm sm:text-base max-w-md mx-auto sm:mx-0">
+            Quản lý thông tin cá nhân, cập nhật ảnh đại diện và xem lại lịch sử xem phim của bạn.
           </p>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            {displayName || "Người dùng"}
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Quản lý thông tin cá nhân và ảnh đại diện của bạn.
-          </p>
-        </div>
-
-        <div className="sm:ml-auto">
-          <button
-            onClick={() => logout().then(() => navigate("/"))}
-            className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            Đăng xuất
-          </button>
+          
+          <div className="pt-4 flex flex-wrap justify-center sm:justify-start gap-3">
+             <button
+              onClick={() => logout().then(() => navigate("/"))}
+              className="rounded-full bg-white/5 border border-white/10 px-6 py-2 text-sm font-bold text-slate-300 transition-all hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+            >
+              Đăng xuất
+            </button>
+          </div>
         </div>
       </div>
 
