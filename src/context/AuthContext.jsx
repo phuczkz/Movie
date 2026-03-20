@@ -27,6 +27,7 @@ import {
   db,
   googleProvider,
   isFirebaseConfigured,
+  storage,
 } from "../firebase.config";
 
 const AuthContext = createContext({
@@ -34,13 +35,14 @@ const AuthContext = createContext({
   userProfile: null,
   loading: true,
   profileLoading: false,
-  loginGoogle: async () => {},
-  loginEmail: async () => {},
-  registerEmail: async () => {},
-  updateProfileData: async () => {},
-  logout: async () => {},
-  saveMovie: async () => {},
-  removeSavedMovie: async () => {},
+  loginGoogle: async () => { },
+  loginEmail: async () => { },
+  registerEmail: async () => { },
+  updateProfileData: async () => { },
+  uploadAvatar: async () => { },
+  logout: async () => { },
+  saveMovie: async () => { },
+  removeSavedMovie: async () => { },
 });
 
 const rejectIfMissing = () => {
@@ -127,10 +129,11 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return undefined;
     }
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        fetchProfile(currentUser).then((profile) => setUserProfile(profile));
+        const profile = await fetchProfile(currentUser);
+        setUserProfile(profile);
       } else {
         setUserProfile(null);
       }
@@ -179,57 +182,99 @@ export const AuthProvider = ({ children }) => {
         setUserProfile(profile);
         return credential;
       },
-      updateProfileData: async (payload = {}) => {
+      updateProfileData: async (data, timeoutMs = 15000) => {
         ensureFirebase();
         const currentUser = auth.currentUser;
-        if (!currentUser) return rejectIfMissing();
+        if (!currentUser) throw new Error("Cần đăng nhập để cập nhật hồ sơ.");
 
-        const ref = doc(db, "users", currentUser.uid);
-        const data = {
-          ...payload,
-          updatedAt: serverTimestamp(),
-        };
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Yêu cầu quá hạn (Timeout). Vui lòng kiểm tra kết nối mạng.")), timeoutMs)
+        );
 
-        if (payload.displayName) {
-          await updateProfile(currentUser, {
-            displayName: payload.displayName,
-          });
+        try {
+          console.log("Starting profile update with data:", data);
+          const updateTask = (async () => {
+            const userRef = doc(db, "users", currentUser.uid);
+
+            if (data.displayName) {
+              console.log("Updating displayName in Firebase Auth...");
+              await updateProfile(currentUser, { displayName: data.displayName });
+              console.log("Auth displayName updated.");
+            }
+
+            console.log("Updating Firestore document...");
+            await setDoc(userRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+            console.log("Firestore document updated.");
+
+            setUserProfile(prev => ({ ...prev, ...data }));
+            return true;
+          })();
+
+          await Promise.race([updateTask, timeoutPromise]);
+          console.log("Profile update successful.");
+        } catch (error) {
+          console.error("Profile update error:", error);
+          throw error;
         }
-
-        await setDoc(ref, data, { merge: true });
-
-        const updatedSnapshot = await getDoc(ref);
-        const updatedData = updatedSnapshot.data() || {};
-        const normalizeDate = (value) => {
-          if (!value) return "";
-          if (value instanceof Timestamp)
-            return value.toDate().toISOString().slice(0, 10);
-          if (typeof value === "string") return value;
-          return "";
-        };
-        const base = buildDefaultProfile(currentUser);
-        setUserProfile((prev) => ({
-          id: ref.id,
-          email: updatedData.email ?? prev?.email ?? base.email,
-          displayName:
-            updatedData.displayName ?? prev?.displayName ?? base.displayName,
-          phoneNumber:
-            typeof updatedData.phoneNumber === "string"
-              ? updatedData.phoneNumber.trim()
-              : prev?.phoneNumber ?? base.phoneNumber,
-          birthday:
-            normalizeDate(updatedData.birthday) ||
-            normalizeDate(prev?.birthday) ||
-            base.birthday,
-          photoURL: updatedData.photoURL ?? prev?.photoURL ?? base.photoURL,
-          createdAt:
-            updatedData.createdAt ?? prev?.createdAt ?? Timestamp.now(),
-          updatedAt: updatedData.updatedAt ?? Timestamp.now(),
-        }));
       },
       logout: async () => {
         if (!auth) return rejectIfMissing();
         return signOut(auth);
+      },
+      uploadAvatar: async (file, maxWidth = 400, quality = 0.7) => {
+        ensureFirebase();
+        const currentUser = auth.currentUser;
+        if (!currentUser) throw new Error("Cần đăng nhập để tải ảnh lên.");
+
+        try {
+          console.log("Processing image for Firestore storage (Base64)...");
+
+          // Image Resizing/Compression utility
+          const base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+              const img = new Image();
+              img.src = event.target.result;
+              img.onload = () => {
+                const canvas = document.createElement("canvas");
+                // Maintain aspect ratio, max width 400px
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                  height = (maxWidth / width) * height;
+                  width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+                // Convert to compressed jpeg
+                const dataUrl = canvas.toDataURL("image/jpeg", quality);
+                resolve(dataUrl);
+              };
+              img.onerror = reject;
+            };
+            reader.onerror = reject;
+          });
+
+          console.log("Image compressed. Base64 length:", base64.length);
+          if (base64.length > 800000) { // Safety check for Firestore (~0.8MB)
+            throw new Error("Ảnh quá lớn ngay cả khi đã nén. Vui lòng chọn ảnh nhỏ hơn.");
+          }
+
+          console.log("Updating Firestore document only (Auth has 2048 char limit)...");
+          const userRef = doc(db, "users", currentUser.uid);
+          await setDoc(userRef, { photoURL: base64, updatedAt: serverTimestamp() }, { merge: true });
+          console.log("Firestore document updated.");
+
+          setUserProfile(prev => ({ ...prev, photoURL: base64 }));
+          console.log("Profile updated successfully with Base64 in Firestore.");
+          return base64;
+        } catch (error) {
+          console.error("Firestore Avatar Error:", error);
+          throw error;
+        }
       },
       saveMovie: async (movie) => {
         const currentUser = ensureCurrentUser();

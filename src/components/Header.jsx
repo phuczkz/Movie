@@ -62,7 +62,7 @@ const Dropdown = ({ label, options }) => {
 
   return (
     <div className="relative" onMouseEnter={openNow} onMouseLeave={closeLater}>
-      <button className="flex items-center gap-1 px-3 py-2 text-base font-semibold text-white/90 hover:text-white">
+      <button className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold text-white/90 hover:text-white transition-colors">
         <span>{label}</span>
         <ChevronDown
           className={`h-4 w-4 transition ${open ? "rotate-180" : "rotate-0"}`}
@@ -124,14 +124,8 @@ const Header = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
-
-  const avatarUrl = user
-    ? user.photoURL ||
-      (user.uid
-        ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
-        : null)
-    : null;
+  const { user, userProfile } = useAuth();
+  const avatarUrl = userProfile?.photoURL || user?.photoURL || (user?.uid ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}` : null);
 
   const closeAll = () => {
     setMenuOpen(false);
@@ -225,21 +219,21 @@ const Header = () => {
       </div>
 
       {/* Desktop / tablet bar */}
-      <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-3 md:gap-4 md:px-8 lg:px-10">
+      <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
         <div className="flex-1 min-w-0">
           <SearchBar
             placeholder="Tìm kiếm phim, diễn viên"
-            className="max-w-xl"
+            className="max-w-xs lg:max-w-sm xl:max-w-xl"
           />
         </div>
 
-        <nav className="flex items-center gap-1 text-white">
+        <nav className="flex items-center gap-0.5 xl:gap-1 text-white">
           {primaryNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `px-3 py-2 text-base font-semibold rounded-lg transition ${
+                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${
                   isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
                 }`
               }

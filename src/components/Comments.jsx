@@ -13,10 +13,12 @@ import { useAuth } from "../context/AuthContext";
 import { getProfanitySegments } from "../utils/profanity";
 
 export default function Comments({ movieSlug }) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [comments, setComments] = useState(null);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const currentUserAvatar = userProfile?.photoURL || user?.photoURL || 
+    (user?.uid ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}` : null);
 
   useEffect(() => {
     if (!db || !movieSlug) return;
@@ -53,10 +55,8 @@ export default function Comments({ movieSlug }) {
     try {
       await addDoc(collection(db, `comments/${movieSlug}/items`), {
         userId: user.uid,
-        displayName: user.displayName || user.email?.split("@")[0] || "Ẩn danh",
-        photoURL:
-          user.photoURL ||
-          `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`,
+        displayName: userProfile?.displayName || user.displayName || user.email?.split("@")[0] || "Ẩn danh",
+        photoURL: currentUserAvatar,
         content: newComment.trim(),
         createdAt: serverTimestamp(),
       });
@@ -92,15 +92,18 @@ export default function Comments({ movieSlug }) {
       {user ? (
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4">
           <div className="hidden sm:block h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-inner">
-            <img
-              src={
-                user.photoURL ||
-                `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
-              }
-              alt="Avatar"
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+            {currentUserAvatar ? (
+              <img
+                src={currentUserAvatar}
+                alt="Avatar"
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center text-white font-bold text-sm uppercase">
+                {(user.email || "U").charAt(0)}
+              </div>
+            )}
           </div>
           <div className="relative flex-1">
             <input
@@ -158,8 +161,8 @@ export default function Comments({ movieSlug }) {
                   segment.isProfane ? (
                     <span
                       key={idx}
-                      className="bg-slate-600/80 text-transparent rounded px-1 select-none cursor-help mx-0.5 inline-block"
-                      title="Nội dung đã bị che do chứa từ ngữ không phù hợp"
+                      className="text-slate-400/80 font-mono tracking-wider"
+                      title="Nội dung đã bị ẩn do chứa từ ngữ không phù hợp"
                     >
                       {segment.text}
                     </span>

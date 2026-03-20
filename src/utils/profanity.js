@@ -80,11 +80,7 @@ export const getProfanitySegments = (text) => {
   const segments = [];
   let lastIndex = 0;
 
-  // Sort bad words by length (longest first) to avoid matching part of a phrase
   const sortedBadWords = [...BAD_WORDS].sort((a, b) => b.length - a.length);
-
-  // Create regex pattern to match these words as whole units
-  // We use (\b|$) etc but for Vietnamese we'll use a broader approach
   const pattern = sortedBadWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const regex = new RegExp(`(${pattern})`, 'gi');
 
@@ -92,8 +88,7 @@ export const getProfanitySegments = (text) => {
   while ((match = regex.exec(text)) !== null) {
     const matchedText = match[0];
 
-    // Check if it's a stand-alone word or part of a phrase (simple boundary check)
-    // For Vietnamese, we just check spaces/start/end or punctuation
+
     const beforeIdx = match.index - 1;
     const afterIdx = match.index + matchedText.length;
 
@@ -108,7 +103,7 @@ export const getProfanitySegments = (text) => {
         segments.push({ text: text.substring(lastIndex, match.index), isProfane: false });
       }
       // Add profane match
-      segments.push({ text: matchedText, isProfane: true });
+      segments.push({ text: "*".repeat(matchedText.length), isProfane: true });
       lastIndex = regex.lastIndex;
     } else {
 

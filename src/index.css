@@ -97,3 +97,15 @@ body {
   display: none !important;
   opacity: 0 !important;
 }
+
+/* Custom styles for date input calendar icon */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1);
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
