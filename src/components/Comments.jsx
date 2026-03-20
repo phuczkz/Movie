@@ -136,9 +136,9 @@ export default function Comments({ movieSlug }) {
         {comments?.map((comment) => (
           <div key={comment.id} className="flex gap-4">
             <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/5 bg-white/5">
-              {comment.photoURL ? (
+              {(comment.userId === user?.uid ? currentUserAvatar : comment.photoURL) ? (
                 <img
-                  src={comment.photoURL}
+                  src={comment.userId === user?.uid ? currentUserAvatar : comment.photoURL}
                   alt={comment.displayName}
                   className="h-full w-full object-cover"
                   referrerPolicy="no-referrer"
@@ -150,7 +150,9 @@ export default function Comments({ movieSlug }) {
             <div className="flex-1 space-y-1">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-200 text-sm">
-                  {comment.displayName}
+                  {comment.userId === user?.uid 
+                    ? (userProfile?.displayName || user?.displayName || comment.displayName) 
+                    : comment.displayName}
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
                   {formatTime(comment.createdAt)}

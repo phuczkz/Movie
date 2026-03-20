@@ -20,7 +20,6 @@ const PRESET_AVATARS = [
   { id: "gojo", name: "Gojo", url: "/avatars/gojo.png" },
   { id: "sukuna", name: "Sukuna", url: "/avatars/sukuna.png" },
   { id: "megumi", name: "Megumi", url: "/avatars/megumi.png" },
-  { id: "nanami", name: "Nanami", url: "/avatars/nanami.png" },
   { id: "itadori", name: "Itadori", url: "/avatars/itadori.png" },
 
   { id: "c-luffy", name: "Chibi Luffy", url: "/avatars/chibi_luffy.png" },

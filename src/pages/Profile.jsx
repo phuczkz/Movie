@@ -35,17 +35,9 @@ const Profile = () => {
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="h-10 w-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   useEffect(() => {
-    if (!user) navigate("/login");
-  }, [user, navigate]);
+    if (!user && !loading) navigate("/login");
+  }, [user, loading, navigate]);
 
   useEffect(() => {
     const profile = userProfile || {};
@@ -61,6 +53,14 @@ const Profile = () => {
       return `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`;
     return null;
   }, [user, userProfile]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="h-10 w-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const onSubmit = async (e) => {
     e.preventDefault();
