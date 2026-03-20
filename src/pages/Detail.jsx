@@ -125,7 +125,7 @@ const Detail = () => {
   }, [altDetail?.episodes, baseEpisodes, isTmdb]);
 
   const movie = useMemo(
-    () => baseMovie || altDetail?.movie || baseMovie,
+    () => altDetail?.movie || baseMovie,
     [altDetail?.movie, baseMovie]
   );
 
@@ -596,12 +596,12 @@ const Detail = () => {
               </div>
             </div>
           ) : null}
+
+          {movie && movie.slug && <Comments movieSlug={movie.slug} />}
         </div>
       </div>
 
-      <div className="mt-8">
-        <Comments movieSlug={slug} />
-      </div>
+
 
       {/* Fullscreen Resume Modal */}
       {showResumeModal && resumeData && (

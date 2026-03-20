@@ -143,7 +143,7 @@ const MovieCard = ({ movie, priority = false }) => {
               <div
                 key={badge.key}
                 title={badge.label}
-                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] shadow-md shadow-black/30 transition-transform duration-200 group-hover:-translate-y-[2px] ${
+                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] shadow-md shadow-black/30 transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
                   badge.code === "PD"
                     ? "bg-gray-800/95 text-white"
                     : badge.code === "TM"

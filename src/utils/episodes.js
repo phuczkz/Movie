@@ -31,7 +31,10 @@ export const getLatestEpisodeNumber = (movie, episodes = []) => {
 export const getEpisodeLabel = (movie, episodes = []) => {
   const latestEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
   if (latestEpisodeNumber >= 0) return `Tập ${latestEpisodeNumber}`;
-  if (movie?.episode_current) return movie.episode_current;
+  if (movie?.episode_current) {
+    const label = movie.episode_current.replace(/HOÀN TẤT\s*/gi, "").trim();
+    if (label) return label;
+  }
   if (movie?.status) return movie.status;
   return "HD";
 };

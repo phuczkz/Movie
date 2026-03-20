@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useMemo } from "react";
 import {
   Link,
   useParams,
@@ -52,9 +52,35 @@ const Watch = () => {
   const selectedServerParam = params.get("server");
   const { data, isLoading } = useMovieDetail(slug);
 
-  const { movie, episodes = [] } = data || {};
-  const episodesList = Array.isArray(episodes) ? episodes : [];
-  const isTmdb = movie?.slug?.startsWith("tmdb-");
+  const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
+  const episodesList = Array.isArray(baseEpisodes) ? baseEpisodes : [];
+  const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
+
+  const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
+    isTmdb ? baseMovie?.name : ""
+  );
+
+  const bestAltMatch = useMemo(() => {
+    if (!isTmdb || loadingAlts) return null;
+    const normalized = (text) => (text || "").toLowerCase().trim();
+    const namesToMatch = [baseMovie?.name, baseMovie?.origin_name]
+      .map(normalized)
+      .filter(Boolean);
+    const targetYear = baseMovie?.year;
+
+    return altResults.find((m) => {
+      const nameHit =
+        namesToMatch.includes(normalized(m.name)) ||
+        namesToMatch.includes(normalized(m.origin_name));
+      const yearHit =
+        targetYear && m.year ? String(m.year) === String(targetYear) : true;
+      return nameHit && yearHit;
+    });
+  }, [altResults, baseMovie?.name, baseMovie?.origin_name, baseMovie?.year, isTmdb, loadingAlts]);
+
+  // If redirect didn't happen yet, we still want the canonical slug for comments
+  const movie = bestAltMatch || baseMovie;
+  const episodes = baseEpisodes;
   const serverGroups = {};
   episodesList.forEach((ep) => {
     if (!ep) return;
@@ -97,9 +123,6 @@ const Watch = () => {
 
   const hasVietsub = Boolean(serverGroups.Vietsub?.length);
   const hasThuyetMinh = Boolean(serverGroups["Thuyết Minh"]?.length);
-  const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
-    isTmdb ? movie?.name : ""
-  );
 
   const activeEpisode =
     episodesForServer.find((ep) => ep.slug === selectedEpisode) ||
@@ -493,7 +516,7 @@ const Watch = () => {
       </div>
 
       <div className="pt-8 border-t border-white/10 mt-8">
-        <Comments movieSlug={slug} />
+        {movie && movie.slug && <Comments movieSlug={movie.slug} />}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
 import { Send, UserCircle } from "lucide-react";
 import { db } from "../firebase.config";
 import { useAuth } from "../context/AuthContext";
+import { getProfanitySegments } from "../utils/profanity";
 
 export default function Comments({ movieSlug }) {
   const { user } = useAuth();
@@ -20,15 +21,24 @@ export default function Comments({ movieSlug }) {
   useEffect(() => {
     if (!db || !movieSlug) return;
     const q = query(
-      collection(db, `comments/${movieSlug}/items`),
-      orderBy("createdAt", "desc")
+      collection(db, `comments/${movieSlug}/items`)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      setComments(data);
+
+      // Sort on client side to be resilient to missing/null createdAt fields
+      const sorted = [...data].sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+
+      setComments(sorted);
+    }, (error) => {
+      console.error("Firebase Snapshot Error:", error);
     });
     return () => unsubscribe();
   }, [movieSlug]);
@@ -143,7 +153,19 @@ export default function Comments({ movieSlug }) {
                 </span>
               </div>
               <p className="text-[15px] text-slate-300 leading-relaxed whitespace-pre-wrap">
-                {comment.content}
+                {getProfanitySegments(comment.content).map((segment, idx) =>
+                  segment.isProfane ? (
+                    <span
+                      key={idx}
+                      className="bg-slate-600/80 text-transparent rounded px-1 select-none cursor-help mx-0.5 inline-block"
+                      title="Nội dung đã bị che do chứa từ ngữ không phù hợp"
+                    >
+                      {segment.text}
+                    </span>
+                  ) : (
+                    <span key={idx}>{segment.text}</span>
+                  )
+                )}
               </p>
             </div>
           </div>

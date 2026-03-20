@@ -141,10 +141,10 @@ const TrendingCard = ({ movie, index }) => {
             {badges.map((badge, idx) => (
               <div
                 key={badge.code}
-                className={`${badge.bg} backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white uppercase ${idx < badges.length - 1 ? "border-r border-white/10" : ""
+                className={`${badge.bg} backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white uppercase whitespace-nowrap ${idx < badges.length - 1 ? "border-r border-white/10" : ""
                   }`}
               >
-                {badge.code}. {movie.episode_current?.replace(/Tập\s+/i, "") || "???"}
+                {badge.code}. {movie.episode_current?.replace(/Tập\s+/i, "").replace(/HOÀN TẤT\s*/gi, "").trim() || "???"}
               </div>
             ))}
           </div>
@@ -175,7 +175,7 @@ const TrendingCard = ({ movie, index }) => {
             {movie.origin_name || movie.name}
           </p>
           <div className="flex items-center gap-2 mt-1 text-sm text-slate-400 font-medium">
-            <span>{movie.episode_current || "Tập 1"}</span>
+            <span>{movie.episode_current?.replace(/HOÀN TẤT\s*/gi, "").trim() || "Tập 1"}</span>
           </div>
         </div>
       </div>
