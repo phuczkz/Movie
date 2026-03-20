@@ -5,11 +5,75 @@ const BAD_WORDS = [
   "asshole", "đụ", "du ma", "đụ má", "đmm", "dmm", "vcl", "vkl",
   "vcc", "dâm", "dam", "hãm", "ham", "ngu", "óc chó", "oc cho",
   "ngu học", "cút", "cut", "đĩ", "đồ tồi", "đồ khốn", "đồ khốn nạn",
+
+  // cơ bản
+  "đm", "dm", "dcm", "vcl", "đkm", "cl", "clgt",
+  "con cặc", "con cac", "cặc", "cac", "lồn", "lon",
+  "đéo", "deo", "điếm", "diem", "mẹ mày", "me may",
+
+  // tiếng anh
+  "fuck", "shit", "bitch", "asshole", "dick", "pussy",
+  "bastard", "slut", "whore", "motherfucker",
+
+  // biến thể viết tắt
+  "đmm", "dmm", "vkl", "vcc", "cc", "cccd", "vl", "lol",
+  "dkm", "dit", "dit me", "dit me may", "djt", "dmn",
+
+  // biến thể viết sai / lách luật
+  "l0n", "l*n", "c4c", "c*c", "d3o", "d*o",
+  "f*ck", "sh!t", "b!tch", "4ss", "a$$",
+  "ngu vkl", "ngu vl", "ngu lol",
+
+  // câu chửi phổ biến
+  "óc chó", "oc cho", "ngu học", "ngu như chó",
+  "đồ ngu", "thằng ngu", "con ngu",
+  "đồ chó", "chó chết", "đồ khốn", "đồ khốn nạn",
+  "đồ tồi", "cút", "biến", "cút mẹ",
+  "đi chết đi", "chết mẹ mày", "chết đi",
+  "ăn cứt", "ăn cức", "ăn shit",
+  "vô học", "mất dạy", "láo", "láo toét",
+
+  // xúc phạm
+  "rác rưởi", "phế vật", "đồ bỏ đi",
+  "vô dụng", "hèn", "hèn hạ",
+  "bẩn", "dơ", "bẩn thỉu",
+
+  // từ liên quan nhạy cảm
+  "dâm", "dam", "sex", "xxx", "porn",
+
+  //  bạo lực / đe doạ (tiếng Việt)
+  "giết", "giết mày", "tao giết mày", "giết chết", "giết hết",
+  "giết người", "giết cả nhà", "giết sạch",
+  "đập chết", "đánh chết", "đánh mày chết",
+  "đập mày", "đập chết mẹ", "đập bỏ mẹ",
+  "chém", "chém mày", "chém chết", "chém bỏ mẹ",
+  "đâm", "đâm chết", "đâm mày", "đâm thủng",
+  "bắn", "bắn chết", "bắn mày",
+  "thiêu sống", "đốt chết", "đốt nhà",
+  "treo cổ", "thắt cổ", "cắt cổ",
+  "làm thịt", "xử mày", "xử đẹp", "xử nó",
+  "dìm chết", "đập đầu", "đập sọ",
+  "hành hạ", "tra tấn", "tra tấn chết",
+
+  //  (bạo lực)
+  "kill", "kill you", "kill yourself", "kill him", "kill them",
+  "i will kill you", "i gonna kill you",
+  "murder", "murder you",
+  "die", "die now", "go die",
+  "burn alive", "burn you", "burn them",
+  "shoot", "shoot you", "shoot them",
+  "stab", "stab you",
+  "hang yourself", "hang him",
+  "cut your throat",
+  "beat to death",
+  "torture", "torture you",
+
+  //  viết tắt / biến thể
+  "kill u", "kys", "die mf", "die bitch",
+  "k!ll", "k1ll", "k!ll you",
+  "sh00t", "st@b", "murd3r"
 ];
 
-/**
- * Splits text into segments, identifying which segments are profane.
- */
 export const getProfanitySegments = (text) => {
   if (!text) return [];
 
@@ -47,13 +111,7 @@ export const getProfanitySegments = (text) => {
       segments.push({ text: matchedText, isProfane: true });
       lastIndex = regex.lastIndex;
     } else {
-      // Not a boundary match, just keep going but don't mark as profane yet
-      // This helps avoid matching "ass" in "glass"
-      // However, we need to manually move the lastIndex if we skip
-      // Actually, regex.lastIndex is already set correctly by exec.
-      // But we need to make sure we don't skip the actual start of the word later.
-      // For simplicity in this small project, we'll just treat it as safe text for now
-      // and let the next loop iteration find other matches if any.
+
     }
   }
 
@@ -62,9 +120,6 @@ export const getProfanitySegments = (text) => {
     segments.push({ text: text.substring(lastIndex), isProfane: false });
   }
 
-  // If we had skips, we might have overlapping safe segments. 
-  // Let's refine: if lastIndex didn't move it means it was a non-boundary match.
-  // We should just let the loop continue.
 
   return segments;
 };
