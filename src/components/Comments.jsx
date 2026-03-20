@@ -14,7 +14,7 @@ import { getProfanitySegments } from "../utils/profanity";
 
 export default function Comments({ movieSlug }) {
   const { user } = useAuth();
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState(null);
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,8 +31,9 @@ export default function Comments({ movieSlug }) {
 
       // Sort on client side to be resilient to missing/null createdAt fields
       const sorted = [...data].sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        // Use current local time for pending (null) timestamps to show them at the top immediately
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
         return timeB - timeA;
       });
 
@@ -84,7 +85,7 @@ export default function Comments({ movieSlug }) {
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-semibold text-white">Bình luận</h2>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300">
-          {comments.length}
+          {comments?.length || 0}
         </span>
       </div>
 
@@ -129,7 +130,7 @@ export default function Comments({ movieSlug }) {
       )}
 
       <div className="space-y-6 pt-2">
-        {comments.map((comment) => (
+        {comments?.map((comment) => (
           <div key={comment.id} className="flex gap-4">
             <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/5 bg-white/5">
               {comment.photoURL ? (
@@ -170,7 +171,12 @@ export default function Comments({ movieSlug }) {
             </div>
           </div>
         ))}
-        {comments.length === 0 && (
+        {comments === null && (
+          <div className="flex justify-center py-6">
+            <div className="h-6 w-6 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+          </div>
+        )}
+        {comments?.length === 0 && (
           <div className="text-center text-sm font-medium text-slate-500 py-6">
             Chưa có bình luận nào. Hãy là người đầu tiên!
           </div>

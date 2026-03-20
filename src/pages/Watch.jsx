@@ -79,7 +79,10 @@ const Watch = () => {
   }, [altResults, baseMovie?.name, baseMovie?.origin_name, baseMovie?.year, isTmdb, loadingAlts]);
 
   // If redirect didn't happen yet, we still want the canonical slug for comments
-  const movie = bestAltMatch || baseMovie;
+  const movie = useMemo(() => {
+    if (isTmdb && loadingAlts && !bestAltMatch) return null;
+    return bestAltMatch || baseMovie;
+  }, [baseMovie, bestAltMatch, isTmdb, loadingAlts]);
   const episodes = baseEpisodes;
   const serverGroups = {};
   episodesList.forEach((ep) => {
@@ -232,8 +235,8 @@ const Watch = () => {
     }
   }, [episodesForServer, activeServer, params, setParams]);
 
-  if (isLoading)
-    return <div className="text-slate-300">Đang tải player...</div>;
+  if (isLoading || (isTmdb && loadingAlts && !bestAltMatch))
+    return <div className="text-slate-300 px-8 py-20">Đang tải player...</div>;
 
   if (!episodes.length && isTmdb) {
     // TMDB không có stream: chỉ chuyển nếu tìm thấy phim trùng tên (hoặc tên gốc) và trùng năm trên Ophim.

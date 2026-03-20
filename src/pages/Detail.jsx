@@ -124,10 +124,10 @@ const Detail = () => {
     return baseEpisodes;
   }, [altDetail?.episodes, baseEpisodes, isTmdb]);
 
-  const movie = useMemo(
-    () => altDetail?.movie || baseMovie,
-    [altDetail?.movie, baseMovie]
-  );
+  const movie = useMemo(() => {
+    if (isTmdb && loadingAlts && !altDetail?.movie) return null;
+    return altDetail?.movie || baseMovie;
+  }, [altDetail?.movie, baseMovie, isTmdb, loadingAlts]);
 
   const serverGroups = useMemo(() => {
     if (!episodes?.length) return {};
@@ -211,8 +211,15 @@ const Detail = () => {
     });
   }, [movie]);
 
-  if (isLoading)
-    return <div className="text-slate-300">Đang tải chi tiết...</div>;
+  const isActuallyLoading = isLoading || (isTmdb && loadingAlts && !altDetail?.movie);
+
+  if (isActuallyLoading)
+    return (
+      <div className="flex flex-col items-center justify-center py-32 space-y-4">
+        <div className="h-10 w-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+        <div className="text-slate-400 font-medium animate-pulse">Đang tải chi tiết phim...</div>
+      </div>
+    );
 
   const latestEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
   const epTotal = parseEpisodeNumber(movie?.episode_total);

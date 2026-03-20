@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header.jsx";
 import Footer from "./Footer.jsx";
@@ -5,6 +6,10 @@ import Footer from "./Footer.jsx";
 const Layout = ({ children }) => {
   const location = useLocation();
   const isHome = location.pathname === "/";
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.search]);
 
   return (
     <div className="bg-background text-slate-100 min-h-screen overflow-x-hidden">
