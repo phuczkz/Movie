@@ -89,10 +89,10 @@ const Hero = ({ movie, movies = [] }) => {
           className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-105 contrast-[1.08] transition duration-700 ease-out"
           style={{ backgroundImage: `url(${background})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/25" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_60%,rgba(244,114,182,0.16),transparent_45%),radial-gradient(circle_at_78%_20%,rgba(52,211,153,0.18),transparent_42%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/45 to-transparent" />
+        {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin (trước kia là 85% nay giảm còn 40% - 50%) */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/60 via-slate-950/30 to-slate-950/10 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_60%,rgba(244,114,182,0.15),transparent_45%),radial-gradient(circle_at_78%_20%,rgba(52,211,153,0.15),transparent_42%)] pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
       </div>
 
       <div className="relative z-10 flex h-full flex-col justify-center md:justify-center lg:justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-10 pt-16 md:px-10 md:pb-12 lg:px-16 lg:pb-8">

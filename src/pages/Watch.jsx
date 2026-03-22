@@ -21,7 +21,10 @@ import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useMoviesList } from "../hooks/useMoviesList.js";
+import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
 import Comments from "../components/Comments.jsx";
+import MovieCard from "../components/MovieCard.jsx";
 import {
   getEpisodeLabel,
   normalizeServerLabel,
@@ -96,8 +99,8 @@ const Watch = () => {
     serverGroups.Vietsub?.length
       ? "Vietsub"
       : serverGroups["Thuyết Minh"]?.length
-      ? "Thuyết Minh"
-      : Object.keys(serverGroups)[0];
+        ? "Thuyết Minh"
+        : Object.keys(serverGroups)[0];
 
   const requestedServer = normalizeServerLabel(selectedServerParam);
   const activeServer =
@@ -177,6 +180,80 @@ const Watch = () => {
     [user, slug, activeEpisode, activeServer, saveProgress, movie?.name, movie?.poster_url, movie?.thumb_url, movie?.backdrop_url]
   );
 
+  const actors = useMemo(() => {
+    const pools = [
+      movie?.actor,
+      movie?.actors,
+      movie?.cast,
+      movie?.origin?.actor,
+      movie?.origin?.actors,
+      movie?.origin?.cast,
+    ];
+
+    const collect = pools.flatMap((item) => {
+      if (!item) return [];
+      if (Array.isArray(item)) return item;
+      if (typeof item === "string") return item.split(/[,/|]/);
+      return [];
+    });
+
+    const normalized = collect
+      .map((entry) => {
+        if (!entry) return null;
+        if (typeof entry === "string")
+          return { name: entry.trim(), image: null };
+        if (typeof entry === "object")
+          return {
+            name: String(
+              entry.name || entry.full_name || entry.title || ""
+            ).trim(),
+            image:
+              entry.avatar ||
+              entry.image ||
+              entry.photo ||
+              entry.thumbnail ||
+              null,
+          };
+        return null;
+      })
+      .filter((item) => item && item.name);
+
+    const seen = new Set();
+    return normalized.filter((item) => {
+      if (seen.has(item.name)) return false;
+      seen.add(item.name);
+      return true;
+    });
+  }, [movie]);
+
+  const categorySlugs = useMemo(() => (movie?.category || []).map(c => c.slug).filter(Boolean), [movie?.category]);
+  const countrySlug = movie?.country?.[0]?.slug;
+
+  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: !!categorySlugs[0] });
+  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: !!categorySlugs[1] });
+  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: !!countrySlug });
+
+  const relatedMovies = useMemo(() => {
+    const combined = [];
+    const max = 24;
+    const len = Math.max(cat1Pool.length, cat2Pool.length, countryPool.length);
+    
+    for (let i = 0; i < len; i++) {
+      if (cat1Pool[i]) combined.push(cat1Pool[i]);
+      if (countryPool[i]) combined.push(countryPool[i]);
+      if (cat2Pool[i]) combined.push(cat2Pool[i]);
+      if (combined.length >= max) break;
+    }
+
+    const seen = new Set();
+    seen.add(movie?.slug);
+    return combined.filter(m => {
+      if (!m || !m.slug || seen.has(m.slug)) return false;
+      seen.add(m.slug);
+      return true;
+    }).slice(0, 16);
+  }, [cat1Pool, cat2Pool, countryPool, movie?.slug]);
+
   const metaRef = useRef({ slug: null, name: null, server: null, movieName: null, posterUrl: null });
 
   // Keep track of the current episode meta for the unmount flush
@@ -249,13 +326,13 @@ const Watch = () => {
     const bestMatch = loadingAlts
       ? null
       : altResults.find((m) => {
-          const nameHit =
-            namesToMatch.includes(normalized(m.name)) ||
-            namesToMatch.includes(normalized(m.origin_name));
-          const yearHit =
-            targetYear && m.year ? String(m.year) === String(targetYear) : true;
-          return nameHit && yearHit;
-        });
+        const nameHit =
+          namesToMatch.includes(normalized(m.name)) ||
+          namesToMatch.includes(normalized(m.origin_name));
+        const yearHit =
+          targetYear && m.year ? String(m.year) === String(targetYear) : true;
+        return nameHit && yearHit;
+      });
 
     if (bestMatch) {
       return <Navigate to={`/watch/${bestMatch.slug}`} replace />;
@@ -294,15 +371,12 @@ const Watch = () => {
 
   const statusLabel = getEpisodeLabel(movie, episodes);
   const notifyText = movie?.notify || movie?.showtimes;
-  const categoriesText = movie?.category?.map((c) => c.name || c).join(", ");
-  const countryText = movie?.country?.map((c) => c.name || c).join(", ");
+  const categoriesText = (movie?.category || []).map((c) => c.name || c).join(", ");
+  const countryText = (movie?.country || []).map((c) => c.name || c).join(", ");
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">
-          Đang xem
-        </p>
         <h1 className="text-2xl font-bold text-white">{movie?.name}</h1>
         {activeEpisode ? (
           <p className="text-slate-300">{activeEpisode.name} </p>
@@ -324,10 +398,9 @@ const Watch = () => {
             navigate(
               `/watch/${slug}?episode=${encodeURIComponent(
                 nextEpisode.slug || nextEpisode.name
-              )}${
-                activeServer
-                  ? `&server=${encodeURIComponent(activeServer)}`
-                  : ""
+              )}${activeServer
+                ? `&server=${encodeURIComponent(activeServer)}`
+                : ""
               }`
             );
           }}
@@ -337,189 +410,203 @@ const Watch = () => {
         />
       </div>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 lg:flex-row lg:items-start lg:gap-6">
-        <div className="w-full max-w-[140px] overflow-hidden rounded-xl border border-white/10 shadow-lg lg:max-w-[180px]">
-          <img
-            src={movie?.poster_url}
-            alt={movie?.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        </div>
-        <div className="flex-1 space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-bold text-white">{movie?.name}</h2>
-            {movie?.origin_name ? (
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200">
-                {movie.origin_name}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-200">
-            {movie?.year ? (
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                {movie.year}
-              </span>
-            ) : null}
-            {statusLabel ? (
-              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-200">
-                {statusLabel}
-              </span>
-            ) : null}
-            {movie?.quality ? (
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                {movie.quality}
-              </span>
-            ) : null}
-            {movie?.lang ? (
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                {movie.lang}
-              </span>
-            ) : null}
-            {movie?.time ? (
-              <span className="rounded-full bg-white/10 px-3 py-1">
-                {movie.time}
-              </span>
-            ) : null}
+      <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-white/5 bg-slate-950/80 shadow-2xl px-6 py-8 lg:px-8 lg:py-9 space-y-6">
+            <div className="flex flex-col gap-6">
+              <div className="flex gap-4 lg:gap-6">
+                <div className="w-36 sm:w-44 lg:w-48 shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/50">
+                  <img
+                    src={movie?.poster_url}
+                    alt={movie?.name}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h1 className="text-3xl font-bold text-white leading-tight">{movie?.name}</h1>
+                {movie?.origin_name && (
+                  <p className="text-slate-200/80 text-sm">Tên gốc: {movie.origin_name}</p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-200/90">
+                  {movie?.year && <span className="rounded-full bg-white/10 px-3 py-1">{movie.year}</span>}
+                  {statusLabel && <span className="rounded-full bg-white/10 px-3 py-1">{statusLabel}</span>}
+                  {movie?.quality && <span className="rounded-full bg-white/10 px-3 py-1">{movie.quality}</span>}
+                  {movie?.lang && <span className="rounded-full bg-white/10 px-3 py-1">{movie.lang}</span>}
+                  {movie?.time && <span className="rounded-full bg-white/10 px-3 py-1">{movie.time}</span>}
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1 text-xs text-slate-200">
+                  {countryText && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
+                      <Globe2 className="h-4 w-4" />
+                      {countryText}
+                    </span>
+                  )}
+                  {categoriesText && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
+                      <Star className="h-4 w-4 text-amber-300" />
+                      {categoriesText}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs text-slate-200">
-            {countryText ? (
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
-                <Globe2 className="h-4 w-4" />
-                {countryText}
-              </span>
-            ) : null}
-            {categoriesText ? (
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
-                <Star className="h-4 w-4 text-amber-300" />
-                {categoriesText}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="text-slate-300 text-sm leading-relaxed space-y-2">
+          <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 lg:p-8 space-y-3 shadow-xl">
+            <div className="flex items-center gap-3">
+              <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
+                Giới thiệu
+              </p>
+            </div>
             <div
+              className="text-slate-300 leading-relaxed text-[15px]"
               dangerouslySetInnerHTML={{
                 __html: movie?.content || "Chưa có mô tả.",
               }}
             />
-            <div className="inline-flex items-center gap-2 text-emerald-300 text-sm">
-              <Info className="h-4 w-4" />
-              <Link to={`/movie/${slug}`} className="hover:underline">
-                Thông tin phim
-              </Link>
-            </div>
           </div>
 
-          {notifyText ? (
-            <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200">
-              <Timer className="h-4 w-4" />
-              {notifyText}
+          {actors.length > 0 && (
+            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-4">
+              <div className="flex items-center gap-3">
+                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
+                  Diễn viên
+                </p>
+                <span className="text-xs font-semibold text-slate-400">
+                  {actors.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                {actors.map((actor) => {
+                  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    actor.name
+                  )}&background=0f172a&color=94a3b8&bold=true&size=128&format=png`;
+                  const src = actor.image || fallback;
+                  return (
+                    <div key={actor.name} className="flex flex-col items-center gap-2 w-24">
+                      <div className="h-16 w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg">
+                        <img
+                          src={src}
+                          alt={actor.name}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                      <span className="text-center text-sm text-slate-100 line-clamp-2 leading-tight">
+                        {actor.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-6 min-w-0">
+          {episodesForServer.length ? (
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-emerald-500/15 via-purple-500/10 to-blue-500/15 px-4 py-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
+                <Bell className="h-5 w-5" />
+              </div>
+              <div className="flex-1 text-slate-100">
+                <p className="text-sm font-semibold">
+                  {activeEpisode
+                    ? `Đang xem: ${activeEpisode.name}`
+                    : "Chọn tập để xem"}
+                </p>
+                {notifyText && <p className="text-xs text-amber-300 font-medium mt-0.5">{notifyText}</p>}
+              </div>
             </div>
           ) : null}
-        </div>
-      </div>
 
-      {episodesForServer.length ? (
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-emerald-500/15 via-purple-500/10 to-blue-500/15 px-4 py-3 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
-            <Bell className="h-5 w-5" />
-          </div>
-          <div className="flex-1 text-slate-100">
-            <p className="text-sm font-semibold">
-              {activeEpisode
-                ? `Đang xem: ${activeEpisode.name}`
-                : "Chọn tập để xem"}
-            </p>
-            <p className="text-xs text-slate-200/80">
-              Tổng cộng {episodesForServer.length} tập, chọn bên dưới.
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="space-y-3" id="episode-list">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">
-              Phần 1
-            </p>
-            <h2 className="text-lg font-semibold text-white">
-              Danh sách tập {episodesForServer.length ? `(${episodesForServer.length})` : ""}
-            </h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {hasVietsub || hasThuyetMinh ? (
-              <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
-                <button
-                  type="button"
-                  onClick={() => handleServerChange("Vietsub")}
-                  disabled={!hasVietsub}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
-                    activeServer === "Vietsub"
-                      ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
-                      : "text-slate-200 hover:bg-white/10"
-                  } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
-                >
-                  Vietsub
-                </button>
-                {hasThuyetMinh ? (
-                  <button
-                    type="button"
-                    onClick={() => handleServerChange("Thuyết Minh")}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
-                      activeServer === "Thuyết Minh"
-                        ? "bg-emerald-400 text-slate-950 shadow-[0_8px_30px_-12px_rgba(52,211,153,0.9)]"
+          <div className="rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold text-white">Danh sách tập</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                {(hasVietsub || hasThuyetMinh) && (
+                  <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+                    <button
+                      type="button"
+                      onClick={() => handleServerChange("Vietsub")}
+                      disabled={!hasVietsub}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${activeServer === "Vietsub"
+                        ? "bg-emerald-400 text-slate-950"
                         : "text-slate-200 hover:bg-white/10"
-                    }`}
-                  >
-                    Thuyết Minh
-                  </button>
-                ) : null}
+                        } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
+                    >
+                      Vietsub
+                    </button>
+                    {hasThuyetMinh && (
+                      <button
+                        type="button"
+                        onClick={() => handleServerChange("Thuyết Minh")}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${activeServer === "Thuyết Minh"
+                          ? "bg-emerald-400 text-slate-950"
+                          : "text-slate-200 hover:bg-white/10"
+                          }`}
+                      >
+                        Thuyết Minh
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            ) : null}
-            <div className="flex items-center gap-2 text-xs text-slate-300">
-              <ListChecks className="h-4 w-4" />
-              <span>Chọn tập để xem</span>
             </div>
+
+            {episodesForServer.length ? (
+              <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {episodesForServer.map((ep, idx) => (
+                    <Link
+                      key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
+                      to={`/watch/${slug}?episode=${encodeURIComponent(
+                        ep.slug || ep.name || `ep-${idx + 1}`
+                      )}${activeServer
+                        ? `&server=${encodeURIComponent(activeServer)}`
+                        : ""
+                        }`}
+                      className={`group flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${activeEpisode?.slug === ep.slug
+                        ? "border-emerald-400 bg-emerald-500/10"
+                        : ""
+                        }`}
+                    >
+                      <Play className={`h-4 w-4 mr-2 ${activeEpisode?.slug === ep.slug ? "text-emerald-400" : "text-emerald-300"}`} />
+                      {ep.name || `Tập ${idx + 1}`}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-400">Chưa có tập.</p>
+            )}
+          </div>
+
+          {relatedMovies.length > 0 && (
+            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-5">
+              <div className="flex items-center gap-3">
+                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
+                  Phim liên quan
+                </p>
+              </div>
+              <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar">
+                {relatedMovies.map((relMovie) => (
+                  <div key={relMovie.slug} className="min-w-[170px] sm:min-w-[200px] snap-start">
+                    <MovieCard movie={relMovie} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div id="comments">
+            {movie && movie.slug && <Comments movieSlug={movie.slug} />}
           </div>
         </div>
-
-        {episodesForServer.length ? (
-          <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {episodesForServer.map((ep, idx) => (
-                <Link
-                  key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
-                  to={`/watch/${slug}?episode=${encodeURIComponent(
-                    ep.slug || ep.name || `ep-${idx + 1}`
-                  )}${
-                    activeServer
-                      ? `&server=${encodeURIComponent(activeServer)}`
-                      : ""
-                  }`}
-                  className={`group flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${
-                    activeEpisode?.slug === ep.slug
-                      ? "border-emerald-400 bg-emerald-500/10"
-                      : ""
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <Play className="h-4 w-4 text-emerald-300" />
-                    {ep.name || `Tập ${idx + 1}`}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="text-slate-400">Chưa có tập.</p>
-        )}
-      </div>
-
-      <div className="pt-8 border-t border-white/10 mt-8">
-        {movie && movie.slug && <Comments movieSlug={movie.slug} />}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Heart, Play } from "lucide-react";
+import { Heart, Play, Globe2, Star } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
@@ -7,6 +7,8 @@ import Rating from "../components/Rating.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSavedMovie } from "../hooks/useSavedMovie.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
+import { useMoviesList } from "../hooks/useMoviesList.js";
+import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
 import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
@@ -14,6 +16,7 @@ import {
   normalizeServerLabel,
   parseEpisodeNumber,
 } from "../utils/episodes.js";
+import MovieCard from "../components/MovieCard.jsx";
 
 // Try to fetch higher-res images for the banner to avoid pixelation when stretched
 const getHiRes = (url) => {
@@ -128,6 +131,34 @@ const Detail = () => {
     if (isTmdb && loadingAlts && !altDetail?.movie) return null;
     return altDetail?.movie || baseMovie;
   }, [altDetail?.movie, baseMovie, isTmdb, loadingAlts]);
+
+  const categorySlugs = useMemo(() => (movie?.category || []).map(c => c.slug).filter(Boolean), [movie?.category]);
+  const countrySlug = movie?.country?.[0]?.slug;
+
+  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: !!categorySlugs[0] });
+  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: !!categorySlugs[1] });
+  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: !!countrySlug });
+
+  const relatedMovies = useMemo(() => {
+    const combined = [];
+    const max = 24;
+    const len = Math.max(cat1Pool.length, cat2Pool.length, countryPool.length);
+
+    for (let i = 0; i < len; i++) {
+      if (cat1Pool[i]) combined.push(cat1Pool[i]);
+      if (countryPool[i]) combined.push(countryPool[i]);
+      if (cat2Pool[i]) combined.push(cat2Pool[i]);
+      if (combined.length >= max) break;
+    }
+
+    const seen = new Set();
+    seen.add(movie?.slug);
+    return combined.filter(m => {
+      if (!m || !m.slug || seen.has(m.slug)) return false;
+      seen.add(m.slug);
+      return true;
+    }).slice(0, 16);
+  }, [cat1Pool, cat2Pool, countryPool, movie?.slug]);
 
   const serverGroups = useMemo(() => {
     if (!episodes?.length) return {};
@@ -295,36 +326,50 @@ const Detail = () => {
 
   const heroImage = getHiRes(
     movie?.backdrop_url ||
-      movie?.banner ||
-      movie?.thumb_url ||
-      movie?.poster_url
+    movie?.banner ||
+    movie?.thumb_url ||
+    movie?.poster_url
   );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative">
       {heroImage ? (
-        <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none overflow-hidden border border-white/5 bg-slate-950/70 shadow-2xl">
-          <div className="relative aspect-[16/7] w-full">
-            <img
-              src={heroImage}
-              alt={movie.name}
-              className="h-full w-full object-cover object-[50%_10%]"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/35 via-slate-950/60 to-slate-950/85" />
+        <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none">
+          {/* Spacer: Giữ nguyên khoảng trống gốc để không đẩy content đi chỗ khác */}
+          <div className="aspect-[16/10] md:aspect-[2/1] xl:aspect-[21/9] w-full invisible pointer-events-none" />
+
+          {/* Banner chỉ kéo dài xuống khoảng 25% phía dưới spacer (tương đương 1/3 khung thông tin đầu tiên) */}
+          <div className="absolute top-0 left-0 w-full h-[125%] bg-slate-950 z-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full">
+              <img
+                src={heroImage}
+                alt={movie?.name || "Banner"}
+                className="w-full h-full object-cover object-[50%_10%]"
+                loading="lazy"
+              />
+              {/* Chỉ fade mép dưới của tấm ảnh để hòa vào nền slate-950 */}
+              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+            </div>
           </div>
+          <div
+            className="absolute top-full bottom-[-25%] left-0 w-full bg-slate-950/70 backdrop-blur-[6px] z-0 pointer-events-none"
+            style={{
+              WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 30%)",
+              maskImage: "linear-gradient(to bottom, transparent 0%, black 30%)"
+            }}
+          />
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
+      <div className="relative z-10 grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
         <div className="space-y-6">
           <div className="rounded-3xl border border-white/5 bg-slate-950/80 shadow-2xl px-6 py-8 lg:px-8 lg:py-9 space-y-6">
             <div className="flex flex-col gap-6">
               <div className="flex gap-4 lg:gap-6">
                 <div className="w-36 sm:w-44 lg:w-48 shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/50">
                   <img
-                    src={movie.poster_url}
-                    alt={movie.name}
+                    src={movie?.poster_url}
+                    alt={movie?.name}
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
@@ -349,7 +394,7 @@ const Detail = () => {
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow">
-                  {movie.name}
+                  {movie?.name}
                 </h1>
                 {movie.origin_name ? (
                   <p className="text-slate-200/80 text-sm">
@@ -360,47 +405,48 @@ const Detail = () => {
                 <Rating movieSlug={slug} apiRating={movie.rating} />
 
                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-200/90">
-                  <span className="rounded-full bg-white/10 px-3 py-1">
-                    {movie.year || "N/A"}
-                  </span>
+                  {movie?.year && (
+                    <span className="rounded-full bg-white/10 px-3 py-1">
+                      {movie.year}
+                    </span>
+                  )}
                   <span className="rounded-full bg-white/10 px-3 py-1">
                     {latestEpisodeNumber >= 0
                       ? `Tập ${latestEpisodeNumber}`
-                      : movie.episode_current || "HD"}
+                      : movie?.episode_current || "HD"}
                   </span>
-                  {movie.quality ? (
+                  {movie?.quality && (
                     <span className="rounded-full bg-white/10 px-3 py-1">
                       {movie.quality}
                     </span>
-                  ) : null}
-                  {movie.lang ? (
+                  )}
+                  {movie?.lang && (
                     <span className="rounded-full bg-white/10 px-3 py-1">
                       {movie.lang}
                     </span>
-                  ) : null}
-                  {movie.time ? (
+                  )}
+                  {movie?.time && (
                     <span className="rounded-full bg-white/10 px-3 py-1">
                       {movie.time}
                     </span>
-                  ) : null}
-                  {movie.country?.length ? (
+                  )}
+                  {movie?.country?.length > 0 && (
                     <span className="rounded-full bg-white/10 px-3 py-1">
                       {movie.country.map((c) => c.name || c).join(", ")}
                     </span>
-                  ) : null}
-                  {movie.category?.length ? (
+                  )}
+                  {movie?.category?.length > 0 && (
                     <span className="rounded-full bg-white/10 px-3 py-1">
                       {movie.category.map((c) => c.name || c).join(", ")}
                     </span>
-                  ) : null}
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   <Link
-                    to={`/watch/${movie.slug}`}
-                    className={`flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 ${
-                      episodes.length ? "" : "opacity-80"
-                    }`}
+                    to={`/watch/${movie?.slug}`}
+                    className={`flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 ${episodes.length ? "" : "opacity-80"
+                      }`}
                   >
                     <Play className="h-4 w-4" />
                     {episodes.length ? "Xem ngay" : "Mở trang xem"}
@@ -410,11 +456,10 @@ const Detail = () => {
                     type="button"
                     onClick={toggleSave}
                     disabled={saving}
-                    className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
-                      isSaved
-                        ? "border-rose-400/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
-                        : "border-white/15 bg-white/5 text-white hover:border-emerald-300/60 hover:text-emerald-100"
-                    } ${saving ? "opacity-80" : ""}`}
+                    className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${isSaved
+                      ? "border-rose-400/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
+                      : "border-white/15 bg-white/5 text-white hover:border-emerald-300/60 hover:text-emerald-100"
+                      } ${saving ? "opacity-80" : ""}`}
                   >
                     <Heart
                       className="h-4 w-4"
@@ -423,17 +468,16 @@ const Detail = () => {
                     {saving
                       ? "Đang lưu..."
                       : isSaved
-                      ? "Hủy Yêu thích"
-                      : "Yêu thích"}
+                        ? "Hủy Yêu thích"
+                        : "Yêu thích"}
                   </button>
 
                   {message ? (
                     <span
-                      className={`text-xs font-semibold ${
-                        lastAction === "remove"
-                          ? "text-rose-200"
-                          : "text-emerald-200"
-                      }`}
+                      className={`text-xs font-semibold ${lastAction === "remove"
+                        ? "text-rose-200"
+                        : "text-emerald-200"
+                        }`}
                     >
                       {message}
                     </span>
@@ -448,121 +492,18 @@ const Detail = () => {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 lg:p-8 space-y-3">
+          <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 lg:p-8 space-y-3 shadow-xl">
             <div className="flex items-center gap-3">
-              <p className="text-sm uppercase tracking-[0.14em] text-slate-400">
+              <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
                 Giới thiệu
               </p>
             </div>
             <div
-              className="text-slate-300 leading-relaxed"
+              className="text-slate-300 leading-relaxed text-[15px]"
               dangerouslySetInnerHTML={{
                 __html: movie.content || "Chưa có mô tả.",
               }}
             />
-          </div>
-        </div>
-
-        <div className="space-y-5">
-          <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-semibold text-white">Tập phim</h2>
-                <div className="flex items-center gap-2 text-sm text-slate-300">
-                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1">
-                    <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-200">
-                      {selectedServer || "Nguồn"}
-                    </span>
-                    <span className="text-slate-200/80">
-                      {selectedEpisodes.length
-                        ? `${selectedEpisodes.length} tập`
-                        : ""}
-                    </span>
-                  </span>
-                  {isCompleted ? (
-                    <span className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">
-                      Hoàn tất
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            {Object.keys(serverGroups).length ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {hasVietsub ? (
-                  <button
-                    type="button"
-                    onClick={() => setUserSelectedServer("Vietsub")}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                      selectedServer === "Vietsub"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                    }`}
-                  >
-                    Vietsub
-                  </button>
-                ) : null}
-                {hasLongTieng ? (
-                  <button
-                    type="button"
-                    onClick={() => setUserSelectedServer("Lồng Tiếng")}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                      selectedServer === "Lồng Tiếng"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                    }`}
-                  >
-                    Lồng Tiếng
-                  </button>
-                ) : null}
-                {hasThuyetMinh ? (
-                  <button
-                    type="button"
-                    onClick={() => setUserSelectedServer("Thuyết Minh")}
-                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
-                      selectedServer === "Thuyết Minh"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                    }`}
-                  >
-                    Thuyết minh
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            {showUpcomingNotice ? (
-              <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
-                <div>
-                  {nextEpisodeNumber
-                    ? `Tập ${nextEpisodeNumber} sẽ cập nhật sớm.`
-                    : "Tập mới sẽ có sớm, hãy quay lại để xem ngay khi cập nhật."}
-                </div>
-                {formattedNextTime ? (
-                  <div className="mt-1 text-xs font-semibold text-amber-50/90">
-                    {nextEpisodeNumber
-                      ? `Tập ${nextEpisodeNumber} dự kiến: ${formattedNextTime}`
-                      : `Lịch dự kiến: ${formattedNextTime}`}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            {episodes.length ? (
-              <div className="max-h-48 overflow-y-auto pr-1">
-                <EpisodeList
-                  episodes={selectedEpisodes}
-                  serverLabel={selectedServer || undefined}
-                />
-              </div>
-            ) : (
-              <p className="text-slate-400">
-                {isTmdb
-                  ? "Nguồn TMDB chưa có tập phát online."
-                  : "Chưa có tập."}
-              </p>
-            )}
           </div>
 
           {actors.length ? (
@@ -603,6 +544,123 @@ const Detail = () => {
               </div>
             </div>
           ) : null}
+        </div>
+
+        <div className="space-y-6 min-w-0">
+          <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold text-white">Tập phim</h2>
+                <div className="flex items-center gap-2 text-sm text-slate-300">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1">
+                    <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-200">
+                      {selectedServer || "Nguồn"}
+                    </span>
+                    <span className="text-slate-200/80">
+                      {selectedEpisodes.length
+                        ? `${selectedEpisodes.length} tập`
+                        : ""}
+                    </span>
+                  </span>
+                  {isCompleted ? (
+                    <span className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">
+                      Hoàn tất
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {Object.keys(serverGroups).length ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {hasVietsub ? (
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectedServer("Vietsub")}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Vietsub"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
+                  >
+                    Vietsub
+                  </button>
+                ) : null}
+                {hasLongTieng ? (
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectedServer("Lồng Tiếng")}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Lồng Tiếng"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
+                  >
+                    Lồng Tiếng
+                  </button>
+                ) : null}
+                {hasThuyetMinh ? (
+                  <button
+                    type="button"
+                    onClick={() => setUserSelectedServer("Thuyết Minh")}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Thuyết Minh"
+                      ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                      : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
+                  >
+                    Thuyết minh
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {showUpcomingNotice ? (
+              <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
+                <div>
+                  {nextEpisodeNumber
+                    ? `Tập ${nextEpisodeNumber} sẽ cập nhật sớm.`
+                    : "Tập mới sẽ có sớm, hãy quay lại để xem ngay khi cập nhật."}
+                </div>
+                {formattedNextTime ? (
+                  <div className="mt-1 text-xs font-semibold text-amber-50/90">
+                    {nextEpisodeNumber
+                      ? `Tập ${nextEpisodeNumber} dự kiến: ${formattedNextTime}`
+                      : `Lịch dự kiến: ${formattedNextTime}`}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {episodes.length ? (
+              <div className="max-h-48 overflow-y-auto pr-1">
+                <EpisodeList
+                  episodes={selectedEpisodes}
+                  serverLabel={selectedServer || undefined}
+                />
+              </div>
+            ) : (
+              <p className="text-slate-400">
+                {isTmdb
+                  ? "Nguồn TMDB chưa có tập phát online."
+                  : "Chưa có tập."}
+              </p>
+            )}
+          </div>
+
+          {relatedMovies.length > 0 && (
+            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-5">
+              <div className="flex items-center gap-3">
+                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
+                  Phim liên quan
+                </p>
+              </div>
+              <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar">
+                {relatedMovies.map((relMovie) => (
+                  <div key={relMovie.slug} className="min-w-[170px] sm:min-w-[200px] snap-start">
+                    <MovieCard movie={relMovie} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {movie && movie.slug && <Comments movieSlug={movie.slug} />}
         </div>
@@ -637,8 +695,8 @@ const Detail = () => {
                   (resumeData.episodeName === "Full" || resumeData.episodeName === "Tập Full" || !resumeData.episodeName)
                     ? "Tập Full"
                     : (resumeData.episodeName.toLowerCase().startsWith("tập")
-                        ? resumeData.episodeName
-                        : `Tập ${resumeData.episodeName}`)
+                      ? resumeData.episodeName
+                      : `Tập ${resumeData.episodeName}`)
                 } - phút {formatTime(resumeData.currentTime)} / {formatTime(resumeData.duration)}
               </p>
 

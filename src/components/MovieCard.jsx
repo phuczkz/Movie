@@ -108,9 +108,9 @@ const MovieCard = ({ movie, priority = false }) => {
   return (
     <Link
       to={`/movie/${movie.slug}`}
-      className="group relative overflow-hidden rounded-2xl border border-white/5 bg-slate-900/40 shadow-lg transition hover:-translate-y-1 hover:shadow-emerald-500/20"
+      className="group relative flex flex-col transition hover:-translate-y-1"
     >
-      <div className="aspect-[2/3] w-full overflow-hidden bg-slate-800 relative">
+      <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg group-hover:shadow-emerald-500/20 transition-all">
         {!loaded && (
           <div className="absolute inset-0 animate-pulse bg-slate-700/50" />
         )}
@@ -138,35 +138,36 @@ const MovieCard = ({ movie, priority = false }) => {
           {episodeLabel}
         </span>
         {audioBadges.length ? (
-          <div className="absolute inset-x-3 bottom-1 flex flex-wrap gap-2 justify-center">
+          <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 justify-center z-10">
             {audioBadges.map((badge) => (
               <div
                 key={badge.key}
                 title={badge.label}
-                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] shadow-md shadow-black/30 transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
-                  badge.code === "PD"
-                    ? "bg-gray-800/95 text-white"
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
+                  badge.code === "PD" || badge.code === "PĐ"
+                    ? "bg-slate-600/90 text-white backdrop-blur-md"
                     : badge.code === "TM"
-                    ? "bg-amber-300/95 text-slate-950"
-                    : "bg-sky-500/95 text-white"
+                    ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
+                    : "bg-sky-500/90 text-white backdrop-blur-md"
                 }`}
               >
                 <span>{badge.code}</span>
-                {badge.count !== null && badge.count !== undefined ? (
-                  <span className="text-[10px] font-semibold tabular-nums opacity-90">
-                    .{badge.count}
-                  </span>
-                ) : null}
               </div>
             ))}
           </div>
         ) : null}
+        
+        {/* Gradient at bottom for text readability if needed */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
       </div>
-      <div className="p-3 space-y-1">
-        <h3 className="text-sm font-semibold text-white line-clamp-2">
+
+      <div className="mt-4 flex flex-col items-center text-center px-1">
+        <h3 className="text-[17px] font-semibold text-white line-clamp-1 group-hover:text-emerald-400 transition-colors">
           {movie.name}
         </h3>
-        <p className="text-xs text-slate-400">{movie.year || "N/A"}</p>
+        <p className="text-[15px] font-medium text-slate-400 line-clamp-1 mt-1">
+          {movie.origin_name || movie.name}
+        </p>
       </div>
     </Link>
   );
