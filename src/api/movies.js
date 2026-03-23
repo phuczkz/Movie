@@ -299,11 +299,32 @@ export const getDetail = (slug) =>
       );
 
       const kkMovie = kkResult?.movie ? normalizeMovie(kkResult.movie) : null;
-      const hasKkLatest =
-        (kkEpisodes?.length || 0) &&
-        parseEpisodeNumber(kkEpisodes[0]?.name || kkEpisodes[0]?.slug) !== null;
-      const movie =
-        hasKkLatest && kkMovie?.name ? kkMovie : ophimMovie || kkMovie || null;
+
+      // Prefer KKPhim as the primary source for basic metadata (Poster, Banner, Title)
+      // to avoid 'slug collisions' where Ophim provides the wrong movie details.
+      const movie = kkMovie?.name ? kkMovie : ophimMovie || kkMovie || null;
+
+      // Smart enrichment: complement KKPhim data with additional details from Ophim (like actors)
+      if (movie && movie === kkMovie && ophimMovie) {
+        const kkName = (movie.name || "").toLowerCase().trim();
+        const kkOrg = (movie.origin_name || "").toLowerCase().trim();
+        const opName = (ophimMovie.name || "").toLowerCase().trim();
+        const opOrg = (ophimMovie.origin_name || "").toLowerCase().trim();
+
+        // Check if movies are likely the same
+        const isSameMovie =
+          kkName === opName ||
+          kkOrg === opOrg ||
+          (kkOrg && opOrg && (kkOrg.includes(opOrg) || opOrg.includes(kkOrg)));
+
+        if (isSameMovie) {
+          if (!movie.content && ophimMovie.content)
+            movie.content = ophimMovie.content;
+          if ((!movie.actor || !movie.actor.length) && ophimMovie.actor) {
+            movie.actor = ophimMovie.actor;
+          }
+        }
+      }
 
       return { movie, episodes };
     },
