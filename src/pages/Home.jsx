@@ -99,7 +99,7 @@ const Home = () => {
   const heroSource = popular && popular.length >= 4 ? popular : latest;
   const heroMovies = heroSource.slice(0, 4);
   const latestHot = heroSource.slice(0, 7);
-  const cap = (list) => list.slice(0, 12);
+  const cap = (list) => list.slice(0, 7);
 
   return (
     <div className="space-y-10">
@@ -107,12 +107,16 @@ const Home = () => {
       
       <Hero movies={heroMovies} />
 
-      <TrendingSection movies={kkSeries.slice(0, 10)} loading={loadingKKSeries} />
+      <TrendingSection movies={kkSeries.slice(0, 7)} loading={loadingKKSeries} />
 
       <div ref={refKKSeries}>
         <Section
           title="Phim bộ (KKphim)"
-          action={<span className="text-sm text-amber-300">KKphim</span>}
+          action={
+            <Link className="text-sm text-amber-300" to="/category/phim-bo">
+              Xem thêm
+            </Link>
+          }
         >
           {loadingKKSeries ? (
             <GridSkeleton count={4} />
@@ -125,7 +129,11 @@ const Home = () => {
       <div ref={refKKSingle}>
         <Section
           title="Phim lẻ (KKphim)"
-          action={<span className="text-sm text-amber-300">KKphim</span>}
+          action={
+            <Link className="text-sm text-amber-300" to="/category/phim-le">
+              Xem thêm
+            </Link>
+          }
         >
           {loadingKKSingle ? (
             <GridSkeleton count={4} />
@@ -138,7 +146,11 @@ const Home = () => {
       <div ref={refPopular}>
         <Section
           title="Phim thịnh hành (Poster)"
-          action={<span className="text-sm text-emerald-300">TMDB</span>}
+          action={
+            <Link className="text-sm text-emerald-300" to="/category/phim-moi">
+              Xem thêm
+            </Link>
+          }
         >
           {loadingPopular ? (
             <GridSkeleton count={4} />

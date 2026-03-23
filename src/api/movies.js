@@ -34,7 +34,7 @@ const normalizeMovie = (raw = {}) => {
 
   return {
     slug: raw.slug || raw._id || raw.id || "unknown",
-    name: raw.name || raw.title || raw.origin_name || "Chưa có tên",
+    name: raw.name || raw.title || raw.origin_name || null,
     poster_url: posterNormalized,
     thumb_url: thumbNormalized,
     year: raw.year || raw.released || raw.publishYear,
@@ -248,7 +248,10 @@ export const getDetail = (slug) =>
       try {
         kkResult = await getKKphimDetail(slug);
       } catch (error) {
-        console.warn("[getDetail] KKphim failed", error.message);
+        // Silently ignore 404s as they are expected for some movies only available on one source
+        if (error.response?.status !== 404) {
+          console.warn("[getDetail] KKphim failed", error.message);
+        }
       }
 
       let ophimMovie = null;
@@ -281,7 +284,10 @@ export const getDetail = (slug) =>
           })
           : [];
       } catch (error) {
-        console.warn("[getDetail] Ophim failed", error.message);
+        // Silently ignore 404s as they are expected for some movies only available on one source
+        if (error.response?.status !== 404) {
+          console.warn("[getDetail] Ophim failed", error.message);
+        }
       }
 
       const kkEpisodes = kkResult?.episodes || [];
@@ -302,7 +308,7 @@ export const getDetail = (slug) =>
 
       // Prefer KKPhim as the primary source for basic metadata (Poster, Banner, Title)
       // to avoid 'slug collisions' where Ophim provides the wrong movie details.
-      const movie = kkMovie?.name ? kkMovie : ophimMovie || kkMovie || null;
+      const movie = kkMovie?.name ? kkMovie : (ophimMovie?.name ? ophimMovie : null);
 
       // Smart enrichment: complement KKPhim data with additional details from Ophim (like actors)
       if (movie && movie === kkMovie && ophimMovie) {

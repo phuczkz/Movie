@@ -39,7 +39,7 @@ const normalizeKKphimMovie = (raw = {}) => {
 
   return {
     slug: raw.slug || raw._id || raw.id || "unknown",
-    name: raw.name || raw.title || "Chưa có tên",
+    name: raw.name || raw.title || null,
     origin_name: raw.origin_name || "",
     poster_url,
     thumb_url,

@@ -29,62 +29,74 @@ const MovieCard = ({ movie, priority = false }) => {
   const [shouldLoad, setShouldLoad] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
+  const [apiReady, setApiReady] = useState(false);
+
   const slug = movie?.slug;
   useEffect(() => {
+    // Reset state only if slug truly changes to avoid redundant flashes
     setShouldLoad(false);
     setLoaded(false);
+    setApiReady(false);
   }, [slug]);
 
+  // Trì hoãn việc gọi API lấy tập phim 800ms sau khi card lọt vào tầm mắt
+  // Điều này giúp dành toàn bộ băng thông cho việc tải ảnh Poster trước
+  useEffect(() => {
+    if (shouldLoad || priority) {
+      const timer = setTimeout(() => setApiReady(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldLoad, priority]);
+
   const { data: episodeList = [] } = useQuery({
-    queryKey: ["card-episodes", movie?.slug],
-    queryFn: () => getEpisodes(movie.slug),
-    enabled: shouldLoad && Boolean(movie?.slug),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    queryKey: ["episodes", slug],
+    queryFn: () => getEpisodes(slug),
+    enabled: apiReady && !!slug,
+    staleTime: 1000 * 60 * 30, // 30 mins
   });
-
-  const audioSummary = useMemo(() => {
-    const summary = { vietsub: 0, thuyetMinh: 0, longTieng: 0 };
-    (episodeList || []).forEach((ep) => {
-      const label = normalizeServerLabel(ep?.server_name);
-      if (label === "Vietsub") summary.vietsub += 1;
-      else if (label === "Thuyết Minh") summary.thuyetMinh += 1;
-      else if (label === "Lồng Tiếng") summary.longTieng += 1;
-    });
-    return summary;
-  }, [episodeList]);
-
-  const fallbackAudioLabel = movie?.lang
-    ? normalizeServerLabel(movie.lang)
-    : null;
 
   const audioBadges = useMemo(() => {
     const badges = [];
-    const push = (key, code, label, count) => {
-      badges.push({ key, code, label, count });
-    };
+    
+    // 1. Try to get highly accurate info from the full episode list first
+    const serverMap = new Map();
+    episodeList.forEach((ep) => {
+      const label = normalizeServerLabel(ep.server_name);
+      if (label) serverMap.set(label, true);
+    });
 
-    const { vietsub, thuyetMinh, longTieng } = audioSummary;
-    if (vietsub) push("vietsub", "PD", "Phụ đề", vietsub);
-    if (thuyetMinh) push("thuyetminh", "TM", "Thuyết minh", thuyetMinh);
-    if (longTieng) push("longtieng", "LT", "Lồng tiếng", longTieng);
+    if (serverMap.has("Vietsub")) {
+      badges.push({ key: "vietsub", code: "PD", label: "Phụ đề" });
+    }
+    if (serverMap.has("Thuyết Minh")) {
+      badges.push({ key: "thuyetminh", code: "TM", label: "Thuyết minh" });
+    }
+    if (serverMap.has("Lồng Tiếng")) {
+      badges.push({ key: "longtieng", code: "LT", label: "Lồng tiếng" });
+    }
 
-    if (!badges.length && fallbackAudioLabel) {
-      if (fallbackAudioLabel === "Vietsub")
-        push("vietsub-fallback", "PD", "Phụ đề", null);
-      else if (fallbackAudioLabel === "Thuyết Minh")
-        push("thuyetminh-fallback", "TM", "Thuyết minh", null);
-      else if (fallbackAudioLabel === "Lồng Tiếng")
-        push("longtieng-fallback", "LT", "Lồng tiếng", null);
+    // 2. Fallback to basic movie info if no episodes or no hits
+    if (badges.length === 0) {
+      const text = (movie?.episode_current || movie?.lang || "").toLowerCase();
+      if (text.includes("vietsub") || text.includes("phụ đề")) {
+        badges.push({ key: "vietsub-f", code: "PD", label: "Phụ đề" });
+      }
+      if (text.includes("thuyết minh")) {
+        badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh" });
+      }
+      if (text.includes("lồng tiếng")) {
+        badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng" });
+      }
     }
 
     return badges;
-  }, [audioSummary, fallbackAudioLabel]);
+  }, [episodeList, movie?.episode_current, movie?.lang]);
 
   // Defer starting load until near viewport.
-  // Deps include `slug` so we re-observe after a route change resets state.
   useEffect(() => {
     if (!imgRef.current || shouldLoad) return undefined;
+    
+    // Tăng rootMargin lên 600px để ảnh tải sớm hơn hẳn trước khi người dùng cuộn tới
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -92,26 +104,26 @@ const MovieCard = ({ movie, priority = false }) => {
           observer.disconnect();
         }
       },
-      { rootMargin: "200px", threshold: 0.1 }
+      { rootMargin: "600px", threshold: 0.01 }
     );
     observer.observe(imgRef.current);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, shouldLoad]);
 
   const basePoster = movie.poster_url || movie.thumb_url;
   const posterSrc =
-    shouldLoad
+    shouldLoad || priority
       ? getOptimizedPoster(basePoster, priority ? 480 : 360) || fallbackPoster
-      : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"; // Transparent pixel placeholder
+      : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
   return (
     <Link
       to={`/movie/${movie.slug}`}
+      state={{ movie }}
       className="group relative flex flex-col transition hover:-translate-y-1"
     >
       <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg group-hover:shadow-emerald-500/20 transition-all">
-        {!loaded && (
+        {(!loaded && (shouldLoad || priority)) && (
           <div className="absolute inset-0 animate-pulse bg-slate-700/50" />
         )}
         <img
@@ -123,15 +135,15 @@ const MovieCard = ({ movie, priority = false }) => {
           }`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          fetchPriority={priority ? "high" : "low"}
+          // Tăng mức độ ưu tiên tải cho các card quan trọng
+          {...(priority ? { fetchPriority: "high" } : { fetchPriority: "low" })}
           onLoad={() => {
-            if (!loaded) setLoaded(true);
+            setLoaded(true);
           }}
           onError={(e) => {
             e.currentTarget.onerror = null;
-            // Nếu wsrv proxy lỗi, tải ảnh gốc
             e.currentTarget.src = basePoster || fallbackPoster;
-            if (!loaded) setLoaded(true);
+            setLoaded(true);
           }}
         />
         <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950 shadow">
@@ -157,7 +169,6 @@ const MovieCard = ({ movie, priority = false }) => {
           </div>
         ) : null}
         
-        {/* Gradient at bottom for text readability if needed */}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
       </div>
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import {
   Link,
   useParams,
@@ -229,9 +229,15 @@ const Watch = () => {
   const categorySlugs = useMemo(() => (movie?.category || []).map(c => c.slug).filter(Boolean), [movie?.category]);
   const countrySlug = movie?.country?.[0]?.slug;
 
-  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: !!categorySlugs[0] });
-  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: !!categorySlugs[1] });
-  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: !!countrySlug });
+  const [deferLoad, setDeferLoad] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setDeferLoad(true), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: deferLoad && !!categorySlugs[0] });
+  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: deferLoad && !!categorySlugs[1] });
+  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: deferLoad && !!countrySlug });
 
   const relatedMovies = useMemo(() => {
     const combined = [];

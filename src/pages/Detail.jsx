@@ -1,6 +1,6 @@
 import { Heart, Play, Globe2, Star } from "lucide-react";
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
 import Comments from "../components/Comments.jsx";
 import Rating from "../components/Rating.jsx";
@@ -18,10 +18,24 @@ import {
 } from "../utils/episodes.js";
 import MovieCard from "../components/MovieCard.jsx";
 
-// Try to fetch higher-res images for the banner to avoid pixelation when stretched
+// Try to fetch reasonable resolution images for the banner to balance quality and speed
 const getHiRes = (url) => {
   if (!url || typeof url !== "string") return url;
-  return url.replace(/\/w(92|154|185|300|342|500|780)\//, "/original/");
+  // Use w1280 for banner instead of original to speed up loading
+  return url.replace(/\/w(92|154|185|300|342|500|780)\//, "/w1280/");
+};
+
+const getOptimizedImage = (url, w = 1280) => {
+  if (!url) return url;
+  try {
+    const rawHost = new URL(url).hostname;
+    // TMDB handled natively
+    if (rawHost.includes("tmdb.org")) return url;
+    // Use proxy for others
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=webp&w=${w}&fit=cover&q=80`;
+  } catch {
+    return url;
+  }
 };
 
 const formatTime = (secs) => {
@@ -37,9 +51,13 @@ const formatTime = (secs) => {
 const Detail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading } = useMovieDetail(slug);
   const { user } = useAuth();
   const { loadProgress, clearProgress } = useWatchProgress();
+
+  // Thừa hưởng dữ liệu cơ bản từ card (poster, name) nếu có, để tránh "Chưa có tên"
+  const passedMovie = location.state?.movie;
 
   const [resumeData, setResumeData] = useState(null);
   const [showResumeModal, setShowResumeModal] = useState(false);
@@ -128,16 +146,24 @@ const Detail = () => {
   }, [altDetail?.episodes, baseEpisodes, isTmdb]);
 
   const movie = useMemo(() => {
-    if (isTmdb && loadingAlts && !altDetail?.movie) return null;
-    return altDetail?.movie || baseMovie;
-  }, [altDetail?.movie, baseMovie, isTmdb, loadingAlts]);
+    const detailMovie = altDetail?.movie || baseMovie;
+    // Nếu API đã trả về và có tên hợp lệ, dùng nó. Nếu không, dùng passedMovie từ trang chủ.
+    if (detailMovie?.name && detailMovie.name !== "unknown") return detailMovie;
+    return passedMovie || detailMovie || null;
+  }, [altDetail?.movie, baseMovie, passedMovie]);
 
   const categorySlugs = useMemo(() => (movie?.category || []).map(c => c.slug).filter(Boolean), [movie?.category]);
   const countrySlug = movie?.country?.[0]?.slug;
 
-  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: !!categorySlugs[0] });
-  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: !!categorySlugs[1] });
-  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: !!countrySlug });
+  const [deferLoad, setDeferLoad] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setDeferLoad(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: deferLoad && !!categorySlugs[0] });
+  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: deferLoad && !!categorySlugs[1] });
+  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: deferLoad && !!countrySlug });
 
   const relatedMovies = useMemo(() => {
     const combined = [];
@@ -242,7 +268,7 @@ const Detail = () => {
     });
   }, [movie]);
 
-  const isActuallyLoading = isLoading || (isTmdb && loadingAlts && !altDetail?.movie);
+  const isActuallyLoading = (isLoading && !passedMovie) || (isTmdb && loadingAlts && !altDetail?.movie && !passedMovie);
 
   if (isActuallyLoading)
     return (
@@ -325,16 +351,19 @@ const Detail = () => {
     nextEpisodeNumber > latestEpisodeNumber;
 
   const heroImage = getHiRes(
+    passedMovie?.thumb_url ||
+    passedMovie?.backdrop_url ||
     movie?.backdrop_url ||
     movie?.banner ||
     movie?.thumb_url ||
+    passedMovie?.poster_url ||
     movie?.poster_url
   );
 
   return (
     <div className="space-y-2 relative">
       {heroImage ? (
-        <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none">
+        <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none pointer-events-none">
           {/* Spacer: Giữ nguyên khoảng trống gốc để không đẩy content đi chỗ khác */}
           <div className="aspect-[16/10] md:aspect-[2/1] xl:aspect-[21/9] w-full invisible pointer-events-none" />
 
@@ -342,10 +371,10 @@ const Detail = () => {
           <div className="absolute top-0 left-0 w-full h-[125%] bg-slate-950 z-0 pointer-events-none overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full">
               <img
-                src={heroImage}
+                src={getOptimizedImage(heroImage, 1280)}
                 alt={movie?.name || "Banner"}
                 className="w-full h-full object-cover object-[50%_10%]"
-                loading="lazy"
+                fetchPriority="high"
               />
               {/* Lớp phủ tối ở trên để bảo vệ Header (Search, Menu, Logo) */}
               <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-950/80 via-slate-950/40 to-transparent" />
@@ -367,12 +396,12 @@ const Detail = () => {
       <div className="relative z-10 flex flex-col space-y-8 lg:space-y-12 pb-16">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start md:-mt-32 lg:-mt-48 xl:-mt-64 relative z-20">
-            <div className="w-36 sm:w-44 md:w-48 lg:w-56 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-4 border-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-20">
+            <div className="w-36 sm:w-44 md:w-48 lg:w-56 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-4 border-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30">
               <img
-                src={movie?.poster_url}
-                alt={movie?.name}
+                src={getOptimizedImage(passedMovie?.poster_url || movie?.poster_url, 500)}
+                alt={movie?.name || passedMovie?.name}
                 className="h-full w-full object-cover"
-                loading="lazy"
+                fetchPriority="high"
               />
             </div>
 
@@ -394,7 +423,7 @@ const Detail = () => {
               </div> */}
 
               <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,1)]">
-                {movie?.name}
+                {movie?.name || passedMovie?.name || "Đang tải tên phim..."}
               </h1>
               {movie.origin_name ? (
                 <p className="text-slate-100/90 text-sm font-medium drop-shadow-md">
@@ -443,14 +472,18 @@ const Detail = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Link
-                  to={`/watch/${movie?.slug}`}
-                  className={`flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 ${episodes.length ? "" : "opacity-80"
-                    }`}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigate(`/watch/${slug}`);
+                  }}
+                  className={`flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 relative z-30 cursor-pointer ${episodes.length ? "" : "opacity-90"}`}
                 >
-                  <Play className="h-4 w-4" />
+                  <Play className="h-4 w-4" fill="currentColor" />
                   {episodes.length ? "Xem ngay" : "Mở trang xem"}
-                </Link>
+                </button>
 
                 <button
                   type="button"

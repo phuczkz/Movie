@@ -272,6 +272,7 @@ const Player = ({
         : null;
 
       let hlsConfigOpts = {
+        ...hlsConfig,
         capLevelToPlayerSize: true,
         ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
       };

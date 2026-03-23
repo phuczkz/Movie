@@ -46,7 +46,7 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
 
   return {
     slug,
-    name: raw.title || raw.name || "Chưa có tên",
+    name: raw.title || raw.name || null,
     poster_url,
     thumb_url,
     backdrop_url: thumb_url,
