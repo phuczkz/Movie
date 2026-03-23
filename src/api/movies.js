@@ -135,10 +135,10 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
       );
       const currentHasLink = Boolean(
         current?.ep?.link_m3u8 ||
-          current?.ep?.m3u8 ||
-          current?.ep?.linkplay ||
-          current?.ep?.link ||
-          current?.ep?.embed
+        current?.ep?.m3u8 ||
+        current?.ep?.linkplay ||
+        current?.ep?.link ||
+        current?.ep?.embed
       );
 
       if (prefers || (!currentHasLink && hasLink)) {
@@ -267,18 +267,18 @@ export const getDetail = (slug) =>
           payload?.episodes || data?.data?.episodes || data?.episodes || [];
         ophimEpisodes = Array.isArray(rawEpisodes)
           ? rawEpisodes.flatMap((server, serverIdx) => {
-              const serverName =
-                server?.server_name || server?.name || server?.server || "";
-              const list = server?.server_data || server || [];
-              return Array.isArray(list)
-                ? list.map((ep, idx) => ({
-                    ...ep,
-                    server_name: serverName,
-                    _serverIndex: serverIdx,
-                    _epIndex: idx,
-                  }))
-                : [];
-            })
+            const serverName =
+              server?.server_name || server?.name || server?.server || "";
+            const list = server?.server_data || server || [];
+            return Array.isArray(list)
+              ? list.map((ep, idx) => ({
+                ...ep,
+                server_name: serverName,
+                _serverIndex: serverIdx,
+                _epIndex: idx,
+              }))
+              : [];
+          })
           : [];
       } catch (error) {
         console.warn("[getDetail] Ophim failed", error.message);

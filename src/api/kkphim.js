@@ -93,16 +93,16 @@ export const getKKphimDetail = async (slug) => {
   const episodesData = movieData?.episodes || [];
   const episodes = Array.isArray(episodesData)
     ? episodesData.flatMap((server) => {
-        const serverName = server?.server_name || server?.name || "";
-        const list = server?.server_data || server || [];
-        return Array.isArray(list)
-          ? list.map((ep, idx) => ({
-              ...ep,
-              server_name: serverName,
-              _serverIndex: idx,
-            }))
-          : [];
-      })
+      const serverName = server?.server_name || server?.name || "";
+      const list = server?.server_data || server || [];
+      return Array.isArray(list)
+        ? list.map((ep, idx) => ({
+          ...ep,
+          server_name: serverName,
+          _serverIndex: idx,
+        }))
+        : [];
+    })
     : [];
 
   return {

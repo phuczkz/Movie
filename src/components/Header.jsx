@@ -147,11 +147,10 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${
-        showTransparent
-          ? "border-transparent bg-transparent backdrop-blur-none"
+      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${showTransparent
+          ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
           : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
-      }`}
+        }`}
     >
       {/* Mobile top bar */}
       <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
@@ -166,7 +165,7 @@ const Header = () => {
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
 
-        <Link
+        {/* <Link
           to="/"
           onClick={closeAll}
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 text-white"
@@ -174,7 +173,7 @@ const Header = () => {
           <span className="rounded-lg bg-white/10 px-3 py-2 text-base font-bold tracking-tight shadow-lg shadow-black/40">
             KhoPhim
           </span>
-        </Link>
+        </Link> */}
 
         <div className="flex items-center gap-2">
           <button
@@ -233,8 +232,7 @@ const Header = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${
-                  isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
+                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
                 }`
               }
             >

@@ -22,6 +22,7 @@ import {
   Gauge,
   SlidersHorizontal,
   MoreVertical,
+  PictureInPicture,
 } from "lucide-react";
 
 const SEEK_STEP = 10; // seconds
@@ -107,18 +108,31 @@ const Player = ({
     [source]
   );
 
-  const hlsConfig = useMemo(
-    () => ({
-      // Tăng buffer lên 120s để nó ngầm tải trước đoạn giới thiệu
-      maxBufferLength: 120,
-      maxMaxBufferLength: 600,
+  const hlsConfig = useMemo(() => {
+    // Detect mobile/tablet specifically for HLS tuning
+    const isLowPower = window.innerWidth <= 1024;
+    return {
+      // Giảm buffer trên mobile/tablet để tránh nghẽn mạng và tốn RAM
+      maxBufferLength: isLowPower ? 30 : 60,
+      maxMaxBufferLength: isLowPower ? 60 : 180,
+      maxBufferSize: isLowPower ? 40 * 1000 * 1000 : 100 * 1000 * 1000, 
+      backBufferLength: 60,
       startLevel: -1,
-      fragLoadingRetryDelay: 500,
-      manifestLoadingRetryDelay: 800,
+      // Tăng số lần thử lại và cấu hình kiên trì hơn cho mạng yếu
+      fragLoadingRetryDelay: 1000,
+      manifestLoadingRetryDelay: 1500,
+      fragLoadingMaxRetry: 8,
+      manifestLoadingMaxRetry: 5,
+      levelLoadingMaxRetry: 5,
+      // Tính năng tự động vượt qua các đoạn bị lỗi nhỏ (stalls)
+      nudgeMaxRetry: 6,
+      nudgeOffset: 0.1,
       enableWorker: true,
-    }),
-    []
-  );
+      // Cân chỉnh ABR để phản ứng nhanh hơn với thay đổi tốc độ mạng
+      abrEwmaFastLive: 2.0,
+      abrEwmaSlowLive: 5.0,
+    };
+  }, []);
 
   const [filteredSource, setFilteredSource] = useState(null);
   const playlistObjectUrlRef = useRef(null);
@@ -443,11 +457,6 @@ const Player = ({
     }
   }, [isHls, playbackRate]);
 
-  useEffect(() => {
-    if (isHls && videoRef.current) {
-      videoRef.current.playbackRate = playbackRate;
-    }
-  }, [isHls, playbackRate]);
 
   // Sync play/pause
   useEffect(() => {
@@ -483,23 +492,26 @@ const Player = ({
       if (!hls || !isBuffering) return;
       const now = performance.now();
       const elapsed = now - (bufferingSinceRef.current || now);
-      if (elapsed < 2500) return;
-      if (now - lastRecoveryRef.current < 3000) return;
+      
+      // Chờ lâu hơn một chút (5s thay vì 2.5s) để mạng tự ổn định trước khi hạ chất lượng
+      if (elapsed < 5000) return;
+      if (now - lastRecoveryRef.current < 4000) return;
 
       lastRecoveryRef.current = now;
       const manualLevels = qualityLevels.filter((lvl) => lvl.level >= 0);
       const lowestLevel = manualLevels.length ? manualLevels[0].level : -1;
 
       if (lowestLevel !== -1 && hls.currentLevel !== lowestLevel) {
-        hls.currentLevel = lowestLevel;
+        // Sử dụng nextLevel để chuyển đổi mượt mà hơn, không gây giật ngay lập tức
+        hls.nextLevel = lowestLevel;
         setCurrentLevel(lowestLevel);
       } else {
-        hls.currentLevel = -1;
+        hls.nextAutoLevel = -1;
         setCurrentLevel(-1);
       }
 
       hls.startLoad();
-    }, 500);
+    }, 1000);
 
     return () => clearInterval(id);
   }, [isBuffering, isHls, qualityLevels]);
@@ -641,6 +653,21 @@ const Player = ({
     }
   };
 
+  const togglePip = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (document.pictureInPictureEnabled) {
+        await video.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.error("PiP error:", err);
+    }
+  };
+
   const formatTime = (value) => {
     if (!Number.isFinite(value)) return "00:00";
     const total = Math.max(0, Math.floor(value));
@@ -717,14 +744,14 @@ const Player = ({
   const isEnding = duration > 0 && Math.floor(progress) >= Math.floor(duration - 90);
 
   const uxButtons = (
-    <div className="absolute bottom-12 sm:bottom-16 md:bottom-20 right-2 sm:right-6 flex flex-col items-end gap-2 sm:gap-3 z-20 pointer-events-none">
+    <div className="absolute bottom-12 sm:bottom-16 md:bottom-20 right-2 sm:right-6 flex flex-col items-end gap-2 sm:gap-3 z-30 pointer-events-none drop-shadow-2xl">
       {isEnding && hasNextEpisode && onNextEpisode ? (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onNextEpisode();
           }}
-          className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 rounded-md sm:rounded-lg bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/20 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-all animate-in fade-in slide-in-from-right-4 hover:scale-105"
+          className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 rounded-md sm:rounded-lg bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white shadow-[0_4px_12px_rgba(0,0,0,0.8)] transition-all animate-in fade-in slide-in-from-right-4 hover:scale-105"
         >
           <span className="hidden sm:inline">Tập tiếp theo</span>
           <span className="sm:hidden">Tập tiếp</span>
@@ -743,21 +770,21 @@ const Player = ({
       }}
     >
       {!isFullscreen ? (
-        <div className="pointer-events-none bg-gradient-to-b from-black/65 via-black/20 to-transparent p-3 sm:p-5 flex items-start sm:items-center justify-between gap-3">
-          <div className="space-y-1 drop-shadow">
+        <div className="pointer-events-none bg-gradient-to-b from-black/90 via-black/40 to-transparent pt-3 pb-12 sm:pt-5 px-3 sm:px-5 flex items-start sm:items-center justify-between gap-3">
+          <div className="space-y-1 drop-shadow-[0_2px_8px_rgba(0,0,0,1)]">
             {title ? (
-              <p className="text-xs sm:text-sm font-semibold leading-tight">
+              <p className="text-xs sm:text-sm font-semibold leading-tight text-white">
                 {title}
               </p>
             ) : null}
             {subtitle ? (
-              <p className="text-[11px] sm:text-xs text-slate-200 leading-tight">
+              <p className="text-[11px] sm:text-xs text-slate-100 leading-tight">
                 {subtitle}
               </p>
             ) : null}
           </div>
           {actionSlot ? (
-            <div className="pointer-events-auto flex-shrink-0" data-control>
+            <div className="pointer-events-auto flex-shrink-0 drop-shadow-md" data-control>
               {actionSlot}
             </div>
           ) : null}
@@ -768,66 +795,66 @@ const Player = ({
 
       {!canUseIframe ? (
         <div
-          className="pointer-events-auto px-3 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-2"
+          className="pointer-events-auto bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-3 sm:pb-4 px-1.5 sm:px-4 space-y-1.5 sm:space-y-2"
           data-control
         >
-          <div className="flex items-center justify-between text-[11px] sm:text-xs text-white/80">
+          <div className="flex items-center justify-between text-[10px] min-[360px]:text-[11px] sm:text-xs text-white drop-shadow-md font-semibold px-0.5">
             <span>
               {formatTime(progress)} / {formatTime(duration)}
             </span>
           </div>
           <div
-            className="relative h-2 sm:h-1.5 rounded-full bg-white/15 cursor-pointer"
+            className="relative h-2 sm:h-1.5 rounded-full bg-white/25 cursor-pointer shadow-inner shadow-black/20"
             onClick={handleSeekBar}
           >
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-emerald-400"
+              className="absolute inset-y-0 left-0 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]"
               style={{
                 width: duration ? `${(progress / duration) * 100}%` : "0%",
               }}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-[12px] sm:text-[13px]">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-nowrap items-center justify-between gap-0.5 min-[360px]:gap-1 min-[400px]:gap-2 sm:gap-3 text-[10px] min-[360px]:text-[11px] min-[400px]:text-[12px] sm:text-[13px] drop-shadow-[0_2px_6px_rgba(0,0,0,1)]">
+            <div className="flex items-center gap-0.5 min-[360px]:gap-1 min-[400px]:gap-2 flex-nowrap">
               <button
                 type="button"
                 onClick={togglePlay}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 border border-white/10 hover:border-emerald-300/60 hover:bg-white/25 transition"
+                className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/15 border border-white/10 hover:border-emerald-300/60 hover:bg-white/25 transition shadow-lg flex-shrink-0"
               >
                 {playing ? (
-                  <Pause className="h-3.5 w-3.5" />
+                  <Pause className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" fill="currentColor" />
                 ) : (
-                  <Play className="h-3.5 w-3.5" />
+                  <Play className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" fill="currentColor" />
                 )}
               </button>
               <button
                 type="button"
                 onClick={() => seekBy(-SEEK_STEP)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition flex-shrink-0"
                 aria-label="Tua lùi 10 giây"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => seekBy(SEEK_STEP)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition flex-shrink-0"
                 aria-label="Tua tiến 10 giây"
               >
-                <RotateCw className="h-3.5 w-3.5" />
+                <RotateCw className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" />
               </button>
               {onNextEpisode ? (
                 <button
                   type="button"
                   onClick={onNextEpisode}
                   disabled={!hasNextEpisode}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${hasNextEpisode
+                  className={`flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full border transition flex-shrink-0 ${hasNextEpisode
                     ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
                     : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
                     }`}
                   aria-label="Sang tập tiếp theo"
                 >
-                  <SkipForward className="h-3.5 w-3.5" />
+                  <SkipForward className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" />
                 </button>
               ) : null}
               <div
@@ -837,13 +864,13 @@ const Player = ({
                 <button
                   type="button"
                   onClick={handleVolumeButton}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                  className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition flex-shrink-0"
                   aria-label="Bật/tắt tiếng"
                 >
                   {muted || volume === 0 ? (
-                    <VolumeX className="h-3 w-3" />
+                    <VolumeX className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3" />
                   ) : (
-                    <Volume2 className="h-3 w-3" />
+                    <Volume2 className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3" />
                   )}
                 </button>
                 <div className="hidden sm:block">
@@ -877,20 +904,20 @@ const Player = ({
               </div>
             </div>
             <div
-              className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end"
+              className="flex items-center gap-0.5 min-[360px]:gap-1 min-[400px]:gap-2 sm:gap-3 flex-nowrap justify-end"
               data-control
             >
               <div className="relative">
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                  className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition flex-shrink-0"
                   onClick={() => setShowMoreMenu((v) => !v)}
                   aria-label="Thêm tuỳ chọn"
                 >
-                  <MoreVertical className="h-4 w-4" />
+                  <MoreVertical className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
                 </button>
                 {showMoreMenu ? (
-                  <div className="absolute right-2 sm:right-0 bottom-full mb-1 rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-3 text-xs text-white/90 z-20 min-w-[180px] max-w-[90vw] sm:max-w-[340px] space-y-3">
+                  <div className="absolute right-2 sm:right-0 bottom-full mb-1 rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-3 text-xs text-white/90 z-20 min-w-[180px] max-w-[90vw] sm:max-w-[340px] space-y-3" data-control>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-white/60">
                         <Gauge className="h-3.5 w-3.5" />
@@ -954,13 +981,22 @@ const Player = ({
 
               <button
                 type="button"
+                onClick={togglePip}
+                className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/15 border border-white/10 hover:border-emerald-300/60 hover:bg-white/25 transition shadow-lg flex-shrink-0"
+                title="Picture-in-Picture"
+              >
+                <PictureInPicture className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
+              </button>
+
+              <button
+                type="button"
                 onClick={handleFullscreen}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition"
+                className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/10 border border-white/10 hover:border-emerald-300/60 hover:bg-white/20 transition flex-shrink-0"
               >
                 {isFullscreen ? (
-                  <Minimize2 className="h-3.5 w-3.5" />
+                  <Minimize2 className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
                 ) : (
-                  <Maximize2 className="h-3.5 w-3.5" />
+                  <Maximize2 className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
                 )}
               </button>
             </div>
@@ -990,11 +1026,9 @@ const Player = ({
           poster={poster}
           preload="auto"
           className="player-native h-full w-full rounded-2xl"
-          playsInline
           autoPlay
           controls={false}
           controlsList="nodownload noremoteplayback noplaybackrate"
-          disablePictureInPicture
         />
         {uxButtons}
         {overlay}
@@ -1077,7 +1111,6 @@ const Player = ({
                 playsInline: true,
                 preload: "auto",
                 controlsList: "nodownload noremoteplayback noplaybackrate",
-                disablePictureInPicture: true,
               },
             },
           }}

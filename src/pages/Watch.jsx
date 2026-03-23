@@ -237,7 +237,7 @@ const Watch = () => {
     const combined = [];
     const max = 24;
     const len = Math.max(cat1Pool.length, cat2Pool.length, countryPool.length);
-    
+
     for (let i = 0; i < len; i++) {
       if (cat1Pool[i]) combined.push(cat1Pool[i]);
       if (countryPool[i]) combined.push(countryPool[i]);
@@ -455,56 +455,6 @@ const Watch = () => {
               </div>
             </div>
           </div>
-
-          <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 lg:p-8 space-y-3 shadow-xl">
-            <div className="flex items-center gap-3">
-              <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
-                Giới thiệu
-              </p>
-            </div>
-            <div
-              className="text-slate-300 leading-relaxed text-[15px]"
-              dangerouslySetInnerHTML={{
-                __html: movie?.content || "Chưa có mô tả.",
-              }}
-            />
-          </div>
-
-          {actors.length > 0 && (
-            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
-                  Diễn viên
-                </p>
-                <span className="text-xs font-semibold text-slate-400">
-                  {actors.length}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                {actors.map((actor) => {
-                  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    actor.name
-                  )}&background=0f172a&color=94a3b8&bold=true&size=128&format=png`;
-                  const src = actor.image || fallback;
-                  return (
-                    <div key={actor.name} className="flex flex-col items-center gap-2 w-24">
-                      <div className="h-16 w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg">
-                        <img
-                          src={src}
-                          alt={actor.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                      <span className="text-center text-sm text-slate-100 line-clamp-2 leading-tight">
-                        {actor.name}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="space-y-6 min-w-0">
