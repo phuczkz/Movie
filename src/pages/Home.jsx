@@ -62,15 +62,20 @@ const Home = () => {
 
   const [refSeries, showSeries] = useSectionVisibility();
   const [refSingle, showSingle] = useSectionVisibility();
-  const [refLatest, showLatest] = useSectionVisibility();
+  const [refAnime, showAnime] = useSectionVisibility();
   const [refPopular, showPopular] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
 
-  const { data: latest = [], isLoading: loadingLatest } = useMoviesList(
+  const { data: latest = [] } = useMoviesList(
     "latest",
     undefined,
-    { enabled: showLatest, ...commonQueryOpts }
+    { enabled: true, ...commonQueryOpts }
+  );
+  const { data: anime = [], isLoading: loadingAnime } = useMoviesList(
+    undefined,
+    "hoat-hinh",
+    { enabled: showAnime, ...commonQueryOpts }
   );
   const { data: series = [], isLoading: loadingSeries } = useMoviesList(
     "series",
@@ -98,7 +103,6 @@ const Home = () => {
 
   const heroSource = popular && popular.length >= 4 ? popular : latest;
   const heroMovies = heroSource.slice(0, 4);
-  const latestHot = heroSource.slice(0, 7);
   const cap = (list) => list.slice(0, 7);
 
   return (
@@ -160,20 +164,20 @@ const Home = () => {
         </Section>
       </div>
 
-      <div ref={refLatest}>
+      <div ref={refAnime}>
         <Section
-          title="Phim mới cập nhật"
+          title="Phim hoạt hình"
           action={
-            <Link className="text-sm text-emerald-300" to="/category/phim-moi">
+            <Link className="text-sm text-emerald-300" to="category/hoat-hinh">
               Xem thêm
             </Link>
           }
         >
-          {loadingLatest ? (
+          {loadingAnime ? (
             <GridSkeleton count={4} variant="landscape" className="grid-movies-landscape" />
           ) : (
             <Grid
-              items={latestHot}
+              items={cap(anime)}
               variant="landscape"
               className="grid-movies-landscape"
               priorityCount={4}
@@ -199,7 +203,7 @@ const Home = () => {
         </Section>
       </div>
 
-      <div ref={refSingle}>
+      {/* <div ref={refSingle}>
         <Section
           title="Phim lẻ (2)"
           action={
@@ -214,7 +218,7 @@ const Home = () => {
             <Grid items={cap(single)} priorityCount={3} />
           )}
         </Section>
-      </div>
+      </div> */}
     </div>
   );
 };

@@ -57,7 +57,7 @@ const MovieCard = ({ movie, priority = false }) => {
 
   const audioBadges = useMemo(() => {
     const badges = [];
-    
+
     // 1. Try to get highly accurate info from the full episode list first
     const serverMap = new Map();
     episodeList.forEach((ep) => {
@@ -95,7 +95,7 @@ const MovieCard = ({ movie, priority = false }) => {
   // Defer starting load until near viewport.
   useEffect(() => {
     if (!imgRef.current || shouldLoad) return undefined;
-    
+
     // Tăng rootMargin lên 600px để ảnh tải sớm hơn hẳn trước khi người dùng cuộn tới
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -130,9 +130,8 @@ const MovieCard = ({ movie, priority = false }) => {
           ref={imgRef}
           src={posterSrc}
           alt={movie.name}
-          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"
+            }`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           // Tăng mức độ ưu tiên tải cho các card quan trọng
@@ -155,20 +154,19 @@ const MovieCard = ({ movie, priority = false }) => {
               <div
                 key={badge.key}
                 title={badge.label}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
-                  badge.code === "PD" || badge.code === "PĐ"
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PD" || badge.code === "PĐ"
                     ? "bg-slate-600/90 text-white backdrop-blur-md"
                     : badge.code === "TM"
-                    ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
-                    : "bg-sky-500/90 text-white backdrop-blur-md"
-                }`}
+                      ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
+                      : "bg-sky-500/90 text-white backdrop-blur-md"
+                  }`}
               >
                 <span>{badge.code}</span>
               </div>
             ))}
           </div>
         ) : null}
-        
+
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
       </div>
 
