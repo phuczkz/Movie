@@ -29,33 +29,53 @@ const SEEK_STEP = 10; // seconds
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
-
 const stripAdSegmentsFromPlaylist = (text = "") => {
-  const blocks = text.split(/(?:^|\n)#EXT-X-DISCONTINUITY\b/);
+  if (!text || typeof text !== "string") return text;
 
-  const stripAdjump = (blockText) => {
+  // 1. Separate the HLS header from the body (everything before the first segment or discontinuity)
+  const firstInfIndex = text.indexOf("#EXTINF");
+  const firstDiscIndex = text.indexOf("#EXT-X-DISCONTINUITY");
+  const markerIndex = Math.min(
+    firstInfIndex === -1 ? Infinity : firstInfIndex,
+    firstDiscIndex === -1 ? Infinity : firstDiscIndex
+  );
+
+  let header = "";
+  let body = text;
+  if (markerIndex !== Infinity && markerIndex > 0) {
+    header = text.substring(0, markerIndex);
+    body = text.substring(markerIndex);
+  }
+
+  // 2. Split body into blocks by discontinuity
+  const blocks = body.split(/(?:^|\n)#EXT-X-DISCONTINUITY\b/);
+  const blacklisted = ["adjump", "/v7/", "khomay", "proxys", "bitcdn", "ads"];
+
+  const stripLines = (blockText) => {
     const lines = blockText.split(/\r?\n/);
     const out = [];
     for (let i = 0; i < lines.length; i += 1) {
-      if (lines[i].startsWith("#EXTINF") && lines[i + 1] && lines[i + 1].includes("adjump")) {
-        i += 1;
-        continue;
+      const line = lines[i].trim();
+      if (!line) continue;
+      if (line.startsWith("#EXTINF")) {
+        const nextLine = lines[i + 1] ? lines[i + 1].trim() : "";
+        if (nextLine && blacklisted.some((word) => nextLine.includes(word))) {
+          i += 1;
+          continue;
+        }
       }
-      if (lines[i].includes("adjump")) continue;
-      out.push(lines[i]);
+      if (blacklisted.some((word) => line.includes(word))) continue;
+      out.push(line);
     }
     return out.join("\n");
   };
 
-  if (blocks.length <= 1) {
-    return stripAdjump(text);
-  }
-
   const validBlocks = [];
   for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i];
+    const block = blocks[i].trim();
+    if (!block) continue;
 
-    // Calculate total duration of this block
+    // Calculate duration
     const infMatches = block.match(/#EXTINF:([\d.]+)/g);
     let duration = 0;
     if (infMatches) {
@@ -65,18 +85,37 @@ const stripAdSegmentsFromPlaylist = (text = "") => {
       }, 0);
     }
 
-    // Very short blocks (< 90s) bounded by discontinuity are typically injected video ads
     let isAd = false;
-    if (duration > 0 && duration < 90) {
+    // Explicit blacklist check
+    if (blacklisted.some((word) => block.includes(word))) {
+      isAd = true;
+    }
+    // Heuristic: short blocks between discontinuities are usually ads
+    else if (duration > 0 && duration < 90 && blocks.length > 2) {
       isAd = true;
     }
 
-    if (!isAd || blocks.length === 1) {
-      validBlocks.push(stripAdjump(block).trim());
+    if (!isAd) {
+      validBlocks.push(stripLines(block));
     }
   }
 
-  return validBlocks.join("\n#EXT-X-DISCONTINUITY\n");
+  // 3. Reconstruct the manifest
+  let result = header;
+  if (validBlocks.length > 0) {
+    if (result && !result.endsWith("\n")) result += "\n";
+    result += validBlocks.join("\n#EXT-X-DISCONTINUITY\n");
+  }
+
+  // Ensure EXTM3U is there if it was originally
+  if (text.includes("#EXTM3U") && !result.includes("#EXTM3U")) {
+    result = "#EXTM3U\n" + result;
+  }
+
+  // If filtered result is critically broken, return original as fallback
+  if (!result.includes("#EXTINF") && text.includes("#EXTINF")) return text;
+
+  return result;
 };
 
 const Player = ({
@@ -115,7 +154,7 @@ const Player = ({
       // Giảm buffer trên mobile/tablet để tránh nghẽn mạng và tốn RAM
       maxBufferLength: isLowPower ? 30 : 60,
       maxMaxBufferLength: isLowPower ? 60 : 180,
-      maxBufferSize: isLowPower ? 40 * 1000 * 1000 : 100 * 1000 * 1000, 
+      maxBufferSize: isLowPower ? 40 * 1000 * 1000 : 100 * 1000 * 1000,
       backBufferLength: 60,
       startLevel: -1,
       // Tăng số lần thử lại và cấu hình kiên trì hơn cho mạng yếu
@@ -244,31 +283,48 @@ const Player = ({
       const BaseLoader = Hls.DefaultConfig?.loader;
       const AdFreeLoader = BaseLoader
         ? class extends BaseLoader {
-          load(context, config, callbacks) {
-            const onSuccess = callbacks?.onSuccess;
-            const wrappedCallbacks = {
-              ...callbacks,
-              onSuccess: (response, stats, ctx, networkDetails) => {
-                let nextResponse = response;
-                if (
-                  typeof response?.data === "string" &&
-                  (ctx?.type === "manifest" || ctx?.type === "level")
-                ) {
-                  nextResponse = {
-                    ...response,
-                    data: stripAdSegmentsFromPlaylist(response.data),
-                  };
-                }
+            load(context, config, callbacks) {
+              const onSuccess = callbacks?.onSuccess;
+              const wrappedCallbacks = {
+                ...callbacks,
+                onSuccess: (response, stats, ctx, networkDetails) => {
+                  let nextResponse = response;
+                  if (
+                    typeof response?.data === "string" &&
+                    (ctx?.type === "manifest" || ctx?.type === "level")
+                  ) {
+                    // Only swap in filtered content if it still looks like a valid playlist; otherwise keep the original to avoid levelParsingError.
+                    try {
+                      const filtered = stripAdSegmentsFromPlaylist(
+                        response.data
+                      );
+                      if (
+                        typeof filtered === "string" &&
+                        filtered.includes("#EXTM3U") &&
+                        filtered.includes("#EXTINF")
+                      ) {
+                        nextResponse = {
+                          ...response,
+                          data: filtered,
+                        };
+                      }
+                    } catch (err) {
+                      console.warn(
+                        "[HLS] Playlist filter skipped due to parse error",
+                        err?.message || err
+                      );
+                    }
+                  }
 
-                if (onSuccess) {
-                  onSuccess(nextResponse, stats, ctx, networkDetails);
-                }
-              },
-            };
+                  if (onSuccess) {
+                    onSuccess(nextResponse, stats, ctx, networkDetails);
+                  }
+                },
+              };
 
-            super.load(context, config, wrappedCallbacks);
+              super.load(context, config, wrappedCallbacks);
+            }
           }
-        }
         : null;
 
       let hlsConfigOpts = {
@@ -315,9 +371,10 @@ const Player = ({
         const fragments = details?.fragments || [];
         if (!details || !Array.isArray(fragments)) return;
 
+        const blacklisted = ["adjump", "/v7/", "khomay", "proxys", "bitcdn", "ads"];
         const filtered = fragments.filter((frag) => {
           const url = frag?.relurl || frag?.url;
-          return !(url && url.includes("adjump"));
+          return !(url && blacklisted.some((word) => url.includes(word)));
         });
 
         let cursor = 0;
@@ -458,7 +515,6 @@ const Player = ({
     }
   }, [isHls, playbackRate]);
 
-
   // Sync play/pause
   useEffect(() => {
     if (isHls && videoRef.current) {
@@ -493,7 +549,7 @@ const Player = ({
       if (!hls || !isBuffering) return;
       const now = performance.now();
       const elapsed = now - (bufferingSinceRef.current || now);
-      
+
       // Chờ lâu hơn một chút (5s thay vì 2.5s) để mạng tự ổn định trước khi hạ chất lượng
       if (elapsed < 5000) return;
       if (now - lastRecoveryRef.current < 4000) return;
@@ -742,7 +798,8 @@ const Player = ({
     );
   }
 
-  const isEnding = duration > 0 && Math.floor(progress) >= Math.floor(duration - 90);
+  const isEnding =
+    duration > 0 && Math.floor(progress) >= Math.floor(duration - 90);
 
   const uxButtons = (
     <div className="absolute bottom-12 sm:bottom-16 md:bottom-20 right-2 sm:right-6 flex flex-col items-end gap-2 sm:gap-3 z-30 pointer-events-none drop-shadow-2xl">
@@ -785,7 +842,10 @@ const Player = ({
             ) : null}
           </div>
           {actionSlot ? (
-            <div className="pointer-events-auto flex-shrink-0 drop-shadow-md" data-control>
+            <div
+              className="pointer-events-auto flex-shrink-0 drop-shadow-md"
+              data-control
+            >
               {actionSlot}
             </div>
           ) : null}
@@ -823,9 +883,15 @@ const Player = ({
                 className="flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full bg-white/15 border border-white/10 hover:border-emerald-300/60 hover:bg-white/25 transition shadow-lg flex-shrink-0"
               >
                 {playing ? (
-                  <Pause className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" fill="currentColor" />
+                  <Pause
+                    className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5"
+                    fill="currentColor"
+                  />
                 ) : (
-                  <Play className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" fill="currentColor" />
+                  <Play
+                    className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5"
+                    fill="currentColor"
+                  />
                 )}
               </button>
               <button
@@ -849,10 +915,11 @@ const Player = ({
                   type="button"
                   onClick={onNextEpisode}
                   disabled={!hasNextEpisode}
-                  className={`flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full border transition flex-shrink-0 ${hasNextEpisode
-                    ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
-                    : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
-                    }`}
+                  className={`flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full border transition flex-shrink-0 ${
+                    hasNextEpisode
+                      ? "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20"
+                      : "bg-white/5 border-white/5 opacity-50 cursor-not-allowed"
+                  }`}
                   aria-label="Sang tập tiếp theo"
                 >
                   <SkipForward className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-3.5 min-[400px]:w-3.5" />
@@ -918,7 +985,10 @@ const Player = ({
                   <MoreVertical className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
                 </button>
                 {showMoreMenu ? (
-                  <div className="absolute right-2 sm:right-0 bottom-full mb-1 rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-3 text-xs text-white/90 z-20 min-w-[180px] max-w-[90vw] sm:max-w-[340px] space-y-3" data-control>
+                  <div
+                    className="absolute right-2 sm:right-0 bottom-full mb-1 rounded-xl border border-white/10 bg-slate-900/95 shadow-xl backdrop-blur p-3 text-xs text-white/90 z-20 min-w-[180px] max-w-[90vw] sm:max-w-[340px] space-y-3"
+                    data-control
+                  >
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-white/60">
                         <Gauge className="h-3.5 w-3.5" />
@@ -936,10 +1006,11 @@ const Player = ({
                               handleChangePlaybackRate(r);
                               setShowMoreMenu(false);
                             }}
-                            className={`rounded-lg px-2.5 py-1 text-center transition ${playbackRate === r
-                              ? "bg-emerald-500/20 text-white"
-                              : "bg-white/5 hover:bg-white/10"
-                              }`}
+                            className={`rounded-lg px-2.5 py-1 text-center transition ${
+                              playbackRate === r
+                                ? "bg-emerald-500/20 text-white"
+                                : "bg-white/5 hover:bg-white/10"
+                            }`}
                           >
                             {r}x
                           </button>
@@ -965,10 +1036,11 @@ const Player = ({
                                 handleQualityChange(lvl.level);
                                 setShowMoreMenu(false);
                               }}
-                              className={`rounded-lg px-2.5 py-1 text-left transition ${currentLevel === lvl.level
-                                ? "bg-emerald-500/20 text-white"
-                                : "bg-white/5 hover:bg-white/10"
-                                }`}
+                              className={`rounded-lg px-2.5 py-1 text-left transition ${
+                                currentLevel === lvl.level
+                                  ? "bg-emerald-500/20 text-white"
+                                  : "bg-white/5 hover:bg-white/10"
+                              }`}
                             >
                               {lvl.label}
                             </button>

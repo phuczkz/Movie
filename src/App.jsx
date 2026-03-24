@@ -12,6 +12,7 @@ const Register = lazy(() => import("./pages/Register.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
 const Saved = lazy(() => import("./pages/Saved.jsx"));
 const Search = lazy(() => import("./pages/Search.jsx"));
+const Actor = lazy(() => import("./pages/Actor.jsx"));
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/favorites" element={<Saved />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/actor/:id" element={<Actor />} />
           <Route path="*" element={<Home />} />
         </Routes>
       </Suspense>

@@ -61,13 +61,14 @@ export const useSearchMovies = (query, page = 1) =>
       ]);
 
       return dedupeBySlug([
-        ...kkResults,
         ...ophimResults,
+        ...kkResults,
         ...kkCat,
         ...kkCountry,
         ...ophimCat,
         ...ophimCountry,
       ]);
+
     },
     enabled: Boolean(query?.trim()),
     staleTime: 10 * 60 * 1000,

@@ -142,10 +142,10 @@ const Hero = ({ movie, movies = [] }) => {
             ) : null}
           </div>
 
-          <p className="hidden md:block max-w-3xl text-[15px] md:text-lg leading-relaxed text-slate-100/90 drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]">
+          {/* <p className="hidden md:block max-w-3xl text-[15px] md:text-lg leading-relaxed text-slate-100/90 drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]">
             {activeMovie.content ||
               "Vào thời kỳ biến động, những nhân vật chủ chốt buộc phải đối mặt với lựa chọn định đoạt vận mệnh của cả vùng đất."}
-          </p>
+          </p> */}
 
           <div className="hidden sm:flex flex-wrap gap-3 text-sm text-slate-200">
             {countries.length ? (
@@ -206,8 +206,8 @@ const Hero = ({ movie, movies = [] }) => {
                   type="button"
                   onClick={() => setActiveIndex(idx)}
                   className={`group relative aspect-video w-20 sm:w-24 md:w-28 lg:w-32 overflow-hidden rounded-2xl md:rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${isActive
-                      ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
-                      : "border-white/15 hover:border-white/25"
+                    ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
+                    : "border-white/15 hover:border-white/25"
                     }`}
                   aria-label={`Chọn ${item.name}`}
                 >

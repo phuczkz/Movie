@@ -104,14 +104,14 @@ const Home = () => {
   return (
     <div className="space-y-10">
       <LoginBanner />
-      
+
       <Hero movies={heroMovies} />
 
-      <TrendingSection movies={kkSeries.slice(0, 7)} loading={loadingKKSeries} />
+      <TrendingSection movies={kkSeries.slice(0, 10)} loading={loadingKKSeries} />
 
       <div ref={refKKSeries}>
         <Section
-          title="Phim bộ (KKphim)"
+          title="Phim bộ (1)"
           action={
             <Link className="text-sm text-amber-300" to="/category/phim-bo">
               Xem thêm
@@ -128,7 +128,7 @@ const Home = () => {
 
       <div ref={refKKSingle}>
         <Section
-          title="Phim lẻ (KKphim)"
+          title="Phim lẻ (1)"
           action={
             <Link className="text-sm text-amber-300" to="/category/phim-le">
               Xem thêm
@@ -184,7 +184,7 @@ const Home = () => {
 
       <div ref={refSeries}>
         <Section
-          title="Phim bộ"
+          title="Phim bộ (2)"
           action={
             <Link className="text-sm text-emerald-300" to="/category/phim-bo">
               Xem thêm
@@ -201,7 +201,7 @@ const Home = () => {
 
       <div ref={refSingle}>
         <Section
-          title="Phim lẻ"
+          title="Phim lẻ (2)"
           action={
             <Link className="text-sm text-emerald-300" to="/category/phim-le">
               Xem thêm

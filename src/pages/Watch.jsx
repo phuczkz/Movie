@@ -31,15 +31,6 @@ import {
   parseEpisodeNumber,
 } from "../utils/episodes.js";
 
-const formatTime = (secs) => {
-  const s = Math.floor(secs);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  return `${m}:${String(sec).padStart(2, "0")}`;
-};
-
 const Watch = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -56,20 +47,22 @@ const Watch = () => {
   const { data, isLoading } = useMovieDetail(slug);
 
   const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
-  const episodesList = Array.isArray(baseEpisodes) ? baseEpisodes : [];
+  const baseName = baseMovie?.name || "";
+  const baseOriginName = baseMovie?.origin_name || "";
+  const baseYear = baseMovie?.year || null;
   const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
 
   const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
     isTmdb ? baseMovie?.name : ""
   );
 
-  const bestAltMatch = useMemo(() => {
+  const bestAltMatch = (() => {
     if (!isTmdb || loadingAlts) return null;
     const normalized = (text) => (text || "").toLowerCase().trim();
-    const namesToMatch = [baseMovie?.name, baseMovie?.origin_name]
+    const namesToMatch = [baseName, baseOriginName]
       .map(normalized)
       .filter(Boolean);
-    const targetYear = baseMovie?.year;
+    const targetYear = baseYear;
 
     return altResults.find((m) => {
       const nameHit =
@@ -79,14 +72,19 @@ const Watch = () => {
         targetYear && m.year ? String(m.year) === String(targetYear) : true;
       return nameHit && yearHit;
     });
-  }, [altResults, baseMovie?.name, baseMovie?.origin_name, baseMovie?.year, isTmdb, loadingAlts]);
+  })();
 
-  // If redirect didn't happen yet, we still want the canonical slug for comments
-  const movie = useMemo(() => {
-    if (isTmdb && loadingAlts && !bestAltMatch) return null;
-    return bestAltMatch || baseMovie;
-  }, [baseMovie, bestAltMatch, isTmdb, loadingAlts]);
-  const episodes = baseEpisodes;
+  const { data: altDetail, isLoading: loadingAltDetail } = useMovieDetail(
+    bestAltMatch?.slug
+  );
+
+  const movie =
+    !isTmdb || !loadingAlts || bestAltMatch ? bestAltMatch || baseMovie : null;
+
+  const episodes = altDetail?.episodes?.length
+    ? altDetail.episodes
+    : baseEpisodes;
+  const episodesList = Array.isArray(episodes) ? episodes : [];
   const serverGroups = {};
   episodesList.forEach((ep) => {
     if (!ep) return;
@@ -95,12 +93,11 @@ const Watch = () => {
     serverGroups[label].push(ep);
   });
 
-  const preferredServer =
-    serverGroups.Vietsub?.length
-      ? "Vietsub"
-      : serverGroups["Thuyết Minh"]?.length
-        ? "Thuyết Minh"
-        : Object.keys(serverGroups)[0];
+  const preferredServer = serverGroups.Vietsub?.length
+    ? "Vietsub"
+    : serverGroups["Thuyết Minh"]?.length
+    ? "Thuyết Minh"
+    : Object.keys(serverGroups)[0];
 
   const requestedServer = normalizeServerLabel(selectedServerParam);
   const activeServer =
@@ -177,11 +174,27 @@ const Watch = () => {
         posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
       });
     },
-    [user, slug, activeEpisode, activeServer, saveProgress, movie?.name, movie?.poster_url, movie?.thumb_url, movie?.backdrop_url]
+    [
+      user,
+      slug,
+      activeEpisode,
+      activeServer,
+      saveProgress,
+      movie?.name,
+      movie?.poster_url,
+      movie?.thumb_url,
+      movie?.backdrop_url,
+    ]
   );
 
   const actors = useMemo(() => {
+    // Prioritize actors from the original TMDB source if available
+    const baseActors = baseMovie?.slug?.startsWith("tmdb-")
+      ? baseMovie?.actor
+      : null;
+
     const pools = [
+      baseActors,
       movie?.actor,
       movie?.actors,
       movie?.cast,
@@ -224,9 +237,12 @@ const Watch = () => {
       seen.add(item.name);
       return true;
     });
-  }, [movie]);
+  }, [movie, baseMovie?.actor, baseMovie?.slug]);
 
-  const categorySlugs = useMemo(() => (movie?.category || []).map(c => c.slug).filter(Boolean), [movie?.category]);
+  const categorySlugs = useMemo(
+    () => (movie?.category || []).map((c) => c.slug).filter(Boolean),
+    [movie?.category]
+  );
   const countrySlug = movie?.country?.[0]?.slug;
 
   const [deferLoad, setDeferLoad] = useState(false);
@@ -235,9 +251,15 @@ const Watch = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: deferLoad && !!categorySlugs[0] });
-  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: deferLoad && !!categorySlugs[1] });
-  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: deferLoad && !!countrySlug });
+  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], {
+    enabled: deferLoad && !!categorySlugs[0],
+  });
+  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], {
+    enabled: deferLoad && !!categorySlugs[1],
+  });
+  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, {
+    enabled: deferLoad && !!countrySlug,
+  });
 
   const relatedMovies = useMemo(() => {
     const combined = [];
@@ -253,14 +275,22 @@ const Watch = () => {
 
     const seen = new Set();
     seen.add(movie?.slug);
-    return combined.filter(m => {
-      if (!m || !m.slug || seen.has(m.slug)) return false;
-      seen.add(m.slug);
-      return true;
-    }).slice(0, 16);
+    return combined
+      .filter((m) => {
+        if (!m || !m.slug || seen.has(m.slug)) return false;
+        seen.add(m.slug);
+        return true;
+      })
+      .slice(0, 16);
   }, [cat1Pool, cat2Pool, countryPool, movie?.slug]);
 
-  const metaRef = useRef({ slug: null, name: null, server: null, movieName: null, posterUrl: null });
+  const metaRef = useRef({
+    slug: null,
+    name: null,
+    server: null,
+    movieName: null,
+    posterUrl: null,
+  });
 
   // Keep track of the current episode meta for the unmount flush
   useEffect(() => {
@@ -273,14 +303,27 @@ const Watch = () => {
         posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
       };
     }
-  }, [activeEpisode, activeServer, movie?.name, movie?.poster_url, movie?.thumb_url, movie?.backdrop_url]);
+  }, [
+    activeEpisode,
+    activeServer,
+    movie?.name,
+    movie?.poster_url,
+    movie?.thumb_url,
+    movie?.backdrop_url,
+  ]);
 
   // Force-save on pause or unmount
   useEffect(() => {
     return () => {
       if (!user || !slug) return;
       const { currentTime, duration } = progressRef.current;
-      const { slug: epSlug, name: epName, server: epServer, movieName, posterUrl } = metaRef.current;
+      const {
+        slug: epSlug,
+        name: epName,
+        server: epServer,
+        movieName,
+        posterUrl,
+      } = metaRef.current;
       if (currentTime > 10) {
         forceSave(slug, {
           episodeSlug: epSlug,
@@ -307,7 +350,9 @@ const Watch = () => {
     }
 
     const currentEpisode = params.get("episode");
-    const hasEpisode = episodesForServer.some((ep) => ep.slug === currentEpisode);
+    const hasEpisode = episodesForServer.some(
+      (ep) => ep.slug === currentEpisode
+    );
     if (!hasEpisode) {
       nextParams.set("episode", episodesForServer[0].slug);
       changed = true;
@@ -318,52 +363,21 @@ const Watch = () => {
     }
   }, [episodesForServer, activeServer, params, setParams]);
 
-  if (isLoading || (isTmdb && loadingAlts && !bestAltMatch))
+  if (
+    isLoading ||
+    (isTmdb && loadingAlts && !bestAltMatch) ||
+    (bestAltMatch && loadingAltDetail)
+  )
     return <div className="text-slate-300 px-8 py-20">Đang tải player...</div>;
-
-  if (!episodes.length && isTmdb) {
-    // TMDB không có stream: chỉ chuyển nếu tìm thấy phim trùng tên (hoặc tên gốc) và trùng năm trên Ophim.
-    const normalized = (text) => (text || "").toLowerCase().trim();
-    const namesToMatch = [movie?.name, movie?.origin_name]
-      .map(normalized)
-      .filter(Boolean);
-    const targetYear = movie?.year;
-
-    const bestMatch = loadingAlts
-      ? null
-      : altResults.find((m) => {
-        const nameHit =
-          namesToMatch.includes(normalized(m.name)) ||
-          namesToMatch.includes(normalized(m.origin_name));
-        const yearHit =
-          targetYear && m.year ? String(m.year) === String(targetYear) : true;
-        return nameHit && yearHit;
-      });
-
-    if (bestMatch) {
-      return <Navigate to={`/watch/${bestMatch.slug}`} replace />;
-    }
-
-    return (
-      <div className="space-y-3">
-        <p className="text-slate-200">
-          TMDB không có nguồn, đang tìm nguồn khác...
-        </p>
-        <Link
-          to={`/movie/${slug}`}
-          className="inline-flex items-center gap-2 text-emerald-300 hover:underline"
-        >
-          <Info className="h-4 w-4" />
-          Quay lại trang chi tiết
-        </Link>
-      </div>
-    );
-  }
 
   if (!episodes.length) {
     return (
       <div className="space-y-3">
-        <p className="text-slate-200">Phim này chưa có nguồn phát.</p>
+        <p className="text-slate-200">
+          {isTmdb
+            ? "TMDB không có nguồn và không tìm thấy nguồn thay thế."
+            : "Phim này chưa có nguồn phát."}
+        </p>
         <Link
           to={`/movie/${slug}`}
           className="inline-flex items-center gap-2 text-emerald-300 hover:underline"
@@ -377,7 +391,9 @@ const Watch = () => {
 
   const statusLabel = getEpisodeLabel(movie, episodes);
   const notifyText = movie?.notify || movie?.showtimes;
-  const categoriesText = (movie?.category || []).map((c) => c.name || c).join(", ");
+  const categoriesText = (movie?.category || [])
+    .map((c) => c.name || c)
+    .join(", ");
   const countryText = (movie?.country || []).map((c) => c.name || c).join(", ");
 
   return (
@@ -385,7 +401,12 @@ const Watch = () => {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-white">{movie?.name}</h1>
         {activeEpisode ? (
-          <p className="text-slate-300">{activeEpisode.name} </p>
+          <p className="text-slate-300">
+            {episodes.length === 1 &&
+            parseEpisodeNumber(activeEpisode.name) === 1
+              ? "Full"
+              : activeEpisode.name}{" "}
+          </p>
         ) : null}
       </div>
 
@@ -396,7 +417,12 @@ const Watch = () => {
           title={movie?.name}
           subtitle={
             activeEpisode?.name
-              ? `${activeEpisode.name} • ${activeServer || "Vietsub"}`
+              ? `${
+                  episodes.length === 1 &&
+                  parseEpisodeNumber(activeEpisode.name) === 1
+                    ? "Full"
+                    : activeEpisode.name
+                } • ${activeServer || "Vietsub"}`
               : undefined
           }
           onNextEpisode={() => {
@@ -404,9 +430,10 @@ const Watch = () => {
             navigate(
               `/watch/${slug}?episode=${encodeURIComponent(
                 nextEpisode.slug || nextEpisode.name
-              )}${activeServer
-                ? `&server=${encodeURIComponent(activeServer)}`
-                : ""
+              )}${
+                activeServer
+                  ? `&server=${encodeURIComponent(activeServer)}`
+                  : ""
               }`
             );
           }}
@@ -431,17 +458,41 @@ const Watch = () => {
                 </div>
               </div>
               <div className="space-y-3">
-                <h1 className="text-3xl font-bold text-white leading-tight">{movie?.name}</h1>
+                <h1 className="text-3xl font-bold text-white leading-tight">
+                  {movie?.name}
+                </h1>
                 {movie?.origin_name && (
-                  <p className="text-slate-200/80 text-sm">Tên gốc: {movie.origin_name}</p>
+                  <p className="text-slate-200/80 text-sm">
+                    Tên gốc: {movie.origin_name}
+                  </p>
                 )}
 
                 <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-200/90">
-                  {movie?.year && <span className="rounded-full bg-white/10 px-3 py-1">{movie.year}</span>}
-                  {statusLabel && <span className="rounded-full bg-white/10 px-3 py-1">{statusLabel}</span>}
-                  {movie?.quality && <span className="rounded-full bg-white/10 px-3 py-1">{movie.quality}</span>}
-                  {movie?.lang && <span className="rounded-full bg-white/10 px-3 py-1">{movie.lang}</span>}
-                  {movie?.time && <span className="rounded-full bg-white/10 px-3 py-1">{movie.time}</span>}
+                  {movie?.year && (
+                    <span className="rounded-full bg-white/10 px-3 py-1">
+                      {movie.year}
+                    </span>
+                  )}
+                  {statusLabel && (
+                    <span className="rounded-full bg-white/10 px-3 py-1">
+                      {statusLabel}
+                    </span>
+                  )}
+                  {movie?.quality && (
+                    <span className="rounded-full bg-white/10 px-3 py-1">
+                      {movie.quality}
+                    </span>
+                  )}
+                  {movie?.lang && (
+                    <span className="rounded-full bg-white/10 px-3 py-1">
+                      {movie.lang}
+                    </span>
+                  )}
+                  {movie?.time && (
+                    <span className="rounded-full bg-white/10 px-3 py-1">
+                      {movie.time}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-1 text-xs text-slate-200">
@@ -475,14 +526,20 @@ const Watch = () => {
                     ? `Đang xem: ${activeEpisode.name}`
                     : "Chọn tập để xem"}
                 </p>
-                {notifyText && <p className="text-xs text-amber-300 font-medium mt-0.5">{notifyText}</p>}
+                {notifyText && (
+                  <p className="text-xs text-amber-300 font-medium mt-0.5">
+                    {notifyText}
+                  </p>
+                )}
               </div>
             </div>
           ) : null}
 
           <div className="rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold text-white">Danh sách tập</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Danh sách tập
+              </h2>
               <div className="flex flex-wrap items-center gap-3">
                 {(hasVietsub || hasThuyetMinh) && (
                   <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
@@ -490,10 +547,11 @@ const Watch = () => {
                       type="button"
                       onClick={() => handleServerChange("Vietsub")}
                       disabled={!hasVietsub}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${activeServer === "Vietsub"
-                        ? "bg-emerald-400 text-slate-950"
-                        : "text-slate-200 hover:bg-white/10"
-                        } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        activeServer === "Vietsub"
+                          ? "bg-emerald-400 text-slate-950"
+                          : "text-slate-200 hover:bg-white/10"
+                      } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
                     >
                       Vietsub
                     </button>
@@ -501,10 +559,11 @@ const Watch = () => {
                       <button
                         type="button"
                         onClick={() => handleServerChange("Thuyết Minh")}
-                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${activeServer === "Thuyết Minh"
-                          ? "bg-emerald-400 text-slate-950"
-                          : "text-slate-200 hover:bg-white/10"
-                          }`}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                          activeServer === "Thuyết Minh"
+                            ? "bg-emerald-400 text-slate-950"
+                            : "text-slate-200 hover:bg-white/10"
+                        }`}
                       >
                         Thuyết Minh
                       </button>
@@ -522,16 +581,24 @@ const Watch = () => {
                       key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
                       to={`/watch/${slug}?episode=${encodeURIComponent(
                         ep.slug || ep.name || `ep-${idx + 1}`
-                      )}${activeServer
-                        ? `&server=${encodeURIComponent(activeServer)}`
-                        : ""
-                        }`}
-                      className={`group flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${activeEpisode?.slug === ep.slug
-                        ? "border-emerald-400 bg-emerald-500/10"
-                        : ""
-                        }`}
+                      )}${
+                        activeServer
+                          ? `&server=${encodeURIComponent(activeServer)}`
+                          : ""
+                      }`}
+                      className={`group flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${
+                        activeEpisode?.slug === ep.slug
+                          ? "border-emerald-400 bg-emerald-500/10"
+                          : ""
+                      }`}
                     >
-                      <Play className={`h-4 w-4 mr-2 ${activeEpisode?.slug === ep.slug ? "text-emerald-400" : "text-emerald-300"}`} />
+                      <Play
+                        className={`h-4 w-4 mr-2 ${
+                          activeEpisode?.slug === ep.slug
+                            ? "text-emerald-400"
+                            : "text-emerald-300"
+                        }`}
+                      />
                       {ep.name || `Tập ${idx + 1}`}
                     </Link>
                   ))}
@@ -542,6 +609,46 @@ const Watch = () => {
             )}
           </div>
 
+          {actors.length ? (
+            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-4">
+              <div className="flex items-center gap-3">
+                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
+                  Diễn viên
+                </p>
+                <span className="text-xs font-semibold text-slate-400">
+                  {actors.length}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                {actors.map((actor) => {
+                  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    actor.name
+                  )}&background=0f172a&color=94a3b8&bold=true&size=128&format=png`;
+                  const src = actor.image || fallback;
+                  return (
+                    <Link
+                      key={actor.name}
+                      to={`/actor/${actor.id || actor.name}`}
+                      className="flex flex-col items-center gap-2 w-20 sm:w-24 group/actor hover:-translate-y-1 transition-transform"
+                    >
+                      <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all">
+                        <img
+                          src={src}
+                          alt={actor.name}
+                          className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                      </div>
+                      <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight group-hover/actor:text-emerald-400 transition-colors">
+                        {actor.name}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
           {relatedMovies.length > 0 && (
             <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-5">
               <div className="flex items-center gap-3">
@@ -551,7 +658,10 @@ const Watch = () => {
               </div>
               <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar">
                 {relatedMovies.map((relMovie) => (
-                  <div key={relMovie.slug} className="min-w-[170px] sm:min-w-[200px] snap-start">
+                  <div
+                    key={relMovie.slug}
+                    className="min-w-[170px] sm:min-w-[200px] snap-start"
+                  >
                     <MovieCard movie={relMovie} />
                   </div>
                 ))}

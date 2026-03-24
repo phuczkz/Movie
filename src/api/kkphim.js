@@ -1,9 +1,10 @@
 import axios from "axios";
 
-const apiBase = import.meta.env.VITE_KKPHIM_API || "https://phimapi.com/v1/api";
-const imageCdn = (
-  import.meta.env.VITE_KKPHIM_IMAGE_CDN || "https://phimimg.com"
-).replace(/\/$/, "");
+const apiBase = import.meta.env.VITE_KKPHIM_API;
+const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
+  /\/$/,
+  ""
+);
 const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
 const kkphim = axios.create({

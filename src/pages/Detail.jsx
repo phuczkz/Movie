@@ -197,9 +197,16 @@ const Detail = () => {
     }, {});
   }, [episodes]);
 
+  const isMovie = useMemo(() => {
+    if (!episodes?.length) return false;
+    const nums = new Set(episodes.map(ep => parseEpisodeNumber(ep.name || ep.slug)).filter(n => n !== null));
+    return nums.size <= 1;
+  }, [episodes]);
+
   const hasVietsub = !!serverGroups.Vietsub?.length;
   const hasLongTieng = !!serverGroups["Lồng Tiếng"]?.length;
   const hasThuyetMinh = !!serverGroups["Thuyết Minh"]?.length;
+
 
   const preferredServer = useMemo(() => {
     if (hasVietsub) return "Vietsub";
@@ -223,7 +230,11 @@ const Detail = () => {
   }, [episodes, selectedServer, serverGroups]);
 
   const actors = useMemo(() => {
+    // Prioritize actors from the original TMDB source if available
+    const baseActors = baseMovie?.slug?.startsWith("tmdb-") ? baseMovie?.actor : null;
+
     const pools = [
+      baseActors,
       movie?.actor,
       movie?.actors,
       movie?.cast,
@@ -440,10 +451,14 @@ const Detail = () => {
                   </span>
                 )}
                 <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
-                  {latestEpisodeNumber >= 0
+                  {isMovie
+                    ? "Full"
+                    : latestEpisodeNumber >= 0
                     ? `Tập ${latestEpisodeNumber}`
                     : movie?.episode_current || "HD"}
                 </span>
+
+
                 {movie?.quality && (
                   <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                     {movie.quality}
@@ -550,16 +565,19 @@ const Detail = () => {
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-semibold text-white">Tập phim</h2>
                   <div className="flex items-center gap-2 text-sm text-slate-300">
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1">
-                      <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-200">
-                        {selectedServer || "Nguồn"}
+                    {!isMovie && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1">
+                        <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-200">
+                          {selectedServer || "Nguồn"}
+                        </span>
+                        <span className="text-slate-200/80">
+                          {selectedEpisodes.length
+                            ? `${selectedEpisodes.length} tập`
+                            : ""}
+                        </span>
                       </span>
-                      <span className="text-slate-200/80">
-                        {selectedEpisodes.length
-                          ? `${selectedEpisodes.length} tập`
-                          : ""}
-                      </span>
-                    </span>
+                    )}
+
                     {isCompleted ? (
                       <span className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">
                         Hoàn tất
@@ -569,7 +587,7 @@ const Detail = () => {
                 </div>
               </div>
 
-              {Object.keys(serverGroups).length ? (
+              {Object.keys(serverGroups).length > 1 && !isMovie ? (
                 <div className="flex flex-wrap items-center gap-2">
                   {hasVietsub ? (
                     <button
@@ -604,11 +622,12 @@ const Detail = () => {
                         : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
                         }`}
                     >
-                      Thuyết minh
+                      Thuyết Minh
                     </button>
                   ) : null}
                 </div>
               ) : null}
+
 
               {showUpcomingNotice ? (
                 <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
@@ -630,8 +649,9 @@ const Detail = () => {
               {episodes.length ? (
                 <div className="max-h-48 overflow-y-auto pr-1">
                   <EpisodeList
-                    episodes={selectedEpisodes}
-                    serverLabel={selectedServer || undefined}
+                    episodes={isMovie ? episodes : selectedEpisodes}
+                    serverLabel={isMovie ? undefined : (selectedServer || undefined)}
+                    showServerLabels={isMovie}
                   />
                 </div>
               ) : (
@@ -660,22 +680,23 @@ const Detail = () => {
                     )}&background=0f172a&color=94a3b8&bold=true&size=128&format=png`;
                     const src = actor.image || fallback;
                     return (
-                      <div
+                      <Link
                         key={actor.name}
-                        className="flex flex-col items-center gap-2 w-20 sm:w-24"
+                        to={`/actor/${actor.id || actor.name}`}
+                        className="flex flex-col items-center gap-2 w-20 sm:w-24 group/actor hover:-translate-y-1 transition-transform"
                       >
-                        <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg">
+                        <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all">
                           <img
                             src={src}
                             alt={actor.name}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500"
                             loading="lazy"
                           />
                         </div>
-                        <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight">
+                        <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight group-hover/actor:text-emerald-400 transition-colors">
                           {actor.name}
                         </span>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

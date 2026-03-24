@@ -1,5 +1,7 @@
 import client from "./client";
-import { getTmdbDetailBySlug } from "./tmdb";
+import { getTmdbDetailBySlug, searchTmdbMovie, getTmdbCredits, getTmdbByGenre, searchTmdbPerson, getTmdbPersonCredits } from "./tmdb";
+
+
 import { getKKphimDetail } from "./kkphim";
 
 const fallbackPortrait =
@@ -7,8 +9,7 @@ const fallbackPortrait =
 const fallbackLandscape =
   "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
 
-const tmdbProfileBase =
-  import.meta.env.VITE_TMDB_PROFILE_BASE || "https://image.tmdb.org/t/p/w185";
+const tmdbProfileBase = import.meta.env.VITE_TMDB_PROFILE_BASE;
 
 const normalizePoster = (url = "") => {
   if (!url) return fallbackPortrait;
@@ -224,11 +225,17 @@ export const getSingle = (page = 1) =>
 
 export const getCategory = (category, page = 1) =>
   withFallback(async () => {
+    // TMDB Animation category integration
+    if (category === "hoat-hinh") {
+      return getTmdbByGenre(16, page);
+    }
+
     const { data } = await client.get(`/the-loai/${category}`, {
       params: { page },
     });
     return mapOrFallback(uniqueBySlug(unwrapItems(data)));
   }, []);
+
 export const getCountry = (country, page = 1) =>
   withFallback(async () => {
     const { data } = await client.get(`/quoc-gia/${country}`, {
@@ -332,6 +339,43 @@ export const getDetail = (slug) =>
         }
       }
 
+      // Final enrichment: Always try to find the movie on TMDB to ensure a consistent, 
+      // high-quality cast list with proper avatars and TMDB Person IDs.
+      if (movie && !movie.slug?.startsWith("tmdb-")) {
+        try {
+          // Identify potential TMDB match
+          const tmdbMatch = await searchTmdbMovie(movie.name || movie.origin_name, movie.year);
+          if (tmdbMatch) {
+            const tmdbActors = await getTmdbCredits(tmdbMatch.id, tmdbMatch.media_type);
+            if (tmdbActors && tmdbActors.length) {
+              // If we already have actors from Ophim, try to merge or prefer TMDB if more complete
+              if (!movie.actor || !movie.actor.length) {
+                movie.actor = tmdbActors;
+              } else {
+                // Merge logic: match by name and update image + id
+                movie.actor = movie.actor.map(original => {
+                  const match = tmdbActors.find(ta =>
+                    ta.name.toLowerCase() === original.name.toLowerCase() ||
+                    original.name.toLowerCase().includes(ta.name.toLowerCase()) ||
+                    ta.name.toLowerCase().includes(original.name.toLowerCase())
+                  );
+                  return match ? { ...original, image: match.image || original.image, id: match.id } : original;
+                });
+
+                // Also add actors from TMDB that weren't in the original list but are prominent (first 10)
+                const existingNames = new Set(movie.actor.map(a => a.name.toLowerCase()));
+                const tmdbExclusives = tmdbActors.slice(0, 10).filter(ta => !existingNames.has(ta.name.toLowerCase()));
+                movie.actor = [...movie.actor, ...tmdbExclusives];
+              }
+            }
+          }
+        } catch (enrichError) {
+          console.warn("[getDetail] TMDB enrichment failed", enrichError.message);
+        }
+      }
+
+
+
       return { movie, episodes };
     },
     { movie: null, episodes: [] }
@@ -339,11 +383,39 @@ export const getDetail = (slug) =>
 
 export const searchMovies = (query, page = 1) =>
   withFallback(async () => {
-    const { data } = await client.get("/tim-kiem", {
-      params: { keyword: query, page },
-    });
-    return mapOrFallback(unwrapItems(data));
+    const q = (query || "").trim();
+    if (!q) return [];
+
+    // Parallel search: don't let one source failure block the other
+    const ophimPromise = client
+      .get("/tim-kiem", { params: { keyword: q, page } })
+      .then((res) => mapOrFallback(unwrapItems(res.data)))
+      .catch((err) => {
+        console.warn("[searchMovies] Ophim failed", err.message);
+        return [];
+      });
+
+    const actorPromise = searchTmdbPerson(q)
+      .then(async (person) => {
+        if (!person) return [];
+        return await getTmdbPersonCredits(person.id);
+      })
+      .catch((err) => {
+        console.warn("[searchMovies] Actor search failed", err.message);
+        return [];
+      });
+
+    const [ophimMovies, actorMovies] = await Promise.all([
+      ophimPromise,
+      actorPromise,
+    ]);
+
+    // 3. Merge and deduplicate (Prioritize actor results)
+    return uniqueBySlug([...actorMovies, ...ophimMovies]);
+
   }, []);
+
+
 
 export const getEpisodes = (slug) =>
   withFallback(async () => {
