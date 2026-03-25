@@ -200,6 +200,7 @@ const Player = ({
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const hideControlsTimeout = useRef(null);
   const bufferingSinceRef = useRef(null);
+  const bufferingTimerRef = useRef(null);
   const lastRecoveryRef = useRef(0);
   const initialTimeConsumed = useRef(false);
 
@@ -475,14 +476,31 @@ const Player = ({
       if (onTimeUpdate) onTimeUpdate(t, video.duration || 0);
     };
     const onDuration = () => setDuration(video.duration || 0);
+    const clearBufferingTimer = () => {
+      if (bufferingTimerRef.current) {
+        clearTimeout(bufferingTimerRef.current);
+        bufferingTimerRef.current = null;
+      }
+    };
     const onPlay = () => {
       setPlaying(true);
+      clearBufferingTimer();
       setIsBuffering(false);
     };
     const onPause = () => setPlaying(false);
 
-    const onBuffer = () => setIsBuffering(true);
+    const onBuffer = () => {
+      // Debounce: only show spinner if buffering persists > 300ms
+      // This avoids flashing the spinner on mobile during short network hiccups
+      if (!bufferingTimerRef.current) {
+        bufferingTimerRef.current = setTimeout(() => {
+          setIsBuffering(true);
+          bufferingTimerRef.current = null;
+        }, 300);
+      }
+    };
     const onCanPlay = () => {
+      clearBufferingTimer();
       setIsBuffering(false);
       // Ensure the resume feature jumps to the right mark as soon as video provides frame data
       if (initialTime > 0 && !initialTimeConsumed.current) {
@@ -505,6 +523,7 @@ const Player = ({
     video.playbackRate = playbackRate;
 
     return () => {
+      clearBufferingTimer();
       video.removeEventListener("timeupdate", onTime);
       video.removeEventListener("loadedmetadata", onDuration);
       video.removeEventListener("durationchange", onDuration);
@@ -1089,11 +1108,14 @@ const Player = ({
     </div>
   );
 
-  const loadingOverlay = isBuffering ? (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30">
+  const loadingOverlay = (
+    <div
+      className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 transition-opacity duration-200"
+      style={{ opacity: isBuffering ? 1 : 0 }}
+    >
       <div className="h-10 w-10 rounded-full border-2 border-white/30 border-t-emerald-400 animate-spin" />
     </div>
-  ) : null;
+  );
 
   if (isHls) {
     return (

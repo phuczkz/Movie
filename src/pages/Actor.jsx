@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { usePersonDetail } from "../hooks/usePersonDetail";
 import MovieCard from "../components/MovieCard";
-import { MoveLeft } from "lucide-react";
+import { MoveLeft, User } from "lucide-react";
 
 const Actor = () => {
   const { id } = useParams();
@@ -42,12 +42,16 @@ const Actor = () => {
       </button>
 
       <div className="flex flex-col md:flex-row gap-10 lg:gap-16 items-start">
-        <div className="w-48 sm:w-60 md:w-64 lg:w-72 shrink-0 aspect-[2/3] rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-slate-900 group mx-auto md:mx-0">
-          <img
-            src={person.profile_path || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=0f172a&color=94a3b8&bold=true&size=512`}
-            alt={person.name}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          />
+        <div className="w-48 sm:w-60 md:w-64 lg:w-72 shrink-0 aspect-[2/3] rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-slate-900 group mx-auto md:mx-0 flex items-center justify-center">
+          {person.profile_path ? (
+            <img
+              src={person.profile_path}
+              alt={person.name}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          ) : (
+            <User className="w-1/3 h-1/3 text-slate-500 group-hover:text-emerald-400 transition-colors" />
+          )}
         </div>
 
         <div className="flex-1 space-y-8">

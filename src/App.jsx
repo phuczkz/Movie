@@ -13,33 +13,45 @@ const Profile = lazy(() => import("./pages/Profile.jsx"));
 const Saved = lazy(() => import("./pages/Saved.jsx"));
 const Search = lazy(() => import("./pages/Search.jsx"));
 const Actor = lazy(() => import("./pages/Actor.jsx"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
 
 function App() {
   return (
-    <Layout>
-      <Suspense
-        fallback={
-          <div className="py-10 text-center text-slate-300">Đang tải...</div>
-        }
-      >
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/category/:category" element={<Category />} />
-          <Route path="/category/:category/:page" element={<Category />} />
-          <Route path="/country/:country" element={<Country />} />
-          <Route path="/country/:country/:page" element={<Country />} />
-          <Route path="/movie/:slug" element={<Detail />} />
-          <Route path="/watch/:slug" element={<Watch />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/favorites" element={<Saved />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/actor/:id" element={<Actor />} />
-          <Route path="*" element={<Home />} />
-        </Routes>
-      </Suspense>
-    </Layout>
+    <Suspense
+      fallback={
+        <div className="py-10 text-center text-slate-300">Đang tải...</div>
+      }
+    >
+      <Routes>
+        {/* Admin — own full-screen layout */}
+        <Route path="/admin" element={<AdminPanel />} />
+
+        {/* Main site layout */}
+        <Route
+          path="/*"
+          element={
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/category/:category" element={<Category />} />
+                <Route path="/category/:category/:page" element={<Category />} />
+                <Route path="/country/:country" element={<Country />} />
+                <Route path="/country/:country/:page" element={<Country />} />
+                <Route path="/movie/:slug" element={<Detail />} />
+                <Route path="/watch/:slug" element={<Watch />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/favorites" element={<Saved />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/actor/:id" element={<Actor />} />
+                <Route path="*" element={<Home />} />
+              </Routes>
+            </Layout>
+          }
+        />
+      </Routes>
+    </Suspense>
   );
 }
 

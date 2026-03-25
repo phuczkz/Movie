@@ -15,7 +15,10 @@ import {
   Play,
   Star,
   Timer,
+  User,
 } from "lucide-react";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "../firebase.config.js";
 import Player from "../components/Player.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
@@ -42,6 +45,19 @@ const Watch = () => {
   const initialTime = location.state?.initialTime || 0;
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const lastSaveRef = useRef(0);
+  const [movieOverride, setMovieOverride] = useState(null);
+
+  // Listen for admin movie override (trailer mode)
+  useEffect(() => {
+    if (!db || !slug) return;
+    const unsub = onSnapshot(doc(db, "movieOverrides", slug), (snap) => {
+      setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
+    }, (err) => {
+      console.warn("MovieOverride error:", err);
+      setMovieOverride({ mode: "full" });
+    });
+    return unsub;
+  }, [slug]);
   const [params, setParams] = useSearchParams();
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
@@ -432,36 +448,58 @@ const Watch = () => {
       </div>
 
       <div ref={playerRef}>
-        <Player
-          source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
-          poster={movie?.thumb_url || movie?.poster_url}
-          title={movie?.name}
-          subtitle={
-            activeEpisode?.name
-              ? `${
-                  episodes.length === 1 &&
-                  parseEpisodeNumber(activeEpisode.name) === 1
-                    ? "Full"
-                    : activeEpisode.name
-                } • ${activeServer || "Vietsub"}`
-              : undefined
-          }
-          onNextEpisode={() => {
-            if (!nextEpisode) return;
-            navigate(
-              `/watch/${slug}?episode=${encodeURIComponent(
-                nextEpisode.slug || nextEpisode.name
-              )}${
-                activeServer
-                  ? `&server=${encodeURIComponent(activeServer)}`
-                  : ""
-              }`
-            );
-          }}
-          hasNextEpisode={Boolean(nextEpisode)}
-          onTimeUpdate={onTimeUpdate}
-          initialTime={initialTime}
-        />
+        {movieOverride?.mode === "trailer" ? (
+          <div className="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-white/10" style={{ aspectRatio: "16/9" }}>
+            {movieOverride.trailerUrl ? (
+              <iframe
+                src={movieOverride.trailerUrl}
+                title="Trailer"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
+                <div className="h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Info className="h-8 w-8 text-amber-400" />
+                </div>
+                <p className="text-white font-bold text-lg">Phim đang chuẩn bị</p>
+                <p className="text-slate-400 text-sm">Phim này hiện chỉ có trailer. Vui lòng quay lại sau.</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Player
+            source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
+            poster={movie?.thumb_url || movie?.poster_url}
+            title={movie?.name}
+            subtitle={
+              activeEpisode?.name
+                ? `${
+                    episodes.length === 1 &&
+                    parseEpisodeNumber(activeEpisode.name) === 1
+                      ? "Full"
+                      : activeEpisode.name
+                  } • ${activeServer || "Vietsub"}`
+                : undefined
+            }
+            onNextEpisode={() => {
+              if (!nextEpisode) return;
+              navigate(
+                `/watch/${slug}?episode=${encodeURIComponent(
+                  nextEpisode.slug || nextEpisode.name
+                )}${
+                  activeServer
+                    ? `&server=${encodeURIComponent(activeServer)}`
+                    : ""
+                }`
+              );
+            }}
+            hasNextEpisode={Boolean(nextEpisode)}
+            onTimeUpdate={onTimeUpdate}
+            initialTime={initialTime}
+          />
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
@@ -642,23 +680,23 @@ const Watch = () => {
               </div>
               <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                 {actors.map((actor) => {
-                  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    actor.name
-                  )}&background=0f172a&color=94a3b8&bold=true&size=128&format=png`;
-                  const src = actor.image || fallback;
                   return (
                     <Link
                       key={actor.name}
                       to={`/actor/${actor.id || actor.name}`}
                       className="flex flex-col items-center gap-2 w-20 sm:w-24 group/actor hover:-translate-y-1 transition-transform"
                     >
-                      <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all">
-                        <img
-                          src={src}
-                          alt={actor.name}
-                          className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500"
-                          loading="lazy"
-                        />
+                      <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
+                        {actor.image ? (
+                          <img
+                            src={actor.image}
+                            alt={actor.name}
+                            className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <User className="w-1/2 h-1/2 text-slate-400 group-hover/actor:text-emerald-400/80 transition-colors" />
+                        )}
                       </div>
                       <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight group-hover/actor:text-emerald-400 transition-colors">
                         {actor.name}
@@ -691,7 +729,12 @@ const Watch = () => {
           )}
 
           <div id="comments">
-            {movie && movie.slug && <Comments movieSlug={movie.slug} />}
+            {movie && movie.slug && (
+              <Comments 
+                movieSlug={movie.slug} 
+                movieName={movie.name} 
+              />
+            )}
           </div>
         </div>
       </div>

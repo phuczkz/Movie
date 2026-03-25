@@ -1,0 +1,137 @@
+import { useEffect, useState } from "react";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { db } from "../../firebase.config";
+import { Construction, ToggleLeft, ToggleRight } from "lucide-react";
+
+export default function AdminMaintenance() {
+  const [settings, setSettings] = useState({ enabled: false, title: "", message: "" });
+  const [localTitle, setLocalTitle] = useState("");
+  const [localMessage, setLocalMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "settings", "maintenance"), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setSettings(data);
+        setLocalTitle(data.title || "");
+        setLocalMessage(data.message || "");
+      }
+    }, (err) => {
+      console.error("AdminMaintenance snapshot error:", err);
+    });
+    return unsub;
+  }, []);
+
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, "settings", "maintenance"), {
+        ...settings,
+        enabled: !settings.enabled,
+        title: localTitle,
+        message: localMessage,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveContent = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await setDoc(doc(db, "settings", "maintenance"), {
+        ...settings,
+        title: localTitle,
+        message: localMessage,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+      <div>
+        <h2 className="text-2xl font-bold text-white">Chế độ bảo trì</h2>
+        <p className="text-slate-400 text-sm mt-1">
+          Khi bật, toàn bộ người dùng sẽ thấy thông báo bảo trì và không thể truy cập website
+        </p>
+      </div>
+
+      {/* Status toggle */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${settings.enabled ? "bg-amber-500/20" : "bg-white/5"}`}>
+            <Construction className={`h-6 w-6 ${settings.enabled ? "text-amber-400" : "text-slate-500"}`} />
+          </div>
+          <div>
+            <p className="font-semibold text-white">Trạng thái hiện tại</p>
+            <p className={`text-sm font-medium ${settings.enabled ? "text-amber-400" : "text-emerald-400"}`}>
+              {settings.enabled ? "🔴 Đang bảo trì" : "🟢 Hoạt động bình thường"}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={toggle}
+          disabled={saving}
+          className={`flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-sm transition-all ${
+            settings.enabled
+              ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+              : "bg-amber-500 text-slate-950 hover:bg-amber-400"
+          } disabled:opacity-60`}
+        >
+          {settings.enabled ? (
+            <><ToggleRight className="h-5 w-5" /> Tắt bảo trì</>
+          ) : (
+            <><ToggleLeft className="h-5 w-5" /> Bật bảo trì</>
+          )}
+        </button>
+      </div>
+
+      {/* Content editor */}
+      <form onSubmit={saveContent} className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-slate-300">Tiêu đề thông báo</label>
+          <input
+            type="text"
+            value={localTitle}
+            onChange={(e) => setLocalTitle(e.target.value)}
+            placeholder="Đang bảo trì"
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-slate-300">Nội dung thông báo</label>
+          <textarea
+            rows={4}
+            value={localMessage}
+            onChange={(e) => setLocalMessage(e.target.value)}
+            placeholder="Website đang trong quá trình nâng cấp. Vui lòng quay lại sau."
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none resize-none"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-xl bg-white/5 border border-white/10 px-6 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 transition-colors disabled:opacity-60"
+        >
+          {saved ? "✓ Đã lưu" : saving ? "Đang lưu..." : "Lưu nội dung"}
+        </button>
+      </form>
+
+      {/* Preview */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 space-y-2">
+        <p className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Xem trước</p>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 text-center space-y-2">
+          <p className="text-xl font-black text-white">{localTitle || "Đang bảo trì"}</p>
+          <p className="text-slate-400 text-sm">{localMessage || "Website đang trong quá trình nâng cấp. Vui lòng quay lại sau."}</p>
+        </div>
+      </div>
+    </div>
+  );
+}

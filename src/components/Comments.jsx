@@ -11,6 +11,7 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
+  setDoc,
 } from "firebase/firestore";
 import {
   Send,
@@ -92,6 +93,7 @@ function DeleteModal({ onConfirm, onCancel, title = "Xóa bình luận", message
 function CommentRow({
   comment,
   movieSlug,
+  movieName, // Add movieName
   isReply = false,
   replies = [],
   onReplySubmitted,
@@ -111,7 +113,7 @@ function CommentRow({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Admin access
-  const ADMIN_EMAIL = "pt74009@gmail.com";
+  const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
   const isAdmin = user?.email === ADMIN_EMAIL;
   const canDelete = isAdmin || user?.uid === comment.userId;
 
@@ -209,6 +211,15 @@ function CommentRow({
         dislikeCount: 0,
         parentId: comment.id, // ← Liên kết reply với comment cha
       });
+
+      // Index the movie for the admin
+      if (movieName) {
+        await setDoc(doc(db, "commentedMovies", movieSlug), {
+          movieName,
+          lastCommentAt: serverTimestamp()
+        }, { merge: true });
+      }
+
       setReplyText("");
       setShowReplyInput(false);
       setShowReplies(true);
@@ -408,6 +419,7 @@ function CommentRow({
                   key={reply.id}
                   comment={reply}
                   movieSlug={movieSlug}
+                  movieName={movieName}
                   isReply
                   replies={[]}
                 />
@@ -421,7 +433,7 @@ function CommentRow({
 }
 
 /* ───── Main Comments Component ───── */
-export default function Comments({ movieSlug }) {
+export default function Comments({ movieSlug, movieName }) {
   const { user, userProfile } = useAuth();
   const [allDocs, setAllDocs] = useState(null);
   const [newComment, setNewComment] = useState("");
@@ -511,6 +523,15 @@ export default function Comments({ movieSlug }) {
         dislikeCount: 0,
         // Không có parentId = top-level comment
       });
+
+      // Index the movie for the admin
+      if (movieName) {
+        await setDoc(doc(db, "commentedMovies", movieSlug), {
+          movieName,
+          lastCommentAt: serverTimestamp()
+        }, { merge: true });
+      }
+
       setNewComment("");
     } catch (error) {
       console.error("Lỗi khi gửi bình luận:", error);
@@ -584,6 +605,7 @@ export default function Comments({ movieSlug }) {
             key={comment.id}
             comment={comment}
             movieSlug={movieSlug}
+            movieName={movieName}
             replies={repliesMap[comment.id] || []}
           />
         ))}

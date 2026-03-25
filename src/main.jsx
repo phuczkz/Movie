@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import MaintenanceGuard from "./components/MaintenanceGuard.jsx";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -41,7 +42,9 @@ createRoot(document.getElementById("root")).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <MaintenanceGuard>
+            <App />
+          </MaintenanceGuard>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

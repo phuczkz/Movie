@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Timestamp } from "firebase/firestore";
-import { Camera, Check } from "lucide-react";
+import { Camera, Check, Shield } from "lucide-react";
 import { isFirebaseConfigured } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
 import WatchHistory from "../components/WatchHistory.jsx";
@@ -36,7 +36,10 @@ const Profile = () => {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   useEffect(() => {
-    if (!user && !loading) navigate("/login");
+    if (!user && !loading) {
+      navigate("/login");
+      return;
+    }
   }, [user, loading, navigate]);
 
   useEffect(() => {
@@ -126,6 +129,15 @@ const Profile = () => {
           </p>
           
           <div className="pt-4 flex flex-wrap justify-center sm:justify-start gap-3">
+            {user?.email === import.meta.env.VITE_ADMIN_EMAIL && (
+              <button
+                onClick={() => navigate("/admin")}
+                className="rounded-full bg-amber-500/10 border border-amber-500/30 px-6 py-2 text-sm font-bold text-amber-400 transition-all hover:bg-amber-500/20 flex items-center gap-2"
+              >
+                <Shield size={16} />
+                Bảng quản lý
+              </button>
+            )}
              <button
               onClick={() => logout().then(() => navigate("/"))}
               className="rounded-full bg-white/5 border border-white/10 px-6 py-2 text-sm font-bold text-slate-300 transition-all hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"

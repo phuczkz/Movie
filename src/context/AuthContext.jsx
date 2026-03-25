@@ -167,16 +167,23 @@ export const AuthProvider = ({ children }) => {
         setUserProfile(profile);
         return credential;
       },
-      registerEmail: async (email, password) => {
+      registerEmail: async (email, password, displayName) => {
         if (!auth) return rejectIfMissing();
         const credential = await createUserWithEmailAndPassword(
           auth,
           email,
           password
         );
+        // Set displayName on Firebase Auth profile
+        if (displayName) {
+          await updateProfile(credential.user, { displayName });
+        }
         if (db) {
           const ref = doc(db, "users", credential.user.uid);
-          await setDoc(ref, buildDefaultProfile(credential.user));
+          const profileData = buildDefaultProfile(credential.user);
+          // Override displayName in case updateProfile hasn't propagated yet
+          if (displayName) profileData.displayName = displayName;
+          await setDoc(ref, profileData);
         }
         const profile = await fetchProfile(credential.user);
         setUserProfile(profile);

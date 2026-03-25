@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { isFirebaseConfigured } from "../firebase.config";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db, auth, isFirebaseConfigured } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const Login = () => {
@@ -10,10 +11,23 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
 
   useEffect(() => {
-    if (user) navigate("/profile");
-  }, [user, navigate]);
+    if (!db) return;
+    const unsub = onSnapshot(doc(db, "settings", "maintenance"), (snap) => {
+      setMaintenanceEnabled(snap.exists() ? snap.data().enabled : false);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const isAdmin = user.email === import.meta.env.VITE_ADMIN_EMAIL;
+    if (isAdmin || !maintenanceEnabled) {
+      navigate("/profile");
+    }
+  }, [user, navigate, maintenanceEnabled]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +41,10 @@ const Login = () => {
     setError("");
     try {
       await loginEmail(email, password);
-      navigate("/profile");
+      // Admin always goes to profile, User only if no maintenance
+      if (email === import.meta.env.VITE_ADMIN_EMAIL || !maintenanceEnabled) {
+        navigate("/profile");
+      }
     } catch (err) {
       setError(err.message || "Đăng nhập thất bại");
     } finally {
@@ -46,7 +63,10 @@ const Login = () => {
     setError("");
     try {
       await loginGoogle();
-      navigate("/profile");
+      const isAdmin = auth?.currentUser?.email === import.meta.env.VITE_ADMIN_EMAIL;
+      if (isAdmin || !maintenanceEnabled) {
+        navigate("/profile");
+      }
     } catch (err) {
       setError(err.message || "Đăng nhập Google thất bại");
     } finally {

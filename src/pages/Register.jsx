@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 const Register = () => {
   const navigate = useNavigate();
   const { user, registerEmail, loginGoogle, loading } = useAuth();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -31,7 +32,7 @@ const Register = () => {
     setSubmitting(true);
     setError("");
     try {
-      await registerEmail(email, password);
+      await registerEmail(email, password, displayName.trim());
       navigate("/profile");
     } catch (err) {
       setError(err.message || "Đăng ký thất bại");
@@ -79,6 +80,17 @@ const Register = () => {
       )}
 
       <form onSubmit={onSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm text-slate-200">Tên / Biệt danh</label>
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            required
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-400 focus:border-white/40 focus:outline-none"
+            placeholder="Nhập tên hiển thị của bạn"
+          />
+        </div>
         <div className="space-y-2">
           <label className="text-sm text-slate-200">Email</label>
           <input

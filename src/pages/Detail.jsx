@@ -1,4 +1,6 @@
-import { Heart, Play, Globe2, Star } from "lucide-react";
+import { Heart, Play, Globe2, Star, User, Film, Info } from "lucide-react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../firebase.config";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import EpisodeList from "../components/EpisodeList.jsx";
@@ -61,6 +63,19 @@ const Detail = () => {
 
   const [resumeData, setResumeData] = useState(null);
   const [showResumeModal, setShowResumeModal] = useState(false);
+  const [movieOverride, setMovieOverride] = useState(null);
+
+  // Listen for admin movie override (trailer mode)
+  useEffect(() => {
+    if (!db || !slug) return;
+    const unsub = onSnapshot(doc(db, "movieOverrides", slug), (snap) => {
+      setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
+    }, (err) => {
+      console.warn("MovieOverride error:", err);
+      setMovieOverride({ mode: "full" });
+    });
+    return unsub;
+  }, [slug]);
 
   // Load watch progress for the modal
   useEffect(() => {
@@ -496,8 +511,17 @@ const Detail = () => {
                   }}
                   className={`flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 relative z-30 cursor-pointer ${episodes.length ? "" : "opacity-90"}`}
                 >
-                  <Play className="h-4 w-4" fill="currentColor" />
-                  {episodes.length ? "Xem ngay" : "Mở trang xem"}
+                  {movieOverride?.mode === "trailer" ? (
+                    <>
+                      <Film className="h-4 w-4" fill="currentColor" />
+                      Xem Trailer
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4" fill="currentColor" />
+                      {episodes.length ? "Xem ngay" : "Mở trang xem"}
+                    </>
+                  )}
                 </button>
 
                 <button
@@ -646,7 +670,15 @@ const Detail = () => {
                 </div>
               ) : null}
 
-              {episodes.length ? (
+              {movieOverride?.mode === "trailer" ? (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
+                  <div className="flex justify-center">
+                    <Info className="h-6 w-6 text-amber-400" />
+                  </div>
+                  <p className="text-sm font-semibold text-amber-200">Phim hiện đang chưa có nguồn</p>
+                  <p className="text-xs text-slate-400 leading-relaxed">Bộ phim này hiện tại chỉ có Trailer. Bạn có thể xem bản giới hạn bằng nút "Xem Trailer" ở trên.</p>
+                </div>
+              ) : episodes.length ? (
                 <div className="max-h-48 overflow-y-auto pr-1">
                   <EpisodeList
                     episodes={isMovie ? episodes : selectedEpisodes}
@@ -675,23 +707,23 @@ const Detail = () => {
                 </div>
                 <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                   {actors.map((actor) => {
-                    const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      actor.name
-                    )}&background=0f172a&color=94a3b8&bold=true&size=128&format=png`;
-                    const src = actor.image || fallback;
                     return (
                       <Link
                         key={actor.name}
                         to={`/actor/${actor.id || actor.name}`}
                         className="flex flex-col items-center gap-2 w-20 sm:w-24 group/actor hover:-translate-y-1 transition-transform"
                       >
-                        <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all">
-                          <img
-                            src={src}
-                            alt={actor.name}
-                            className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500"
-                            loading="lazy"
-                          />
+                        <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
+                          {actor.image ? (
+                            <img
+                              src={actor.image}
+                              alt={actor.name}
+                              className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <User className="w-1/2 h-1/2 text-slate-400 group-hover/actor:text-emerald-400/80 transition-colors" />
+                          )}
                         </div>
                         <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight group-hover/actor:text-emerald-400 transition-colors">
                           {actor.name}
