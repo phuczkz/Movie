@@ -41,6 +41,7 @@ const Watch = () => {
 
   const initialTime = location.state?.initialTime || 0;
   const progressRef = useRef({ currentTime: 0, duration: 0 });
+  const lastSaveRef = useRef(0);
   const [params, setParams] = useSearchParams();
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
@@ -160,10 +161,14 @@ const Watch = () => {
   }, [selectedEpisode]);
 
   // Save progress periodically via Player's onTimeUpdate
+  // Throttle 5 giây để tránh gọi Firebase quá nhiều (giảm lag trên mobile)
   const onTimeUpdate = useCallback(
     (currentTime, duration) => {
       progressRef.current = { currentTime, duration };
       if (!user || !slug || !activeEpisode) return;
+      const now = Date.now();
+      if (now - lastSaveRef.current < 5000) return; // Throttle: tối đa 1 lần / 5 giây
+      lastSaveRef.current = now;
       saveProgress(slug, {
         episodeSlug: activeEpisode.slug || activeEpisode.name,
         episodeName: activeEpisode.name,
@@ -186,6 +191,22 @@ const Watch = () => {
       movie?.backdrop_url,
     ]
   );
+
+  // Force-save khi user chuyển app (iOS background) - tránh mất progress
+  useEffect(() => {
+    if (!user || !slug) return undefined;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        const { currentTime, duration } = progressRef.current;
+        const { slug: epSlug, name: epName, server: epServer, movieName, posterUrl } = metaRef.current;
+        if (currentTime > 10) {
+          forceSave(slug, { episodeSlug: epSlug, episodeName: epName, server: epServer, currentTime, duration, movieName, posterUrl });
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [user, slug, forceSave]);
 
   const actors = useMemo(() => {
     // Prioritize actors from the original TMDB source if available

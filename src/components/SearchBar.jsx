@@ -7,6 +7,20 @@ const MOBILE_WIDTH = 640;
 const FALLBACK_POSTER =
   "https://placehold.co/120x180/0f172a/94a3b8?text=No+Image";
 
+// Dùng cùng logic tối ưu poster như MovieCard để đồng bộ ảnh với Category page
+const getOptimizedPoster = (url, w = 360) => {
+  if (!url) return FALLBACK_POSTER;
+  try {
+    const rawHost = new URL(url).hostname;
+    if (rawHost.includes("tmdb.org")) {
+      return url.replace(/\/w(92|154|185|300|342|500|780|original)\//, `/w${w > 400 ? 500 : 342}/`);
+    }
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=webp&w=${w}&fit=cover&q=80`;
+  } catch {
+    return url;
+  }
+};
+
 const SearchBar = ({
   placeholder = "Tìm phim...",
   autoFocus = false,
@@ -114,7 +128,7 @@ const SearchBar = ({
                   className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-700/70 transition-colors"
                 >
                   <img
-                    src={movie.poster_url || FALLBACK_POSTER}
+                    src={getOptimizedPoster(movie.poster_url || movie.thumb_url)}
                     alt={movie.name}
                     className="w-12 h-16 rounded-md object-cover flex-shrink-0"
                     loading="lazy"

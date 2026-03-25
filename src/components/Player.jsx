@@ -148,15 +148,24 @@ const Player = ({
   );
 
   const hlsConfig = useMemo(() => {
-    // Detect mobile/tablet specifically for HLS tuning
-    const isLowPower = window.innerWidth <= 1024;
+    // Phát hiện mobile thực sự qua User-Agent + screen width
+    const isMobile =
+      /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      window.innerWidth <= 768;
+    const isTablet = !isMobile && window.innerWidth <= 1024;
     return {
-      // Giảm buffer trên mobile/tablet để tránh nghẽn mạng và tốn RAM
-      maxBufferLength: isLowPower ? 30 : 60,
-      maxMaxBufferLength: isLowPower ? 60 : 180,
-      maxBufferSize: isLowPower ? 40 * 1000 * 1000 : 100 * 1000 * 1000,
-      backBufferLength: 60,
-      startLevel: -1,
+      // Giảm buffer trên mobile để tránh nghẽn mạng và tốn RAM
+      maxBufferLength: isMobile ? 20 : isTablet ? 30 : 60,
+      maxMaxBufferLength: isMobile ? 40 : isTablet ? 60 : 180,
+      maxBufferSize: isMobile ? 20 * 1000 * 1000 : isTablet ? 40 * 1000 * 1000 : 100 * 1000 * 1000,
+      // Giảm back-buffer để giải phóng RAM (không cần tua lại quá nhiều)
+      backBufferLength: isMobile ? 10 : 30,
+      // Trên mobile bắt đầu ở chất lượng thấp nhất, tránh buffer ở 720/1080p
+      startLevel: isMobile ? 0 : -1,
+      // Tắt low-latency mode để tăng độ ổn định
+      lowLatencyMode: false,
+      // Tự động hạ chất lượng khi FPS bị drop (tốt cho thiết bị yếu)
+      capLevelOnFPSDrop: true,
       // Tăng số lần thử lại và cấu hình kiên trì hơn cho mạng yếu
       fragLoadingRetryDelay: 1000,
       manifestLoadingRetryDelay: 1500,
@@ -238,7 +247,8 @@ const Player = ({
 
     const fetchAndFilter = async () => {
       try {
-        const res = await fetch(source, { cache: "no-store" });
+        // Cho phép browser cache playlist HLS để giảm tải mạng (giờ cao điểm)
+        const res = await fetch(source);
         const text = await res.text();
         if (cancelled) return;
 
@@ -1097,7 +1107,8 @@ const Player = ({
         <video
           ref={videoRef}
           poster={poster}
-          preload="auto"
+          preload={isSmallScreen ? "metadata" : "auto"}
+          playsInline
           className="player-native h-full w-full rounded-2xl"
           autoPlay
           controls={false}
