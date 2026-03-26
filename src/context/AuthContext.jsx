@@ -21,6 +21,8 @@ import {
   deleteDoc,
   serverTimestamp,
   setDoc,
+  onSnapshot,
+  updateDoc,
 } from "firebase/firestore";
 import {
   auth,
@@ -28,6 +30,7 @@ import {
   googleProvider,
   isFirebaseConfigured,
   storage,
+  adminAuth,
 } from "../firebase.config";
 
 const AuthContext = createContext({
@@ -35,6 +38,7 @@ const AuthContext = createContext({
   userProfile: null,
   loading: true,
   profileLoading: false,
+  maintenance: { enabled: false, message: "" },
   loginGoogle: async () => { },
   loginEmail: async () => { },
   registerEmail: async () => { },
@@ -43,6 +47,9 @@ const AuthContext = createContext({
   logout: async () => { },
   saveMovie: async () => { },
   removeSavedMovie: async () => { },
+  createAccountByAdmin: async () => { },
+  toggleMaintenanceMode: async () => { },
+  toggleUserWhitelist: async () => { },
 });
 
 const rejectIfMissing = () => {
@@ -57,6 +64,7 @@ const buildDefaultProfile = (currentUser) => ({
   phoneNumber: currentUser.phoneNumber || "",
   birthday: "",
   photoURL: currentUser.photoURL || "",
+  isWhitelisted: false,
   createdAt: serverTimestamp(),
   updatedAt: serverTimestamp(),
 });
@@ -80,48 +88,23 @@ export const AuthProvider = ({ children }) => {
     return currentUser;
   }, [ensureFirebase]);
 
-  const fetchProfile = useCallback(async (currentUser) => {
-    if (!currentUser || !db) return null;
-    setProfileLoading(true);
-    try {
-      const ref = doc(db, "users", currentUser.uid);
-      const snapshot = await getDoc(ref);
-      const base = buildDefaultProfile(currentUser);
-      const normalizeDate = (value) => {
-        if (!value) return "";
-        if (value instanceof Timestamp)
-          return value.toDate().toISOString().slice(0, 10);
-        if (typeof value === "string") return value;
-        return "";
-      };
 
-      if (!snapshot.exists()) {
-        await setDoc(ref, base);
-        return {
-          id: ref.id,
-          ...base,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        };
+
+  const [maintenance, setMaintenance] = useState({ enabled: false, message: "" });
+
+  useEffect(() => {
+    if (!db) return undefined;
+    const ref = doc(db, "settings", "maintenance");
+    const unsubscribe = onSnapshot(ref, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setMaintenance({ 
+          enabled: data.enabled === true, 
+          message: data.message || "Hệ thống đang bảo trì, vui lòng quay lại sau." 
+        });
       }
-
-      const data = snapshot.data() || {};
-      return {
-        id: ref.id,
-        email: data.email ?? base.email,
-        displayName: data.displayName ?? base.displayName,
-        phoneNumber:
-          typeof data.phoneNumber === "string"
-            ? data.phoneNumber.trim()
-            : base.phoneNumber,
-        birthday: normalizeDate(data.birthday) || base.birthday,
-        photoURL: data.photoURL ?? base.photoURL,
-        createdAt: data.createdAt ?? Timestamp.now(),
-        updatedAt: data.updatedAt ?? Timestamp.now(),
-      };
-    } finally {
-      setProfileLoading(false);
-    }
+    });
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -129,18 +112,72 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
       return undefined;
     }
+
+    let profileUnsubscribe = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      
+      // Cleanup previous profile listener
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+        profileUnsubscribe = null;
+      }
+
       if (currentUser) {
-        const profile = await fetchProfile(currentUser);
-        setUserProfile(profile);
+        if (!db) {
+          setLoading(false);
+          return;
+        }
+
+        const userRef = doc(db, "users", currentUser.uid);
+        
+        // Use onSnapshot for real-time profile updates
+        profileUnsubscribe = onSnapshot(userRef, async (snapshot) => {
+          if (!snapshot.exists()) {
+            const base = buildDefaultProfile(currentUser);
+            await setDoc(userRef, base);
+            // The snapshot listener will fire again with the new data
+          } else {
+            const data = snapshot.data();
+            
+            const normalizeDate = (value) => {
+              if (!value) return "";
+              if (value instanceof Timestamp)
+                return value.toDate().toISOString().slice(0, 10);
+              if (typeof value === "string") return value;
+              return "";
+            };
+
+            const profile = {
+              id: snapshot.id,
+              email: data.email || currentUser.email,
+              displayName: data.displayName || currentUser.displayName || "Người dùng",
+              phoneNumber: typeof data.phoneNumber === "string" ? data.phoneNumber.trim() : "",
+              birthday: normalizeDate(data.birthday),
+              isWhitelisted: data.isWhitelisted === true,
+              photoURL: data.photoURL || currentUser.photoURL || "",
+              createdAt: data.createdAt || Timestamp.now(),
+              updatedAt: data.updatedAt || Timestamp.now(),
+            };
+            setUserProfile(profile);
+            setLoading(false);
+          }
+        }, (error) => {
+          console.error("Profile onSnapshot error:", error);
+          setLoading(false);
+        });
       } else {
         setUserProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return unsubscribe;
-  }, [fetchProfile]);
+
+    return () => {
+      unsubscribe();
+      if (profileUnsubscribe) profileUnsubscribe();
+    };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -148,24 +185,14 @@ export const AuthProvider = ({ children }) => {
       userProfile,
       loading,
       profileLoading,
+      maintenance,
       loginGoogle: async () => {
         if (!auth || !googleProvider) return rejectIfMissing();
-        const credential = await signInWithPopup(auth, googleProvider);
-        const currentUser = credential.user;
-        const profile = await fetchProfile(currentUser);
-        setUserProfile(profile);
-        return credential;
+        return signInWithPopup(auth, googleProvider);
       },
       loginEmail: async (email, password) => {
         if (!auth) return rejectIfMissing();
-        const credential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password
-        );
-        const profile = await fetchProfile(credential.user);
-        setUserProfile(profile);
-        return credential;
+        return signInWithEmailAndPassword(auth, email, password);
       },
       registerEmail: async (email, password, displayName) => {
         if (!auth) return rejectIfMissing();
@@ -181,12 +208,9 @@ export const AuthProvider = ({ children }) => {
         if (db) {
           const ref = doc(db, "users", credential.user.uid);
           const profileData = buildDefaultProfile(credential.user);
-          // Override displayName in case updateProfile hasn't propagated yet
           if (displayName) profileData.displayName = displayName;
           await setDoc(ref, profileData);
         }
-        const profile = await fetchProfile(credential.user);
-        setUserProfile(profile);
         return credential;
       },
       updateProfileData: async (data, timeoutMs = 15000) => {
@@ -317,13 +341,47 @@ export const AuthProvider = ({ children }) => {
         await deleteDoc(ref);
         return true;
       },
+      createAccountByAdmin: async (email, password, displayName) => {
+        if (!adminAuth) throw new Error("AdminAuth chưa được cấu hình.");
+        // Use secondary auth to avoid signing out the current admin
+        const credential = await createUserWithEmailAndPassword(
+          adminAuth,
+          email,
+          password
+        );
+        const newUser = credential.user;
+        
+        if (displayName) {
+          await updateProfile(newUser, { displayName });
+        }
+
+        if (db) {
+          const userRef = doc(db, "users", newUser.uid);
+          const profileData = buildDefaultProfile(newUser);
+          if (displayName) profileData.displayName = displayName;
+          await setDoc(userRef, profileData);
+        }
+        
+        // Return the new user info but don't switch context
+        return credential;
+      },
+      toggleMaintenanceMode: async (enabled) => {
+        if (!db) return;
+        const ref = doc(db, "settings", "maintenance");
+        await setDoc(ref, { enabled: enabled, updatedAt: serverTimestamp() }, { merge: true });
+      },
+      toggleUserWhitelist: async (userId, whitelisted) => {
+        if (!db) return;
+        const ref = doc(db, "users", userId);
+        await updateDoc(ref, { isWhitelisted: whitelisted, updatedAt: serverTimestamp() });
+      },
     }),
     [
       user,
       loading,
       userProfile,
       profileLoading,
-      fetchProfile,
+      maintenance,
       ensureFirebase,
       ensureCurrentUser,
     ]

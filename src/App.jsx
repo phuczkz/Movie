@@ -2,6 +2,9 @@ import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 
+import { useAuth } from "./context/AuthContext.jsx";
+
+
 const Home = lazy(() => import("./pages/Home.jsx"));
 const Category = lazy(() => import("./pages/Category.jsx"));
 const Country = lazy(() => import("./pages/Country.jsx"));
@@ -16,6 +19,19 @@ const Actor = lazy(() => import("./pages/Actor.jsx"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
 
 function App() {
+  const { userProfile, maintenance, loading } = useAuth();
+  
+  const isAdmin = userProfile?.email === import.meta.env.VITE_ADMIN_EMAIL;
+  const isWhitelisted = userProfile?.isWhitelisted;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="h-8 w-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <Suspense
       fallback={

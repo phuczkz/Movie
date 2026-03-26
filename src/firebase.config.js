@@ -26,3 +26,8 @@ export const auth = app ? getAuth(app) : null;
 export const googleProvider = app ? new GoogleAuthProvider() : null;
 export const db = app ? getFirestore(app) : null;
 export const storage = app ? getStorage(app) : null;
+
+// Secondary Firebase app for administrative tasks (like creating users)
+// to avoid signing out the current admin session.
+export const adminApp = isFirebaseConfigured ? initializeApp(firebaseConfig, "AdminApp") : null;
+export const adminAuth = adminApp ? getAuth(adminApp) : null;

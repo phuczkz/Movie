@@ -81,30 +81,26 @@ const AnimatedIllustration = () => (
 );
 
 export default function MaintenanceGuard({ children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, userProfile, maintenance } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [maintenance, setMaintenance] = useState(null); // null = loading
+  // We can use maintenanceMode from useAuth instead of local state to be consistent
+  // But let's keep local setMaintenance for now or use the one from AuthContext.
+  // Actually, using the one from AuthContext is better to avoid duplicate listeners.
 
-  useEffect(() => {
-    if (!db) return;
-    const unsub = onSnapshot(doc(db, "settings", "maintenance"), (snap) => {
-      if (snap.exists()) {
-        setMaintenance(snap.data());
-      } else {
-        setMaintenance({ enabled: false });
-      }
-    }, (err) => {
-      console.error("MaintenanceGuard error:", err);
-      setMaintenance({ enabled: false });
-    });
-    return unsub;
-  }, []);
+  // Logic: Active if maintenance is enabled 
+  // AND user is NOT admin 
+  // AND user is NOT whitelisted
+  // AND NOT on login path
+  const isAdmin = userProfile?.email === ADMIN_EMAIL;
+  const isWhitelisted = userProfile?.isWhitelisted;
+  const isLoginPath = location.pathname === "/login";
+  
+  const isActive = maintenance?.enabled && !isAdmin && !isWhitelisted && !isLoginPath;
 
   // Block DevTools shortcuts
   useEffect(() => {
-    if (!maintenance?.enabled) return;
-    if (user?.email === ADMIN_EMAIL) return;
+    if (!isActive) return;
 
     const blockKeys = (e) => {
       // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C, Ctrl+U
@@ -126,10 +122,7 @@ export default function MaintenanceGuard({ children }) {
       window.removeEventListener("keydown", blockKeys, true);
       window.removeEventListener("contextmenu", blockCtxMenu, true);
     };
-  }, [maintenance?.enabled, user?.email]);
-
-  const isLoginPath = location.pathname === "/login";
-  const isActive = maintenance?.enabled && user?.email !== ADMIN_EMAIL && !isLoginPath;
+  }, [isActive]);
 
   return (
     <>

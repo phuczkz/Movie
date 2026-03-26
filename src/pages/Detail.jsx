@@ -755,7 +755,12 @@ const Detail = () => {
 
           {/* Cột 1 hàng 2: Bình luận (Nằm dưới Intro trên Desktop, dưới Sidebar trên Mobile) */}
           <div className="lg:col-start-1 lg:row-start-2">
-            {movie && movie.slug && <Comments movieSlug={movie.slug} />}
+            {movie && movie.slug && (
+              <Comments 
+                movieSlug={movie.slug} 
+                movieName={movie.name} 
+              />
+            )}
           </div>
         </div>
       </div>

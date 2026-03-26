@@ -26,6 +26,7 @@ import {
 import { db } from "../firebase.config";
 import { useAuth } from "../context/AuthContext";
 import { getProfanitySegments } from "../utils/profanity";
+import ConfirmModal from "./ConfirmModal";
 
 /* ───── Helpers ───── */
 const formatTime = (timestamp) => {
@@ -54,40 +55,6 @@ const renderContent = (content) =>
     )
   );
 
-/* ───── Custom Delete Modal ───── */
-function DeleteModal({ onConfirm, onCancel, title = "Xóa bình luận", message = "Bạn có chắc chắn muốn xóa không?" }) {
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="w-full max-w-sm rounded-[28px] border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="flex flex-col items-center text-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
-            <Trash2 className="h-6 w-6" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-white">{title}</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              {message}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3 w-full mt-2">
-            <button
-              onClick={onCancel}
-              className="h-11 rounded-2xl bg-white/5 font-semibold text-slate-300 hover:bg-white/10 transition-colors"
-            >
-              Hủy
-            </button>
-            <button
-              onClick={onConfirm}
-              className="h-11 rounded-2xl bg-rose-500 font-semibold text-white hover:bg-rose-600 shadow-lg shadow-rose-500/20 transition-all active:scale-95"
-            >
-              Xóa
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ───── Single Comment / Reply Row ───── */
 function CommentRow({
@@ -111,6 +78,7 @@ function CommentRow({
   const [submittingReply, setSubmittingReply] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Admin access
   const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
@@ -162,8 +130,7 @@ function CommentRow({
 
   /* ── Delete comment ── */
   const handleDelete = async () => {
-    setShowDeleteModal(false);
-    
+    setDeleting(true);
     try {
       const batch = writeBatch(db);
       const mainRef = doc(db, `comments/${movieSlug}/items/${comment.id}`);
@@ -177,6 +144,7 @@ function CommentRow({
       }
 
       await batch.commit();
+      setShowDeleteModal(false);
     } catch (err) {
       console.error("Lỗi xóa bình luận:", err);
       if (err.code === "permission-denied") {
@@ -184,6 +152,8 @@ function CommentRow({
       } else {
         alert("Đã xảy ra lỗi khi xóa, vui lòng thử lại.");
       }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -213,9 +183,13 @@ function CommentRow({
       });
 
       // Index the movie for the admin
-      if (movieName) {
+      const finalMovieName = movieName || movieSlug;
+      if (finalMovieName) {
+        // Ensure the parent doc is not virtual
+        await setDoc(doc(db, "comments", movieSlug), { exists: true }, { merge: true });
+
         await setDoc(doc(db, "commentedMovies", movieSlug), {
-          movieName,
+          movieName: finalMovieName,
           lastCommentAt: serverTimestamp()
         }, { merge: true });
       }
@@ -340,17 +314,21 @@ function CommentRow({
           </div>
 
           {/* Custom Delete Confirmation Modal */}
-          {showDeleteModal && (
-            <DeleteModal
-              onConfirm={handleDelete}
-              onCancel={() => setShowDeleteModal(false)}
-              message={
-                isReply
-                  ? "Bạn có chắc chắn muốn xóa phản hồi này?"
-                  : "Xóa bình luận này sẽ xóa tất cả các phản hồi liên quan. Bạn có chắc không?"
-              }
-            />
-          )}
+          <ConfirmModal
+            isOpen={showDeleteModal}
+            title="Xác nhận xóa?"
+            message={
+              isReply
+                ? "Bạn có chắc chắn muốn xóa phản hồi này?"
+                : "Xóa bình luận này sẽ xóa tất cả các phản hồi liên quan. Bạn có chắc không?"
+            }
+            confirmText="Xóa ngay"
+            cancelText="Hủy"
+            loading={deleting}
+            onConfirm={handleDelete}
+            onCancel={() => setShowDeleteModal(false)}
+            type="danger"
+          />
 
           {/* Reply input */}
           {showReplyInput && (
@@ -525,9 +503,13 @@ export default function Comments({ movieSlug, movieName }) {
       });
 
       // Index the movie for the admin
-      if (movieName) {
+      const finalMovieName = movieName || movieSlug;
+      if (finalMovieName) {
+        // Ensure the parent doc is not virtual
+        await setDoc(doc(db, "comments", movieSlug), { exists: true }, { merge: true });
+        
         await setDoc(doc(db, "commentedMovies", movieSlug), {
-          movieName,
+          movieName: finalMovieName,
           lastCommentAt: serverTimestamp()
         }, { merge: true });
       }
