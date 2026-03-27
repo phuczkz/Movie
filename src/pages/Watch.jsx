@@ -45,17 +45,30 @@ const Watch = () => {
   const initialTime = location.state?.initialTime || 0;
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const lastSaveRef = useRef(0);
+  const metaRef = useRef({
+    slug: null,
+    name: null,
+    episodeNumber: null,
+    server: null,
+    movieName: null,
+    posterUrl: null,
+  });
   const [movieOverride, setMovieOverride] = useState(null);
+  const [isTheater, setIsTheater] = useState(false);
 
   // Listen for admin movie override (trailer mode)
   useEffect(() => {
     if (!db || !slug) return;
-    const unsub = onSnapshot(doc(db, "movieOverrides", slug), (snap) => {
-      setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
-    }, (err) => {
-      console.warn("MovieOverride error:", err);
-      setMovieOverride({ mode: "full" });
-    });
+    const unsub = onSnapshot(
+      doc(db, "movieOverrides", slug),
+      (snap) => {
+        setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
+      },
+      (err) => {
+        console.warn("MovieOverride error:", err);
+        setMovieOverride({ mode: "full" });
+      }
+    );
     return unsub;
   }, [slug]);
   const [params, setParams] = useSearchParams();
@@ -188,6 +201,9 @@ const Watch = () => {
       saveProgress(slug, {
         episodeSlug: activeEpisode.slug || activeEpisode.name,
         episodeName: activeEpisode.name,
+        episodeNumber: parseEpisodeNumber(
+          activeEpisode.name || activeEpisode.slug
+        ),
         server: activeServer || null,
         currentTime,
         duration,
@@ -214,14 +230,31 @@ const Watch = () => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         const { currentTime, duration } = progressRef.current;
-        const { slug: epSlug, name: epName, server: epServer, movieName, posterUrl } = metaRef.current;
+        const {
+          slug: epSlug,
+          name: epName,
+          episodeNumber,
+          server: epServer,
+          movieName,
+          posterUrl,
+        } = metaRef.current;
         if (currentTime > 10) {
-          forceSave(slug, { episodeSlug: epSlug, episodeName: epName, server: epServer, currentTime, duration, movieName, posterUrl });
+          forceSave(slug, {
+            episodeSlug: epSlug,
+            episodeName: epName,
+            episodeNumber,
+            server: epServer,
+            currentTime,
+            duration,
+            movieName,
+            posterUrl,
+          });
         }
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [user, slug, forceSave]);
 
   const actors = useMemo(() => {
@@ -321,20 +354,15 @@ const Watch = () => {
       .slice(0, 16);
   }, [cat1Pool, cat2Pool, countryPool, movie?.slug]);
 
-  const metaRef = useRef({
-    slug: null,
-    name: null,
-    server: null,
-    movieName: null,
-    posterUrl: null,
-  });
-
   // Keep track of the current episode meta for the unmount flush
   useEffect(() => {
     if (activeEpisode) {
       metaRef.current = {
         slug: activeEpisode.slug || activeEpisode.name,
         name: activeEpisode.name,
+        episodeNumber: parseEpisodeNumber(
+          activeEpisode.name || activeEpisode.slug
+        ),
         server: activeServer || null,
         movieName: movie?.name,
         posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
@@ -357,6 +385,7 @@ const Watch = () => {
       const {
         slug: epSlug,
         name: epName,
+        episodeNumber,
         server: epServer,
         movieName,
         posterUrl,
@@ -365,6 +394,7 @@ const Watch = () => {
         forceSave(slug, {
           episodeSlug: epSlug,
           episodeName: epName,
+          episodeNumber,
           server: epServer,
           currentTime,
           duration,
@@ -449,7 +479,10 @@ const Watch = () => {
 
       <div ref={playerRef}>
         {movieOverride?.mode === "trailer" ? (
-          <div className="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-white/10" style={{ aspectRatio: "16/9" }}>
+          <div
+            className="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-white/10"
+            style={{ aspectRatio: "16/9" }}
+          >
             {movieOverride.trailerUrl ? (
               <iframe
                 src={movieOverride.trailerUrl}
@@ -463,8 +496,12 @@ const Watch = () => {
                 <div className="h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
                   <Info className="h-8 w-8 text-amber-400" />
                 </div>
-                <p className="text-white font-bold text-lg">Phim đang chuẩn bị</p>
-                <p className="text-slate-400 text-sm">Phim này hiện chỉ có trailer. Vui lòng quay lại sau.</p>
+                <p className="text-white font-bold text-lg">
+                  Phim đang chuẩn bị
+                </p>
+                <p className="text-slate-400 text-sm">
+                  Phim này hiện chỉ có trailer. Vui lòng quay lại sau.
+                </p>
               </div>
             )}
           </div>
@@ -498,9 +535,18 @@ const Watch = () => {
             hasNextEpisode={Boolean(nextEpisode)}
             onTimeUpdate={onTimeUpdate}
             initialTime={initialTime}
+            theaterMode={isTheater}
+            onToggleTheater={() => setIsTheater(!isTheater)}
           />
         )}
       </div>
+
+      {isTheater && (
+        <div
+          className="fixed inset-0 z-[55] bg-black/90 transition-opacity duration-500 cursor-pointer pointer-events-auto"
+          onClick={() => setIsTheater(false)}
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
         <div className="space-y-6">
@@ -730,10 +776,7 @@ const Watch = () => {
 
           <div id="comments">
             {movie && movie.slug && (
-              <Comments 
-                movieSlug={movie.slug} 
-                movieName={movie.name} 
-              />
+              <Comments movieSlug={movie.slug} movieName={movie.name} />
             )}
           </div>
         </div>

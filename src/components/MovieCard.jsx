@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel.js";
 import { getEpisodes } from "../api/movies.js";
-import { normalizeServerLabel } from "../utils/episodes.js";
+import { normalizeServerLabel, parseEpisodeNumber } from "../utils/episodes.js";
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
@@ -14,17 +14,22 @@ const getOptimizedPoster = (url, w = 360) => {
     const rawHost = new URL(url).hostname;
     // TMDB handled natively
     if (rawHost.includes("tmdb.org")) {
-      return url.replace(/\/w(92|154|185|300|342|500|780|original)\//, `/w${w > 400 ? 500 : 342}/`);
+      return url.replace(
+        /\/w(92|154|185|300|342|500|780|original)\//,
+        `/w${w > 400 ? 500 : 342}/`
+      );
     }
     // Sử dụng proxy wsrv.nl để nén thành WebP siêu nhẹ và tận dụng Cloudflare CDN toàn cầu
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=webp&w=${w}&fit=cover&q=80`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&output=webp&w=${w}&fit=cover&q=80`;
   } catch {
     return url;
   }
 };
 
 const MovieCard = ({ movie, priority = false }) => {
-  const episodeLabel = useEpisodeLabel(movie);
+  const fallbackEpisodeLabel = useEpisodeLabel(movie);
   const imgRef = useRef(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -32,12 +37,8 @@ const MovieCard = ({ movie, priority = false }) => {
   const [apiReady, setApiReady] = useState(false);
 
   const slug = movie?.slug;
-  useEffect(() => {
-    // Reset state only if slug truly changes to avoid redundant flashes
-    setShouldLoad(false);
-    setLoaded(false);
-    setApiReady(false);
-  }, [slug]);
+  const episodeCurrentText = movie?.episode_current;
+  const movieLang = movie?.lang;
 
   // Trì hoãn việc gọi API lấy tập phim 800ms sau khi card lọt vào tầm mắt
   // Điều này giúp dành toàn bộ băng thông cho việc tải ảnh Poster trước
@@ -54,6 +55,25 @@ const MovieCard = ({ movie, priority = false }) => {
     enabled: apiReady && !!slug,
     staleTime: 1000 * 60 * 30, // 30 mins
   });
+
+  const episodeLabel = (() => {
+    if (!episodeList.length) return fallbackEpisodeLabel;
+
+    const latestFromList = episodeList.reduce((max, ep) => {
+      const n = parseEpisodeNumber(ep?.name || ep?.slug);
+      return Number.isFinite(n) ? Math.max(max, n) : max;
+    }, -1);
+
+    if (latestFromList < 0) return fallbackEpisodeLabel;
+
+    const epTotal = parseEpisodeNumber(movie?.episode_total);
+    if (Number.isFinite(epTotal) && epTotal > 0) {
+      const current = Math.min(latestFromList, epTotal);
+      return `Tập ${current}/${epTotal}`;
+    }
+
+    return `Tập ${latestFromList}`;
+  })();
 
   const audioBadges = useMemo(() => {
     const badges = [];
@@ -77,7 +97,7 @@ const MovieCard = ({ movie, priority = false }) => {
 
     // 2. Fallback to basic movie info if no episodes or no hits
     if (badges.length === 0) {
-      const text = (movie?.episode_current || movie?.lang || "").toLowerCase();
+      const text = (episodeCurrentText || movieLang || "").toLowerCase();
       if (text.includes("vietsub") || text.includes("phụ đề")) {
         badges.push({ key: "vietsub-f", code: "PD", label: "Phụ đề" });
       }
@@ -90,7 +110,7 @@ const MovieCard = ({ movie, priority = false }) => {
     }
 
     return badges;
-  }, [episodeList, movie?.episode_current, movie?.lang]);
+  }, [episodeList, episodeCurrentText, movieLang]);
 
   // Defer starting load until near viewport.
   useEffect(() => {
@@ -123,15 +143,16 @@ const MovieCard = ({ movie, priority = false }) => {
       className="group relative flex flex-col transition hover:-translate-y-1"
     >
       <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg group-hover:shadow-emerald-500/20 transition-all">
-        {(!loaded && (shouldLoad || priority)) && (
+        {!loaded && (shouldLoad || priority) && (
           <div className="absolute inset-0 animate-pulse bg-slate-700/50" />
         )}
         <img
           ref={imgRef}
           src={posterSrc}
           alt={movie.name}
-          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"
-            }`}
+          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           // Tăng mức độ ưu tiên tải cho các card quan trọng
@@ -154,12 +175,13 @@ const MovieCard = ({ movie, priority = false }) => {
               <div
                 key={badge.key}
                 title={badge.label}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PD" || badge.code === "PĐ"
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
+                  badge.code === "PD" || badge.code === "PĐ"
                     ? "bg-slate-600/90 text-white backdrop-blur-md"
                     : badge.code === "TM"
-                      ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
-                      : "bg-sky-500/90 text-white backdrop-blur-md"
-                  }`}
+                    ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
+                    : "bg-sky-500/90 text-white backdrop-blur-md"
+                }`}
               >
                 <span>{badge.code}</span>
               </div>

@@ -2,18 +2,24 @@ import { useRef, useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getEpisodes } from "../api/movies.js";
-import { normalizeServerLabel } from "../utils/episodes.js";
+import { normalizeServerLabel, parseEpisodeNumber } from "../utils/episodes.js";
 
-const fallbackPoster = "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
+const fallbackPoster =
+  "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
 
 const getOptimizedPoster = (url, w = 360) => {
   if (!url) return url;
   try {
     const rawHost = new URL(url).hostname;
     if (rawHost.includes("tmdb.org")) {
-      return url.replace(/\/w(92|154|185|300|342|500|780|original)\//, `/w${w > 400 ? 500 : 342}/`);
+      return url.replace(
+        /\/w(92|154|185|300|342|500|780|original)\//,
+        `/w${w > 400 ? 500 : 342}/`
+      );
     }
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=webp&w=${w}&fit=cover&q=80`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&output=webp&w=${w}&fit=cover&q=80`;
   } catch {
     return url;
   }
@@ -59,7 +65,7 @@ const TrendingCard = ({ movie, index }) => {
 
     // 1. Check from episode list (accurate)
     if (episodeList && episodeList.length > 0) {
-      episodeList.forEach(ep => {
+      episodeList.forEach((ep) => {
         const label = normalizeServerLabel(ep?.server_name);
         if (label === "Thuyết Minh") foundCodes.add("TM");
         else if (label === "Lồng Tiếng") foundCodes.add("LT");
@@ -69,11 +75,13 @@ const TrendingCard = ({ movie, index }) => {
       // 2. Fallback to movie.lang if list not yet loaded or empty
       const raw = (movie.lang || "").toLowerCase();
       if (raw.includes("viet") || raw.includes("phu de")) foundCodes.add("PĐ");
-      if (raw.includes("thuyet") || raw.includes("thuy minh")) foundCodes.add("TM");
+      if (raw.includes("thuyet") || raw.includes("thuy minh"))
+        foundCodes.add("TM");
       if (raw.includes("long") && raw.includes("tieng")) foundCodes.add("LT");
     }
 
-    if (foundCodes.has("PĐ")) result.push({ code: "PĐ", bg: "bg-slate-800/90" });
+    if (foundCodes.has("PĐ"))
+      result.push({ code: "PĐ", bg: "bg-slate-800/90" });
     if (foundCodes.has("TM")) result.push({ code: "TM", bg: "bg-blue-600/90" });
     if (foundCodes.has("LT")) result.push({ code: "LT", bg: "bg-blue-600/90" });
 
@@ -82,16 +90,49 @@ const TrendingCard = ({ movie, index }) => {
     return result;
   }, [episodeList, movie.lang]);
 
+  const episodeText = useMemo(() => {
+    const latestFromList = episodeList.reduce((max, ep) => {
+      const n = parseEpisodeNumber(ep?.name || ep?.slug);
+      return Number.isFinite(n) ? Math.max(max, n) : max;
+    }, -1);
+
+    const epTotal = parseEpisodeNumber(movie?.episode_total);
+    if (latestFromList >= 0) {
+      if (Number.isFinite(epTotal) && epTotal > 0) {
+        return `${Math.min(latestFromList, epTotal)}/${epTotal}`;
+      }
+      return `${latestFromList}`;
+    }
+
+    const raw = (movie?.episode_current || "")
+      .replace(/hoàn tất\s*/gi, "")
+      .trim();
+    const parsedRaw = parseEpisodeNumber(raw);
+
+    if (Number.isFinite(parsedRaw)) {
+      if (Number.isFinite(epTotal) && epTotal > 0)
+        return `${parsedRaw}/${epTotal}`;
+      return `${parsedRaw}`;
+    }
+
+    return raw || "??";
+  }, [episodeList, movie?.episode_current, movie?.episode_total]);
+
   // 1. Slant UP to the right
-  const polyUpStr = "0,14.5 0.5,12.5 1.5,11 3.5,10 6.5,9.3 93.5,0.7 96.5,1.3 98.5,2.5 99.5,4 100,8 100,95.5 99.5,97.5 98.5,98.8 96.5,99.6 93.5,100 6.5,100 3.5,99.6 1.5,98.8 0.5,97.5 0,95.5";
+  const polyUpStr =
+    "0,14.5 0.5,12.5 1.5,11 3.5,10 6.5,9.3 93.5,0.7 96.5,1.3 98.5,2.5 99.5,4 100,8 100,95.5 99.5,97.5 98.5,98.8 96.5,99.6 93.5,100 6.5,100 3.5,99.6 1.5,98.8 0.5,97.5 0,95.5";
   // 2. Slant DOWN to the right (Reflected)
-  const polyDownStr = "0,8 0.5,4 1.5,2.5 3.5,1.3 6.5,0.7 93.5,9.3 96.5,10 98.5,11 99.5,12.5 100,14.5 100,95.5 99.5,97.5 98.5,98.8 96.5,99.6 93.5,100 6.5,100 3.5,99.6 1.5,98.8 0.5,97.5 0,95.5";
-  
+  const polyDownStr =
+    "0,8 0.5,4 1.5,2.5 3.5,1.3 6.5,0.7 93.5,9.3 96.5,10 98.5,11 99.5,12.5 100,14.5 100,95.5 99.5,97.5 98.5,98.8 96.5,99.6 93.5,100 6.5,100 3.5,99.6 1.5,98.8 0.5,97.5 0,95.5";
+
   // Alternate based on index: Even (0, 2, 4...) slants UP, Odd (1, 3, 5...) slants DOWN.
   const polyStr = index % 2 === 0 ? polyUpStr : polyDownStr;
-  
+
   const clipPathStyle = {
-    clipPath: `polygon(${polyStr.split(" ").map(c => c.replace(',', '% ') + '%').join(", ")})`
+    clipPath: `polygon(${polyStr
+      .split(" ")
+      .map((c) => c.replace(",", "% ") + "%")
+      .join(", ")})`,
   };
 
   return (
@@ -100,7 +141,7 @@ const TrendingCard = ({ movie, index }) => {
       className="group relative flex flex-col min-w-[200px] sm:min-w-[240px] max-w-[240px] transition-all duration-300 hover:z-30 snap-start"
     >
       {/* Slanted Poster Container using EXACT custom polygon for all edges and rounded corners */}
-      <div 
+      <div
         className="relative aspect-[2/3] w-full bg-slate-800 shadow-2xl transition-all duration-500 group-hover:brightness-110 group-hover:shadow-emerald-500/30"
         style={clipPathStyle}
       >
@@ -116,19 +157,19 @@ const TrendingCard = ({ movie, index }) => {
           }`}
           onLoad={() => setLoaded(true)}
         />
-        
+
         {/* Custom Exact Border for Hover - Traces the polygon perfectly */}
-        <svg 
+        <svg
           className="absolute inset-0 w-full h-full pointer-events-none z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-          viewBox="0 0 100 100" 
+          viewBox="0 0 100 100"
           preserveAspectRatio="none"
         >
-          <polygon 
+          <polygon
             points={polyStr}
-            fill="none" 
-            stroke="#10b981" 
-            strokeWidth="8" 
-            vectorEffect="non-scaling-stroke" 
+            fill="none"
+            stroke="#10b981"
+            strokeWidth="8"
+            vectorEffect="non-scaling-stroke"
           />
         </svg>
 
@@ -141,10 +182,13 @@ const TrendingCard = ({ movie, index }) => {
             {badges.map((badge, idx) => (
               <div
                 key={badge.code}
-                className={`${badge.bg} backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white uppercase whitespace-nowrap ${idx < badges.length - 1 ? "border-r border-white/10" : ""
-                  }`}
+                className={`${
+                  badge.bg
+                } backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white uppercase whitespace-nowrap ${
+                  idx < badges.length - 1 ? "border-r border-white/10" : ""
+                }`}
               >
-                {badge.code}. {movie.episode_current?.replace(/Tập\s+/i, "").replace(/HOÀN TẤT\s*/gi, "").trim() || "???"}
+                {badge.code}. {episodeText}
               </div>
             ))}
           </div>
@@ -154,12 +198,13 @@ const TrendingCard = ({ movie, index }) => {
       <div className="mt-4 flex items-center gap-4">
         {/* Ranking Number */}
         <div className="flex-shrink-0">
-          <span 
+          <span
             className="text-[80px] font-['Alfa_Slab_One'] text-[#ceb794] leading-none tracking-tighter inline-block"
-            style={{ 
-              WebkitTextStroke: '1.5px #000',
-              textShadow: '1px 1px 0 #000, 2px 2px 0 #000, 3px 3px 0 #000, 4px 4px 0 #000, 5px 5px 0 #000, 6px 6px 0 #000, 7px 7px 0 #000',
-              transform: 'translateY(-4px)'
+            style={{
+              WebkitTextStroke: "1.5px #000",
+              textShadow:
+                "1px 1px 0 #000, 2px 2px 0 #000, 3px 3px 0 #000, 4px 4px 0 #000, 5px 5px 0 #000, 6px 6px 0 #000, 7px 7px 0 #000",
+              transform: "translateY(-4px)",
             }}
           >
             {index + 1}
@@ -175,7 +220,7 @@ const TrendingCard = ({ movie, index }) => {
             {movie.origin_name || movie.name}
           </p>
           <div className="flex items-center gap-2 mt-1 text-sm text-slate-400 font-medium">
-            <span>{movie.episode_current?.replace(/HOÀN TẤT\s*/gi, "").trim() || "Tập 1"}</span>
+            <span>{`Tập ${episodeText}`}</span>
           </div>
         </div>
       </div>

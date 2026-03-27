@@ -1,6 +1,13 @@
 import client from "./client";
-import { getTmdbDetailBySlug, searchTmdbMovie, getTmdbCredits, getTmdbByGenre, searchTmdbPerson, getTmdbPersonCredits } from "./tmdb";
-
+import {
+  getTmdbDetailBySlug,
+  searchTmdbMovie,
+  getTmdbCredits,
+  getTmdbByGenre,
+  searchTmdbPerson,
+  getTmdbPersonCredits,
+  getTmdbFullEpisodes,
+} from "./tmdb";
 
 import { getKKphimDetail } from "./kkphim";
 
@@ -107,6 +114,7 @@ const normalizeServerName = (name) => {
   const plain = stripDiacritics(raw).toLowerCase();
 
   if (!raw) return "Vietsub";
+  if (plain.includes("subteam")) return "Vietsub";
   if (plain.includes("thuyet") || plain.includes("thuy minh"))
     return "Thuyết Minh";
   if (plain.includes("long") && plain.includes("tieng")) return "Lồng Tiếng";
@@ -114,8 +122,48 @@ const normalizeServerName = (name) => {
   return raw;
 };
 
+const getNumericEpisodeRange = (list = []) => {
+  const nums = Array.from(
+    new Set(
+      list
+        .map((ep) => parseEpisodeNumber(ep?.name || ep?.slug))
+        .filter((n) => Number.isFinite(n))
+    )
+  ).sort((a, b) => a - b);
+
+  if (!nums.length) return null;
+  return {
+    min: nums[0],
+    max: nums[nums.length - 1],
+    nums,
+  };
+};
+
+const areEpisodeRangesCompatible = (primaryRange, secondaryRange) => {
+  if (!primaryRange || !secondaryRange) return true;
+
+  const overlap =
+    Math.max(primaryRange.min, secondaryRange.min) <=
+    Math.min(primaryRange.max, secondaryRange.max);
+  if (overlap) return true;
+
+  const distance = Math.min(
+    Math.abs(secondaryRange.min - primaryRange.max),
+    Math.abs(primaryRange.min - secondaryRange.max)
+  );
+
+  // Allow minor gaps (e.g. primary has 1-5 and secondary has 6-10),
+  // but reject clearly different numbering schemes (e.g. 1-6 vs 36-49).
+  return distance <= 2;
+};
+
 const mergeEpisodes = (kkList = [], ophimList = []) => {
   const map = new Map();
+
+  const kkRange = getNumericEpisodeRange(kkList);
+  const ophimRange = getNumericEpisodeRange(ophimList);
+  const canMergeOphimIntoKk =
+    !kkList.length || areEpisodeRangesCompatible(kkRange, ophimRange);
 
   const add = (list, priority) => {
     list.forEach((ep) => {
@@ -136,10 +184,10 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
       );
       const currentHasLink = Boolean(
         current?.ep?.link_m3u8 ||
-        current?.ep?.m3u8 ||
-        current?.ep?.linkplay ||
-        current?.ep?.link ||
-        current?.ep?.embed
+          current?.ep?.m3u8 ||
+          current?.ep?.linkplay ||
+          current?.ep?.link ||
+          current?.ep?.embed
       );
 
       if (prefers || (!currentHasLink && hasLink)) {
@@ -154,7 +202,9 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
 
   // priority: 0 = KKphim, 1 = Ophim
   add(kkList, 0);
-  add(ophimList, 1);
+  if (canMergeOphimIntoKk) {
+    add(ophimList, 1);
+  }
 
   const merged = Array.from(map.values()).map(({ ep }) => ep);
   merged.sort((a, b) => {
@@ -277,18 +327,18 @@ export const getDetail = (slug) =>
           payload?.episodes || data?.data?.episodes || data?.episodes || [];
         ophimEpisodes = Array.isArray(rawEpisodes)
           ? rawEpisodes.flatMap((server, serverIdx) => {
-            const serverName =
-              server?.server_name || server?.name || server?.server || "";
-            const list = server?.server_data || server || [];
-            return Array.isArray(list)
-              ? list.map((ep, idx) => ({
-                ...ep,
-                server_name: serverName,
-                _serverIndex: serverIdx,
-                _epIndex: idx,
-              }))
-              : [];
-          })
+              const serverName =
+                server?.server_name || server?.name || server?.server || "";
+              const list = server?.server_data || server || [];
+              return Array.isArray(list)
+                ? list.map((ep, idx) => ({
+                    ...ep,
+                    server_name: serverName,
+                    _serverIndex: serverIdx,
+                    _epIndex: idx,
+                  }))
+                : [];
+            })
           : [];
       } catch (error) {
         // Silently ignore 404s as they are expected for some movies only available on one source
@@ -315,7 +365,11 @@ export const getDetail = (slug) =>
 
       // Prefer KKPhim as the primary source for basic metadata (Poster, Banner, Title)
       // to avoid 'slug collisions' where Ophim provides the wrong movie details.
-      const movie = kkMovie?.name ? kkMovie : (ophimMovie?.name ? ophimMovie : null);
+      const movie = kkMovie?.name
+        ? kkMovie
+        : ophimMovie?.name
+        ? ophimMovie
+        : null;
 
       // Smart enrichment: complement KKPhim data with additional details from Ophim (like actors)
       if (movie && movie === kkMovie && ophimMovie) {
@@ -339,42 +393,69 @@ export const getDetail = (slug) =>
         }
       }
 
-      // Final enrichment: Always try to find the movie on TMDB to ensure a consistent, 
+      // Final enrichment: Always try to find the movie on TMDB to ensure a consistent,
       // high-quality cast list with proper avatars and TMDB Person IDs.
       if (movie && !movie.slug?.startsWith("tmdb-")) {
         try {
           // Identify potential TMDB match
-          const tmdbMatch = await searchTmdbMovie(movie.name || movie.origin_name, movie.year);
+          const tmdbMatch = await searchTmdbMovie(
+            movie.name || movie.origin_name,
+            movie.year
+          );
           if (tmdbMatch) {
-            const tmdbActors = await getTmdbCredits(tmdbMatch.id, tmdbMatch.media_type);
+            movie.tmdb = {
+              id: tmdbMatch.id,
+              mediaType: tmdbMatch.media_type,
+            };
+
+            const tmdbActors = await getTmdbCredits(
+              tmdbMatch.id,
+              tmdbMatch.media_type
+            );
             if (tmdbActors && tmdbActors.length) {
               // If we already have actors from Ophim, try to merge or prefer TMDB if more complete
               if (!movie.actor || !movie.actor.length) {
                 movie.actor = tmdbActors;
               } else {
                 // Merge logic: match by name and update image + id
-                movie.actor = movie.actor.map(original => {
-                  const match = tmdbActors.find(ta =>
-                    ta.name.toLowerCase() === original.name.toLowerCase() ||
-                    original.name.toLowerCase().includes(ta.name.toLowerCase()) ||
-                    ta.name.toLowerCase().includes(original.name.toLowerCase())
+                movie.actor = movie.actor.map((original) => {
+                  const match = tmdbActors.find(
+                    (ta) =>
+                      ta.name.toLowerCase() === original.name.toLowerCase() ||
+                      original.name
+                        .toLowerCase()
+                        .includes(ta.name.toLowerCase()) ||
+                      ta.name
+                        .toLowerCase()
+                        .includes(original.name.toLowerCase())
                   );
-                  return match ? { ...original, image: match.image || original.image, id: match.id } : original;
+                  return match
+                    ? {
+                        ...original,
+                        image: match.image || original.image,
+                        id: match.id,
+                      }
+                    : original;
                 });
 
                 // Also add actors from TMDB that weren't in the original list but are prominent (first 10)
-                const existingNames = new Set(movie.actor.map(a => a.name.toLowerCase()));
-                const tmdbExclusives = tmdbActors.slice(0, 10).filter(ta => !existingNames.has(ta.name.toLowerCase()));
+                const existingNames = new Set(
+                  movie.actor.map((a) => a.name.toLowerCase())
+                );
+                const tmdbExclusives = tmdbActors
+                  .slice(0, 10)
+                  .filter((ta) => !existingNames.has(ta.name.toLowerCase()));
                 movie.actor = [...movie.actor, ...tmdbExclusives];
               }
             }
           }
         } catch (enrichError) {
-          console.warn("[getDetail] TMDB enrichment failed", enrichError.message);
+          console.warn(
+            "[getDetail] TMDB enrichment failed",
+            enrichError.message
+          );
         }
       }
-
-
 
       return { movie, episodes };
     },
@@ -412,13 +493,12 @@ export const searchMovies = (query, page = 1) =>
 
     // 3. Merge and deduplicate (Prioritize actor results)
     return uniqueBySlug([...actorMovies, ...ophimMovies]);
-
   }, []);
-
-
 
 export const getEpisodes = (slug) =>
   withFallback(async () => {
     const detail = await getDetail(slug);
     return detail.episodes || [];
   }, []);
+export const getTmdbEpisodes = (id, mediaType, seasons) =>
+  getTmdbFullEpisodes(id, mediaType, seasons);

@@ -12,6 +12,7 @@ export const normalizeServerLabel = (name) => {
   const plain = stripDiacritics(raw).toLowerCase();
 
   if (!raw) return "Vietsub";
+  if (plain.includes("subteam")) return "Vietsub";
   if (plain.includes("thuyet") || plain.includes("thuy minh"))
     return "Thuyết Minh";
   if (plain.includes("long") && plain.includes("tieng")) return "Lồng Tiếng";

@@ -1,12 +1,17 @@
 import { useCallback, useRef } from "react";
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const MIN_SECONDS_TO_SAVE = 10;
 
 const SAVE_DEBOUNCE_MS = 15_000;
-
 
 export const useWatchProgress = () => {
   const { user } = useAuth();
@@ -30,6 +35,9 @@ export const useWatchProgress = () => {
             slug,
             episodeSlug: data.episodeSlug || null,
             episodeName: data.episodeName || null,
+            episodeNumber: Number.isFinite(Number(data.episodeNumber))
+              ? Number(data.episodeNumber)
+              : null,
             server: data.server || null,
             currentTime: Math.floor(data.currentTime),
             duration: Math.floor(data.duration || 0),
@@ -47,7 +55,6 @@ export const useWatchProgress = () => {
     [user]
   );
 
-
   const forceSave = useCallback(
     async (slug, data) => {
       if (!user || !db || !slug) return;
@@ -62,6 +69,9 @@ export const useWatchProgress = () => {
             slug,
             episodeSlug: data.episodeSlug || null,
             episodeName: data.episodeName || null,
+            episodeNumber: Number.isFinite(Number(data.episodeNumber))
+              ? Number(data.episodeNumber)
+              : null,
             server: data.server || null,
             currentTime: Math.floor(data.currentTime),
             duration: Math.floor(data.duration || 0),
@@ -94,7 +104,6 @@ export const useWatchProgress = () => {
     },
     [user]
   );
-
 
   const clearProgress = useCallback(
     async (slug) => {

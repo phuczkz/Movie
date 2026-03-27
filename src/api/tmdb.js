@@ -49,6 +49,8 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
     backdrop_url: thumb_url,
     year: year ? year.slice(0, 4) : undefined,
     episode_current: raw.status || "",
+    episode_total:
+      raw.number_of_episodes || (raw.status === "Released" ? "1" : ""),
     quality: raw.original_language?.toUpperCase(),
     lang: raw.original_language?.toUpperCase(),
     time: runtime ? `${runtime} phút` : undefined,
@@ -112,7 +114,10 @@ export const getTmdbDetailBySlug = async (slug) => {
       const res = await tmdb.get(`/${mediaType}/${id}`, { params });
       detail = res.data;
     } catch (err) {
-      console.warn(`[tmdb] direct fetch failed for ${mediaType}/${id}`, err.message);
+      console.warn(
+        `[tmdb] direct fetch failed for ${mediaType}/${id}`,
+        err.message
+      );
       // Last resort fallback
       const result = await fetchTmdbDetail(id);
       detail = result.detail;
@@ -132,6 +137,11 @@ export const getTmdbDetailBySlug = async (slug) => {
   }));
 
   if (actors.length) movie.actor = actors;
+
+  // Include season info for TV shows
+  if (mediaType === "tv") {
+    movie.seasons = detail.seasons || [];
+  }
 
   return { movie, episodes: [] };
 };
@@ -236,10 +246,51 @@ export const getTmdbPersonDetail = async (personId) => {
       biography: data.biography,
       birthday: data.birthday,
       place_of_birth: data.place_of_birth,
-      profile_path: data.profile_path ? buildImage(data.profile_path, profileBase) : null,
+      profile_path: data.profile_path
+        ? buildImage(data.profile_path, profileBase)
+        : null,
     };
   } catch (error) {
     console.warn("[tmdb] person detail failed", error.message);
     return null;
+  }
+};
+
+export const getTmdbFullEpisodes = async (
+  id,
+  mediaType = "tv",
+  seasons = []
+) => {
+  if (!apiKey || !id || mediaType !== "tv") return [];
+  try {
+    let seasonList = Array.isArray(seasons) ? seasons : [];
+
+    // For non-TMDB primary sources, seasons may be missing: resolve from TV detail first.
+    if (!seasonList.length) {
+      const { data: tvDetail } = await tmdb.get(`/tv/${id}`, {
+        params: { api_key: apiKey },
+      });
+      seasonList = tvDetail?.seasons || [];
+    }
+
+    const targetSeasons = seasonList
+      .filter((s) => Number.isFinite(Number(s?.season_number)))
+      .slice(-2);
+
+    if (!targetSeasons.length) return [];
+
+    // To keep it simple and avoid too many requests, fetch only the latest seasons.
+    const seasonResults = await Promise.all(
+      targetSeasons.map(async (s) => {
+        const { data } = await tmdb.get(`/tv/${id}/season/${s.season_number}`, {
+          params: { api_key: apiKey },
+        });
+        return data.episodes || [];
+      })
+    );
+    return seasonResults.flat();
+  } catch (error) {
+    console.warn("[tmdb] full episodes failed", error.message);
+    return [];
   }
 };

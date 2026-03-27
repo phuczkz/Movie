@@ -1,4 +1,13 @@
-import { Heart, Play, Globe2, Star, User, Film, Info } from "lucide-react";
+import {
+  Heart,
+  Play,
+  Globe2,
+  Star,
+  User,
+  Film,
+  Info,
+  Calendar,
+} from "lucide-react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -18,6 +27,7 @@ import {
   normalizeServerLabel,
   parseEpisodeNumber,
 } from "../utils/episodes.js";
+import { getTmdbEpisodes } from "../api/movies.js";
 import MovieCard from "../components/MovieCard.jsx";
 
 // Try to fetch reasonable resolution images for the banner to balance quality and speed
@@ -34,7 +44,9 @@ const getOptimizedImage = (url, w = 1280) => {
     // TMDB handled natively
     if (rawHost.includes("tmdb.org")) return url;
     // Use proxy for others
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=webp&w=${w}&fit=cover&q=80`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&output=webp&w=${w}&fit=cover&q=80`;
   } catch {
     return url;
   }
@@ -64,16 +76,53 @@ const Detail = () => {
   const [resumeData, setResumeData] = useState(null);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [movieOverride, setMovieOverride] = useState(null);
+  const [tmdbFullEpisodes, setTmdbFullEpisodes] = useState([]);
+  const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
+  const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
+  const tmdbScheduleId = isTmdb ? baseMovie?.origin?.id : baseMovie?.tmdb?.id;
+  const tmdbScheduleMediaType = isTmdb
+    ? baseMovie?.origin_type
+    : baseMovie?.tmdb?.mediaType;
+  const tmdbScheduleSeasons = isTmdb
+    ? baseMovie?.seasons
+    : baseMovie?.tmdb?.seasons;
+  const canUseTmdbSchedule = Boolean(
+    tmdbScheduleId && tmdbScheduleMediaType === "tv"
+  );
+
+  // Fetch all TMDB episodes for air-date logic
+  useEffect(() => {
+    if (!canUseTmdbSchedule) return;
+
+    const fetchAll = async () => {
+      try {
+        const eps = await getTmdbEpisodes(
+          tmdbScheduleId,
+          "tv",
+          tmdbScheduleSeasons || []
+        );
+        setTmdbFullEpisodes(Array.isArray(eps) ? eps : []);
+      } catch (err) {
+        console.error("[tmdb] failed to fetch extra episodes", err);
+        setTmdbFullEpisodes([]);
+      }
+    };
+    fetchAll();
+  }, [canUseTmdbSchedule, tmdbScheduleId, tmdbScheduleSeasons]);
 
   // Listen for admin movie override (trailer mode)
   useEffect(() => {
     if (!db || !slug) return;
-    const unsub = onSnapshot(doc(db, "movieOverrides", slug), (snap) => {
-      setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
-    }, (err) => {
-      console.warn("MovieOverride error:", err);
-      setMovieOverride({ mode: "full" });
-    });
+    const unsub = onSnapshot(
+      doc(db, "movieOverrides", slug),
+      (snap) => {
+        setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
+      },
+      (err) => {
+        console.warn("MovieOverride error:", err);
+        setMovieOverride({ mode: "full" });
+      }
+    );
     return unsub;
   }, [slug]);
 
@@ -108,8 +157,6 @@ const Detail = () => {
     setShowResumeModal(false);
   }, [slug, clearProgress]);
 
-  const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
-  const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
   const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
     isTmdb ? baseMovie?.name : ""
   );
@@ -167,7 +214,10 @@ const Detail = () => {
     return passedMovie || detailMovie || null;
   }, [altDetail?.movie, baseMovie, passedMovie]);
 
-  const categorySlugs = useMemo(() => (movie?.category || []).map(c => c.slug).filter(Boolean), [movie?.category]);
+  const categorySlugs = useMemo(
+    () => (movie?.category || []).map((c) => c.slug).filter(Boolean),
+    [movie?.category]
+  );
   const countrySlug = movie?.country?.[0]?.slug;
 
   const [deferLoad, setDeferLoad] = useState(false);
@@ -176,9 +226,15 @@ const Detail = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], { enabled: deferLoad && !!categorySlugs[0] });
-  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], { enabled: deferLoad && !!categorySlugs[1] });
-  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, { enabled: deferLoad && !!countrySlug });
+  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], {
+    enabled: deferLoad && !!categorySlugs[0],
+  });
+  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], {
+    enabled: deferLoad && !!categorySlugs[1],
+  });
+  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, {
+    enabled: deferLoad && !!countrySlug,
+  });
 
   const relatedMovies = useMemo(() => {
     const combined = [];
@@ -194,11 +250,13 @@ const Detail = () => {
 
     const seen = new Set();
     seen.add(movie?.slug);
-    return combined.filter(m => {
-      if (!m || !m.slug || seen.has(m.slug)) return false;
-      seen.add(m.slug);
-      return true;
-    }).slice(0, 16);
+    return combined
+      .filter((m) => {
+        if (!m || !m.slug || seen.has(m.slug)) return false;
+        seen.add(m.slug);
+        return true;
+      })
+      .slice(0, 16);
   }, [cat1Pool, cat2Pool, countryPool, movie?.slug]);
 
   const serverGroups = useMemo(() => {
@@ -214,14 +272,17 @@ const Detail = () => {
 
   const isMovie = useMemo(() => {
     if (!episodes?.length) return false;
-    const nums = new Set(episodes.map(ep => parseEpisodeNumber(ep.name || ep.slug)).filter(n => n !== null));
+    const nums = new Set(
+      episodes
+        .map((ep) => parseEpisodeNumber(ep.name || ep.slug))
+        .filter((n) => n !== null)
+    );
     return nums.size <= 1;
   }, [episodes]);
 
   const hasVietsub = !!serverGroups.Vietsub?.length;
   const hasLongTieng = !!serverGroups["Lồng Tiếng"]?.length;
   const hasThuyetMinh = !!serverGroups["Thuyết Minh"]?.length;
-
 
   const preferredServer = useMemo(() => {
     if (hasVietsub) return "Vietsub";
@@ -246,7 +307,9 @@ const Detail = () => {
 
   const actors = useMemo(() => {
     // Prioritize actors from the original TMDB source if available
-    const baseActors = baseMovie?.slug?.startsWith("tmdb-") ? baseMovie?.actor : null;
+    const baseActors = baseMovie?.slug?.startsWith("tmdb-")
+      ? baseMovie?.actor
+      : null;
 
     const pools = [
       baseActors,
@@ -292,30 +355,48 @@ const Detail = () => {
       seen.add(item.name);
       return true;
     });
-  }, [movie]);
+  }, [movie, baseMovie?.actor, baseMovie?.slug]);
 
-  const isActuallyLoading = (isLoading && !passedMovie) || (isTmdb && loadingAlts && !altDetail?.movie && !passedMovie);
+  const isActuallyLoading =
+    (isLoading && !passedMovie) ||
+    (isTmdb && loadingAlts && !altDetail?.movie && !passedMovie);
 
   if (isActuallyLoading)
     return (
       <div className="flex flex-col items-center justify-center py-32 space-y-4">
         <div className="h-10 w-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-        <div className="text-slate-400 font-medium animate-pulse">Đang tải chi tiết phim...</div>
+        <div className="text-slate-400 font-medium animate-pulse">
+          Đang tải chi tiết phim...
+        </div>
       </div>
     );
 
-  const latestEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
+  const latestSelectedEpisodeNumber = selectedEpisodes.reduce((max, ep) => {
+    const n = parseEpisodeNumber(ep?.name || ep?.slug);
+    return n !== null && n !== undefined ? Math.max(max, n) : max;
+  }, -1);
+
+  const latestCatalogEpisodeNumber = getLatestEpisodeNumber(movie, episodes);
+  const latestEpisodeNumber =
+    latestSelectedEpisodeNumber >= 0
+      ? latestSelectedEpisodeNumber
+      : latestCatalogEpisodeNumber;
   const epTotal = parseEpisodeNumber(movie?.episode_total);
   const statusText = (
     movie?.status ||
     movie?.episode_current ||
     ""
   ).toLowerCase();
+  const hasMissingEpisodesInSelectedServer =
+    epTotal &&
+    latestSelectedEpisodeNumber >= 0 &&
+    latestSelectedEpisodeNumber < epTotal;
   const isCompleted =
-    /hoan tat|hoàn tất|hoan thanh|trọn bộ|tron bo|full|completed/.test(
+    !hasMissingEpisodesInSelectedServer &&
+    (/hoan tat|hoàn tất|hoan thanh|trọn bộ|tron bo|full|completed/.test(
       statusText
     ) ||
-    (latestEpisodeNumber >= 0 && epTotal && latestEpisodeNumber >= epTotal);
+      (latestEpisodeNumber >= 0 && epTotal && latestEpisodeNumber >= epTotal));
 
   const nextEpisodeText =
     movie?.next_episode_time ||
@@ -329,6 +410,20 @@ const Detail = () => {
 
   const nextEpisodeNumber =
     latestEpisodeNumber >= 0 ? latestEpisodeNumber + 1 : null;
+
+  const watchedEpisodeNumber = (() => {
+    if (Number.isFinite(Number(resumeData?.episodeNumber))) {
+      return Number(resumeData.episodeNumber);
+    }
+    const parsedFromProgress = parseEpisodeNumber(
+      resumeData?.episodeName || resumeData?.episodeSlug
+    );
+    if (parsedFromProgress !== null && parsedFromProgress !== undefined) {
+      return parsedFromProgress;
+    }
+    if (latestEpisodeNumber >= 0) return latestEpisodeNumber;
+    return null;
+  })();
 
   const formatNextTime = (value) => {
     if (!value) return null;
@@ -348,6 +443,21 @@ const Detail = () => {
       const MM = `${d.getMonth() + 1}`.padStart(2, "0");
       const yyyy = d.getFullYear();
       return `${hh}h${mm} ngày ${dd}/${MM}/${yyyy}`;
+    }
+
+    // Try pattern: YYYY-MM-DD or YYYY/MM/DD with optional HH:mm(:ss)
+    const isoMatch = raw.match(
+      /(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[^\d]+(\d{1,2})[:h](\d{2}))?/
+    );
+    if (isoMatch) {
+      const [, yyyy, MM, dd, hh, mm] = isoMatch;
+      const day = dd.padStart(2, "0");
+      const month = MM.padStart(2, "0");
+      if (hh && mm) {
+        const hour = hh.padStart(2, "0");
+        return `${hour}h${mm} ngày ${day}/${month}/${yyyy}`;
+      }
+      return `Ngày ${day}/${month}/${yyyy}`;
     }
 
     // Try pattern: HH:mm DD/MM/YYYY or variants with separators
@@ -376,14 +486,87 @@ const Detail = () => {
     nextEpisodeNumber &&
     nextEpisodeNumber > latestEpisodeNumber;
 
+  const upcomingTmdbMessage = (() => {
+    if (!canUseTmdbSchedule || !tmdbFullEpisodes.length) return null;
+    if (!Number.isFinite(watchedEpisodeNumber)) return null;
+
+    const tmdbEpisodes = tmdbFullEpisodes
+      .filter(
+        (ep) => ep?.air_date && Number.isFinite(Number(ep?.episode_number))
+      )
+      .map((ep) => ({
+        ...ep,
+        episode_number: Number(ep.episode_number),
+        air_date: String(ep.air_date),
+      }));
+
+    if (!tmdbEpisodes.length) return null;
+
+    // If multiple seasons have the same episode number, pick the latest aired one.
+    const currentCandidates = tmdbEpisodes.filter(
+      (ep) => ep.episode_number === watchedEpisodeNumber
+    );
+    if (!currentCandidates.length) return null;
+
+    const currentEp = currentCandidates.reduce(
+      (latest, ep) => (ep.air_date > latest.air_date ? ep : latest),
+      currentCandidates[0]
+    );
+    const currentAirDate = currentEp?.air_date;
+    if (!currentAirDate) return null;
+
+    const futureEpisodes = tmdbEpisodes.filter(
+      (ep) => ep.air_date > currentAirDate
+    );
+    if (!futureEpisodes.length) return null;
+
+    const minAirDate = futureEpisodes.reduce(
+      (min, ep) => (ep.air_date < min ? ep.air_date : min),
+      futureEpisodes[0].air_date
+    );
+    const matchingEpisodes = futureEpisodes.filter(
+      (ep) => ep.air_date === minAirDate
+    );
+    const [y, m, d] = minAirDate.split("-");
+    const formattedDate = `${d}/${m}/${y}`;
+
+    const epNums = Array.from(
+      new Set(matchingEpisodes.map((ep) => ep.episode_number))
+    ).sort((a, b) => a - b);
+    if (!epNums.length) return null;
+
+    const epLabel =
+      epNums.length > 2 ? `${epNums[0]}, ${epNums[1]}, ...` : epNums.join(", ");
+
+    return `Tập ${epLabel} sẽ phát vào ngày ${formattedDate} `;
+  })();
+
+  const fallbackUpcomingText = showUpcomingNotice
+    ? formattedNextTime && nextEpisodeNumber
+      ? `Tập ${nextEpisodeNumber} sẽ phát hành vào ${formattedNextTime}.`
+      : null
+    : null;
+
+  const upcomingNotice = upcomingTmdbMessage
+    ? {
+        icon: <Calendar className="h-4 w-4" />,
+        text: upcomingTmdbMessage,
+      }
+    : fallbackUpcomingText
+    ? {
+        icon: <Calendar className="h-4 w-4" />,
+        text: fallbackUpcomingText,
+      }
+    : null;
+
   const heroImage = getHiRes(
     passedMovie?.thumb_url ||
-    passedMovie?.backdrop_url ||
-    movie?.backdrop_url ||
-    movie?.banner ||
-    movie?.thumb_url ||
-    passedMovie?.poster_url ||
-    movie?.poster_url
+      passedMovie?.backdrop_url ||
+      movie?.backdrop_url ||
+      movie?.banner ||
+      movie?.thumb_url ||
+      passedMovie?.poster_url ||
+      movie?.poster_url
   );
 
   return (
@@ -404,7 +587,7 @@ const Detail = () => {
               />
               {/* Lớp phủ tối ở trên để bảo vệ Header (Search, Menu, Logo) */}
               <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-950/80 via-slate-950/40 to-transparent" />
-              
+
               {/* Lớp phủ tối ở dưới đậm hơn để bảo vệ thông tin phim (Title, Metadata) */}
               <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
             </div>
@@ -412,8 +595,10 @@ const Detail = () => {
           <div
             className="absolute top-full bottom-[-25%] left-0 w-full bg-slate-950/70 backdrop-blur-[6px] z-0 pointer-events-none"
             style={{
-              WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 30%)",
-              maskImage: "linear-gradient(to bottom, transparent 0%, black 30%)"
+              WebkitMaskImage:
+                "linear-gradient(to bottom, transparent 0%, black 30%)",
+              maskImage:
+                "linear-gradient(to bottom, transparent 0%, black 30%)",
             }}
           />
         </div>
@@ -424,7 +609,10 @@ const Detail = () => {
           <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-start md:-mt-32 lg:-mt-48 xl:-mt-64 relative z-20">
             <div className="w-36 sm:w-44 md:w-48 lg:w-56 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-4 border-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30">
               <img
-                src={getOptimizedImage(passedMovie?.poster_url || movie?.poster_url, 500)}
+                src={getOptimizedImage(
+                  passedMovie?.poster_url || movie?.poster_url,
+                  500
+                )}
                 alt={movie?.name || passedMovie?.name}
                 className="h-full w-full object-cover"
                 fetchPriority="high"
@@ -469,10 +657,15 @@ const Detail = () => {
                   {isMovie
                     ? "Full"
                     : latestEpisodeNumber >= 0
-                    ? `Tập ${latestEpisodeNumber}`
-                    : movie?.episode_current || "HD"}
+                    ? `Tập ${latestEpisodeNumber}${
+                        epTotal ? `/${epTotal}` : ""
+                      }`
+                    : movie?.episode_current
+                    ? epTotal && !movie.episode_current.includes("/")
+                      ? `${movie.episode_current}/${epTotal}`
+                      : movie.episode_current
+                    : "HD"}
                 </span>
-
 
                 {movie?.quality && (
                   <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
@@ -509,7 +702,9 @@ const Detail = () => {
                     e.stopPropagation();
                     navigate(`/watch/${slug}`);
                   }}
-                  className={`flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 relative z-30 cursor-pointer ${episodes.length ? "" : "opacity-90"}`}
+                  className={`flex items-center gap-2 rounded-full bg-emerald-500 px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 relative z-30 cursor-pointer ${
+                    episodes.length ? "" : "opacity-90"
+                  }`}
                 >
                   {movieOverride?.mode === "trailer" ? (
                     <>
@@ -528,10 +723,11 @@ const Detail = () => {
                   type="button"
                   onClick={toggleSave}
                   disabled={saving}
-                  className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${isSaved
-                    ? "border-rose-400/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
-                    : "border-white/15 bg-white/5 text-white hover:border-emerald-300/60 hover:text-emerald-100"
-                    } ${saving ? "opacity-80" : ""}`}
+                  className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
+                    isSaved
+                      ? "border-rose-400/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
+                      : "border-white/15 bg-white/5 text-white hover:border-emerald-300/60 hover:text-emerald-100"
+                  } ${saving ? "opacity-80" : ""}`}
                 >
                   <Heart
                     className="h-4 w-4"
@@ -540,16 +736,17 @@ const Detail = () => {
                   {saving
                     ? "Đang lưu..."
                     : isSaved
-                      ? "Hủy Yêu thích"
-                      : "Yêu thích"}
+                    ? "Hủy Yêu thích"
+                    : "Yêu thích"}
                 </button>
 
                 {message ? (
                   <span
-                    className={`text-xs font-semibold ${lastAction === "remove"
-                      ? "text-rose-200"
-                      : "text-emerald-200"
-                      }`}
+                    className={`text-xs font-semibold ${
+                      lastAction === "remove"
+                        ? "text-rose-200"
+                        : "text-emerald-200"
+                    }`}
                   >
                     {message}
                   </span>
@@ -596,7 +793,9 @@ const Detail = () => {
                         </span>
                         <span className="text-slate-200/80">
                           {selectedEpisodes.length
-                            ? `${selectedEpisodes.length} tập`
+                            ? `${selectedEpisodes.length}${
+                                epTotal ? `/${epTotal}` : ""
+                              } tập`
                             : ""}
                         </span>
                       </span>
@@ -617,10 +816,11 @@ const Detail = () => {
                     <button
                       type="button"
                       onClick={() => setUserSelectedServer("Vietsub")}
-                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Vietsub"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                        }`}
+                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                        selectedServer === "Vietsub"
+                          ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
                     >
                       Vietsub
                     </button>
@@ -629,10 +829,11 @@ const Detail = () => {
                     <button
                       type="button"
                       onClick={() => setUserSelectedServer("Lồng Tiếng")}
-                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Lồng Tiếng"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                        }`}
+                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                        selectedServer === "Lồng Tiếng"
+                          ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
                     >
                       Lồng Tiếng
                     </button>
@@ -641,10 +842,11 @@ const Detail = () => {
                     <button
                       type="button"
                       onClick={() => setUserSelectedServer("Thuyết Minh")}
-                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Thuyết Minh"
-                        ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
-                        : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
-                        }`}
+                      className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                        selectedServer === "Thuyết Minh"
+                          ? "border-emerald-400/70 bg-emerald-400 text-slate-950"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"
+                      }`}
                     >
                       Thuyết Minh
                     </button>
@@ -652,37 +854,37 @@ const Detail = () => {
                 </div>
               ) : null}
 
-
-              {showUpcomingNotice ? (
-                <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold">
-                  <div>
-                    {nextEpisodeNumber
-                      ? `Tập ${nextEpisodeNumber} sẽ cập nhật sớm.`
-                      : "Tập mới sẽ có sớm, hãy quay lại để xem ngay khi cập nhật."}
+              {upcomingNotice && (
+                <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 text-amber-100 px-4 py-3 text-sm font-semibold flex items-start gap-3 mb-4 shadow-lg shadow-amber-950/20 backdrop-blur-sm">
+                  <div className="mt-0.5 text-amber-400">
+                    {upcomingNotice.icon}
                   </div>
-                  {formattedNextTime ? (
-                    <div className="mt-1 text-xs font-semibold text-amber-50/90">
-                      {nextEpisodeNumber
-                        ? `Tập ${nextEpisodeNumber} dự kiến: ${formattedNextTime}`
-                        : `Lịch dự kiến: ${formattedNextTime}`}
-                    </div>
-                  ) : null}
+                  <div>
+                    <div>{upcomingNotice.text}</div>
+                  </div>
                 </div>
-              ) : null}
+              )}
 
               {movieOverride?.mode === "trailer" ? (
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
                   <div className="flex justify-center">
                     <Info className="h-6 w-6 text-amber-400" />
                   </div>
-                  <p className="text-sm font-semibold text-amber-200">Phim hiện đang chưa có nguồn</p>
-                  <p className="text-xs text-slate-400 leading-relaxed">Bộ phim này hiện tại chỉ có Trailer. Bạn có thể xem bản giới hạn bằng nút "Xem Trailer" ở trên.</p>
+                  <p className="text-sm font-semibold text-amber-200">
+                    Phim hiện đang chưa có nguồn
+                  </p>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Bộ phim này hiện tại chỉ có Trailer. Bạn có thể xem bản giới
+                    hạn bằng nút "Xem Trailer" ở trên.
+                  </p>
                 </div>
               ) : episodes.length ? (
                 <div className="max-h-48 overflow-y-auto pr-1">
                   <EpisodeList
                     episodes={isMovie ? episodes : selectedEpisodes}
-                    serverLabel={isMovie ? undefined : (selectedServer || undefined)}
+                    serverLabel={
+                      isMovie ? undefined : selectedServer || undefined
+                    }
                     showServerLabels={isMovie}
                   />
                 </div>
@@ -744,7 +946,10 @@ const Detail = () => {
                 </div>
                 <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar">
                   {relatedMovies.map((relMovie) => (
-                    <div key={relMovie.slug} className="min-w-[170px] sm:min-w-[200px] snap-start">
+                    <div
+                      key={relMovie.slug}
+                      className="min-w-[170px] sm:min-w-[200px] snap-start"
+                    >
                       <MovieCard movie={relMovie} />
                     </div>
                   ))}
@@ -756,16 +961,11 @@ const Detail = () => {
           {/* Cột 1 hàng 2: Bình luận (Nằm dưới Intro trên Desktop, dưới Sidebar trên Mobile) */}
           <div className="lg:col-start-1 lg:row-start-2">
             {movie && movie.slug && (
-              <Comments 
-                movieSlug={movie.slug} 
-                movieName={movie.name} 
-              />
+              <Comments movieSlug={movie.slug} movieName={movie.name} />
             )}
           </div>
         </div>
       </div>
-
-
 
       {/* Fullscreen Resume Modal */}
       {showResumeModal && resumeData && (
@@ -790,13 +990,16 @@ const Detail = () => {
                 Tiếp tục xem phim?
               </h3>
               <p className="text-sm font-medium text-slate-200 drop-shadow-md">
-                Bạn đang xem {
-                  (resumeData.episodeName === "Full" || resumeData.episodeName === "Tập Full" || !resumeData.episodeName)
-                    ? "Tập Full"
-                    : (resumeData.episodeName.toLowerCase().startsWith("tập")
-                      ? resumeData.episodeName
-                      : `Tập ${resumeData.episodeName}`)
-                } - phút {formatTime(resumeData.currentTime)} / {formatTime(resumeData.duration)}
+                Bạn đang xem{" "}
+                {resumeData.episodeName === "Full" ||
+                resumeData.episodeName === "Tập Full" ||
+                !resumeData.episodeName
+                  ? "Tập Full"
+                  : resumeData.episodeName.toLowerCase().startsWith("tập")
+                  ? resumeData.episodeName
+                  : `Tập ${resumeData.episodeName}`}{" "}
+                - phút {formatTime(resumeData.currentTime)} /{" "}
+                {formatTime(resumeData.duration)}
               </p>
 
               <div className="mt-8 flex flex-col gap-3">

@@ -23,6 +23,7 @@ import {
   SlidersHorizontal,
   MoreVertical,
   PictureInPicture,
+  Monitor,
 } from "lucide-react";
 
 const SEEK_STEP = 10; // seconds
@@ -128,6 +129,8 @@ const Player = ({
   hasNextEpisode = true,
   onTimeUpdate,
   initialTime,
+  theaterMode = false,
+  onToggleTheater,
 }) => {
   const videoRef = useRef(null);
   const reactPlayerRef = useRef(null);
@@ -1090,6 +1093,21 @@ const Player = ({
                 <PictureInPicture className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
               </button>
 
+              {onToggleTheater && (
+                <button
+                  type="button"
+                  onClick={onToggleTheater}
+                  className={`hidden sm:flex h-6 w-6 min-[360px]:h-7 min-[360px]:w-7 min-[400px]:h-8 min-[400px]:w-8 items-center justify-center rounded-full border transition flex-shrink-0 ${
+                    theaterMode
+                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-400"
+                      : "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20 text-white"
+                  }`}
+                  title={theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim"}
+                >
+                  <Monitor className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={handleFullscreen}
@@ -1121,7 +1139,9 @@ const Player = ({
     return (
       <div
         ref={containerRef}
-        className="relative aspect-video overflow-visible rounded-2xl border border-white/10 bg-black shadow-2xl"
+        className={`relative aspect-video overflow-visible bg-black shadow-2xl transition-all duration-500 ${
+          theaterMode && !isFullscreen ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10" : "z-10 rounded-2xl border border-white/10"
+        }`}
         onClick={handleContainerClick}
         onMouseMove={handleUserActivity}
         onTouchStart={handleUserActivity}
@@ -1147,7 +1167,9 @@ const Player = ({
     return (
       <div
         ref={containerRef}
-        className="relative aspect-video overflow-visible rounded-2xl border border-white/10 bg-black"
+        className={`relative aspect-video overflow-visible bg-black transition-all duration-500 ${
+          theaterMode && !isFullscreen ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10" : "z-10 rounded-2xl border border-white/10"
+        }`}
         onClick={handleContainerClick}
         onMouseMove={handleUserActivity}
         onTouchStart={handleUserActivity}
@@ -1169,7 +1191,9 @@ const Player = ({
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video overflow-visible rounded-2xl border border-white/10 bg-black"
+      className={`relative aspect-video overflow-visible bg-black transition-all duration-500 ${
+        theaterMode && !isFullscreen ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10" : "z-10 rounded-2xl border border-white/10"
+      }`}
       onClick={handleContainerClick}
       onMouseMove={handleUserActivity}
       onTouchStart={handleUserActivity}
