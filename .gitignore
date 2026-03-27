@@ -25,3 +25,9 @@ dist-ssr
 *.sw?
 .env
 .firebase/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
