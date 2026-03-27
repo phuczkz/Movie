@@ -33,7 +33,7 @@ const PAGE_MAP = {
 };
 
 export default function AdminPanel() {
-  const { user, loading } = useAuth();
+  const { user, loading, maintenance } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState("users");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -110,7 +110,10 @@ export default function AdminPanel() {
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {label}
+              <span className="flex-1 text-left">{label}</span>
+              {id === "maintenance" && maintenance?.enabled && (
+                <span className="flex h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />
+              )}
             </button>
           ))}
         </nav>

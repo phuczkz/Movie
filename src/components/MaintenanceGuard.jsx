@@ -142,10 +142,10 @@ export default function MaintenanceGuard({ children }) {
             {/* Typography */}
             <div className="space-y-4">
               <h1 className="text-4xl md:text-6xl font-black text-[#1e4e8c] tracking-tight uppercase">
-                BẢO TRÌ HỆ THỐNG
+                {maintenance?.title || "BẢO TRÌ HỆ THỐNG"}
               </h1>
               <p className="text-xl md:text-2xl text-slate-500 font-medium">
-                {maintenance?.message || "We will be back soon"}
+                {maintenance?.message || "Admin đang nghèo, ủng hộ Admin để duy trì website"}
               </p>
             </div>
 
@@ -156,7 +156,7 @@ export default function MaintenanceGuard({ children }) {
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
               </span>
               <span className="text-sm font-bold text-blue-600 uppercase tracking-widest">
-                Đang nâng cấp hệ thống
+                {maintenance?.statusText || "ĐANG NÂNG CẤP HỆ THỐNG"}
               </span>
             </div>
 

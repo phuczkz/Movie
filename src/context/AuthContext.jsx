@@ -38,7 +38,7 @@ const AuthContext = createContext({
   userProfile: null,
   loading: true,
   profileLoading: false,
-  maintenance: { enabled: false, message: "" },
+  maintenance: { enabled: false, title: "", message: "", statusText: "" },
   loginGoogle: async () => { },
   loginEmail: async () => { },
   registerEmail: async () => { },
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }) => {
 
 
 
-  const [maintenance, setMaintenance] = useState({ enabled: false, message: "" });
+  const [maintenance, setMaintenance] = useState({ enabled: false, title: "", message: "", statusText: "" });
 
   useEffect(() => {
     if (!db) return undefined;
@@ -98,9 +98,11 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onSnapshot(ref, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
-        setMaintenance({ 
-          enabled: data.enabled === true, 
-          message: data.message || "Hệ thống đang bảo trì, vui lòng quay lại sau." 
+        setMaintenance({
+          enabled: data.enabled === true,
+          title: data.title || "BẢO TRÌ HỆ THỐNG",
+          message: data.message || "Admin đang nghèo, ủng hộ Admin để duy trì website",
+          statusText: data.statusText || "ĐANG NÂNG CẤP HỆ THỐNG",
         });
       }
     });

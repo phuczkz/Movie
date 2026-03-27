@@ -1,28 +1,27 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
+import { useAuth } from "../../context/AuthContext";
 import { Construction, ToggleLeft, ToggleRight } from "lucide-react";
 
 export default function AdminMaintenance() {
-  const [settings, setSettings] = useState({ enabled: false, title: "", message: "" });
+  const [settings, setSettings] = useState({ enabled: false, title: "", message: "", statusText: "" });
   const [localTitle, setLocalTitle] = useState("");
   const [localMessage, setLocalMessage] = useState("");
+  const [localStatusText, setLocalStatusText] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const { maintenance } = useAuth();
+
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "settings", "maintenance"), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setSettings(data);
-        setLocalTitle(data.title || "");
-        setLocalMessage(data.message || "");
-      }
-    }, (err) => {
-      console.error("AdminMaintenance snapshot error:", err);
-    });
-    return unsub;
-  }, []);
+    if (maintenance) {
+      setSettings(maintenance);
+      setLocalTitle(maintenance.title || "");
+      setLocalMessage(maintenance.message || "");
+      setLocalStatusText(maintenance.statusText || "");
+    }
+  }, [maintenance]);
 
   const toggle = async () => {
     setSaving(true);
@@ -32,6 +31,7 @@ export default function AdminMaintenance() {
         enabled: !settings.enabled,
         title: localTitle,
         message: localMessage,
+        statusText: localStatusText,
       });
     } finally {
       setSaving(false);
@@ -46,6 +46,7 @@ export default function AdminMaintenance() {
         ...settings,
         title: localTitle,
         message: localMessage,
+        statusText: localStatusText,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -101,7 +102,7 @@ export default function AdminMaintenance() {
             type="text"
             value={localTitle}
             onChange={(e) => setLocalTitle(e.target.value)}
-            placeholder="Đang bảo trì"
+            placeholder="BẢO TRÌ HỆ THỐNG"
             className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none"
           />
         </div>
@@ -111,8 +112,18 @@ export default function AdminMaintenance() {
             rows={4}
             value={localMessage}
             onChange={(e) => setLocalMessage(e.target.value)}
-            placeholder="Website đang trong quá trình nâng cấp. Vui lòng quay lại sau."
+            placeholder="Admin đang nghèo, ủng hộ Admin để duy trì website"
             className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none resize-none"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-slate-300">Trạng thái (Badge)</label>
+          <input
+            type="text"
+            value={localStatusText}
+            onChange={(e) => setLocalStatusText(e.target.value)}
+            placeholder="ĐANG NÂNG CẤP HỆ THỐNG"
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none"
           />
         </div>
         <button
@@ -125,11 +136,25 @@ export default function AdminMaintenance() {
       </form>
 
       {/* Preview */}
-      <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 space-y-2">
-        <p className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Xem trước</p>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-6 text-center space-y-2">
-          <p className="text-xl font-black text-white">{localTitle || "Đang bảo trì"}</p>
-          <p className="text-slate-400 text-sm">{localMessage || "Website đang trong quá trình nâng cấp. Vui lòng quay lại sau."}</p>
+      <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 space-y-3">
+        <p className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Xem trước (Trang bảo trì)</p>
+        <div className="rounded-2xl bg-white p-8 text-center space-y-6 shadow-2xl">
+          <div className="space-y-2">
+            <h1 className="text-2xl font-black text-[#1e4e8c] uppercase tracking-tight">
+              {localTitle || "BẢO TRÌ HỆ THỐNG"}
+            </h1>
+            <p className="text-slate-500 text-sm font-medium leading-relaxed">
+              {localMessage || "Admin đang nghèo, ủng hộ Admin để duy trì website"}
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100">
+              <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest leading-none">
+                {localStatusText || "ĐANG NÂNG CẤP HỆ THỐNG"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
