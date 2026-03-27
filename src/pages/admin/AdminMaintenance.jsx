@@ -143,7 +143,7 @@ export default function AdminMaintenance() {
             <h1 className="text-2xl font-black text-[#1e4e8c] uppercase tracking-tight">
               {localTitle || "BẢO TRÌ HỆ THỐNG"}
             </h1>
-            <p className="text-slate-500 text-sm font-medium leading-relaxed">
+            <p className="text-slate-500 text-sm font-medium leading-relaxed whitespace-pre-wrap">
               {localMessage || "Admin đang nghèo, ủng hộ Admin để duy trì website"}
             </p>
           </div>

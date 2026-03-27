@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { Trash2, UserCircle, RefreshCw, ShieldCheck, UserPlus, Power, X, AlertCircle } from "lucide-react";
+import { Trash2, UserCircle, RefreshCw, ShieldCheck, UserPlus, Power, X, AlertCircle, History } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmModal from "../../components/ConfirmModal";
+import WatchHistory from "../../components/WatchHistory";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, userId: null, loading: false });
+  const [historyModal, setHistoryModal] = useState({ isOpen: false, userId: null, userName: "" });
 
   const { maintenance, toggleMaintenanceMode, toggleUserWhitelist, createAccountByAdmin, deleteUserByAdmin } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -232,15 +234,26 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-4 py-3">
                     {u.email === import.meta.env.VITE_ADMIN_EMAIL ? (
-                      <span className="text-xs text-amber-400 font-semibold px-2 py-1 rounded-lg bg-amber-500/10">Admin</span>
+                      <div className="flex items-center gap-1 justify-end">
+                        <span className="text-xs text-amber-400 font-semibold px-2 py-1 rounded-lg bg-amber-500/10">Admin</span>
+                      </div>
                     ) : (
-                      <button
-                        onClick={() => handleDelete(u.id)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Xóa user"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1 justify-end">
+                        <button
+                          onClick={() => setHistoryModal({ isOpen: true, userId: u.id, userName: u.displayName || u.email })}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                          title="Xem lịch sử xem phim"
+                        >
+                          <History className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(u.id)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          title="Xóa user"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -266,6 +279,42 @@ export default function AdminUsers() {
         onCancel={() => setConfirmModal({ isOpen: false, userId: null, loading: false })}
         type="danger"
       />
+
+      {/* History Modal */}
+      {historyModal.isOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
+            <div className="flex items-center justify-between p-6 border-b border-white/5">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <History className="h-5 w-5 text-emerald-500" />
+                  Lịch sử xem: {historyModal.userName}
+                </h3>
+                <p className="text-slate-400 text-xs mt-1">Lịch sử được sắp xếp theo thời gian mới nhất</p>
+              </div>
+              <button 
+                onClick={() => setHistoryModal({ isOpen: false, userId: null, userName: "" })}
+                className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-hidden">
+              <WatchHistory userId={historyModal.userId} adminView={true} />
+            </div>
+
+            <div className="p-4 border-t border-white/5 flex justify-end">
+              <button
+                onClick={() => setHistoryModal({ isOpen: false, userId: null, userName: "" })}
+                className="px-6 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 font-semibold transition-all"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
