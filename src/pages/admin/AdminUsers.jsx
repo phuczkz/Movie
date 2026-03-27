@@ -10,7 +10,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, userId: null, loading: false });
 
-  const { maintenance, toggleMaintenanceMode, toggleUserWhitelist, createAccountByAdmin } = useAuth();
+  const { maintenance, toggleMaintenanceMode, toggleUserWhitelist, createAccountByAdmin, deleteUserByAdmin } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "", displayName: "" });
   const [creating, setCreating] = useState(false);
@@ -72,7 +72,7 @@ export default function AdminUsers() {
 
     setConfirmModal(prev => ({ ...prev, loading: true }));
     try {
-      await deleteDoc(doc(db, "users", uid));
+      await deleteUserByAdmin(uid);
       setUsers((prev) => prev.filter((u) => u.id !== uid));
     } catch (err) {
       alert("Lỗi xóa: " + err.message);

@@ -48,6 +48,7 @@ const AuthContext = createContext({
   saveMovie: async () => { },
   removeSavedMovie: async () => { },
   createAccountByAdmin: async () => { },
+  deleteUserByAdmin: async () => { },
   toggleMaintenanceMode: async () => { },
   toggleUserWhitelist: async () => { },
 });
@@ -367,6 +368,12 @@ export const AuthProvider = ({ children }) => {
         // Return the new user info but don't switch context
         return credential;
       },
+      deleteUserByAdmin: async (userId) => {
+        if (!db) return;
+        const ref = doc(db, "users", userId);
+        await deleteDoc(ref);
+        return true;
+      },
       toggleMaintenanceMode: async (enabled) => {
         if (!db) return;
         const ref = doc(db, "settings", "maintenance");
@@ -383,9 +390,10 @@ export const AuthProvider = ({ children }) => {
       loading,
       userProfile,
       profileLoading,
-      maintenance,
-      ensureFirebase,
-      ensureCurrentUser,
+      createAccountByAdmin,
+      deleteUserByAdmin,
+      toggleMaintenanceMode,
+      toggleUserWhitelist,
     ]
   );
 
