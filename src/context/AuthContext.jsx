@@ -390,10 +390,9 @@ export const AuthProvider = ({ children }) => {
       loading,
       userProfile,
       profileLoading,
-      createAccountByAdmin,
-      deleteUserByAdmin,
-      toggleMaintenanceMode,
-      toggleUserWhitelist,
+      maintenance,
+      ensureFirebase,
+      ensureCurrentUser,
     ]
   );
 
