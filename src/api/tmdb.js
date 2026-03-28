@@ -10,7 +10,7 @@ const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
 const tmdb = axios.create({
   baseURL,
-  timeout: 15000,
+  timeout: 10000,
 });
 
 tmdb.interceptors.response.use(

@@ -244,7 +244,9 @@ const withFallback = async (fn, fallback = null) => {
     if (!client.defaults.baseURL) throw new Error("Missing baseURL");
     return await fn();
   } catch (error) {
-    console.warn("[movie-api] Fallback data used:", error.message);
+    if (error?.response?.status !== 404 && error?.code !== "ERR_CANCELED" && error?.name !== "CanceledError" && error?.name !== "AbortError") {
+      console.warn("[movie-api] Fallback data used:", error.message);
+    }
     return fallback;
   }
 };
@@ -300,29 +302,47 @@ export const getDetail = (slug) =>
       if (slug?.startsWith("tmdb-")) {
         return getTmdbDetailBySlug(slug);
       }
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 8000); // 8 seconds global timeout for detail
+
+      // Parallel fetch from both sources to avoid sequential timeout delays
+      const [kkResultSettled, ophimResultSettled] = await Promise.allSettled([
+        getKKphimDetail(slug, { signal: abortController.signal }).catch(err => {
+          if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED' || err.name === 'AbortError') throw new Error('KKphim aborted');
+          throw err;
+        }),
+        client.get(`/phim/${slug}`, { signal: abortController.signal }).catch(err => {
+          if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED' || err.name === 'AbortError') throw new Error('Ophim aborted');
+          throw err;
+        }),
+      ]);
+      clearTimeout(timeoutId);
 
       let kkResult = null;
-      try {
-        kkResult = await getKKphimDetail(slug);
-      } catch (error) {
-        // Silently ignore 404s as they are expected for some movies only available on one source
-        if (error.response?.status !== 404) {
+      if (kkResultSettled.status === "fulfilled") {
+        kkResult = kkResultSettled.value;
+      } else {
+        const error = kkResultSettled.reason;
+        if (error.response?.status !== 404 && error.status !== 404 && !error.message.includes('aborted')) {
           console.warn("[getDetail] KKphim failed", error.message);
         }
       }
 
+      const { movie: kkMovie, episodes: kkEpisodes = [] } = kkResult || {};
+
       let ophimMovie = null;
       let ophimEpisodes = [];
-      try {
-        const { data } = await client.get(`/phim/${slug}`);
+      if (ophimResultSettled.status === "fulfilled") {
+        const { data } = ophimResultSettled.value;
         const payload = data?.data?.item || data?.movie || data?.data || data;
         ophimMovie = normalizeMovie(payload);
         const ophimActors = normalizePeople(
-          payload?.peoples || payload?.people
+          payload?.peoples || payload?.people || payload?.actor || payload?.cast || payload?.actors
         );
         if (ophimMovie && ophimActors.length) {
           ophimMovie.actor = ophimActors;
         }
+
         const rawEpisodes =
           payload?.episodes || data?.data?.episodes || data?.episodes || [];
         ophimEpisodes = Array.isArray(rawEpisodes)
@@ -340,28 +360,21 @@ export const getDetail = (slug) =>
                 : [];
             })
           : [];
-      } catch (error) {
-        // Silently ignore 404s as they are expected for some movies only available on one source
-        if (error.response?.status !== 404) {
+      } else {
+        const error = ophimResultSettled.reason;
+        if (error.response?.status !== 404 && error.status !== 404 && !error.message.includes('aborted')) {
           console.warn("[getDetail] Ophim failed", error.message);
         }
       }
 
-      const kkEpisodes = kkResult?.episodes || [];
       const mergedEpisodes = mergeEpisodes(kkEpisodes, ophimEpisodes);
 
       const episodes = (mergedEpisodes.length ? mergedEpisodes : []).map(
-        (ep, idx) => ({
-          name: ep.name || ep.filename || `Tập ${idx + 1}`,
-          slug: ep.slug || ep.name || `ep-${idx + 1}`,
-          server_name: normalizeServerName(ep.server_name),
-          link_m3u8:
-            ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed || "",
-          embed: ep.embed || ep.link_embed || ep.embed_url || ep.link || "",
+        (ep) => ({
+          ...ep,
+          slug: ep.slug || normalizeEpisodeSlug(ep.name),
         })
       );
-
-      const kkMovie = kkResult?.movie ? normalizeMovie(kkResult.movie) : null;
 
       // Prefer KKPhim as the primary source for basic metadata (Poster, Banner, Title)
       // to avoid 'slug collisions' where Ophim provides the wrong movie details.
@@ -419,16 +432,17 @@ export const getDetail = (slug) =>
               } else {
                 // Merge logic: match by name and update image + id
                 movie.actor = movie.actor.map((original) => {
-                  const match = tmdbActors.find(
-                    (ta) =>
-                      ta.name.toLowerCase() === original.name.toLowerCase() ||
-                      original.name
-                        .toLowerCase()
-                        .includes(ta.name.toLowerCase()) ||
-                      ta.name
-                        .toLowerCase()
-                        .includes(original.name.toLowerCase())
-                  );
+                  if (!original?.name) return original;
+                  const match = tmdbActors.find((ta) => {
+                    if (!ta?.name) return false;
+                    const taName = ta.name.toLowerCase();
+                    const origName = original.name.toLowerCase();
+                    return (
+                      taName === origName ||
+                      origName.includes(taName) ||
+                      taName.includes(origName)
+                    );
+                  });
                   return match
                     ? {
                         ...original,
@@ -440,11 +454,11 @@ export const getDetail = (slug) =>
 
                 // Also add actors from TMDB that weren't in the original list but are prominent (first 10)
                 const existingNames = new Set(
-                  movie.actor.map((a) => a.name.toLowerCase())
+                  movie.actor.map((a) => a?.name?.toLowerCase()).filter(Boolean)
                 );
                 const tmdbExclusives = tmdbActors
                   .slice(0, 10)
-                  .filter((ta) => !existingNames.has(ta.name.toLowerCase()));
+                  .filter((ta) => ta?.name && !existingNames.has(ta.name.toLowerCase()));
                 movie.actor = [...movie.actor, ...tmdbExclusives];
               }
             }

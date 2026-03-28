@@ -761,7 +761,7 @@ const Detail = () => {
           </div>
         </div>
 
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid gap-x-6 gap-y-6 lg:grid-cols-[1fr,380px] xl:grid-cols-[1fr,420px] items-start">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid gap-x-6 gap-y-6 lg:grid-cols-[1fr,380px] xl:grid-cols-[1fr,420px] lg:grid-rows-[auto_1fr] items-start">
           {/* Cột 1: Giới thiệu (Vị trí 1 trên mọi thiết bị) */}
           <div className="lg:col-start-1 lg:row-start-1 space-y-6 lg:mb-0">
             <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 lg:p-8 space-y-3 shadow-xl h-full">
@@ -907,14 +907,14 @@ const Detail = () => {
                     {actors.length}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                  {actors.map((actor) => {
-                    return (
-                      <Link
-                        key={actor.name}
-                        to={`/actor/${actor.id || actor.name}`}
-                        className="flex flex-col items-center gap-2 w-20 sm:w-24 group/actor hover:-translate-y-1 transition-transform"
-                      >
+              <div className="flex overflow-x-auto gap-4 md:gap-6 pb-2 snap-x custom-scrollbar">
+                {actors.map((actor) => {
+                  return (
+                    <Link
+                      key={actor.name}
+                      to={`/actor/${actor.id || actor.name}`}
+                      className="flex flex-col items-center gap-2 min-w-[80px] sm:min-w-[96px] snap-start group/actor hover:-translate-y-1 transition-transform"
+                    >
                         <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
                           {actor.image ? (
                             <img

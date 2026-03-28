@@ -9,7 +9,7 @@ const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
 const kkphim = axios.create({
   baseURL: apiBase,
-  timeout: 15000,
+  timeout: 8000,
 });
 
 kkphim.interceptors.response.use(

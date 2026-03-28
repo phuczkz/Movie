@@ -30,8 +30,17 @@ const SEEK_STEP = 10; // seconds
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 
-const stripAdSegmentsFromPlaylist = (text = "") => {
+const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   if (!text || typeof text !== "string") return text;
+
+  let baseUrl = "";
+  if (sourceUrl) {
+    try {
+      baseUrl = new URL(".", sourceUrl).href;
+    } catch (e) {
+      // ignore
+    }
+  }
 
   // 1. Separate the HLS header from the body (everything before the first segment or discontinuity)
   const firstInfIndex = text.indexOf("#EXTINF");
@@ -66,7 +75,19 @@ const stripAdSegmentsFromPlaylist = (text = "") => {
         }
       }
       if (blacklisted.some((word) => line.includes(word))) continue;
-      out.push(line);
+
+      let finalLine = line;
+      if (baseUrl && !line.startsWith("#") && !line.includes("://")) {
+        if (line.startsWith("/")) {
+          try {
+            const urlObj = new URL(sourceUrl);
+            finalLine = urlObj.origin + line;
+          } catch {}
+        } else {
+          finalLine = baseUrl + line;
+        }
+      }
+      out.push(finalLine);
     }
     return out.join("\n");
   };
@@ -157,24 +178,23 @@ const Player = ({
       window.innerWidth <= 768;
     const isTablet = !isMobile && window.innerWidth <= 1024;
     return {
-      // Giảm buffer trên mobile để tránh nghẽn mạng và tốn RAM
-      maxBufferLength: isMobile ? 20 : isTablet ? 30 : 60,
-      maxMaxBufferLength: isMobile ? 40 : isTablet ? 60 : 180,
-      maxBufferSize: isMobile ? 20 * 1000 * 1000 : isTablet ? 40 * 1000 * 1000 : 100 * 1000 * 1000,
-      // Giảm back-buffer để giải phóng RAM (không cần tua lại quá nhiều)
-      backBufferLength: isMobile ? 10 : 30,
-      // Trên mobile bắt đầu ở chất lượng thấp nhất, tránh buffer ở 720/1080p
-      startLevel: isMobile ? 0 : -1,
-      // Tắt low-latency mode để tăng độ ổn định
+      // Tối ưu buffer mượt hơn
+      maxBufferLength: isMobile ? 30 : isTablet ? 60 : 120,
+      maxMaxBufferLength: isMobile ? 60 : isTablet ? 120 : 360,
+      maxBufferSize: isMobile ? 30 * 1000 * 1000 : isTablet ? 60 * 1000 * 1000 : 150 * 1000 * 1000,
+      // Giải phóng RAM
+      backBufferLength: isMobile ? 20 : 60,
+      // Bắt đầu nhanh với Auto mode
+      startLevel: -1,
       lowLatencyMode: false,
-      // Tự động hạ chất lượng khi FPS bị drop (tốt cho thiết bị yếu)
-      capLevelOnFPSDrop: true,
-      // Tăng số lần thử lại và cấu hình kiên trì hơn cho mạng yếu
+      // Tắt capLevelOnFPSDrop để không xung đột với ABR
+      capLevelOnFPSDrop: false,
+      // Thời gian trễ retry
       fragLoadingRetryDelay: 1000,
       manifestLoadingRetryDelay: 1500,
-      fragLoadingMaxRetry: 8,
-      manifestLoadingMaxRetry: 5,
-      levelLoadingMaxRetry: 5,
+      fragLoadingMaxRetry: 4, // Tránh retry vô tận làm đơ máy
+      manifestLoadingMaxRetry: 4,
+      levelLoadingMaxRetry: 4,
       // Tính năng tự động vượt qua các đoạn bị lỗi nhỏ (stalls)
       nudgeMaxRetry: 6,
       nudgeOffset: 0.1,
@@ -256,7 +276,7 @@ const Player = ({
         const text = await res.text();
         if (cancelled) return;
 
-        const filtered = stripAdSegmentsFromPlaylist(text);
+        const filtered = stripAdSegmentsFromPlaylist(text, source);
         const blob = new Blob([filtered], {
           type: "application/vnd.apple.mpegurl",
         });
@@ -310,7 +330,8 @@ const Player = ({
                     // Only swap in filtered content if it still looks like a valid playlist; otherwise keep the original to avoid levelParsingError.
                     try {
                       const filtered = stripAdSegmentsFromPlaylist(
-                        response.data
+                        response.data,
+                        response.url || ctx?.url || source
                       );
                       if (
                         typeof filtered === "string" &&
@@ -567,43 +588,16 @@ const Player = ({
     }
   }, [isHls, volume, muted]);
 
-  // Drop quality and restart load if buffering lingers
+  // Removed manual buffering interval. Let HLS.js ABR handle quality drop natively.
   useEffect(() => {
     if (!isHls || !hlsRef.current) return undefined;
     if (!isBuffering) {
       bufferingSinceRef.current = null;
       return undefined;
     }
-
+    // Track stat merely if needed
     bufferingSinceRef.current = performance.now();
-    const id = setInterval(() => {
-      const hls = hlsRef.current;
-      if (!hls || !isBuffering) return;
-      const now = performance.now();
-      const elapsed = now - (bufferingSinceRef.current || now);
-
-      // Chờ lâu hơn một chút (5s thay vì 2.5s) để mạng tự ổn định trước khi hạ chất lượng
-      if (elapsed < 5000) return;
-      if (now - lastRecoveryRef.current < 4000) return;
-
-      lastRecoveryRef.current = now;
-      const manualLevels = qualityLevels.filter((lvl) => lvl.level >= 0);
-      const lowestLevel = manualLevels.length ? manualLevels[0].level : -1;
-
-      if (lowestLevel !== -1 && hls.currentLevel !== lowestLevel) {
-        // Sử dụng nextLevel để chuyển đổi mượt mà hơn, không gây giật ngay lập tức
-        hls.nextLevel = lowestLevel;
-        setCurrentLevel(lowestLevel);
-      } else {
-        hls.nextAutoLevel = -1;
-        setCurrentLevel(-1);
-      }
-
-      hls.startLoad();
-    }, 1000);
-
-    return () => clearInterval(id);
-  }, [isBuffering, isHls, qualityLevels]);
+  }, [isBuffering, isHls]);
 
   // Auto-hide controls when playing
   useEffect(() => {

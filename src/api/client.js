@@ -2,7 +2,7 @@ import axios from "axios";
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_MOVIE_API || "",
-  timeout: 15000,
+  timeout: 8000,
 });
 
 client.interceptors.response.use(

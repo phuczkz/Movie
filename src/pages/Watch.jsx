@@ -620,23 +620,10 @@ const Watch = () => {
         </div>
 
         <div className="space-y-6 min-w-0">
-          {episodesForServer.length ? (
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-emerald-500/15 via-purple-500/10 to-blue-500/15 px-4 py-3 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white">
-                <Bell className="h-5 w-5" />
-              </div>
-              <div className="flex-1 text-slate-100">
-                <p className="text-sm font-semibold">
-                  {activeEpisode
-                    ? `Đang xem: ${activeEpisode.name}`
-                    : "Chọn tập để xem"}
-                </p>
-                {notifyText && (
-                  <p className="text-xs text-amber-300 font-medium mt-0.5">
-                    {notifyText}
-                  </p>
-                )}
-              </div>
+          {notifyText ? (
+            <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 px-4 py-3 flex items-center gap-3 shadow-lg shadow-amber-950/20 backdrop-blur-sm text-amber-100 font-semibold text-sm">
+              <Bell className="h-5 w-5 text-amber-400" />
+              <div>{notifyText}</div>
             </div>
           ) : null}
 
@@ -691,16 +678,16 @@ const Watch = () => {
                           ? `&server=${encodeURIComponent(activeServer)}`
                           : ""
                       }`}
-                      className={`group flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:border-emerald-400/60 hover:bg-white/10 ${
+                      className={`group flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                         activeEpisode?.slug === ep.slug
-                          ? "border-emerald-400 bg-emerald-500/10"
-                          : ""
+                          ? "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                          : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/60 hover:bg-white/10"
                       }`}
                     >
                       <Play
                         className={`h-4 w-4 mr-2 ${
                           activeEpisode?.slug === ep.slug
-                            ? "text-emerald-400"
+                            ? "text-white"
                             : "text-emerald-300"
                         }`}
                       />
@@ -724,13 +711,13 @@ const Watch = () => {
                   {actors.length}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+              <div className="flex overflow-x-auto gap-4 md:gap-6 pb-2 snap-x custom-scrollbar">
                 {actors.map((actor) => {
                   return (
                     <Link
                       key={actor.name}
                       to={`/actor/${actor.id || actor.name}`}
-                      className="flex flex-col items-center gap-2 w-20 sm:w-24 group/actor hover:-translate-y-1 transition-transform"
+                      className="flex flex-col items-center gap-2 min-w-[80px] sm:min-w-[96px] snap-start group/actor hover:-translate-y-1 transition-transform"
                     >
                       <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
                         {actor.image ? (
@@ -754,6 +741,12 @@ const Watch = () => {
             </div>
           ) : null}
 
+          <div id="comments">
+            {movie && movie.slug && (
+              <Comments movieSlug={movie.slug} movieName={movie.name} />
+            )}
+          </div>
+
           {relatedMovies.length > 0 && (
             <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-5">
               <div className="flex items-center gap-3">
@@ -773,12 +766,6 @@ const Watch = () => {
               </div>
             </div>
           )}
-
-          <div id="comments">
-            {movie && movie.slug && (
-              <Comments movieSlug={movie.slug} movieName={movie.name} />
-            )}
-          </div>
         </div>
       </div>
     </div>

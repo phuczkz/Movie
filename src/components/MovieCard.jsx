@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { useEpisodeLabel } from "../hooks/useEpisodeLabel.js";
+
 import { getEpisodes } from "../api/movies.js";
 import { normalizeServerLabel, parseEpisodeNumber } from "../utils/episodes.js";
 
@@ -29,7 +29,6 @@ const getOptimizedPoster = (url, w = 360) => {
 };
 
 const MovieCard = ({ movie, priority = false }) => {
-  const fallbackEpisodeLabel = useEpisodeLabel(movie);
   const imgRef = useRef(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -56,24 +55,35 @@ const MovieCard = ({ movie, priority = false }) => {
     staleTime: 1000 * 60 * 30, // 30 mins
   });
 
-  const episodeLabel = (() => {
-    if (!episodeList.length) return fallbackEpisodeLabel;
-
+  const episodeText = useMemo(() => {
     const latestFromList = episodeList.reduce((max, ep) => {
       const n = parseEpisodeNumber(ep?.name || ep?.slug);
       return Number.isFinite(n) ? Math.max(max, n) : max;
     }, -1);
 
-    if (latestFromList < 0) return fallbackEpisodeLabel;
-
     const epTotal = parseEpisodeNumber(movie?.episode_total);
-    if (Number.isFinite(epTotal) && epTotal > 0) {
-      const current = Math.min(latestFromList, epTotal);
-      return `Tập ${current}/${epTotal}`;
+    const formatEp = (num) => (num < 10 && num > 0 ? `${num}` : num);
+
+    if (latestFromList >= 0) {
+      if (Number.isFinite(epTotal) && epTotal > 0) {
+        return `${formatEp(Math.min(latestFromList, epTotal))}/${epTotal}`;
+      }
+      return `${formatEp(latestFromList)}`;
     }
 
-    return `Tập ${latestFromList}`;
-  })();
+    // const raw = (movie?.episode_current || "")
+    //   .replace(/hoàn tất\s*/gi, "")
+    //   .trim();
+    // const parsedRaw = parseEpisodeNumber(raw);
+
+    // if (Number.isFinite(parsedRaw)) {
+    //   if (Number.isFinite(epTotal) && epTotal > 0)
+    //     return `${formatEp(parsedRaw)}/${epTotal}`;
+    //   return `${formatEp(parsedRaw)}`;
+    // }
+
+    // return raw || "Full";
+  }, [episodeList, movie?.episode_current, movie?.episode_total]);
 
   const audioBadges = useMemo(() => {
     const badges = [];
@@ -86,7 +96,7 @@ const MovieCard = ({ movie, priority = false }) => {
     });
 
     if (serverMap.has("Vietsub")) {
-      badges.push({ key: "vietsub", code: "PD", label: "Phụ đề" });
+      badges.push({ key: "vietsub", code: "PĐ", label: "Phụ đề" });
     }
     if (serverMap.has("Thuyết Minh")) {
       badges.push({ key: "thuyetminh", code: "TM", label: "Thuyết minh" });
@@ -99,7 +109,7 @@ const MovieCard = ({ movie, priority = false }) => {
     if (badges.length === 0) {
       const text = (episodeCurrentText || movieLang || "").toLowerCase();
       if (text.includes("vietsub") || text.includes("phụ đề")) {
-        badges.push({ key: "vietsub-f", code: "PD", label: "Phụ đề" });
+        badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề" });
       }
       if (text.includes("thuyết minh")) {
         badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh" });
@@ -150,9 +160,8 @@ const MovieCard = ({ movie, priority = false }) => {
           ref={imgRef}
           src={posterSrc}
           alt={movie.name}
-          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"
+            }`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           // Tăng mức độ ưu tiên tải cho các card quan trọng
@@ -166,24 +175,21 @@ const MovieCard = ({ movie, priority = false }) => {
             setLoaded(true);
           }}
         />
-        <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-slate-950 shadow">
-          {episodeLabel}
-        </span>
+
         {audioBadges.length ? (
           <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 justify-center z-10">
             {audioBadges.map((badge) => (
               <div
                 key={badge.key}
                 title={badge.label}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
-                  badge.code === "PD" || badge.code === "PĐ"
-                    ? "bg-slate-600/90 text-white backdrop-blur-md"
-                    : badge.code === "TM"
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
+                  ? "bg-slate-600/90 text-white backdrop-blur-md"
+                  : badge.code === "TM"
                     ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
                     : "bg-sky-500/90 text-white backdrop-blur-md"
-                }`}
+                  }`}
               >
-                <span>{badge.code}</span>
+                <span>{badge.code}.{episodeText}</span>
               </div>
             ))}
           </div>
