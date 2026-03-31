@@ -300,7 +300,7 @@ export default function AdminUsers() {
               </button>
             </div>
             
-            <div className="p-6 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
               <WatchHistory userId={historyModal.userId} adminView={true} />
             </div>
 

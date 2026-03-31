@@ -198,7 +198,7 @@ export default function WatchHistory({ userId, adminView = false }) {
           {adminView ? "Người dùng này chưa xem phim nào." : "Bạn chưa xem bộ phim nào."}
         </div>
       ) : (
-        <div className={`${adminView ? "max-h-[520px]" : "max-h-[85vh]"} overflow-y-auto pr-1 sm:pr-2 custom-scrollbar`}>
+        <div className={`${adminView ? "max-h-none" : "max-h-[85vh] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar"}`}>
           <div className={`grid gap-3 sm:gap-4 ${adminView ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
             {history.map((item) => (
               <WatchHistoryCard 
