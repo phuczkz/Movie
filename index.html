@@ -1,8 +1,31 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/src/assets/Image.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>KhoPhim - Xem phim online</title>
+    <meta name="description" content="Xem phim trực tuyến miễn phí – Phim bộ, phim lẻ, hoạt hình cập nhật liên tục" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0b0b15" />
+
+    <!-- iOS PWA – standalone mode (quan trọng cho iOS cũ) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="KhoPhim" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- iOS Splash Screens – covers most iPhones/iPads -->
+    <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
+
+    <!-- Android Chrome themeColor -->
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
+
+    <!-- Preconnect CDNs -->
     <link rel="preconnect" href="https://image.tmdb.org" crossorigin />
     <link rel="dns-prefetch" href="https://image.tmdb.org" />
     <link rel="preconnect" href="https://phimimg.com" crossorigin />
@@ -10,8 +33,6 @@
     <link rel="preconnect" href="https://wsrv.nl" crossorigin />
     <link rel="preconnect" href="https://phimapi.com" crossorigin />
     <link rel="preconnect" href="https://ophim1.com" crossorigin />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>KhoPhim</title>
   </head>
   <body>
     <div id="root"></div>

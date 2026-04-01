@@ -71,11 +71,12 @@ const Hero = ({ movie, movies = [] }) => {
 
   return (
     <section
-      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[70vh] sm:h-[75vh] md:h-[62vh] lg:h-[120vh] min-h-[440px] md:min-h-[460px] lg:min-h-[420px] max-h-[780px] md:max-h-[680px] lg:max-h-[720px]"
+      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[58vh] sm:h-[65vh] md:h-[62vh] lg:h-[120vh] min-h-[380px] md:min-h-[460px] lg:min-h-[420px] max-h-[620px] sm:max-h-[680px] md:max-h-[680px] lg:max-h-[720px]"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
       <div className="absolute inset-0">
+        {/* Preload hint ảnh nhỏ */}
         <img
           src={backgroundPreview}
           alt=""
@@ -85,12 +86,17 @@ const Hero = ({ movie, movies = [] }) => {
           fetchPriority="high"
           aria-hidden
         />
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat brightness-105 contrast-[1.08] transition duration-700 ease-out"
-          style={{ backgroundImage: `url(${background})` }}
+        {/* Backdrop chính – dùng <img> để kiểm soát object-position trên mobile */}
+        <img
+          src={background}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[center_20%] sm:object-[center_15%] md:object-center brightness-105 contrast-[1.08] transition-[src] duration-700 ease-out"
+          loading="eager"
+          decoding="async"
+          aria-hidden
         />
-        {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin (trước kia là 85% nay giảm còn 40% - 50%) */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/60 via-slate-950/30 to-slate-950/10 pointer-events-none" />
+        {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/65 via-slate-950/35 to-slate-950/10 pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_60%,rgba(244,114,182,0.15),transparent_45%),radial-gradient(circle_at_78%_20%,rgba(52,211,153,0.15),transparent_42%)] pointer-events-none" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
       </div>
