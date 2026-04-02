@@ -38,18 +38,22 @@ const Grid = ({
   variant = "portrait",
   className = "",
   priorityCount = 0,
-}) => (
-  <div className={`grid-movies ${className}`.trim()}>
-    {items.map((movie, idx) => (
-      <MovieCard
-        key={movie.slug}
-        movie={movie}
-        variant={variant}
-        priority={idx < priorityCount}
-      />
-    ))}
-  </div>
-);
+}) => {
+  const baseClass =
+    variant === "landscape" ? "home-grid-movies-landscape" : "home-grid-movies";
+  return (
+    <div className={`${baseClass} ${className}`.trim()}>
+      {items.map((movie, idx) => (
+        <MovieCard
+          key={movie.slug}
+          movie={movie}
+          variant={variant}
+          priority={idx < priorityCount}
+        />
+      ))}
+    </div>
+  );
+};
 
 const Home = () => {
   const commonQueryOpts = {
@@ -61,17 +65,16 @@ const Home = () => {
   };
 
   const [refSeries, showSeries] = useSectionVisibility();
-  const [refSingle, showSingle] = useSectionVisibility();
+  // const [refSingle, showSingle] = useSectionVisibility();
   const [refAnime, showAnime] = useSectionVisibility();
   const [refPopular, showPopular] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
 
-  const { data: latest = [] } = useMoviesList(
-    "latest",
-    undefined,
-    { enabled: true, ...commonQueryOpts }
-  );
+  const { data: latest = [] } = useMoviesList("latest", undefined, {
+    enabled: true,
+    ...commonQueryOpts,
+  });
   const { data: anime = [], isLoading: loadingAnime } = useMoviesList(
     undefined,
     "hoat-hinh",
@@ -82,11 +85,11 @@ const Home = () => {
     undefined,
     { enabled: showSeries, ...commonQueryOpts }
   );
-  const { data: single = [], isLoading: loadingSingle } = useMoviesList(
-    "single",
-    undefined,
-    { enabled: showSingle, ...commonQueryOpts }
-  );
+  // const { data: single = [], isLoading: loadingSingle } = useMoviesList(
+  //   "single",
+  //   undefined,
+  //   { enabled: showSingle, ...commonQueryOpts }
+  // );
   const { data: popular = [], isLoading: loadingPopular } = useTmdbPopular(1, {
     enabled: showPopular,
     ...commonQueryOpts,
@@ -111,7 +114,10 @@ const Home = () => {
 
       <Hero movies={heroMovies} />
 
-      <TrendingSection movies={kkSeries.slice(0, 10)} loading={loadingKKSeries} />
+      <TrendingSection
+        movies={kkSeries.slice(0, 10)}
+        loading={loadingKKSeries}
+      />
 
       <div ref={refKKSeries}>
         <Section
@@ -123,7 +129,7 @@ const Home = () => {
           }
         >
           {loadingKKSeries ? (
-            <GridSkeleton count={4} />
+            <GridSkeleton count={4} baseClass="home-grid-movies" />
           ) : (
             <Grid items={cap(kkSeries)} priorityCount={4} />
           )}
@@ -140,7 +146,7 @@ const Home = () => {
           }
         >
           {loadingKKSingle ? (
-            <GridSkeleton count={4} />
+            <GridSkeleton count={4} baseClass="home-grid-movies" />
           ) : (
             <Grid items={cap(kkSingle)} priorityCount={4} />
           )}
@@ -157,7 +163,7 @@ const Home = () => {
           }
         >
           {loadingPopular ? (
-            <GridSkeleton count={4} />
+            <GridSkeleton count={4} baseClass="home-grid-movies" />
           ) : (
             <Grid items={cap(popular)} priorityCount={4} />
           )}
@@ -174,12 +180,17 @@ const Home = () => {
           }
         >
           {loadingAnime ? (
-            <GridSkeleton count={4} variant="landscape" className="grid-movies-landscape" />
+            <GridSkeleton
+              count={4}
+              variant="landscape"
+              className=""
+              baseClass="home-grid-movies-landscape"
+            />
           ) : (
             <Grid
               items={cap(anime)}
               variant="landscape"
-              className="grid-movies-landscape"
+              className=""
               priorityCount={4}
             />
           )}
@@ -196,7 +207,7 @@ const Home = () => {
           }
         >
           {loadingSeries ? (
-            <GridSkeleton count={3} />
+            <GridSkeleton count={3} baseClass="home-grid-movies" />
           ) : (
             <Grid items={cap(series)} priorityCount={3} />
           )}

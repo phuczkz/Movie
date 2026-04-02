@@ -37,7 +37,7 @@ const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   if (sourceUrl) {
     try {
       baseUrl = new URL(".", sourceUrl).href;
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
@@ -82,7 +82,9 @@ const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
           try {
             const urlObj = new URL(sourceUrl);
             finalLine = urlObj.origin + line;
-          } catch {}
+          } catch {
+            // ignore
+          }
         } else {
           finalLine = baseUrl + line;
         }
@@ -112,8 +114,9 @@ const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
     if (blacklisted.some((word) => block.includes(word))) {
       isAd = true;
     }
-    // Heuristic: short blocks between discontinuities are usually ads
-    else if (duration > 0 && duration < 90 && blocks.length > 2) {
+    // Heuristic: very short blocks between discontinuities are usually ads
+    // (Keep this threshold low — 15s — to avoid stripping legitimate content)
+    else if (duration > 0 && duration < 15 && blocks.length > 2) {
       isAd = true;
     }
 
@@ -178,30 +181,52 @@ const Player = ({
       window.innerWidth <= 768;
     const isTablet = !isMobile && window.innerWidth <= 1024;
     return {
-      // Tối ưu buffer mượt hơn
-      maxBufferLength: isMobile ? 30 : isTablet ? 60 : 120,
-      maxMaxBufferLength: isMobile ? 60 : isTablet ? 120 : 360,
-      maxBufferSize: isMobile ? 30 * 1000 * 1000 : isTablet ? 60 * 1000 * 1000 : 150 * 1000 * 1000,
-      // Giải phóng RAM
-      backBufferLength: isMobile ? 20 : 60,
-      // Bắt đầu nhanh với Auto mode
-      startLevel: -1,
+      // === BUFFER: giữ nhỏ để video BẮT ĐẦU PHÁT NHANH ===
+      // Server phim VN rất chậm (~150KB/s). Buffer nhỏ = ít chờ đợi hơn.
+      maxBufferLength: isMobile ? 15 : 30,
+      maxMaxBufferLength: isMobile ? 30 : 60,
+      maxBufferSize: isMobile
+        ? 30 * 1000 * 1000
+        : isTablet
+        ? 60 * 1000 * 1000
+        : 100 * 1000 * 1000,
+      // Cho phép lỗ hổng buffer lớn hơn — tránh HLS.js re-fetch liên tục
+      maxBufferHole: 1.0,
+      // Giải phóng RAM sớm
+      backBufferLength: 10,
+
+      // === START: chất lượng thấp nhất → phát nhanh nhất ===
+      startLevel: 0,
       lowLatencyMode: false,
-      // Tắt capLevelOnFPSDrop để không xung đột với ABR
+
+      // === ABR ===
+      abrEwmaFastLive: 3.0,
+      abrEwmaSlowLive: 9.0,
+      abrEwmaFastVoD: 3.0,
+      abrEwmaSlowVoD: 9.0,
+      abrEwmaDefaultEstimate: 500_000,
+      abrBandWidthFactor: 0.7,
+      abrBandWidthUpFactor: 0.4,
       capLevelOnFPSDrop: false,
-      // Thời gian trễ retry
+
+      // === NETWORK: timeout DÀI để KHÔNG hủy download đang chạy ===
       fragLoadingRetryDelay: 1000,
-      manifestLoadingRetryDelay: 1500,
-      fragLoadingMaxRetry: 4, // Tránh retry vô tận làm đơ máy
-      manifestLoadingMaxRetry: 4,
-      levelLoadingMaxRetry: 4,
-      // Tính năng tự động vượt qua các đoạn bị lỗi nhỏ (stalls)
-      nudgeMaxRetry: 6,
+      fragLoadingMaxRetryTimeout: 16000,
+      fragLoadingMaxRetry: 10,
+      fragLoadingTimeOut: 60000, // 60s — cho server chậm đủ thời gian
+      manifestLoadingRetryDelay: 1000,
+      manifestLoadingMaxRetry: 6,
+      manifestLoadingTimeOut: 30000,
+      levelLoadingRetryDelay: 1000,
+      levelLoadingMaxRetry: 6,
+      levelLoadingTimeOut: 30000,
+
+      // === STALL: để HLS.js tự xử lý, KHÔNG can thiệp ===
+      nudgeMaxRetry: 5,
       nudgeOffset: 0.1,
+      highBufferWatchdogPeriod: 3,
+
       enableWorker: true,
-      // Cân chỉnh ABR để phản ứng nhanh hơn với thay đổi tốc độ mạng
-      abrEwmaFastLive: 2.0,
-      abrEwmaSlowLive: 5.0,
     };
   }, []);
 
@@ -224,7 +249,6 @@ const Player = ({
   const hideControlsTimeout = useRef(null);
   const bufferingSinceRef = useRef(null);
   const bufferingTimerRef = useRef(null);
-  const lastRecoveryRef = useRef(0);
   const initialTimeConsumed = useRef(false);
 
   useEffect(() => {
@@ -374,55 +398,67 @@ const Player = ({
       hls.loadSource(effectiveSource);
       hls.attachMedia(videoRef.current);
 
-      // HLS error handling
+      // HLS error handling – cả non-fatal và fatal
+      let networkRecoveryAttempts = 0;
+      let mediaRecoveryAttempts = 0;
 
       hls.on(Hls.Events.ERROR, (_, data) => {
-        if (!data.fatal) return;
+        // Non-fatal: CHỈ LOG, KHÔNG can thiệp.
+        // Việc nudge/seek gây hủy download đang chạy → vòng lặp loading vô tận.
+        if (!data.fatal) {
+          if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+            console.log("[HLS] Buffer stall detected — waiting for data…");
+          }
+          return;
+        }
 
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
+            networkRecoveryAttempts += 1;
             console.warn(
-              "[HLS] Network error, attempting recovery…",
+              `[HLS] Network error (#${networkRecoveryAttempts}), attempting recovery…`,
               data.details
             );
-            hls.startLoad();
+            if (networkRecoveryAttempts <= 5) {
+              // Exponential backoff: 500ms, 1s, 2s, 4s, 8s
+              setTimeout(() => {
+                if (hlsRef.current) hls.startLoad();
+              }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
+            } else {
+              // Sau 5 lần thất bại, reload nguồn từ đầu
+              console.warn("[HLS] Max network retries reached, reloading source…");
+              networkRecoveryAttempts = 0;
+              hls.loadSource(effectiveSource);
+            }
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
+            mediaRecoveryAttempts += 1;
             console.warn(
-              "[HLS] Media error, attempting recovery…",
+              `[HLS] Media error (#${mediaRecoveryAttempts}), attempting recovery…`,
               data.details
             );
-            hls.recoverMediaError();
+            if (mediaRecoveryAttempts <= 2) {
+              hls.recoverMediaError();
+            } else {
+              // Swap codec after multiple media errors
+              console.warn("[HLS] Swapping audio codec…");
+              hls.swapAudioCodec();
+              hls.recoverMediaError();
+              mediaRecoveryAttempts = 0;
+            }
             break;
           default:
             console.error("[HLS] Fatal unrecoverable error", data.details);
             hls.destroy();
+            hlsRef.current = null;
             break;
         }
       });
 
-      hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
-        const details = data?.details;
-        const fragments = details?.fragments || [];
-        if (!details || !Array.isArray(fragments)) return;
-
-        const blacklisted = ["adjump", "/v7/", "khomay", "proxys", "bitcdn", "ads"];
-        const filtered = fragments.filter((frag) => {
-          const url = frag?.relurl || frag?.url;
-          return !(url && blacklisted.some((word) => url.includes(word)));
-        });
-
-        let cursor = 0;
-        filtered.forEach((frag, idx) => {
-          frag.start = cursor;
-          frag.sn = idx;
-          cursor += Number(frag?.duration) || 0;
-        });
-
-        details.fragments = filtered;
-        details.totalduration = cursor;
-        details.endSN = filtered.length ? filtered[filtered.length - 1].sn : 0;
-      });
+      // NOTE: Removed aggressive in-place fragment stripping from LEVEL_LOADED.
+      // That approach corrupted the HLS.js internal timeline (start positions, SN numbers)
+      // causing constant re-buffering. Ad filtering is now handled only at the playlist
+      // text level via AdFreeLoader above, which is safe.
 
       hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
         const preferredHeights = [320, 480, 720, 1080];
@@ -458,20 +494,6 @@ const Player = ({
         setCurrentLevel(typeof data?.level === "number" ? data.level : -1);
       });
 
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        if (!data?.fatal) return;
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          hls.startLoad();
-          return;
-        }
-        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hls.recoverMediaError();
-          return;
-        }
-        hls.destroy();
-        hlsRef.current = null;
-      });
-
       return () => {
         hls.destroy();
         hlsRef.current = null;
@@ -488,7 +510,7 @@ const Player = ({
       }
     }
     return undefined;
-  }, [effectiveSource, isHls, hlsConfig, initialTime]);
+  }, [effectiveSource, isHls, hlsConfig, initialTime, source]);
 
   useEffect(() => {
     if (!isHls || !videoRef.current) return undefined;
@@ -560,7 +582,7 @@ const Player = ({
       video.removeEventListener("canplaythrough", onCanPlay);
       video.removeEventListener("playing", onCanPlay);
     };
-  }, [isHls, effectiveSource]);
+  }, [isHls, effectiveSource, initialTime, onTimeUpdate, playbackRate]);
 
   useEffect(() => {
     if (isHls && videoRef.current) {
@@ -588,15 +610,27 @@ const Player = ({
     }
   }, [isHls, volume, muted]);
 
-  // Removed manual buffering interval. Let HLS.js ABR handle quality drop natively.
+  // Stall monitor — CHỈ LOG, KHÔNG CAN THIỆP.
+  // Lý do: server phim VN chậm (~5-10s/segment) nhưng VẪN TRẢ DATA.
+  // Mọi hành động can thiệp (nudge, reload, hạ quality) đều HỦY download
+  // đang chạy → server phải trả data từ đầu → vòng lặp loading vô tận.
+  // Để HLS.js tự quản lý buffer + retry + quality switching.
   useEffect(() => {
-    if (!isHls || !hlsRef.current) return undefined;
+    if (!isHls) return undefined;
     if (!isBuffering) {
       bufferingSinceRef.current = null;
       return undefined;
     }
-    // Track stat merely if needed
     bufferingSinceRef.current = performance.now();
+    // Chỉ log để debug, không can thiệp gì cả.
+    const logger = setInterval(() => {
+      if (!bufferingSinceRef.current || !hlsRef.current) return;
+      const sec = Math.round((performance.now() - bufferingSinceRef.current) / 1000);
+      if (sec > 5 && sec % 10 === 0) {
+        console.log(`[HLS] Buffering for ${sec}s… (level=${hlsRef.current.currentLevel}, waiting for server)`);
+      }
+    }, 5000);
+    return () => clearInterval(logger);
   }, [isBuffering, isHls]);
 
   // Auto-hide controls when playing
@@ -1096,7 +1130,9 @@ const Player = ({
                       ? "bg-emerald-500/20 border-emerald-400 text-emerald-400"
                       : "bg-white/10 border-white/10 hover:border-emerald-300/60 hover:bg-white/20 text-white"
                   }`}
-                  title={theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim"}
+                  title={
+                    theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim"
+                  }
                 >
                   <Monitor className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3 min-[400px]:h-4 min-[400px]:w-4" />
                 </button>
@@ -1134,7 +1170,9 @@ const Player = ({
       <div
         ref={containerRef}
         className={`relative aspect-video overflow-visible bg-black shadow-2xl transition-all duration-500 ${
-          theaterMode && !isFullscreen ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10" : "z-10 rounded-2xl border border-white/10"
+          theaterMode && !isFullscreen
+            ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
+            : "z-10 rounded-2xl border border-white/10"
         }`}
         onClick={handleContainerClick}
         onMouseMove={handleUserActivity}
@@ -1143,7 +1181,7 @@ const Player = ({
         <video
           ref={videoRef}
           poster={poster}
-          preload={isSmallScreen ? "metadata" : "auto"}
+          preload="auto"
           playsInline
           className="player-native h-full w-full rounded-2xl"
           autoPlay
@@ -1162,7 +1200,9 @@ const Player = ({
       <div
         ref={containerRef}
         className={`relative aspect-video overflow-visible bg-black transition-all duration-500 ${
-          theaterMode && !isFullscreen ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10" : "z-10 rounded-2xl border border-white/10"
+          theaterMode && !isFullscreen
+            ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
+            : "z-10 rounded-2xl border border-white/10"
         }`}
         onClick={handleContainerClick}
         onMouseMove={handleUserActivity}
@@ -1186,7 +1226,9 @@ const Player = ({
     <div
       ref={containerRef}
       className={`relative aspect-video overflow-visible bg-black transition-all duration-500 ${
-        theaterMode && !isFullscreen ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10" : "z-10 rounded-2xl border border-white/10"
+        theaterMode && !isFullscreen
+          ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
+          : "z-10 rounded-2xl border border-white/10"
       }`}
       onClick={handleContainerClick}
       onMouseMove={handleUserActivity}

@@ -25,19 +25,32 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch – network-first strategy (always try network, fall back to cache)
+// Fetch handler
 self.addEventListener("fetch", (event) => {
-  // Skip non-GET and cross-origin requests
+  const url = new URL(event.request.url);
+  
+  // CHIẾN LƯỢC CHO DEV: Bỏ qua hoàn toàn localhost và các request của Vite/Chrome Extensions
+  if (
+    url.hostname === "localhost" || 
+    url.hostname === "127.0.0.1" ||
+    url.pathname.includes("@vite") ||
+    url.pathname.includes("node_modules") ||
+    url.protocol === "chrome-extension:"
+  ) {
+    return;
+  }
+
   if (event.request.method !== "GET") return;
 
-  // For navigation requests (HTML pages), use network-first
+  // 1. Navigation requests (HTML pages)
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Cache a fresh copy
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
           return response;
         })
         .catch(() => caches.match(event.request) || caches.match("/index.html"))
@@ -45,21 +58,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For static assets – stale-while-revalidate
-  if (
+  // 2. Static assets – stale-while-revalidate
+  const isStaticAsset = 
     event.request.destination === "style" ||
     event.request.destination === "script" ||
-    event.request.destination === "font"
-  ) {
+    event.request.destination === "font";
+
+  if (isStaticAsset) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         const fetchPromise = fetch(event.request).then((response) => {
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+          if (response && response.status === 200 && response.type === 'basic') {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
           return response;
-        });
+        }).catch(() => null);
+
         return cached || fetchPromise;
       })
     );
-    return;
   }
 });
