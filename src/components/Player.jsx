@@ -31,6 +31,13 @@ const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
 const BUFFERING_FAILOVER_MS = 15000;
 
+// Stream proxy — khi được cấu hình, tất cả HLS requests sẽ đi qua
+// Cloudflare Worker proxy để bypass firewall chặn CDN video.
+// Để trống = kết nối trực tiếp (không có overhead proxy).
+const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || "")
+  .trim()
+  .replace(/\/$/, "");
+
 const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   if (!text || typeof text !== "string") return text;
 
@@ -184,7 +191,6 @@ const Player = ({
     const isTablet = !isMobile && window.innerWidth <= 1024;
     return {
       // === BUFFER: giữ nhỏ để video BẮT ĐẦU PHÁT NHANH ===
-      // Server phim VN rất chậm (~150KB/s). Buffer nhỏ = ít chờ đợi hơn.
       maxBufferLength: isMobile ? 15 : 30,
       maxMaxBufferLength: isMobile ? 30 : 60,
       maxBufferSize: isMobile
@@ -197,8 +203,10 @@ const Player = ({
       // Giải phóng RAM sớm
       backBufferLength: 10,
 
-      // === START: chất lượng thấp nhất → phát nhanh nhất ===
-      startLevel: 0,
+      // === START: ĐỂ HLS.js TỰ CHỌN level phù hợp ===
+      // startLevel: 0 gây stuck nếu server không trả data cho level thấp nhất.
+      // -1 = auto → HLS.js dùng bandwidth estimate để quyết định.
+      startLevel: -1,
       lowLatencyMode: false,
 
       // === ABR ===
@@ -206,9 +214,10 @@ const Player = ({
       abrEwmaSlowLive: 9.0,
       abrEwmaFastVoD: 3.0,
       abrEwmaSlowVoD: 9.0,
-      abrEwmaDefaultEstimate: 500_000,
+      // 1.5Mbps — hợp lý cho streaming video, tránh bị lock ở level quá thấp
+      abrEwmaDefaultEstimate: 1_500_000,
       abrBandWidthFactor: 0.7,
-      abrBandWidthUpFactor: 0.4,
+      abrBandWidthUpFactor: 0.5,
       capLevelOnFPSDrop: false,
 
       // === NETWORK: timeout DÀI để KHÔNG hủy download đang chạy ===
@@ -223,8 +232,8 @@ const Player = ({
       levelLoadingMaxRetry: 6,
       levelLoadingTimeOut: 30000,
 
-      // === STALL: để HLS.js tự xử lý, KHÔNG can thiệp ===
-      nudgeMaxRetry: 5,
+      // === STALL RECOVERY ===
+      nudgeMaxRetry: 10,
       nudgeOffset: 0.1,
       highBufferWatchdogPeriod: 3,
 
@@ -320,8 +329,11 @@ const Player = ({
 
     const fetchAndFilter = async () => {
       try {
-        // Cho phép browser cache playlist HLS để giảm tải mạng (giờ cao điểm)
-        const res = await fetch(source);
+        // Route qua proxy nếu được cấu hình (Safari native HLS path)
+        const fetchUrl = STREAM_PROXY
+          ? `${STREAM_PROXY}?url=${encodeURIComponent(source)}`
+          : source;
+        const res = await fetch(fetchUrl);
         const text = await res.text();
         if (cancelled) return;
 
@@ -367,6 +379,19 @@ const Player = ({
       const AdFreeLoader = BaseLoader
         ? class extends BaseLoader {
             load(context, config, callbacks) {
+              // === STREAM PROXY: route qua Cloudflare Worker ===
+              // Khi VITE_STREAM_PROXY được cấu hình, wrap URL qua proxy
+              // để bypass firewall chặn CDN video.
+              if (
+                STREAM_PROXY &&
+                context.url &&
+                !context.url.includes(STREAM_PROXY)
+              ) {
+                context.url = `${STREAM_PROXY}?url=${encodeURIComponent(
+                  context.url
+                )}`;
+              }
+
               const onSuccess = callbacks?.onSuccess;
               const wrappedCallbacks = {
                 ...callbacks,
@@ -413,7 +438,9 @@ const Player = ({
 
       let hlsConfigOpts = {
         ...hlsConfig,
-        capLevelToPlayerSize: true,
+        // KHÔNG dùng capLevelToPlayerSize — server phim VN thường chỉ có 2-3 level,
+        // cap theo viewport có thể lock vào level không available → stuck loading.
+        capLevelToPlayerSize: false,
         ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
       };
 
@@ -426,16 +453,68 @@ const Player = ({
       // HLS error handling – cả non-fatal và fatal
       let networkRecoveryAttempts = 0;
       let mediaRecoveryAttempts = 0;
+      let stallStartTime = null;
+      let stallRecoveryStage = 0; // 0=chưa, 1=đổi level, 2=restart load, 3=recover media
 
       hls.on(Hls.Events.ERROR, (_, data) => {
-        // Non-fatal: CHỈ LOG, KHÔNG can thiệp.
-        // Việc nudge/seek gây hủy download đang chạy → vòng lặp loading vô tận.
         if (!data.fatal) {
           if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
-            console.log("[HLS] Buffer stall detected — waiting for data…");
+            // Track thời gian stall bắt đầu
+            if (!stallStartTime) stallStartTime = performance.now();
+            const stallDuration = Math.round(
+              (performance.now() - stallStartTime) / 1000
+            );
+            console.log(
+              `[HLS] Buffer stall detected (${stallDuration}s, stage=${stallRecoveryStage})`
+            );
+
+            // === SMART STALL RECOVERY 3 BẬC ===
+            // Chỉ can thiệp khi stall kéo dài, tránh hủy download đang chạy
+            if (stallDuration >= 50 && stallRecoveryStage < 3) {
+              // Bước 3: Recover media pipeline (cuối cùng)
+              stallRecoveryStage = 3;
+              console.warn(
+                "[HLS] Stall >50s — recovering media error pipeline"
+              );
+              hls.recoverMediaError();
+            } else if (stallDuration >= 35 && stallRecoveryStage < 2) {
+              // Bước 2: Restart loading từ vị trí hiện tại
+              stallRecoveryStage = 2;
+              console.warn(
+                "[HLS] Stall >35s — restarting load from current position"
+              );
+              hls.startLoad(-1);
+            } else if (stallDuration >= 20 && stallRecoveryStage < 1) {
+              // Bước 1: Thử chuyển sang level khác
+              stallRecoveryStage = 1;
+              const totalLevels = hls.levels?.length || 0;
+              const cur = hls.currentLevel;
+              if (totalLevels > 1) {
+                // Chuyển sang level kế tiếp (ưu tiên level cao hơn)
+                const nextLevel =
+                  cur < totalLevels - 1 ? cur + 1 : cur > 0 ? cur - 1 : -1;
+                console.warn(
+                  `[HLS] Stall >20s — switching level ${cur} → ${nextLevel}`
+                );
+                hls.nextLoadLevel = nextLevel;
+              } else {
+                // Single level: nudge nhẹ 0.2s để mở khoá demuxer
+                console.warn(
+                  "[HLS] Stall >20s, single level — nudging +0.2s"
+                );
+                const video = videoRef.current;
+                if (video && Number.isFinite(video.currentTime)) {
+                  video.currentTime += 0.2;
+                }
+              }
+            }
           }
           return;
         }
+
+        // Reset stall tracking khi có fatal error
+        stallStartTime = null;
+        stallRecoveryStage = 0;
 
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
@@ -451,7 +530,6 @@ const Player = ({
               }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
             } else {
               reportPlaybackIssue("network-timeout");
-              // Sau 5 lần thất bại, reload nguồn từ đầu
               console.warn(
                 "[HLS] Max network retries reached, reloading source…"
               );
@@ -468,7 +546,6 @@ const Player = ({
             if (mediaRecoveryAttempts <= 2) {
               hls.recoverMediaError();
             } else {
-              // Swap codec after multiple media errors
               console.warn("[HLS] Swapping audio codec…");
               hls.swapAudioCodec();
               hls.recoverMediaError();
@@ -517,10 +594,31 @@ const Player = ({
           setQualityLevels(finalLevels);
           setCurrentLevel(-1);
         }
+
+        // Log số lượng level để debug
+        console.log(
+          `[HLS] Manifest parsed: ${data?.levels?.length || 0} quality levels available`
+        );
       });
 
       hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
-        setCurrentLevel(typeof data?.level === "number" ? data.level : -1);
+        // Reset stall tracking khi level switch thành công
+        stallStartTime = null;
+        stallRecoveryStage = 0;
+        const lvl = typeof data?.level === "number" ? data.level : -1;
+        setCurrentLevel(lvl);
+        console.log(
+          `[HLS] Level switched to ${lvl} (${hls.levels?.[lvl]?.height || "auto"}p)`
+        );
+      });
+
+      // Detect khi fragment tải thành công → reset stall tracking
+      hls.on(Hls.Events.FRAG_LOADED, () => {
+        if (stallStartTime) {
+          console.log("[HLS] Fragment loaded — stall resolved");
+          stallStartTime = null;
+          stallRecoveryStage = 0;
+        }
       });
 
       return () => {
@@ -680,11 +778,9 @@ const Player = ({
     }
   }, [isHls, volume, muted]);
 
-  // Stall monitor — CHỈ LOG, KHÔNG CAN THIỆP.
-  // Lý do: server phim VN chậm (~5-10s/segment) nhưng VẪN TRẢ DATA.
-  // Mọi hành động can thiệp (nudge, reload, hạ quality) đều HỦY download
-  // đang chạy → server phải trả data từ đầu → vòng lặp loading vô tận.
-  // Để HLS.js tự quản lý buffer + retry + quality switching.
+  // Stall monitor — log + escalation thông minh.
+  // Recovery chính đã được xử lý trong HLS ERROR handler (BUFFER_STALLED_ERROR).
+  // Monitor này chỉ log trạng thái và trigger nudge cuối cùng nếu mọi recovery đều thất bại.
   useEffect(() => {
     if (!isHls) return undefined;
     if (!isBuffering) {
@@ -692,20 +788,41 @@ const Player = ({
       return undefined;
     }
     bufferingSinceRef.current = performance.now();
-    // Chỉ log để debug, không can thiệp gì cả.
     const logger = setInterval(() => {
       if (!bufferingSinceRef.current || !hlsRef.current) return;
       const sec = Math.round(
         (performance.now() - bufferingSinceRef.current) / 1000
       );
       if (sec > 5 && sec % 10 === 0) {
+        const hls = hlsRef.current;
+        const video = videoRef.current;
+        // Log chi tiết hơn để debug
+        const buffered = video?.buffered;
+        const bufferEnd =
+          buffered && buffered.length > 0
+            ? buffered.end(buffered.length - 1).toFixed(1)
+            : "0";
         console.log(
-          `[HLS] Buffering for ${sec}s… (level=${hlsRef.current.currentLevel}, waiting for server)`
+          `[HLS] Buffering for ${sec}s… (level=${hls.currentLevel}, nextLevel=${hls.nextLoadLevel}, bufferEnd=${bufferEnd}s, currentTime=${(video?.currentTime || 0).toFixed(1)}s)`
         );
+      }
+
+      // Nudge cuối cùng: nếu stall > 65s mà mọi recovery trong ERROR handler đều thất bại,
+      // thử reload source từ đầu (biện pháp cuối cùng)
+      if (sec >= 65) {
+        const hls = hlsRef.current;
+        if (hls) {
+          console.warn(
+            "[HLS] Stall >65s — all recovery failed, reloading source"
+          );
+          bufferingSinceRef.current = performance.now(); // reset timer
+          hls.loadSource(effectiveSource);
+          hls.startLoad(-1);
+        }
       }
     }, 5000);
     return () => clearInterval(logger);
-  }, [isBuffering, isHls]);
+  }, [isBuffering, isHls, effectiveSource]);
 
   // Auto-hide controls when playing
   useEffect(() => {
