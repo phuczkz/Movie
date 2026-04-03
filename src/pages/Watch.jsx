@@ -34,32 +34,6 @@ import {
   parseEpisodeNumber,
 } from "../utils/episodes.js";
 
-const HLS_PROXY_PATH = "/hls/playlist.m3u8?url=";
-
-const buildPlayableSource = (source, proxyBase) => {
-  if (!source || typeof source !== "string") return "";
-
-  const normalizedSource = source.trim();
-  if (!normalizedSource) return "";
-
-  const looksLikeHls = normalizedSource.toLowerCase().includes(".m3u8");
-  if (!looksLikeHls) return normalizedSource;
-
-  if (normalizedSource.includes(HLS_PROXY_PATH)) {
-    return normalizedSource;
-  }
-
-  const baseRaw = String(proxyBase || "").trim();
-  if (!baseRaw) return normalizedSource;
-
-  const normalizedBase = baseRaw === "/" ? "" : baseRaw.replace(/\/+$/, "");
-
-  const proxyPrefix = normalizedBase;
-  return `${proxyPrefix}${HLS_PROXY_PATH}${encodeURIComponent(
-    normalizedSource
-  )}`;
-};
-
 const Watch = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -193,13 +167,6 @@ const Watch = () => {
     : -1;
   const nextEpisode =
     currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
-
-  const rawSource = activeEpisode?.link_m3u8 || activeEpisode?.embed || "";
-  const proxyBase = import.meta.env.VITE_HLS_PROXY_BASE || "";
-  const playableSource = useMemo(
-    () => buildPlayableSource(rawSource, proxyBase),
-    [rawSource, proxyBase]
-  );
 
   const handleServerChange = (serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);
@@ -540,7 +507,7 @@ const Watch = () => {
           </div>
         ) : (
           <Player
-            source={playableSource}
+            source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
             poster={movie?.thumb_url || movie?.poster_url}
             title={movie?.name}
             subtitle={

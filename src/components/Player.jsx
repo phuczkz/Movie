@@ -169,11 +169,10 @@ const Player = ({
     () => source && (source.includes("iframe") || source.includes("embed")),
     [source]
   );
-  const isHls = useMemo(() => {
-    if (!source) return false;
-    const value = String(source).toLowerCase();
-    return value.includes(".m3u8") || value.includes("/hls/playlist.m3u8");
-  }, [source]);
+  const isHls = useMemo(
+    () => Boolean(source && source.endsWith(".m3u8")),
+    [source]
+  );
 
   const hlsConfig = useMemo(() => {
     // Phát hiện mobile thực sự qua User-Agent + screen width
@@ -427,9 +426,7 @@ const Player = ({
               }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
             } else {
               // Sau 5 lần thất bại, reload nguồn từ đầu
-              console.warn(
-                "[HLS] Max network retries reached, reloading source…"
-              );
+              console.warn("[HLS] Max network retries reached, reloading source…");
               networkRecoveryAttempts = 0;
               hls.loadSource(effectiveSource);
             }
@@ -628,13 +625,9 @@ const Player = ({
     // Chỉ log để debug, không can thiệp gì cả.
     const logger = setInterval(() => {
       if (!bufferingSinceRef.current || !hlsRef.current) return;
-      const sec = Math.round(
-        (performance.now() - bufferingSinceRef.current) / 1000
-      );
+      const sec = Math.round((performance.now() - bufferingSinceRef.current) / 1000);
       if (sec > 5 && sec % 10 === 0) {
-        console.log(
-          `[HLS] Buffering for ${sec}s… (level=${hlsRef.current.currentLevel}, waiting for server)`
-        );
+        console.log(`[HLS] Buffering for ${sec}s… (level=${hlsRef.current.currentLevel}, waiting for server)`);
       }
     }, 5000);
     return () => clearInterval(logger);
