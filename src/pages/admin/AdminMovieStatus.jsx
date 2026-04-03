@@ -1,7 +1,22 @@
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc, deleteDoc, collection, onSnapshot } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  onSnapshot,
+} from "firebase/firestore";
 import { db } from "../../firebase.config";
-import { Film, Search, Check, X, ShieldAlert, Trash2, RefreshCw } from "lucide-react";
+import {
+  Film,
+  Search,
+  Check,
+  X,
+  ShieldAlert,
+  Trash2,
+  RefreshCw,
+} from "lucide-react";
 import { useSearchMovies } from "../../hooks/useSearchMovies";
 
 const OVERRIDE_COLLECTION = "movieOverrides";
@@ -23,7 +38,7 @@ export default function AdminMovieStatus() {
   // Fetch all overrides on mount
   useEffect(() => {
     const unsub = onSnapshot(collection(db, OVERRIDE_COLLECTION), (snap) => {
-      setAllOverrides(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setAllOverrides(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
     return unsub;
   }, []);
@@ -61,7 +76,10 @@ export default function AdminMovieStatus() {
         await deleteDoc(doc(db, OVERRIDE_COLLECTION, slug));
         setOverride({ mode: "full" });
         setTrailerUrl("");
-        setMessage({ type: "success", text: "Đã khôi phục chế độ xem phim đầy đủ." });
+        setMessage({
+          type: "success",
+          text: "Đã khôi phục chế độ xem phim đầy đủ.",
+        });
       } else {
         await setDoc(doc(db, OVERRIDE_COLLECTION, slug), {
           mode,
@@ -70,7 +88,10 @@ export default function AdminMovieStatus() {
           updatedAt: new Date().toISOString(),
         });
         setOverride({ mode, trailerUrl: trailerUrl.trim() });
-        setMessage({ type: "success", text: `Đã chuyển sang chế độ "${mode}".` });
+        setMessage({
+          type: "success",
+          text: `Đã chuyển sang chế độ "${mode}".`,
+        });
       }
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -104,7 +125,7 @@ export default function AdminMovieStatus() {
           />
           {isFetching && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="h-4 w-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+              <div className="loader-orbit loader-orbit-xs" />
             </div>
           )}
         </div>
@@ -119,10 +140,16 @@ export default function AdminMovieStatus() {
                 className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 text-left transition-colors"
               >
                 <div className="h-10 w-8 rounded bg-white/5 shrink-0 overflow-hidden">
-                  <img src={m.poster_url || m.thumb_url} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={m.poster_url || m.thumb_url}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-200 line-clamp-1">{m.name}</p>
+                  <p className="text-sm font-semibold text-slate-200 line-clamp-1">
+                    {m.name}
+                  </p>
                   <p className="text-xs text-slate-500">{m.year}</p>
                 </div>
               </button>
@@ -134,7 +161,7 @@ export default function AdminMovieStatus() {
       {/* Result */}
       {loading && (
         <div className="flex justify-center py-8">
-          <div className="h-6 w-6 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+          <div className="loader-orbit loader-orbit-sm" />
         </div>
       )}
 
@@ -143,20 +170,44 @@ export default function AdminMovieStatus() {
           {/* Current status */}
           <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${override.mode === "trailer" ? "bg-amber-500/20" : "bg-emerald-500/20"}`}>
-                <Film className={`h-5 w-5 ${override.mode === "trailer" ? "text-amber-400" : "text-emerald-400"}`} />
+              <div
+                className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                  override.mode === "trailer"
+                    ? "bg-amber-500/20"
+                    : "bg-emerald-500/20"
+                }`}
+              >
+                <Film
+                  className={`h-5 w-5 ${
+                    override.mode === "trailer"
+                      ? "text-amber-400"
+                      : "text-emerald-400"
+                  }`}
+                />
               </div>
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">{movieName || slug}</p>
-                <p className={`font-semibold ${override.mode === "trailer" ? "text-amber-400" : "text-emerald-400"}`}>
-                  {override.mode === "trailer" ? "🎬 Chỉ xem Trailer" : "🎥 Xem đầy đủ"}
+                <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold">
+                  {movieName || slug}
+                </p>
+                <p
+                  className={`font-semibold ${
+                    override.mode === "trailer"
+                      ? "text-amber-400"
+                      : "text-emerald-400"
+                  }`}
+                >
+                  {override.mode === "trailer"
+                    ? "🎬 Chỉ xem Trailer"
+                    : "🎥 Xem đầy đủ"}
                 </p>
               </div>
             </div>
 
             {/* Trailer URL input */}
             <div className="space-y-2 mb-4">
-              <label className="text-sm font-semibold text-slate-300">URL Trailer (YouTube embed hoặc link trực tiếp)</label>
+              <label className="text-sm font-semibold text-slate-300">
+                URL Trailer (YouTube embed hoặc link trực tiếp)
+              </label>
               <input
                 type="url"
                 value={trailerUrl}
@@ -164,7 +215,9 @@ export default function AdminMovieStatus() {
                 placeholder="https://www.youtube.com/embed/..."
                 className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none"
               />
-              <p className="text-xs text-slate-500">Dán link YouTube dạng embed. Bỏ trống nếu chỉ muốn ẩn player.</p>
+              <p className="text-xs text-slate-500">
+                Dán link YouTube dạng embed. Bỏ trống nếu chỉ muốn ẩn player.
+              </p>
             </div>
 
             {/* Action buttons */}
@@ -193,12 +246,18 @@ export default function AdminMovieStatus() {
 
           {/* Message feedback */}
           {message && (
-            <div className={`rounded-xl px-4 py-3 text-sm flex items-center gap-3 ${
-              message.type === "success"
-                ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
-                : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
-            }`}>
-              {message.type === "success" ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            <div
+              className={`rounded-xl px-4 py-3 text-sm flex items-center gap-3 ${
+                message.type === "success"
+                  ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                  : "bg-rose-500/10 border border-rose-500/20 text-rose-400"
+              }`}
+            >
+              {message.type === "success" ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
               {message.text}
             </div>
           )}
@@ -209,28 +268,43 @@ export default function AdminMovieStatus() {
       <div className="pt-4 border-t border-white/5">
         <div className="flex items-center gap-2 mb-4">
           <ShieldAlert className="h-5 w-5 text-amber-500" />
-          <h3 className="text-lg font-bold text-white">Danh sách phim ở chế độ Trailer</h3>
+          <h3 className="text-lg font-bold text-white">
+            Danh sách phim ở chế độ Trailer
+          </h3>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {allOverrides.filter(o => o.mode === "trailer").length === 0 ? (
-            <p className="text-slate-500 text-sm py-4">Chưa có phim nào bị giới hạn.</p>
+          {allOverrides.filter((o) => o.mode === "trailer").length === 0 ? (
+            <p className="text-slate-500 text-sm py-4">
+              Chưa có phim nào bị giới hạn.
+            </p>
           ) : (
-            allOverrides.filter(o => o.mode === "trailer").map((o) => (
-              <div key={o.id} className="p-4 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between group">
-                <div className="min-w-0">
-                  <p className="font-semibold text-slate-200 truncate">{o.name || o.id}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">{o.id}</p>
-                </div>
-                <button
-                  onClick={() => selectMovie({ slug: o.id, name: o.name || o.id })}
-                  className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
-                  title="Quản lý"
+            allOverrides
+              .filter((o) => o.mode === "trailer")
+              .map((o) => (
+                <div
+                  key={o.id}
+                  className="p-4 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between group"
                 >
-                  <RefreshCw className="h-4 w-4" />
-                </button>
-              </div>
-            ))
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-200 truncate">
+                      {o.name || o.id}
+                    </p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">
+                      {o.id}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      selectMovie({ slug: o.id, name: o.name || o.id })
+                    }
+                    className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+                    title="Quản lý"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
           )}
         </div>
       </div>

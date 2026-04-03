@@ -122,6 +122,27 @@ const normalizeServerName = (name) => {
   return raw;
 };
 
+const normalizeProvider = (provider) => {
+  const value = (provider || "").toString().trim().toLowerCase();
+  return value === "ophim" ? "ophim" : "kkphim";
+};
+
+const getEpisodePlayableLink = (ep = {}) =>
+  ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed || "";
+
+const getEpisodeSourceKind = (ep = {}) => {
+  if (ep.link_m3u8 || ep.m3u8) return "m3u8";
+  if (ep.embed || ep.linkplay || ep.link) return "embed";
+  return "unknown";
+};
+
+const normalizeEpisodeSlug = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "") || "ep-unknown";
+
 const getNumericEpisodeRange = (list = []) => {
   const nums = Array.from(
     new Set(
@@ -165,10 +186,13 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
   const canMergeOphimIntoKk =
     !kkList.length || areEpisodeRangesCompatible(kkRange, ophimRange);
 
-  const add = (list, priority) => {
+  const add = (list, priority, providerHint) => {
     list.forEach((ep) => {
       if (!ep) return;
       const epNum = parseEpisodeNumber(ep.name || ep.slug);
+      const provider = normalizeProvider(
+        ep._provider || ep.provider || providerHint
+      );
       const serverLabel = normalizeServerName(
         ep.server_name || ep.server || ep.serverName
       );
@@ -178,12 +202,22 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
 
       const current = map.get(key);
       const prefers = !current || priority < current.priority;
+      const playableLink = getEpisodePlayableLink(ep);
       // Prefer entries that have a playable link
-      const hasLink = Boolean(
-        ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || ep.embed
-      );
+      const hasLink = Boolean(playableLink);
+      const nextSources = {
+        ...(current?.sources || {}),
+      };
+      if (hasLink) {
+        nextSources[provider] = {
+          link: playableLink,
+          kind: getEpisodeSourceKind(ep),
+        };
+      }
+
       const currentHasLink = Boolean(
-        current?.ep?.link_m3u8 ||
+        Object.values(nextSources).some((item) => item?.link) ||
+          current?.ep?.link_m3u8 ||
           current?.ep?.m3u8 ||
           current?.ep?.linkplay ||
           current?.ep?.link ||
@@ -192,21 +226,42 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
 
       if (prefers || (!currentHasLink && hasLink)) {
         map.set(key, {
-          ep: { ...ep, server_name: serverLabel },
+          ep: {
+            ...ep,
+            server_name: serverLabel,
+            _provider: provider,
+            _preferredProvider: provider,
+            _providers: nextSources,
+          },
           priority,
           epNum: epNum ?? -1,
+          sources: nextSources,
+        });
+      } else if (hasLink && current) {
+        map.set(key, {
+          ...current,
+          sources: nextSources,
+          ep: {
+            ...current.ep,
+            _providers: nextSources,
+          },
         });
       }
     });
   };
 
   // priority: 0 = KKphim, 1 = Ophim
-  add(kkList, 0);
+  add(kkList, 0, "kkphim");
   if (canMergeOphimIntoKk) {
-    add(ophimList, 1);
+    add(ophimList, 1, "ophim");
   }
 
-  const merged = Array.from(map.values()).map(({ ep }) => ep);
+  const merged = Array.from(map.values()).map(({ ep, sources }) => ({
+    ...ep,
+    _providers: sources || ep._providers || {},
+    _preferredProvider:
+      ep._preferredProvider || Object.keys(sources || {})[0] || ep._provider,
+  }));
   merged.sort((a, b) => {
     const na = parseEpisodeNumber(a.name || a.slug) ?? -1;
     const nb = parseEpisodeNumber(b.name || b.slug) ?? -1;
@@ -244,7 +299,12 @@ const withFallback = async (fn, fallback = null) => {
     if (!client.defaults.baseURL) throw new Error("Missing baseURL");
     return await fn();
   } catch (error) {
-    if (error?.response?.status !== 404 && error?.code !== "ERR_CANCELED" && error?.name !== "CanceledError" && error?.name !== "AbortError") {
+    if (
+      error?.response?.status !== 404 &&
+      error?.code !== "ERR_CANCELED" &&
+      error?.name !== "CanceledError" &&
+      error?.name !== "AbortError"
+    ) {
       console.warn("[movie-api] Fallback data used:", error.message);
     }
     return fallback;
@@ -307,14 +367,28 @@ export const getDetail = (slug) =>
 
       // Parallel fetch from both sources to avoid sequential timeout delays
       const [kkResultSettled, ophimResultSettled] = await Promise.allSettled([
-        getKKphimDetail(slug, { signal: abortController.signal }).catch(err => {
-          if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED' || err.name === 'AbortError') throw new Error('KKphim aborted');
-          throw err;
-        }),
-        client.get(`/phim/${slug}`, { signal: abortController.signal }).catch(err => {
-          if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED' || err.name === 'AbortError') throw new Error('Ophim aborted');
-          throw err;
-        }),
+        getKKphimDetail(slug, { signal: abortController.signal }).catch(
+          (err) => {
+            if (
+              err.name === "CanceledError" ||
+              err.code === "ERR_CANCELED" ||
+              err.name === "AbortError"
+            )
+              throw new Error("KKphim aborted");
+            throw err;
+          }
+        ),
+        client
+          .get(`/phim/${slug}`, { signal: abortController.signal })
+          .catch((err) => {
+            if (
+              err.name === "CanceledError" ||
+              err.code === "ERR_CANCELED" ||
+              err.name === "AbortError"
+            )
+              throw new Error("Ophim aborted");
+            throw err;
+          }),
       ]);
       clearTimeout(timeoutId);
 
@@ -323,7 +397,11 @@ export const getDetail = (slug) =>
         kkResult = kkResultSettled.value;
       } else {
         const error = kkResultSettled.reason;
-        if (error.response?.status !== 404 && error.status !== 404 && !error.message.includes('aborted')) {
+        if (
+          error.response?.status !== 404 &&
+          error.status !== 404 &&
+          !error.message.includes("aborted")
+        ) {
           console.warn("[getDetail] KKphim failed", error.message);
         }
       }
@@ -337,7 +415,11 @@ export const getDetail = (slug) =>
         const payload = data?.data?.item || data?.movie || data?.data || data;
         ophimMovie = normalizeMovie(payload);
         const ophimActors = normalizePeople(
-          payload?.peoples || payload?.people || payload?.actor || payload?.cast || payload?.actors
+          payload?.peoples ||
+            payload?.people ||
+            payload?.actor ||
+            payload?.cast ||
+            payload?.actors
         );
         if (ophimMovie && ophimActors.length) {
           ophimMovie.actor = ophimActors;
@@ -356,13 +438,18 @@ export const getDetail = (slug) =>
                     server_name: serverName,
                     _serverIndex: serverIdx,
                     _epIndex: idx,
+                    _provider: "ophim",
                   }))
                 : [];
             })
           : [];
       } else {
         const error = ophimResultSettled.reason;
-        if (error.response?.status !== 404 && error.status !== 404 && !error.message.includes('aborted')) {
+        if (
+          error.response?.status !== 404 &&
+          error.status !== 404 &&
+          !error.message.includes("aborted")
+        ) {
           console.warn("[getDetail] Ophim failed", error.message);
         }
       }
@@ -458,7 +545,10 @@ export const getDetail = (slug) =>
                 );
                 const tmdbExclusives = tmdbActors
                   .slice(0, 10)
-                  .filter((ta) => ta?.name && !existingNames.has(ta.name.toLowerCase()));
+                  .filter(
+                    (ta) =>
+                      ta?.name && !existingNames.has(ta.name.toLowerCase())
+                  );
                 movie.actor = [...movie.actor, ...tmdbExclusives];
               }
             }

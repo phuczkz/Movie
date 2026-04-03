@@ -11,8 +11,10 @@ const Actor = () => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <div className="h-10 w-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-        <div className="text-slate-400 font-medium animate-pulse">Đang tải thông tin diễn viên...</div>
+        <div className="loader-orbit loader-orbit-md"></div>
+        <div className="text-slate-400 font-medium animate-pulse">
+          Đang tải thông tin diễn viên...
+        </div>
       </div>
     );
   }
@@ -20,8 +22,10 @@ const Actor = () => {
   if (!person || !person.name) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center space-y-4">
-        <p className="text-slate-400 text-lg">Không tìm thấy thông tin diễn viên.</p>
-        <button 
+        <p className="text-slate-400 text-lg">
+          Không tìm thấy thông tin diễn viên.
+        </p>
+        <button
           onClick={() => navigate(-1)}
           className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
         >
@@ -33,11 +37,14 @@ const Actor = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      <button 
+      <button
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-400 font-medium transition-all group lg:mb-4"
       >
-        <MoveLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+        <MoveLeft
+          size={20}
+          className="group-hover:-translate-x-1 transition-transform"
+        />
         Quay lại
       </button>
 
@@ -65,7 +72,7 @@ const Actor = () => {
               </p>
             )}
           </div>
-          
+
           <div className="space-y-4">
             <h2 className="text-2xl font-bold text-white flex items-center gap-3">
               Tiểu sử
@@ -73,7 +80,8 @@ const Actor = () => {
             </h2>
             <div className="max-h-[16rem] overflow-y-auto pr-6 custom-scrollbar scroll-smooth">
               <p className="text-slate-300 leading-relaxed max-w-4xl text-lg whitespace-pre-wrap font-medium">
-                {person.biography || `Chúng tôi chưa có thông tin tiểu sử chi tiết cho ${person.name}.`}
+                {person.biography ||
+                  `Chúng tôi chưa có thông tin tiểu sử chi tiết cho ${person.name}.`}
               </p>
             </div>
           </div>
@@ -82,20 +90,27 @@ const Actor = () => {
 
       <div className="space-y-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-white tracking-tight">Phim đã tham gia</h2>
+          <h2 className="text-3xl font-bold text-white tracking-tight">
+            Phim đã tham gia
+          </h2>
           <span className="text-slate-500 font-bold bg-white/5 px-4 py-1.5 rounded-full border border-white/5">
             {person.credits?.length || 0} Phim
           </span>
         </div>
-        
+
         <div className="flex overflow-x-auto gap-6 sm:gap-8 pb-8 snap-x no-scrollbar custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
           {person.credits?.map((movie) => (
-            <div key={movie.slug} className="min-w-[190px] sm:min-w-[240px] snap-start">
+            <div
+              key={movie.slug}
+              className="min-w-[190px] sm:min-w-[240px] snap-start"
+            >
               <MovieCard movie={movie} />
             </div>
           ))}
           {(!person.credits || person.credits.length === 0) && (
-            <p className="text-slate-500 font-medium py-10 w-full text-center">Chưa có dữ liệu phim cho diễn viên này.</p>
+            <p className="text-slate-500 font-medium py-10 w-full text-center">
+              Chưa có dữ liệu phim cho diễn viên này.
+            </p>
           )}
         </div>
       </div>

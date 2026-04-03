@@ -60,7 +60,7 @@ const Profile = () => {
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="h-10 w-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="loader-orbit loader-orbit-md" />
       </div>
     );
   }
@@ -125,9 +125,10 @@ const Profile = () => {
             </h1>
           </div>
           <p className="text-slate-400 text-sm sm:text-base max-w-md mx-auto sm:mx-0">
-            Quản lý thông tin cá nhân, cập nhật ảnh đại diện và xem lại lịch sử xem phim của bạn.
+            Quản lý thông tin cá nhân, cập nhật ảnh đại diện và xem lại lịch sử
+            xem phim của bạn.
           </p>
-          
+
           <div className="pt-4 flex flex-wrap justify-center sm:justify-start gap-3">
             {user?.email === import.meta.env.VITE_ADMIN_EMAIL && (
               <button
@@ -138,7 +139,7 @@ const Profile = () => {
                 Bảng quản lý
               </button>
             )}
-             <button
+            <button
               onClick={() => logout().then(() => navigate("/"))}
               className="rounded-full bg-white/5 border border-white/10 px-6 py-2 text-sm font-bold text-slate-300 transition-all hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
             >
@@ -158,7 +159,9 @@ const Profile = () => {
         <form onSubmit={onSubmit} className="space-y-6 order-2 lg:order-1">
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">Email</label>
+              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                Email
+              </label>
               <input
                 type="email"
                 value={user?.email || ""}
@@ -167,7 +170,9 @@ const Profile = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">Họ tên / Biệt danh</label>
+              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                Họ tên / Biệt danh
+              </label>
               <input
                 type="text"
                 value={displayName}
@@ -180,7 +185,9 @@ const Profile = () => {
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">Ngày sinh</label>
+              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                Ngày sinh
+              </label>
               <input
                 type="date"
                 value={birthday || ""}
@@ -195,7 +202,9 @@ const Profile = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">Số điện thoại</label>
+              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                Số điện thoại
+              </label>
               <input
                 type="tel"
                 inputMode="numeric"
@@ -236,7 +245,7 @@ const Profile = () => {
 
       <WatchHistory />
 
-      <AvatarModal 
+      <AvatarModal
         isOpen={showAvatarModal}
         onClose={() => setShowAvatarModal(false)}
         currentAvatarUrl={avatarUrl}

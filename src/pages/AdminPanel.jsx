@@ -41,7 +41,7 @@ export default function AdminPanel() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div className="h-10 w-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <div className="loader-orbit loader-orbit-md" />
       </div>
     );
   }
@@ -154,7 +154,7 @@ export default function AdminPanel() {
           <Suspense
             fallback={
               <div className="flex justify-center py-16">
-                <div className="h-8 w-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                <div className="loader-orbit loader-orbit-sm" />
               </div>
             }
           >

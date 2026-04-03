@@ -87,23 +87,25 @@ export const getKKphimSeries = (page = 1) =>
 export const getKKphimSingle = (page = 1) =>
   fetchList("/danh-sach/phim-le", page);
 
-export const getKKphimDetail = async (slug) => {
-  const { data } = await kkphim.get(`/phim/${slug}`);
+export const getKKphimDetail = async (slug, options = {}) => {
+  const { data } = await kkphim.get(`/phim/${slug}`, {
+    signal: options.signal,
+  });
   const movieData = data?.data?.item || data?.item || data?.movie || data;
   const movie = normalizeKKphimMovie(movieData);
   const episodesData = movieData?.episodes || [];
   const episodes = Array.isArray(episodesData)
     ? episodesData.flatMap((server) => {
-      const serverName = server?.server_name || server?.name || "";
-      const list = server?.server_data || server || [];
-      return Array.isArray(list)
-        ? list.map((ep, idx) => ({
-          ...ep,
-          server_name: serverName,
-          _serverIndex: idx,
-        }))
-        : [];
-    })
+        const serverName = server?.server_name || server?.name || "";
+        const list = server?.server_data || server || [];
+        return Array.isArray(list)
+          ? list.map((ep, idx) => ({
+              ...ep,
+              server_name: serverName,
+              _serverIndex: idx,
+            }))
+          : [];
+      })
     : [];
 
   return {
@@ -114,6 +116,7 @@ export const getKKphimDetail = async (slug) => {
       server_name: ep.server_name || "",
       link_m3u8: ep.link_m3u8 || ep.link_embed || ep.link || "",
       embed: ep.link_embed || ep.link_m3u8 || ep.link || "",
+      _provider: "kkphim",
     })),
   };
 };

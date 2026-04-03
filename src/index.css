@@ -276,3 +276,57 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+.loader,
+.loader-orbit {
+  --loader-size: 22px;
+  --loader-color: #25b09b;
+  width: calc(var(--loader-size) * 2 + 8px);
+  height: calc(var(--loader-size) * 2 + 8px);
+  display: inline-grid;
+  place-items: center;
+}
+
+.loader::before,
+.loader-orbit::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  color: var(--loader-color);
+  box-shadow:
+    calc(1 * var(--loader-size)) calc(0 * var(--loader-size)) 0 0,
+    calc(0.707 * var(--loader-size)) calc(0.707 * var(--loader-size)) 0 1px,
+    calc(0 * var(--loader-size)) calc(1 * var(--loader-size)) 0 2px,
+    calc(-0.707 * var(--loader-size)) calc(0.707 * var(--loader-size)) 0 3px,
+    calc(-1 * var(--loader-size)) calc(0 * var(--loader-size)) 0 4px,
+    calc(-0.707 * var(--loader-size)) calc(-0.707 * var(--loader-size)) 0 5px,
+    calc(0 * var(--loader-size)) calc(-1 * var(--loader-size)) 0 6px;
+  animation: loader-orbit-spin 1s infinite steps(8);
+}
+
+.loader-orbit-xs {
+  --loader-size: 8px;
+}
+
+.loader-orbit-sm {
+  --loader-size: 12px;
+}
+
+.loader-orbit-md {
+  --loader-size: 16px;
+}
+
+.loader-orbit-lg {
+  --loader-size: 22px;
+}
+
+.loader-orbit-light {
+  --loader-color: #ffffff;
+}
+
+@keyframes loader-orbit-spin {
+  100% {
+    transform: rotate(1turn);
+  }
+}

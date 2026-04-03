@@ -55,7 +55,6 @@ const renderContent = (content) =>
     )
   );
 
-
 /* ───── Single Comment / Reply Row ───── */
 function CommentRow({
   comment,
@@ -121,7 +120,9 @@ function CommentRow({
         console.error("Lỗi reaction:", err);
         // Nếu lỗi do rules, báo người dùng
         if (err.code === "permission-denied") {
-          alert("Lỗi: Không có quyền cập nhật. Bạn cần thiết lập Security Rules trên Firebase Console.");
+          alert(
+            "Lỗi: Không có quyền cập nhật. Bạn cần thiết lập Security Rules trên Firebase Console."
+          );
         }
       }
     },
@@ -148,7 +149,9 @@ function CommentRow({
     } catch (err) {
       console.error("Lỗi xóa bình luận:", err);
       if (err.code === "permission-denied") {
-        alert("Lỗi: Không có quyền xóa. Nếu bạn là Admin, hãy đảm bảo đã cấu hình Security Rules.");
+        alert(
+          "Lỗi: Không có quyền xóa. Nếu bạn là Admin, hãy đảm bảo đã cấu hình Security Rules."
+        );
       } else {
         alert("Đã xảy ra lỗi khi xóa, vui lòng thử lại.");
       }
@@ -186,12 +189,20 @@ function CommentRow({
       const finalMovieName = movieName || movieSlug;
       if (finalMovieName) {
         // Ensure the parent doc is not virtual
-        await setDoc(doc(db, "comments", movieSlug), { exists: true }, { merge: true });
+        await setDoc(
+          doc(db, "comments", movieSlug),
+          { exists: true },
+          { merge: true }
+        );
 
-        await setDoc(doc(db, "commentedMovies", movieSlug), {
-          movieName: finalMovieName,
-          lastCommentAt: serverTimestamp()
-        }, { merge: true });
+        await setDoc(
+          doc(db, "commentedMovies", movieSlug),
+          {
+            movieName: finalMovieName,
+            lastCommentAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
       }
 
       setReplyText("");
@@ -468,8 +479,12 @@ export default function Comments({ movieSlug, movieName }) {
     // Sort replies: cũ nhất trước (trong thread)
     for (const key of Object.keys(rMap)) {
       rMap[key].sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
+        const timeA = a.createdAt?.toMillis
+          ? a.createdAt.toMillis()
+          : Date.now();
+        const timeB = b.createdAt?.toMillis
+          ? b.createdAt.toMillis()
+          : Date.now();
         return timeA - timeB;
       });
     }
@@ -506,12 +521,20 @@ export default function Comments({ movieSlug, movieName }) {
       const finalMovieName = movieName || movieSlug;
       if (finalMovieName) {
         // Ensure the parent doc is not virtual
-        await setDoc(doc(db, "comments", movieSlug), { exists: true }, { merge: true });
-        
-        await setDoc(doc(db, "commentedMovies", movieSlug), {
-          movieName: finalMovieName,
-          lastCommentAt: serverTimestamp()
-        }, { merge: true });
+        await setDoc(
+          doc(db, "comments", movieSlug),
+          { exists: true },
+          { merge: true }
+        );
+
+        await setDoc(
+          doc(db, "commentedMovies", movieSlug),
+          {
+            movieName: finalMovieName,
+            lastCommentAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
       }
 
       setNewComment("");
@@ -593,7 +616,7 @@ export default function Comments({ movieSlug, movieName }) {
         ))}
         {allDocs === null && (
           <div className="flex justify-center py-6">
-            <div className="h-6 w-6 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+            <div className="loader-orbit loader-orbit-sm"></div>
           </div>
         )}
         {allDocs !== null && topComments.length === 0 && (

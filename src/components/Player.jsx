@@ -29,6 +29,7 @@ import {
 const SEEK_STEP = 10; // seconds
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 const MOBILE_MEDIA_QUERY = "(max-width: 640px)";
+const BUFFERING_FAILOVER_MS = 15000;
 
 const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   if (!text || typeof text !== "string") return text;
@@ -155,6 +156,7 @@ const Player = ({
   initialTime,
   theaterMode = false,
   onToggleTheater,
+  onPlaybackIssue,
 }) => {
   const videoRef = useRef(null);
   const reactPlayerRef = useRef(null);
@@ -249,7 +251,26 @@ const Player = ({
   const hideControlsTimeout = useRef(null);
   const bufferingSinceRef = useRef(null);
   const bufferingTimerRef = useRef(null);
+  const bufferingIssueTimerRef = useRef(null);
+  const playbackIssueReportedRef = useRef(false);
   const initialTimeConsumed = useRef(false);
+
+  const clearBufferingIssueTimer = useCallback(() => {
+    if (bufferingIssueTimerRef.current) {
+      clearTimeout(bufferingIssueTimerRef.current);
+      bufferingIssueTimerRef.current = null;
+    }
+  }, []);
+
+  const reportPlaybackIssue = useCallback(
+    (reason) => {
+      if (!onPlaybackIssue) return;
+      if (playbackIssueReportedRef.current) return;
+      playbackIssueReportedRef.current = true;
+      onPlaybackIssue(reason || "playback-issue");
+    },
+    [onPlaybackIssue]
+  );
 
   useEffect(() => {
     // Reset visual state when source changes
@@ -259,9 +280,13 @@ const Player = ({
       setIsBuffering(true);
       setControlsVisible(true);
       setPlaying(false);
+      playbackIssueReportedRef.current = false;
     }, 0);
+    clearBufferingIssueTimer();
     return () => clearTimeout(resetId);
-  }, [source]);
+  }, [source, clearBufferingIssueTimer]);
+
+  useEffect(() => () => clearBufferingIssueTimer(), [clearBufferingIssueTimer]);
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_MEDIA_QUERY);
@@ -425,8 +450,11 @@ const Player = ({
                 if (hlsRef.current) hls.startLoad();
               }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
             } else {
+              reportPlaybackIssue("network-timeout");
               // Sau 5 lần thất bại, reload nguồn từ đầu
-              console.warn("[HLS] Max network retries reached, reloading source…");
+              console.warn(
+                "[HLS] Max network retries reached, reloading source…"
+              );
               networkRecoveryAttempts = 0;
               hls.loadSource(effectiveSource);
             }
@@ -449,6 +477,7 @@ const Player = ({
             break;
           default:
             console.error("[HLS] Fatal unrecoverable error", data.details);
+            reportPlaybackIssue("fatal-hls");
             hls.destroy();
             hlsRef.current = null;
             break;
@@ -510,7 +539,14 @@ const Player = ({
       }
     }
     return undefined;
-  }, [effectiveSource, isHls, hlsConfig, initialTime, source]);
+  }, [
+    effectiveSource,
+    isHls,
+    hlsConfig,
+    initialTime,
+    source,
+    reportPlaybackIssue,
+  ]);
 
   useEffect(() => {
     if (!isHls || !videoRef.current) return undefined;
@@ -532,6 +568,7 @@ const Player = ({
       setPlaying(true);
       clearBufferingTimer();
       setIsBuffering(false);
+      playbackIssueReportedRef.current = false;
     };
     const onPause = () => setPlaying(false);
 
@@ -548,11 +585,15 @@ const Player = ({
     const onCanPlay = () => {
       clearBufferingTimer();
       setIsBuffering(false);
+      playbackIssueReportedRef.current = false;
       // Ensure the resume feature jumps to the right mark as soon as video provides frame data
       if (initialTime > 0 && !initialTimeConsumed.current) {
         video.currentTime = initialTime;
         initialTimeConsumed.current = true;
       }
+    };
+    const onError = () => {
+      reportPlaybackIssue("video-error");
     };
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("loadedmetadata", onDuration);
@@ -565,6 +606,7 @@ const Player = ({
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("canplaythrough", onCanPlay);
     video.addEventListener("playing", onCanPlay);
+    video.addEventListener("error", onError);
 
     video.playbackRate = playbackRate;
 
@@ -581,8 +623,36 @@ const Player = ({
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("canplaythrough", onCanPlay);
       video.removeEventListener("playing", onCanPlay);
+      video.removeEventListener("error", onError);
     };
-  }, [isHls, effectiveSource, initialTime, onTimeUpdate, playbackRate]);
+  }, [
+    isHls,
+    effectiveSource,
+    initialTime,
+    onTimeUpdate,
+    playbackRate,
+    reportPlaybackIssue,
+  ]);
+
+  useEffect(() => {
+    clearBufferingIssueTimer();
+    if (!effectiveSource || canUseIframe) return undefined;
+    if (!isBuffering || (!playing && progress <= 0)) return undefined;
+
+    bufferingIssueTimerRef.current = setTimeout(() => {
+      reportPlaybackIssue("buffer-timeout");
+    }, BUFFERING_FAILOVER_MS);
+
+    return clearBufferingIssueTimer;
+  }, [
+    effectiveSource,
+    canUseIframe,
+    isBuffering,
+    playing,
+    progress,
+    reportPlaybackIssue,
+    clearBufferingIssueTimer,
+  ]);
 
   useEffect(() => {
     if (isHls && videoRef.current) {
@@ -625,9 +695,13 @@ const Player = ({
     // Chỉ log để debug, không can thiệp gì cả.
     const logger = setInterval(() => {
       if (!bufferingSinceRef.current || !hlsRef.current) return;
-      const sec = Math.round((performance.now() - bufferingSinceRef.current) / 1000);
+      const sec = Math.round(
+        (performance.now() - bufferingSinceRef.current) / 1000
+      );
       if (sec > 5 && sec % 10 === 0) {
-        console.log(`[HLS] Buffering for ${sec}s… (level=${hlsRef.current.currentLevel}, waiting for server)`);
+        console.log(
+          `[HLS] Buffering for ${sec}s… (level=${hlsRef.current.currentLevel}, waiting for server)`
+        );
       }
     }, 5000);
     return () => clearInterval(logger);
@@ -1161,7 +1235,7 @@ const Player = ({
       className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30 transition-opacity duration-200"
       style={{ opacity: isBuffering ? 1 : 0 }}
     >
-      <div className="h-10 w-10 rounded-full border-2 border-white/30 border-t-emerald-400 animate-spin" />
+      <div className="loader-orbit loader-orbit-md" />
     </div>
   );
 
@@ -1237,7 +1311,7 @@ const Player = ({
       <Suspense
         fallback={
           <div className="flex h-full w-full items-center justify-center bg-black">
-            <div className="h-10 w-10 rounded-full border-2 border-white/30 border-t-emerald-400 animate-spin" />
+            <div className="loader-orbit loader-orbit-md" />
           </div>
         }
       >
@@ -1265,11 +1339,16 @@ const Player = ({
           onPlay={() => {
             setPlaying(true);
             setIsBuffering(false);
+            playbackIssueReportedRef.current = false;
           }}
           onPause={() => setPlaying(false)}
-          onReady={() => setIsBuffering(false)}
+          onReady={() => {
+            setIsBuffering(false);
+            playbackIssueReportedRef.current = false;
+          }}
           onBuffer={() => setIsBuffering(true)}
           onBufferEnd={() => setIsBuffering(false)}
+          onError={() => reportPlaybackIssue("react-player-error")}
           style={{ borderRadius: "1rem", overflow: "hidden" }}
           config={{
             file: {

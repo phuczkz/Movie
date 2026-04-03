@@ -4,7 +4,6 @@ import Layout from "./components/Layout.jsx";
 
 import { useAuth } from "./context/AuthContext.jsx";
 
-
 const Home = lazy(() => import("./pages/Home.jsx"));
 const Category = lazy(() => import("./pages/Category.jsx"));
 const Country = lazy(() => import("./pages/Country.jsx"));
@@ -20,14 +19,14 @@ const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
 
 function App() {
   const { userProfile, maintenance, loading } = useAuth();
-  
+
   const isAdmin = userProfile?.email === import.meta.env.VITE_ADMIN_EMAIL;
   const isWhitelisted = userProfile?.isWhitelisted;
 
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="h-8 w-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <div className="loader-orbit loader-orbit-sm" />
       </div>
     );
   }
@@ -50,7 +49,10 @@ function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/category/:category" element={<Category />} />
-                <Route path="/category/:category/:page" element={<Category />} />
+                <Route
+                  path="/category/:category/:page"
+                  element={<Category />}
+                />
                 <Route path="/country/:country" element={<Country />} />
                 <Route path="/country/:country/:page" element={<Country />} />
                 <Route path="/movie/:slug" element={<Detail />} />

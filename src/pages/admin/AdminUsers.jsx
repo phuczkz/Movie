@@ -284,7 +284,7 @@ export default function AdminUsers() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="h-8 w-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+          <div className="loader-orbit loader-orbit-sm" />
         </div>
       ) : (
         <div className="rounded-2xl border border-white/5 bg-slate-900/60 overflow-x-auto">

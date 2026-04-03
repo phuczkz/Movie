@@ -13,9 +13,14 @@ const getOptimizedPoster = (url, w = 360) => {
   try {
     const rawHost = new URL(url).hostname;
     if (rawHost.includes("tmdb.org")) {
-      return url.replace(/\/w(92|154|185|300|342|500|780|original)\//, `/w${w > 400 ? 500 : 342}/`);
+      return url.replace(
+        /\/w(92|154|185|300|342|500|780|original)\//,
+        `/w${w > 400 ? 500 : 342}/`
+      );
     }
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=webp&w=${w}&fit=cover&q=80`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&output=webp&w=${w}&fit=cover&q=80`;
   } catch {
     return url;
   }
@@ -52,14 +57,14 @@ const SearchBar = ({
     return () => media.removeEventListener("change", handleChange);
   }, []);
 
-
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!containerRef.current) return;
       if (!containerRef.current.contains(event.target)) setOpen(false);
     };
     document.addEventListener("pointerdown", handleClickOutside);
-    return () => document.removeEventListener("pointerdown", handleClickOutside);
+    return () =>
+      document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
   const { data = [], isFetching } = useSearchMovies(debouncedQuery);
@@ -107,7 +112,7 @@ const SearchBar = ({
         <div className="absolute left-0 right-0 mt-2 z-30 rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur shadow-xl">
           <div className="p-3 flex items-center gap-2 text-sm text-slate-200">
             {isFetching ? (
-              <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+              <span className="loader-orbit loader-orbit-xs loader-orbit-light" />
             ) : (
               <span className="h-2 w-2 rounded-full bg-emerald-400" />
             )}
@@ -118,7 +123,9 @@ const SearchBar = ({
 
           <div className="max-h-[400px] overflow-y-auto divide-y divide-white/5">
             {results.length === 0 && !isFetching ? (
-              <div className="px-4 py-3 text-sm text-slate-400">No results found</div>
+              <div className="px-4 py-3 text-sm text-slate-400">
+                No results found
+              </div>
             ) : (
               results.map((movie) => (
                 <button
@@ -128,7 +135,9 @@ const SearchBar = ({
                   className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-700/70 transition-colors"
                 >
                   <img
-                    src={getOptimizedPoster(movie.poster_url || movie.thumb_url)}
+                    src={getOptimizedPoster(
+                      movie.poster_url || movie.thumb_url
+                    )}
                     alt={movie.name}
                     className="w-12 h-16 rounded-md object-cover flex-shrink-0"
                     loading="lazy"

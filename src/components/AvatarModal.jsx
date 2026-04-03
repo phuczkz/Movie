@@ -32,7 +32,7 @@ export default function AvatarModal({
   onClose,
   currentAvatarUrl,
   onSuccess,
-  onError
+  onError,
 }) {
   const { updateProfileData, uploadAvatar } = useAuth();
   const [uploading, setUploading] = useState(false);
@@ -57,8 +57,12 @@ export default function AvatarModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) { // Allow up to 5MB for selection, will be resized
-      if (onError) onError("Ảnh gốc quá lớn (tối đa 5MB). Hệ thống sẽ tự nén ảnh cho bạn.");
+    if (file.size > 5 * 1024 * 1024) {
+      // Allow up to 5MB for selection, will be resized
+      if (onError)
+        onError(
+          "Ảnh gốc quá lớn (tối đa 5MB). Hệ thống sẽ tự nén ảnh cho bạn."
+        );
       return;
     }
 
@@ -81,8 +85,12 @@ export default function AvatarModal({
       <div className="relative w-full max-w-xl bg-slate-900 border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-500 sm:duration-300 max-h-[90vh] flex flex-col">
         <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between shrink-0">
           <div>
-            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">Chọn ảnh đại diện</h3>
-            <p className="text-slate-400 text-sm sm:text-base mt-1">Chọn từ thư viện anime hoặc tải lên ảnh của bạn</p>
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Chọn ảnh đại diện
+            </h3>
+            <p className="text-slate-400 text-sm sm:text-base mt-1">
+              Chọn từ thư viện anime hoặc tải lên ảnh của bạn
+            </p>
           </div>
           <button
             onClick={() => !uploading && onClose()}
@@ -102,15 +110,18 @@ export default function AvatarModal({
                     key={avatar.id}
                     onClick={() => handleSelectPreset(avatar.url)}
                     disabled={uploading}
-                    className={`relative group aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border-4 transition-all ${currentAvatarUrl === avatar.url 
-                      ? "border-emerald-500 scale-95 shadow-lg shadow-emerald-500/20" 
-                      : "border-transparent hover:border-white/20 hover:scale-105"
-                      }`}
+                    className={`relative group aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border-4 transition-all ${
+                      currentAvatarUrl === avatar.url
+                        ? "border-emerald-500 scale-95 shadow-lg shadow-emerald-500/20"
+                        : "border-transparent hover:border-white/20 hover:scale-105"
+                    }`}
                   >
                     <img
                       src={avatar.url}
                       alt={avatar.name}
-                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 ${uploading ? "opacity-30" : ""}`}
+                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 ${
+                        uploading ? "opacity-30" : ""
+                      }`}
                     />
                     {currentAvatarUrl === avatar.url ? (
                       <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
@@ -119,7 +130,7 @@ export default function AvatarModal({
                         </div>
                       </div>
                     ) : (
-                       <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
+                      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
                     )}
                   </button>
                 ))}
@@ -153,14 +164,18 @@ export default function AvatarModal({
             >
               <div className="p-5 rounded-3xl bg-slate-800 text-slate-400 group-hover:bg-emerald-500 group-hover:text-slate-950 group-hover:scale-110 transition-all duration-300 shadow-xl">
                 {uploading ? (
-                  <div className="h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="loader-orbit loader-orbit-sm" />
                 ) : (
                   <Upload size={32} />
                 )}
               </div>
               <div className="text-center">
-                <p className="text-white text-lg font-bold">Thêm ảnh từ thiết bị</p>
-                <p className="text-slate-400 text-sm mt-1 max-w-[240px]">Hệ thống sẽ tự động tối ưu dung lượng ảnh cho bạn (Tối đa 5MB)</p>
+                <p className="text-white text-lg font-bold">
+                  Thêm ảnh từ thiết bị
+                </p>
+                <p className="text-slate-400 text-sm mt-1 max-w-[240px]">
+                  Hệ thống sẽ tự động tối ưu dung lượng ảnh cho bạn (Tối đa 5MB)
+                </p>
               </div>
             </button>
           </div>
@@ -168,13 +183,15 @@ export default function AvatarModal({
 
         {uploading && (
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-[110] flex items-center justify-center p-6 text-center">
-             <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-xs animate-in zoom-in-95 duration-300">
-                <div className="h-12 w-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                <div>
-                  <h4 className="text-white font-bold text-lg">Đang xử lý ảnh</h4>
-                  <p className="text-slate-400 text-sm mt-1">Vui lòng chờ trong giây lát...</p>
-                </div>
-             </div>
+            <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-xs animate-in zoom-in-95 duration-300">
+              <div className="loader-orbit loader-orbit-md" />
+              <div>
+                <h4 className="text-white font-bold text-lg">Đang xử lý ảnh</h4>
+                <p className="text-slate-400 text-sm mt-1">
+                  Vui lòng chờ trong giây lát...
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

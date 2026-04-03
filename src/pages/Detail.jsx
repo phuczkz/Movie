@@ -364,7 +364,7 @@ const Detail = () => {
   if (isActuallyLoading)
     return (
       <div className="flex flex-col items-center justify-center py-32 space-y-4">
-        <div className="h-10 w-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+        <div className="loader-orbit loader-orbit-md"></div>
         <div className="text-slate-400 font-medium animate-pulse">
           Đang tải chi tiết phim...
         </div>
@@ -907,14 +907,14 @@ const Detail = () => {
                     {actors.length}
                   </span>
                 </div>
-              <div className="flex overflow-x-auto gap-4 md:gap-6 pb-2 snap-x custom-scrollbar">
-                {actors.map((actor) => {
-                  return (
-                    <Link
-                      key={actor.name}
-                      to={`/actor/${actor.id || actor.name}`}
-                      className="flex flex-col items-center gap-2 min-w-[80px] sm:min-w-[96px] snap-start group/actor hover:-translate-y-1 transition-transform"
-                    >
+                <div className="flex overflow-x-auto gap-4 md:gap-6 pb-2 snap-x custom-scrollbar">
+                  {actors.map((actor) => {
+                    return (
+                      <Link
+                        key={actor.name}
+                        to={`/actor/${actor.id || actor.name}`}
+                        className="flex flex-col items-center gap-2 min-w-[80px] sm:min-w-[96px] snap-start group/actor hover:-translate-y-1 transition-transform"
+                      >
                         <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
                           {actor.image ? (
                             <img

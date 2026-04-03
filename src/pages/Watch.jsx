@@ -34,6 +34,54 @@ import {
   parseEpisodeNumber,
 } from "../utils/episodes.js";
 
+const PROVIDER_LABELS = {
+  kkphim: "Nguồn 1",
+  ophim: "Nguồn 2",
+};
+
+const PROVIDER_SOURCE_NAMES = {
+  kkphim: "KKphim",
+  ophim: "Ophim",
+};
+
+const normalizeProviderParam = (value) => {
+  const lower = (value || "").toString().trim().toLowerCase();
+  if (lower === "kkphim" || lower === "ophim") return lower;
+  return null;
+};
+
+const buildEpisodeProviders = (episode) => {
+  if (!episode) return {};
+  const providers = {
+    ...(episode._providers || {}),
+  };
+
+  const directLink =
+    episode.link_m3u8 || episode.m3u8 || episode.linkplay || episode.link || "";
+  const embedLink = episode.embed || "";
+  const inferredProvider =
+    normalizeProviderParam(episode._provider) || "kkphim";
+
+  if (!providers[inferredProvider]?.link) {
+    const fallbackLink = directLink || embedLink;
+    if (fallbackLink) {
+      providers[inferredProvider] = {
+        link: fallbackLink,
+        kind: directLink ? "m3u8" : "embed",
+      };
+    }
+  }
+
+  if (!providers.ophim?.link && embedLink && inferredProvider !== "ophim") {
+    providers.ophim = {
+      link: embedLink,
+      kind: "embed",
+    };
+  }
+
+  return providers;
+};
+
 const Watch = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -74,6 +122,12 @@ const Watch = () => {
   const [params, setParams] = useSearchParams();
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
+  const selectedProviderParam = normalizeProviderParam(params.get("provider"));
+  const [autoProviderState, setAutoProviderState] = useState({
+    key: "",
+    provider: null,
+    notice: "",
+  });
   const { data, isLoading } = useMovieDetail(slug);
 
   const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
@@ -162,11 +216,95 @@ const Watch = () => {
     episodesForServer[0] ||
     null;
 
+  const playbackScopeKey = `${slug || ""}__${activeServer || ""}__${
+    activeEpisode?.slug || ""
+  }`;
+
+  const autoProviderOverride =
+    autoProviderState.key === playbackScopeKey
+      ? autoProviderState.provider
+      : null;
+  const autoProviderNotice =
+    autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
+
+  const episodeProviders = buildEpisodeProviders(activeEpisode);
+
+  const availableProviders = Object.entries(episodeProviders)
+    .filter(([, value]) => value?.link)
+    .map(([key]) => key);
+
+  const preferredProvider =
+    normalizeProviderParam(activeEpisode?._preferredProvider) ||
+    availableProviders[0] ||
+    null;
+
+  const activeProvider =
+    (selectedProviderParam && episodeProviders[selectedProviderParam]?.link
+      ? selectedProviderParam
+      : null) ||
+    (autoProviderOverride && episodeProviders[autoProviderOverride]?.link
+      ? autoProviderOverride
+      : null) ||
+    preferredProvider;
+
+  const activeProviderLabel = PROVIDER_LABELS[activeProvider] || "Mặc định";
+
+  const activeSource =
+    (activeProvider ? episodeProviders[activeProvider]?.link : "") ||
+    activeEpisode?.link_m3u8 ||
+    activeEpisode?.embed ||
+    "";
+
   const currentIndex = activeEpisode
     ? episodesForServer.findIndex((ep) => ep.slug === activeEpisode.slug)
     : -1;
   const nextEpisode =
     currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
+
+  const handleProviderChange = (provider) => {
+    const nextParams = new URLSearchParams(params);
+    if (provider === "auto") {
+      nextParams.delete("provider");
+      setAutoProviderState({
+        key: playbackScopeKey,
+        provider: null,
+        notice: "",
+      });
+    } else {
+      nextParams.set("provider", provider);
+      setAutoProviderState({
+        key: playbackScopeKey,
+        provider: null,
+        notice: "",
+      });
+    }
+    setParams(nextParams, { replace: true });
+  };
+
+  const handlePlaybackIssue = (reason) => {
+    if (selectedProviderParam) return;
+    if (!activeProvider) return;
+    const fallbackProvider = availableProviders.find(
+      (provider) =>
+        provider !== activeProvider && episodeProviders[provider]?.link
+    );
+    if (!fallbackProvider) return;
+
+    setAutoProviderState((prev) => {
+      if (prev.key === playbackScopeKey && prev.provider === fallbackProvider) {
+        return prev;
+      }
+      return {
+        key: playbackScopeKey,
+        provider: fallbackProvider,
+        notice: `${PROVIDER_LABELS[activeProvider] || activeProvider} (${
+          PROVIDER_SOURCE_NAMES[activeProvider] || activeProvider
+        }) đang chậm (${reason}), đã tự chuyển sang ${
+          PROVIDER_LABELS[fallbackProvider] || fallbackProvider
+        } (${PROVIDER_SOURCE_NAMES[fallbackProvider] || fallbackProvider}).`,
+      };
+    });
+  };
 
   const handleServerChange = (serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);
@@ -475,6 +613,9 @@ const Watch = () => {
               : activeEpisode.name}{" "}
           </p>
         ) : null}
+        {autoProviderNotice ? (
+          <p className="text-amber-300 text-sm">{autoProviderNotice}</p>
+        ) : null}
       </div>
 
       <div ref={playerRef}>
@@ -507,7 +648,7 @@ const Watch = () => {
           </div>
         ) : (
           <Player
-            source={activeEpisode?.link_m3u8 || activeEpisode?.embed}
+            source={activeSource}
             poster={movie?.thumb_url || movie?.poster_url}
             title={movie?.name}
             subtitle={
@@ -517,7 +658,7 @@ const Watch = () => {
                     parseEpisodeNumber(activeEpisode.name) === 1
                       ? "Full"
                       : activeEpisode.name
-                  } • ${activeServer || "Vietsub"}`
+                  } • ${activeServer || "Vietsub"} • ${activeProviderLabel}`
                 : undefined
             }
             onNextEpisode={() => {
@@ -537,6 +678,7 @@ const Watch = () => {
             initialTime={initialTime}
             theaterMode={isTheater}
             onToggleTheater={() => setIsTheater(!isTheater)}
+            onPlaybackIssue={handlePlaybackIssue}
           />
         )}
       </div>
@@ -660,6 +802,54 @@ const Watch = () => {
                         Thuyết Minh
                       </button>
                     )}
+                  </div>
+                )}
+
+                {availableProviders.length > 1 && (
+                  <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange("auto")}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        !selectedProviderParam
+                          ? "bg-cyan-300 text-slate-950"
+                          : "text-slate-200 hover:bg-white/10"
+                      }`}
+                    >
+                      Tự động
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange("kkphim")}
+                      disabled={!episodeProviders.kkphim?.link}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        selectedProviderParam === "kkphim"
+                          ? "bg-cyan-300 text-slate-950"
+                          : "text-slate-200 hover:bg-white/10"
+                      } ${
+                        !episodeProviders.kkphim?.link
+                          ? "opacity-60 cursor-not-allowed"
+                          : ""
+                      }`}
+                    >
+                      Nguồn 1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleProviderChange("ophim")}
+                      disabled={!episodeProviders.ophim?.link}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        selectedProviderParam === "ophim"
+                          ? "bg-cyan-300 text-slate-950"
+                          : "text-slate-200 hover:bg-white/10"
+                      } ${
+                        !episodeProviders.ophim?.link
+                          ? "opacity-60 cursor-not-allowed"
+                          : ""
+                      }`}
+                    >
+                      Nguồn 2
+                    </button>
                   </div>
                 )}
               </div>

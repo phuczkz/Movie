@@ -1,16 +1,32 @@
 import { useEffect, useState, useMemo } from "react";
 import {
-  collection, addDoc, deleteDoc, doc, getDocs,
-  query, serverTimestamp, onSnapshot, setDoc,
-  collectionGroup, limit
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  onSnapshot,
+  setDoc,
+  collectionGroup,
+  limit,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useAuth } from "../../context/AuthContext";
-import { 
-  Send, Trash2, Search, Film, 
-  MessageCircle, ChevronRight, ArrowLeft, 
-  User, Clock, CornerDownRight, RefreshCw,
-  AlertCircle
+import {
+  Send,
+  Trash2,
+  Search,
+  Film,
+  MessageCircle,
+  ChevronRight,
+  ArrowLeft,
+  User,
+  Clock,
+  CornerDownRight,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { useSearchMovies } from "../../hooks/useSearchMovies";
 import ConfirmModal from "../../components/ConfirmModal";
@@ -29,7 +45,10 @@ const cleanName = (name) => {
   if (!name) return "";
   // Check if it's likely a slug (has hyphens)
   if (name.includes("-") && !name.includes(" ")) {
-    return name.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+    return name
+      .split("-")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   }
   return name;
 };
@@ -61,12 +80,23 @@ function AdminCommentRow({
   };
 
   return (
-    <div className={`group ${isReply ? "ml-8 mt-2 border-l-2 border-white/5 pl-4" : "p-4 border-b border-white/5"}`}>
+    <div
+      className={`group ${
+        isReply
+          ? "ml-8 mt-2 border-l-2 border-white/5 pl-4"
+          : "p-4 border-b border-white/5"
+      }`}
+    >
       <div className="flex gap-3">
         {/* Avatar Placeholder */}
         <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
           {comment.photoURL ? (
-            <img src={comment.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+            <img
+              src={comment.photoURL}
+              alt=""
+              className="h-full w-full object-cover"
+              referrerPolicy="no-referrer"
+            />
           ) : (
             <User className="h-4 w-4 text-slate-500" />
           )}
@@ -74,24 +104,28 @@ function AdminCommentRow({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-bold text-slate-200">{comment.displayName || "Ẩn danh"}</span>
+            <span className="text-sm font-bold text-slate-200">
+              {comment.displayName || "Ẩn danh"}
+            </span>
             <span className="text-[10px] text-slate-500 flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {formatTime(comment.createdAt)}
             </span>
           </div>
-          <p className="text-sm text-slate-400 leading-relaxed break-words">{comment.content}</p>
-          
+          <p className="text-sm text-slate-400 leading-relaxed break-words">
+            {comment.content}
+          </p>
+
           <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
             {!isReply && (
-              <button 
+              <button
                 onClick={() => setShowReplyInput(!showReplyInput)}
                 className="text-[11px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-wider"
               >
                 Trả lời
               </button>
             )}
-            <button 
+            <button
               onClick={() => onDelete(comment.id)}
               className="text-[11px] font-bold text-rose-500 hover:text-rose-400 uppercase tracking-wider"
             >
@@ -149,14 +183,18 @@ export default function AdminComments() {
   const [view, setView] = useState("list"); // 'list' or 'detail'
   const [movieSlug, setMovieSlug] = useState("");
   const [movieName, setMovieName] = useState("");
-  
+
   const [commentedMovies, setCommentedMovies] = useState([]);
   const [allComments, setAllComments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [inputQuery, setInputQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [toast, setToast] = useState(null); // { message: string, type: 'info'|'error'|'success' }
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, commentId: null, loading: false });
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    commentId: null,
+    loading: false,
+  });
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
@@ -169,8 +207,12 @@ export default function AdminComments() {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "commentedMovies"), (snap) => {
       if (!snap.empty) {
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        list.sort((a, b) => (b.lastCommentAt?.toMillis?.() || 0) - (a.lastCommentAt?.toMillis?.() || 0));
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list.sort(
+          (a, b) =>
+            (b.lastCommentAt?.toMillis?.() || 0) -
+            (a.lastCommentAt?.toMillis?.() || 0)
+        );
         setCommentedMovies(list);
       } else {
         // If index is empty, we can't easily find "virtual" documents in 'comments'
@@ -188,10 +230,9 @@ export default function AdminComments() {
     try {
       const q = query(collectionGroup(db, "items"), limit(500));
       const snap = await getDocs(q);
-      
 
       const uniqueSlugs = new Set();
-      snap.docs.forEach(d => {
+      snap.docs.forEach((d) => {
         const path = d.ref.path; // e.g. "comments/slug/items/id"
         const parts = path.split("/");
         // Path matches "comments / {slug} / items / {id}"
@@ -201,32 +242,45 @@ export default function AdminComments() {
       });
 
       if (uniqueSlugs.size > 0) {
-        const discovered = Array.from(uniqueSlugs).map(slug => ({
+        const discovered = Array.from(uniqueSlugs).map((slug) => ({
           id: slug,
           movieName: cleanName(slug),
-          lastCommentAt: serverTimestamp() // Use current time for indexing
+          lastCommentAt: serverTimestamp(), // Use current time for indexing
         }));
 
         // Persist to Firestore so it shows up in the normal onSnapshot next time
         for (const d of discovered) {
           try {
-            await setDoc(doc(db, "commentedMovies", d.id), {
-              movieName: d.movieName,
-              lastCommentAt: d.lastCommentAt
-            }, { merge: true });
+            await setDoc(
+              doc(db, "commentedMovies", d.id),
+              {
+                movieName: d.movieName,
+                lastCommentAt: d.lastCommentAt,
+              },
+              { merge: true }
+            );
           } catch (e) {
             console.warn(`Could not persist discovery for ${d.id}:`, e);
           }
         }
 
-        showToast(`Đã tìm thấy và đồng bộ ${uniqueSlugs.size} phim có bình luận.`, "success");
+        showToast(
+          `Đã tìm thấy và đồng bộ ${uniqueSlugs.size} phim có bình luận.`,
+          "success"
+        );
       } else {
         showToast("Không tìm thấy bình luận nào thông qua quét sâu.", "info");
       }
     } catch (err) {
       console.error("Discovery error:", err);
-      if (err.code === 'failed-precondition' || err.message?.includes("index")) {
-        showToast("Cần tạo Index trên Firebase để quét bình luận. Vui lòng kiểm tra Console (F12) để lấy link tạo Index.", "error");
+      if (
+        err.code === "failed-precondition" ||
+        err.message?.includes("index")
+      ) {
+        showToast(
+          "Cần tạo Index trên Firebase để quét bình luận. Vui lòng kiểm tra Console (F12) để lấy link tạo Index.",
+          "error"
+        );
       } else {
         showToast("Lỗi khi quét: " + err.message, "error");
       }
@@ -244,7 +298,7 @@ export default function AdminComments() {
     setLoading(true);
     const q = query(collection(db, `comments/${movieSlug}/items`));
     const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setAllComments(data);
       setLoading(false);
 
@@ -260,7 +314,7 @@ export default function AdminComments() {
   const { topComments, repliesMap } = useMemo(() => {
     const tops = [];
     const rMap = {};
-    allComments.forEach(c => {
+    allComments.forEach((c) => {
       if (c.parentId) {
         if (!rMap[c.parentId]) rMap[c.parentId] = [];
         rMap[c.parentId].push(c);
@@ -269,9 +323,15 @@ export default function AdminComments() {
       }
     });
     // Sort
-    tops.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-    Object.keys(rMap).forEach(key => {
-      rMap[key].sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+    tops.sort(
+      (a, b) =>
+        (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
+    );
+    Object.keys(rMap).forEach((key) => {
+      rMap[key].sort(
+        (a, b) =>
+          (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0)
+      );
     });
     return { topComments: tops, repliesMap: rMap };
   }, [allComments]);
@@ -292,13 +352,21 @@ export default function AdminComments() {
       });
 
       // 2. Ensure the parent document in 'comments' is NOT virtual (add a dummy field)
-      await setDoc(doc(db, "comments", movieSlug), { exists: true }, { merge: true });
+      await setDoc(
+        doc(db, "comments", movieSlug),
+        { exists: true },
+        { merge: true }
+      );
 
       // 3. Update 'commentedMovies' index metadata
-      await setDoc(doc(db, "commentedMovies", movieSlug), {
-        movieName,
-        lastCommentAt: serverTimestamp()
-      }, { merge: true });
+      await setDoc(
+        doc(db, "commentedMovies", movieSlug),
+        {
+          movieName,
+          lastCommentAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
     } catch (err) {
       showToast("Lỗi phản hồi: " + err.message, "error");
     }
@@ -308,7 +376,7 @@ export default function AdminComments() {
     setConfirmModal({
       isOpen: true,
       commentId,
-      loading: false
+      loading: false,
     });
   };
 
@@ -316,21 +384,28 @@ export default function AdminComments() {
     const commentId = confirmModal.commentId;
     if (!commentId) return;
 
-    setConfirmModal(prev => ({ ...prev, loading: true }));
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
     try {
       // 1. Delete the comment
       await deleteDoc(doc(db, "comments", movieSlug, "items", commentId));
 
       // 2. Find the next most recent comment to update the index timestamp
-      const remaining = allComments.filter(calc => calc.id !== commentId);
+      const remaining = allComments.filter((calc) => calc.id !== commentId);
       if (remaining.length > 0) {
-        remaining.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+        remaining.sort(
+          (a, b) =>
+            (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
+        );
         const latest = remaining[0];
-        
-        await setDoc(doc(db, "commentedMovies", movieSlug), {
-          movieName: movieName,
-          lastCommentAt: latest.createdAt || serverTimestamp()
-        }, { merge: true });
+
+        await setDoc(
+          doc(db, "commentedMovies", movieSlug),
+          {
+            movieName: movieName,
+            lastCommentAt: latest.createdAt || serverTimestamp(),
+          },
+          { merge: true }
+        );
       } else {
         await deleteDoc(doc(db, "commentedMovies", movieSlug));
         setView("list");
@@ -349,16 +424,26 @@ export default function AdminComments() {
     setView("detail");
     setShowSearchResults(false);
     setInputQuery("");
-    
+
     // Auto-index if name is available to ensure it shows up in the list next time
     if (slug && name) {
       try {
-        await setDoc(doc(db, "comments", slug), { exists: true }, { merge: true });
-        await setDoc(doc(db, "commentedMovies", slug), {
-          movieName: name,
-          lastCommentAt: serverTimestamp()
-        }, { merge: true });
-      } catch (e) { console.error("Auto-index error:", e); }
+        await setDoc(
+          doc(db, "comments", slug),
+          { exists: true },
+          { merge: true }
+        );
+        await setDoc(
+          doc(db, "commentedMovies", slug),
+          {
+            movieName: name,
+            lastCommentAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        console.error("Auto-index error:", e);
+      }
     }
   };
 
@@ -372,22 +457,28 @@ export default function AdminComments() {
             Bình luận
           </h2>
           <p className="text-slate-400 text-sm mt-1">
-            {view === "list" ? "Danh sách phim có bình luận" : `Đang quản lý: ${movieName}`}
+            {view === "list"
+              ? "Danh sách phim có bình luận"
+              : `Đang quản lý: ${movieName}`}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {view === "list" && (
-            <button 
+            <button
               onClick={discoverMovies}
               disabled={loading}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? (
+                <span className="loader-orbit loader-orbit-xs" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
               {loading ? "Đang quét..." : "Đồng bộ bình luận cũ"}
             </button>
           )}
           {view === "detail" && (
-            <button 
+            <button
               onClick={() => setView("list")}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-sm font-medium"
             >
@@ -413,27 +504,37 @@ export default function AdminComments() {
               placeholder="Tìm phim để quản lý bình luận..."
               className="w-full bg-slate-900 border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-emerald-500/40 focus:outline-none transition-all shadow-xl"
             />
-            
+
             {showSearchResults && (inputQuery || isFetching) && (
               <div className="absolute top-full left-0 right-0 mt-3 z-50 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl max-h-[400px] overflow-y-auto p-2 space-y-1">
                 {isFetching ? (
-                  <div className="py-8 text-center text-slate-500 text-sm">Đang tìm kiếm...</div>
+                  <div className="py-8 text-center text-slate-500 text-sm">
+                    Đang tìm kiếm...
+                  </div>
                 ) : searchResults.length > 0 ? (
-                  searchResults.map(m => (
+                  searchResults.map((m) => (
                     <button
                       key={m.slug}
                       onClick={() => selectMovie(m.slug, m.name)}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
                     >
-                      <img src={m.thumb_url} className="w-10 h-14 object-cover rounded shadow" alt="" />
+                      <img
+                        src={m.thumb_url}
+                        className="w-10 h-14 object-cover rounded shadow"
+                        alt=""
+                      />
                       <div>
-                        <p className="text-sm font-bold text-slate-200">{m.name}</p>
+                        <p className="text-sm font-bold text-slate-200">
+                          {m.name}
+                        </p>
                         <p className="text-xs text-slate-500">{m.year}</p>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <div className="py-8 text-center text-slate-500 text-sm">Không tìm thấy phim nào</div>
+                  <div className="py-8 text-center text-slate-500 text-sm">
+                    Không tìm thấy phim nào
+                  </div>
                 )}
               </div>
             )}
@@ -441,13 +542,17 @@ export default function AdminComments() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {commentedMovies.length === 0 ? (
-                <div className="col-span-full py-16 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/5 rounded-[32px] bg-white/[0.01]">
-                  <MessageCircle size={40} className="text-slate-700 mb-4" />
-                  <p className="text-slate-500 max-w-xs">Chưa có phim nào trong danh sách quản lý nhanh.</p>
-                  <p className="text-slate-600 text-xs mt-2 italic">Hãy nhấn nút "Đồng bộ" ở góc trên hoặc tìm kiếm phim.</p>
-                </div>
+              <div className="col-span-full py-16 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/5 rounded-[32px] bg-white/[0.01]">
+                <MessageCircle size={40} className="text-slate-700 mb-4" />
+                <p className="text-slate-500 max-w-xs">
+                  Chưa có phim nào trong danh sách quản lý nhanh.
+                </p>
+                <p className="text-slate-600 text-xs mt-2 italic">
+                  Hãy nhấn nút "Đồng bộ" ở góc trên hoặc tìm kiếm phim.
+                </p>
+              </div>
             ) : (
-              commentedMovies.map(m => (
+              commentedMovies.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => selectMovie(m.id, m.movieName)}
@@ -477,7 +582,7 @@ export default function AdminComments() {
           <div className="bg-slate-900/60 rounded-[32px] border border-white/5 overflow-hidden">
             {loading ? (
               <div className="py-20 flex justify-center">
-                <div className="h-8 w-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                <div className="loader-orbit loader-orbit-sm" />
               </div>
             ) : topComments.length === 0 ? (
               <div className="py-20 text-center text-slate-500">
@@ -485,7 +590,7 @@ export default function AdminComments() {
               </div>
             ) : (
               <div className="divide-y divide-white/5">
-                {topComments.map(c => (
+                {topComments.map((c) => (
                   <AdminCommentRow
                     key={c.id}
                     comment={c}
@@ -510,20 +615,28 @@ export default function AdminComments() {
         cancelText="Hủy"
         loading={confirmModal.loading}
         onConfirm={confirmDelete}
-        onCancel={() => setConfirmModal({ isOpen: false, commentId: null, loading: false })}
+        onCancel={() =>
+          setConfirmModal({ isOpen: false, commentId: null, loading: false })
+        }
         type="danger"
       />
 
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed bottom-8 right-8 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 border ${
-          toast.type === "error" 
-            ? "bg-rose-500/90 border-rose-400 text-white" 
-            : toast.type === "success"
-            ? "bg-emerald-500/90 border-emerald-400 text-white"
-            : "bg-slate-800/95 border-white/10 text-slate-200"
-        }`}>
-          {toast.type === "error" ? <Trash2 size={18} /> : <MessageCircle size={18} />}
+        <div
+          className={`fixed bottom-8 right-8 z-[100] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 border ${
+            toast.type === "error"
+              ? "bg-rose-500/90 border-rose-400 text-white"
+              : toast.type === "success"
+              ? "bg-emerald-500/90 border-emerald-400 text-white"
+              : "bg-slate-800/95 border-white/10 text-slate-200"
+          }`}
+        >
+          {toast.type === "error" ? (
+            <Trash2 size={18} />
+          ) : (
+            <MessageCircle size={18} />
+          )}
           <span className="text-sm font-bold">{toast.message}</span>
         </div>
       )}
