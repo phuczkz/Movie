@@ -76,23 +76,20 @@ const Hero = ({ movie, movies = [] }) => {
       onMouseLeave={() => setIsPaused(false)}
     >
       <div className="absolute inset-0">
-        {/* Preload hint ảnh nhỏ */}
-        <img
-          src={backgroundPreview}
-          alt=""
-          className="absolute inset-0 h-0 w-0 opacity-0"
-          loading="eager"
-          decoding="async"
-          fetchPriority="high"
-          aria-hidden
-        />
         {/* Backdrop chính – dùng <img> để kiểm soát object-position trên mobile */}
         <img
           src={background}
+          srcSet={`
+            https://wsrv.nl/?url=${encodeURIComponent(background)}&w=640&output=webp&q=80 640w,
+            https://wsrv.nl/?url=${encodeURIComponent(background)}&w=1280&output=webp&q=80 1280w,
+            https://wsrv.nl/?url=${encodeURIComponent(background)}&w=1920&output=webp&q=80 1920w
+          `}
+          sizes="100vw"
           alt=""
           className="absolute inset-0 h-full w-full object-cover object-[center_20%] sm:object-[center_15%] md:object-center brightness-105 contrast-[1.08] transition-[src] duration-700 ease-out"
           loading="eager"
           decoding="async"
+          fetchPriority="high"
           aria-hidden
         />
         {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin */}

@@ -165,6 +165,23 @@ const Watch = () => {
   const movie =
     !isTmdb || !loadingAlts || bestAltMatch ? bestAltMatch || baseMovie : null;
 
+  // LCP Optimization: Preload the video poster at the earliest possible lifecycle event
+  useEffect(() => {
+    const poster = movie?.thumb_url || movie?.poster_url;
+    if (poster) {
+      const url = `https://wsrv.nl/?url=${encodeURIComponent(poster)}&w=800&output=webp&q=75`;
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = url;
+      link.setAttribute("fetchpriority", "high");
+      document.head.appendChild(link);
+      return () => {
+        try { document.head.removeChild(link); } catch {}
+      };
+    }
+  }, [movie]);
+
   const episodes = altDetail?.episodes?.length
     ? altDetail.episodes
     : baseEpisodes;
@@ -592,12 +609,41 @@ const Watch = () => {
     }
   }, [episodesForServer, activeServer, params, setParams]);
 
+  const WatchSkeleton = () => (
+    <div className="space-y-6 animate-pulse">
+      <div className="space-y-2">
+        <div className="h-8 w-64 bg-slate-800 rounded-lg" />
+        <div className="h-4 w-32 bg-slate-800 rounded-lg" />
+      </div>
+
+      <div className="relative aspect-video w-full rounded-2xl bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center shadow-2xl transition-all">
+        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/5 via-transparent to-emerald-500/5 opacity-40" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-14 w-14 rounded-full bg-slate-800 flex items-center justify-center shadow-lg">
+            <div className="h-0 w-0 border-y-[10px] border-y-transparent border-l-[16px] border-l-slate-700 ml-1" />
+          </div>
+          <div className="h-4 w-24 bg-slate-800 rounded-full" />
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
+        <div className="rounded-3xl border border-white/5 bg-slate-950/80 p-8 space-y-6">
+          <div className="aspect-[2/3] w-full bg-slate-800 rounded-2xl" />
+        </div>
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-white/5 bg-slate-900/70 p-8 h-48" />
+        </div>
+      </div>
+    </div>
+  );
+
   if (
     isLoading ||
     (isTmdb && loadingAlts && !bestAltMatch) ||
     (bestAltMatch && loadingAltDetail)
-  )
-    return <div className="text-slate-300 px-8 py-20">Đang tải player...</div>;
+  ) {
+    return <WatchSkeleton />;
+  }
 
   if (!episodes.length) {
     return (
@@ -687,15 +733,11 @@ const Watch = () => {
             }
             onNextEpisode={() => {
               if (!nextEpisode) return;
-              navigate(
-                `/watch/${slug}?episode=${encodeURIComponent(
-                  nextEpisode.slug || nextEpisode.name
-                )}${
-                  activeServer
-                    ? `&server=${encodeURIComponent(activeServer)}`
-                    : ""
-                }`
-              );
+              const nextParams = new URLSearchParams(params);
+              nextParams.set("episode", nextEpisode.slug || nextEpisode.name);
+              if (activeServer) nextParams.set("server", activeServer);
+              if (selectedProviderParam) nextParams.set("provider", selectedProviderParam);
+              navigate(`/watch/${slug}?${nextParams.toString()}`);
             }}
             hasNextEpisode={Boolean(nextEpisode)}
             onTimeUpdate={onTimeUpdate}
@@ -887,11 +929,7 @@ const Watch = () => {
                       key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
                       to={`/watch/${slug}?episode=${encodeURIComponent(
                         ep.slug || ep.name || `ep-${idx + 1}`
-                      )}${
-                        activeServer
-                          ? `&server=${encodeURIComponent(activeServer)}`
-                          : ""
-                      }`}
+                      )}${activeServer ? `&server=${encodeURIComponent(activeServer)}` : ""}${selectedProviderParam ? `&provider=${encodeURIComponent(selectedProviderParam)}` : ""}`}
                       className={`group flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                         activeEpisode?.slug === ep.slug
                           ? "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
@@ -961,25 +999,7 @@ const Watch = () => {
             )}
           </div>
 
-          {relatedMovies.length > 0 && (
-            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-5">
-              <div className="flex items-center gap-3">
-                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
-                  Phim liên quan
-                </p>
-              </div>
-              <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar">
-                {relatedMovies.map((relMovie) => (
-                  <div
-                    key={relMovie.slug}
-                    className="min-w-[170px] sm:min-w-[200px] snap-start"
-                  >
-                    <MovieCard movie={relMovie} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
     </div>

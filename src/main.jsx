@@ -7,8 +7,8 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import MaintenanceGuard from "./components/MaintenanceGuard.jsx";
 import "./index.css";
 
-// Register Service Worker for PWA support
-if ("serviceWorker" in navigator) {
+// Register Service Worker for PWA support (Production only)
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")

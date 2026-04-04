@@ -23,18 +23,12 @@ function App() {
   const isAdmin = userProfile?.email === import.meta.env.VITE_ADMIN_EMAIL;
   const isWhitelisted = userProfile?.isWhitelisted;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="loader-orbit loader-orbit-sm" />
-      </div>
-    );
-  }
-
   return (
     <Suspense
       fallback={
-        <div className="py-10 text-center text-slate-300">Đang tải...</div>
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <div className="loader-orbit loader-orbit-sm" />
+        </div>
       }
     >
       <Routes>
@@ -46,25 +40,31 @@ function App() {
           path="/*"
           element={
             <Layout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/category/:category" element={<Category />} />
-                <Route
-                  path="/category/:category/:page"
-                  element={<Category />}
-                />
-                <Route path="/country/:country" element={<Country />} />
-                <Route path="/country/:country/:page" element={<Country />} />
-                <Route path="/movie/:slug" element={<Detail />} />
-                <Route path="/watch/:slug" element={<Watch />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/favorites" element={<Saved />} />
-                <Route path="/search" element={<Search />} />
-                <Route path="/actor/:id" element={<Actor />} />
-                <Route path="*" element={<Home />} />
-              </Routes>
+              {loading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="loader-orbit loader-orbit-sm" />
+                </div>
+              ) : (
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/category/:category" element={<Category />} />
+                  <Route
+                    path="/category/:category/:page"
+                    element={<Category />}
+                  />
+                  <Route path="/country/:country" element={<Country />} />
+                  <Route path="/country/:country/:page" element={<Country />} />
+                  <Route path="/movie/:slug" element={<Detail />} />
+                  <Route path="/watch/:slug" element={<Watch />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/favorites" element={<Saved />} />
+                  <Route path="/search" element={<Search />} />
+                  <Route path="/actor/:id" element={<Actor />} />
+                  <Route path="*" element={<Home />} />
+                </Routes>
+              )}
             </Layout>
           }
         />

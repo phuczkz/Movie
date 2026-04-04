@@ -46,7 +46,7 @@ const getOptimizedImage = (url, w = 1280) => {
     // Use proxy for others
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
-    )}&output=webp&w=${w}&fit=cover&q=80`;
+    )}&output=webp&w=${w}&fit=cover&q=75`;
   } catch {
     return url;
   }
@@ -214,6 +214,23 @@ const Detail = () => {
     return passedMovie || detailMovie || null;
   }, [altDetail?.movie, baseMovie, passedMovie]);
 
+  // LCP Optimization: Preload hero image ASAP
+  useEffect(() => {
+    const img = movie?.backdrop_url || movie?.banner || movie?.thumb_url || movie?.poster_url;
+    if (img) {
+      const url = `https://wsrv.nl/?url=${encodeURIComponent(img)}&output=webp&w=1000&fit=cover&q=75`;
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = url;
+      link.setAttribute("fetchpriority", "high");
+      document.head.appendChild(link);
+      return () => {
+        try { document.head.removeChild(link); } catch {}
+      };
+    }
+  }, [movie]);
+
   const categorySlugs = useMemo(
     () => (movie?.category || []).map((c) => c.slug).filter(Boolean),
     [movie?.category]
@@ -363,10 +380,26 @@ const Detail = () => {
 
   if (isActuallyLoading)
     return (
-      <div className="flex flex-col items-center justify-center py-32 space-y-4">
-        <div className="loader-orbit loader-orbit-md"></div>
-        <div className="text-slate-400 font-medium animate-pulse">
-          Đang tải chi tiết phim...
+      <div className="space-y-8 lg:space-y-12 animate-pulse">
+        {/* Skeleton Banner matching the real hero banner height for LCP/CLS */}
+        <div className="relative h-[400px] md:h-[500px] lg:h-[600px] w-full bg-slate-900 border-b border-white/5 overflow-hidden flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800/50 to-slate-900" />
+            <div className="loader-orbit loader-orbit-md relative z-10Opacity-50"></div>
+        </div>
+        
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 md:-mt-32 lg:-mt-40 relative z-20">
+            <div className="flex flex-col md:flex-row gap-8 items-start">
+               <div className="w-36 sm:w-44 lg:w-48 aspect-[2/3] bg-slate-800 rounded-3xl shrink-0 shadow-2xl" />
+               <div className="space-y-4 flex-1 pt-6">
+                  <div className="h-10 w-3/4 bg-slate-800 rounded-xl" />
+                  <div className="h-4 w-1/4 bg-slate-800 rounded-lg" />
+                  <div className="flex gap-2 pt-2">
+                     <div className="h-8 w-16 bg-slate-800 rounded-full" />
+                     <div className="h-8 w-16 bg-slate-800 rounded-full" />
+                     <div className="h-8 w-16 bg-slate-800 rounded-full" />
+                  </div>
+               </div>
+            </div>
         </div>
       </div>
     );
@@ -580,7 +613,7 @@ const Detail = () => {
           <div className="absolute top-0 left-0 w-full h-[125%] bg-slate-950 z-0 pointer-events-none overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full">
               <img
-                src={getOptimizedImage(heroImage, 1280)}
+                src={getOptimizedImage(heroImage, 1000)}
                 alt={movie?.name || "Banner"}
                 className="w-full h-full object-cover object-[50%_10%]"
                 fetchPriority="high"
