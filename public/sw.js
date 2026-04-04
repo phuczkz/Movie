@@ -1,5 +1,5 @@
 // KhoPhim Service Worker – enables PWA "Add to Home Screen"
-const CACHE_NAME = "khophim-v1";
+const CACHE_NAME = "khophim-v3";
 const PRECACHE_URLS = ["/", "/index.html"];
 
 // Install – cache the app shell
@@ -36,6 +36,20 @@ self.addEventListener("fetch", (event) => {
     url.pathname.includes("@vite") ||
     url.pathname.includes("node_modules") ||
     url.protocol === "chrome-extension:"
+  ) {
+    return;
+  }
+
+  // BỎ QUA streaming requests (HLS m3u8, TS segments, proxy, etc.)
+  // Để tránh SW can thiệp vào video playback
+  if (
+    url.hostname.includes("stream.khophim") ||
+    url.pathname.endsWith(".m3u8") ||
+    url.pathname.endsWith(".ts") ||
+    url.pathname.endsWith(".m4s") ||
+    url.pathname.endsWith(".key") ||
+    event.request.destination === "video" ||
+    event.request.destination === "audio"
   ) {
     return;
   }

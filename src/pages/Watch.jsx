@@ -227,11 +227,17 @@ const Watch = () => {
   const autoProviderNotice =
     autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
 
-  const episodeProviders = buildEpisodeProviders(activeEpisode);
+  const episodeProviders = useMemo(
+    () => buildEpisodeProviders(activeEpisode),
+    [activeEpisode]
+  );
 
-  const availableProviders = Object.entries(episodeProviders)
-    .filter(([, value]) => value?.link)
-    .map(([key]) => key);
+  const availableProviders = useMemo(
+    () => Object.entries(episodeProviders)
+      .filter(([, value]) => value?.link)
+      .map(([key]) => key),
+    [episodeProviders]
+  );
 
   const preferredProvider =
     normalizeProviderParam(activeEpisode?._preferredProvider) ||
@@ -261,66 +267,84 @@ const Watch = () => {
   const nextEpisode =
     currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
 
-  const handleProviderChange = (provider) => {
-    const nextParams = new URLSearchParams(params);
-    if (provider === "auto") {
-      nextParams.delete("provider");
-      setAutoProviderState({
-        key: playbackScopeKey,
-        provider: null,
-        notice: "",
-      });
-    } else {
-      nextParams.set("provider", provider);
-      setAutoProviderState({
-        key: playbackScopeKey,
-        provider: null,
-        notice: "",
-      });
-    }
-    setParams(nextParams, { replace: true });
-  };
-
-  const handlePlaybackIssue = (reason) => {
-    if (selectedProviderParam) return;
-    if (!activeProvider) return;
-    const fallbackProvider = availableProviders.find(
-      (provider) =>
-        provider !== activeProvider && episodeProviders[provider]?.link
-    );
-    if (!fallbackProvider) return;
-
-    setAutoProviderState((prev) => {
-      if (prev.key === playbackScopeKey && prev.provider === fallbackProvider) {
-        return prev;
+  const handleProviderChange = useCallback(
+    (provider) => {
+      const nextParams = new URLSearchParams(params);
+      if (provider === "auto") {
+        nextParams.delete("provider");
+        setAutoProviderState({
+          key: playbackScopeKey,
+          provider: null,
+          notice: "",
+        });
+      } else {
+        nextParams.set("provider", provider);
+        setAutoProviderState({
+          key: playbackScopeKey,
+          provider: null,
+          notice: "",
+        });
       }
-      return {
-        key: playbackScopeKey,
-        provider: fallbackProvider,
-        notice: `${PROVIDER_LABELS[activeProvider] || activeProvider} (${
-          PROVIDER_SOURCE_NAMES[activeProvider] || activeProvider
-        }) đang chậm (${reason}), đã tự chuyển sang ${
-          PROVIDER_LABELS[fallbackProvider] || fallbackProvider
-        } (${PROVIDER_SOURCE_NAMES[fallbackProvider] || fallbackProvider}).`,
-      };
-    });
-  };
+      setParams(nextParams, { replace: true });
+    },
+    [params, playbackScopeKey, setParams]
+  );
 
-  const handleServerChange = (serverLabel) => {
-    const targetLabel = normalizeServerLabel(serverLabel);
-    if (!targetLabel || targetLabel === activeServer) return;
-    const candidates = sortEpisodes(serverGroups[targetLabel] || []);
-    if (!candidates.length) return;
+  const handlePlaybackIssue = useCallback(
+    (reason) => {
+      if (selectedProviderParam) return;
+      if (!activeProvider) return;
+      const fallbackProvider = availableProviders.find(
+        (provider) =>
+          provider !== activeProvider && episodeProviders[provider]?.link
+      );
+      if (!fallbackProvider) return;
 
-    const currentSlug = params.get("episode");
-    const matched = candidates.find((ep) => ep.slug === currentSlug);
-    const nextSlug = (matched || candidates[0]).slug;
+      setAutoProviderState((prev) => {
+        if (prev.key === playbackScopeKey && prev.notice) {
+          return prev;
+        }
+        const isDeadSource =
+          reason === "manifest-error" || reason === "fatal-hls";
+        const issueText = isDeadSource
+          ? "không khả dụng"
+          : `đang chậm (${reason})`;
+        return {
+          key: playbackScopeKey,
+          provider: prev.provider || null,
+          notice: `${PROVIDER_LABELS[activeProvider] || activeProvider} (${
+            PROVIDER_SOURCE_NAMES[activeProvider] || activeProvider
+          }) ${issueText}. Vui lòng thử chuyển sang nguồn khác ở danh sách bên dưới.`,
+        };
+      });
+    },
+    [
+      selectedProviderParam,
+      activeProvider,
+      availableProviders,
+      episodeProviders,
+      playbackScopeKey,
+    ]
+  );
 
-    const nextParams = new URLSearchParams(params);
-    nextParams.set("server", targetLabel);
-    nextParams.set("episode", nextSlug);
-    setParams(nextParams, { replace: true });
-  };
+  const handleServerChange = useCallback(
+    (serverLabel) => {
+      const targetLabel = normalizeServerLabel(serverLabel);
+      if (!targetLabel || targetLabel === activeServer) return;
+      const candidates = sortEpisodes(serverGroups[targetLabel] || []);
+      if (!candidates.length) return;
+
+      const currentSlug = params.get("episode");
+      const matched = candidates.find((ep) => ep.slug === currentSlug);
+      const nextSlug = (matched || candidates[0]).slug;
+
+      const nextParams = new URLSearchParams(params);
+      nextParams.set("server", targetLabel);
+      nextParams.set("episode", nextSlug);
+      setParams(nextParams, { replace: true });
+    },
+    [activeServer, serverGroups, params, setParams]
+  );
 
   useEffect(() => {
     if (!selectedEpisode || !playerRef.current) return;

@@ -6,6 +6,7 @@ compatibility_date = "2024-09-01"
 # Bạn có thể map qua custom domain sau khi deploy (xem README).
 
 # Để map Worker vào subdomain của khophim.io.vn, uncomment dòng bên dưới:
+
 routes = [
     { pattern = "stream.khophim.io.vn/*", zone_name = "khophim.io.vn" }
 ]

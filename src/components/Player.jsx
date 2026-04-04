@@ -178,10 +178,16 @@ const Player = ({
     () => source && (source.includes("iframe") || source.includes("embed")),
     [source]
   );
-  const isHls = useMemo(
-    () => Boolean(source && source.endsWith(".m3u8")),
-    [source]
-  );
+  const isHls = useMemo(() => {
+    if (!source) return false;
+    try {
+      // Handle URLs with query params: extract pathname to check extension
+      const pathname = new URL(source, "https://dummy").pathname;
+      return pathname.endsWith(".m3u8");
+    } catch {
+      return source.includes(".m3u8");
+    }
+  }, [source]);
 
   const hlsConfig = useMemo(() => {
     // Phát hiện mobile thực sự qua User-Agent + screen width
@@ -263,6 +269,7 @@ const Player = ({
   const bufferingIssueTimerRef = useRef(null);
   const playbackIssueReportedRef = useRef(false);
   const initialTimeConsumed = useRef(false);
+  const lastPositionRef = useRef(0);
 
   const clearBufferingIssueTimer = useCallback(() => {
     if (bufferingIssueTimerRef.current) {
@@ -271,28 +278,31 @@ const Player = ({
     }
   }, []);
 
-  const reportPlaybackIssue = useCallback(
-    (reason) => {
-      if (!onPlaybackIssue) return;
-      if (playbackIssueReportedRef.current) return;
-      playbackIssueReportedRef.current = true;
-      onPlaybackIssue(reason || "playback-issue");
-    },
-    [onPlaybackIssue]
-  );
+  // Store latest callbacks in refs to prevent them from causing useEffect re-triggers
+  const onPlaybackIssueRef = useRef(onPlaybackIssue);
+  useEffect(() => {
+    onPlaybackIssueRef.current = onPlaybackIssue;
+  }, [onPlaybackIssue]);
+
+  const reportPlaybackIssue = useCallback((reason) => {
+    if (!onPlaybackIssueRef.current) return;
+    if (playbackIssueReportedRef.current) return;
+    playbackIssueReportedRef.current = true;
+    onPlaybackIssueRef.current(reason || "playback-issue");
+  }, []);
 
   useEffect(() => {
-    // Reset visual state when source changes
-    const resetId = setTimeout(() => {
-      setDuration(0);
-      setProgress(0);
-      setIsBuffering(true);
-      setControlsVisible(true);
-      setPlaying(false);
-      playbackIssueReportedRef.current = false;
-    }, 0);
+    // Reset visual state and tracking when source truly changes
+    setDuration(0);
+    setProgress(0);
+    setIsBuffering(true);
+    setControlsVisible(true);
+    setPlaying(false);
+    playbackIssueReportedRef.current = false;
+    lastPositionRef.current = 0;
+    initialTimeConsumed.current = false;
+
     clearBufferingIssueTimer();
-    return () => clearTimeout(resetId);
   }, [source, clearBufferingIssueTimer]);
 
   useEffect(() => () => clearBufferingIssueTimer(), [clearBufferingIssueTimer]);
@@ -374,18 +384,40 @@ const Player = ({
   useEffect(() => {
     if (!effectiveSource || !isHls || !videoRef.current) return undefined;
 
+    // Use initialTime only on the first load; subsequently use lastPositionRef
+    // to preserve position if the HLS instance is recreated or source reloaded.
+    const startOffset = !initialTimeConsumed.current && initialTime > 0 
+      ? initialTime 
+      : lastPositionRef.current;
+
     if (Hls.isSupported()) {
       const BaseLoader = Hls.DefaultConfig?.loader;
+      // Track URLs and Domains that failed through proxy so we bypass them on retry
+      const proxyFailedUrls = new Set();
+      const proxyFailedDomains = new Set();
+
       const AdFreeLoader = BaseLoader
         ? class extends BaseLoader {
             load(context, config, callbacks) {
+              const originalUrl = context.url;
+
               // === STREAM PROXY: route qua Cloudflare Worker ===
               // Khi VITE_STREAM_PROXY được cấu hình, wrap URL qua proxy
               // để bypass firewall chặn CDN video.
+              // NHƯNG: nếu domain gốc từng fail proxy → bypass luôn.
+              let originalOrigin = null;
+              try {
+                if (originalUrl) originalOrigin = new URL(originalUrl).origin;
+              } catch {}
+
+              const shouldBypassProxy = proxyFailedUrls.has(context.url) || 
+                                       (originalOrigin && proxyFailedDomains.has(originalOrigin));
+
               if (
                 STREAM_PROXY &&
                 context.url &&
-                !context.url.includes(STREAM_PROXY)
+                !context.url.includes(STREAM_PROXY) &&
+                !shouldBypassProxy
               ) {
                 context.url = `${STREAM_PROXY}?url=${encodeURIComponent(
                   context.url
@@ -393,6 +425,7 @@ const Player = ({
               }
 
               const onSuccess = callbacks?.onSuccess;
+              const onError = callbacks?.onError;
               const wrappedCallbacks = {
                 ...callbacks,
                 onSuccess: (response, stats, ctx, networkDetails) => {
@@ -427,6 +460,43 @@ const Player = ({
 
                   if (onSuccess) {
                     onSuccess(nextResponse, stats, ctx, networkDetails);
+                  }
+                },
+                onError: (error, ctx, networkDetails, stats) => {
+                  // === PROXY FALLBACK ===
+                  // Nếu request qua proxy bị lỗi (404, 502, etc.),
+                  // thử lại trực tiếp không qua proxy.
+                  if (
+                    STREAM_PROXY &&
+                    originalUrl &&
+                    context.url.includes(STREAM_PROXY)
+                  ) {
+                    let originalOrigin = null;
+                    try {
+                      if (originalUrl) originalOrigin = new URL(originalUrl).origin;
+                    } catch {}
+
+                    if (!proxyFailedUrls.has(originalUrl)) {
+                      console.warn(
+                        `[HLS] Proxy failed for ${originalUrl}, retrying direct… (bypassing proxy for this domain)`
+                      );
+                      proxyFailedUrls.add(originalUrl);
+                      if (originalOrigin) proxyFailedDomains.add(originalOrigin);
+
+                      // Abort this loader and create fresh one with direct URL
+                      try { this.abort(); } catch { /* ignore */ }
+                      const directLoader = new AdFreeLoader(config);
+                      const directContext = { ...context, url: originalUrl };
+                      directLoader.load(directContext, config, {
+                        ...callbacks,
+                        onSuccess: wrappedCallbacks.onSuccess,
+                      });
+                      return;
+                    }
+                  }
+
+                  if (onError) {
+                    onError(error, ctx, networkDetails, stats);
                   }
                 },
               };
@@ -523,6 +593,19 @@ const Player = ({
               `[HLS] Network error (#${networkRecoveryAttempts}), attempting recovery…`,
               data.details
             );
+            // === FAST FAILOVER cho manifestLoadError ===
+            // Manifest 404/lỗi = nguồn phim chết → chuyển provider ngay.
+            if (
+              data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+              data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+              data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR
+            ) {
+              console.warn(
+                "[HLS] Manifest load failed — triggering fast provider failover"
+              );
+              reportPlaybackIssue("manifest-error");
+              break;
+            }
             if (networkRecoveryAttempts <= 5) {
               // Exponential backoff: 500ms, 1s, 2s, 4s, 8s
               setTimeout(() => {
@@ -530,11 +613,19 @@ const Player = ({
               }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
             } else {
               reportPlaybackIssue("network-timeout");
+              const currentPos = videoRef.current?.currentTime || lastPositionRef.current;
               console.warn(
-                "[HLS] Max network retries reached, reloading source…"
+                `[HLS] Max network retries reached, reloading source from ${currentPos.toFixed(1)}s`
               );
               networkRecoveryAttempts = 0;
               hls.loadSource(effectiveSource);
+              if (currentPos > 0) {
+                hls.once(Hls.Events.MANIFEST_PARSED, () => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = currentPos;
+                  }
+                });
+              }
             }
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
@@ -631,8 +722,11 @@ const Player = ({
 
     if (videoRef.current) {
       videoRef.current.src = effectiveSource;
-      if (initialTime > 0 && !initialTimeConsumed.current) {
-        videoRef.current.currentTime = initialTime;
+      const startAt = !initialTimeConsumed.current && initialTime > 0 
+        ? initialTime 
+        : lastPositionRef.current;
+      if (startAt > 0) {
+        videoRef.current.currentTime = startAt;
         initialTimeConsumed.current = true;
       }
     }
@@ -650,9 +744,19 @@ const Player = ({
     if (!isHls || !videoRef.current) return undefined;
     const video = videoRef.current;
 
+    const lastTimeRef = { current: -1 };
     const onTime = () => {
       const t = video.currentTime || 0;
       setProgress(t);
+      if (t > 0) lastPositionRef.current = t;
+      
+      // Clear buffering if time physically advances, which proves playback is active
+      if (t !== lastTimeRef.current) {
+        lastTimeRef.current = t;
+        clearBufferingTimer();
+        setIsBuffering(false);
+      }
+      
       if (onTimeUpdate) onTimeUpdate(t, video.duration || 0);
     };
     const onDuration = () => setDuration(video.duration || 0);
@@ -672,7 +776,6 @@ const Player = ({
 
     const onBuffer = () => {
       // Debounce: only show spinner if buffering persists > 300ms
-      // This avoids flashing the spinner on mobile during short network hiccups
       if (!bufferingTimerRef.current) {
         bufferingTimerRef.current = setTimeout(() => {
           setIsBuffering(true);
@@ -685,8 +788,11 @@ const Player = ({
       setIsBuffering(false);
       playbackIssueReportedRef.current = false;
       // Ensure the resume feature jumps to the right mark as soon as video provides frame data
-      if (initialTime > 0 && !initialTimeConsumed.current) {
-        video.currentTime = initialTime;
+      if (!initialTimeConsumed.current) {
+        const startAt = initialTime > 0 ? initialTime : lastPositionRef.current;
+        if (startAt > 0) {
+          video.currentTime = startAt;
+        }
         initialTimeConsumed.current = true;
       }
     };
@@ -700,7 +806,7 @@ const Player = ({
     video.addEventListener("pause", onPause);
     video.addEventListener("waiting", onBuffer);
     video.addEventListener("seeking", onBuffer);
-    video.addEventListener("stalled", onBuffer);
+    video.addEventListener("seeked", onCanPlay);
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("canplaythrough", onCanPlay);
     video.addEventListener("playing", onCanPlay);
@@ -717,7 +823,7 @@ const Player = ({
       video.removeEventListener("pause", onPause);
       video.removeEventListener("waiting", onBuffer);
       video.removeEventListener("seeking", onBuffer);
-      video.removeEventListener("stalled", onBuffer);
+      video.removeEventListener("seeked", onCanPlay);
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("canplaythrough", onCanPlay);
       video.removeEventListener("playing", onCanPlay);
@@ -808,16 +914,23 @@ const Player = ({
       }
 
       // Nudge cuối cùng: nếu stall > 65s mà mọi recovery trong ERROR handler đều thất bại,
-      // thử reload source từ đầu (biện pháp cuối cùng)
+      // thử reload source và phục hồi vị trí hiện tại.
       if (sec >= 65) {
         const hls = hlsRef.current;
-        if (hls) {
+        const video = videoRef.current;
+        if (hls && video) {
+          const currentPos = video.currentTime || lastPositionRef.current;
           console.warn(
-            "[HLS] Stall >65s — all recovery failed, reloading source"
+            `[HLS] Stall >65s — all recovery failed, reloading source from ${currentPos.toFixed(1)}s`
           );
           bufferingSinceRef.current = performance.now(); // reset timer
           hls.loadSource(effectiveSource);
           hls.startLoad(-1);
+          if (currentPos > 0) {
+            hls.once(Hls.Events.MANIFEST_PARSED, () => {
+              if (videoRef.current) videoRef.current.currentTime = currentPos;
+            });
+          }
         }
       }
     }, 5000);
