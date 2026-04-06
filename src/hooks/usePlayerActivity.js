@@ -1,11 +1,14 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from "react";
 
 /**
  * Hook to manage player control visibility based on user activity.
  */
 export const usePlayerActivity = (playing) => {
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [controlsVisibleDuringPlayback, setControlsVisibleDuringPlayback] =
+    useState(true);
   const hideControlsTimeout = useRef(null);
+
+  const controlsVisible = !playing || controlsVisibleDuringPlayback;
 
   const clearHideControlsTimeout = useCallback(() => {
     if (hideControlsTimeout.current) {
@@ -17,14 +20,14 @@ export const usePlayerActivity = (playing) => {
   const scheduleHideControls = useCallback(() => {
     clearHideControlsTimeout();
     if (!playing) return;
-    
+
     hideControlsTimeout.current = setTimeout(() => {
-      setControlsVisible(false);
+      setControlsVisibleDuringPlayback(false);
     }, 3000);
   }, [playing, clearHideControlsTimeout]);
 
   const showControls = useCallback(() => {
-    setControlsVisible(true);
+    setControlsVisibleDuringPlayback(true);
     scheduleHideControls();
   }, [scheduleHideControls]);
 
@@ -34,11 +37,10 @@ export const usePlayerActivity = (playing) => {
 
   useEffect(() => {
     if (!playing) {
-      setControlsVisible(true);
       clearHideControlsTimeout();
-    } else {
-      scheduleHideControls();
+      return;
     }
+    scheduleHideControls();
   }, [playing, scheduleHideControls, clearHideControlsTimeout]);
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export const usePlayerActivity = (playing) => {
 
   return {
     controlsVisible,
-    setControlsVisible,
+    setControlsVisible: setControlsVisibleDuringPlayback,
     showControls,
     handleUserActivity,
   };

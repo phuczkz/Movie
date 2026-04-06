@@ -1,5 +1,5 @@
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { STREAM_PROXY, stripAdSegmentsFromPlaylist } from '../utils/hlsUtils';
+import { useState, useRef, useMemo, useEffect } from "react";
+import { STREAM_PROXY, stripAdSegmentsFromPlaylist } from "../utils/hlsUtils";
 
 /**
  * Hook to handle HLS library loading, manifest filtering for ad-stripping,
@@ -26,7 +26,7 @@ export const useHlsHandler = (source, isHls) => {
       /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       window.innerWidth <= 768;
     const isTablet = !isMobile && window.innerWidth <= 1024;
-    
+
     return {
       maxBufferLength: isMobile ? 15 : 30,
       maxMaxBufferLength: isMobile ? 30 : 60,
@@ -45,7 +45,7 @@ export const useHlsHandler = (source, isHls) => {
       fragLoadingRetryDelay: 1000,
       fragLoadingMaxRetryTimeout: 16000,
       fragLoadingMaxRetry: 10,
-      fragLoadingTimeOut: 60000, 
+      fragLoadingTimeOut: 60000,
       manifestLoadingMaxRetry: 6,
       manifestLoadingTimeOut: 30000,
       levelLoadingMaxRetry: 6,
@@ -89,7 +89,7 @@ export const useHlsHandler = (source, isHls) => {
         const blob = new Blob([filtered], {
           type: "application/vnd.apple.mpegurl",
         });
-        
+
         if (cancelled) return;
         revoke();
         playlistObjectUrlRef.current = URL.createObjectURL(blob);

@@ -90,7 +90,7 @@ const TrendingCard = ({ movie, index }) => {
     return result;
   }, [episodeList, movie.lang]);
 
-  const episodeText = useMemo(() => {
+  const episodeText = (() => {
     const latestFromList = episodeList.reduce((max, ep) => {
       const n = parseEpisodeNumber(ep?.name || ep?.slug);
       return Number.isFinite(n) ? Math.max(max, n) : max;
@@ -116,7 +116,7 @@ const TrendingCard = ({ movie, index }) => {
     }
 
     return raw || "??";
-  }, [episodeList, movie?.episode_current, movie?.episode_total]);
+  })();
 
   // 1. Slant UP to the right
   const polyUpStr =
@@ -152,8 +152,12 @@ const TrendingCard = ({ movie, index }) => {
           ref={imgRef}
           src={posterSrc}
           alt={movie.name}
-          className={`absolute h-full w-full object-cover transition duration-700 ${loaded ? "opacity-100" : "opacity-0"
-            }`}
+          className={`absolute h-full w-full object-cover transition duration-700 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
+          loading="lazy"
+          decoding="async"
+          fetchPriority="low"
           onLoad={() => setLoaded(true)}
         />
 
@@ -181,9 +185,11 @@ const TrendingCard = ({ movie, index }) => {
             {badges.map((badge, idx) => (
               <div
                 key={badge.code}
-                className={`${badge.bg
-                  } backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white uppercase whitespace-nowrap ${idx < badges.length - 1 ? "border-r border-white/10" : ""
-                  }`}
+                className={`${
+                  badge.bg
+                } backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white uppercase whitespace-nowrap ${
+                  idx < badges.length - 1 ? "border-r border-white/10" : ""
+                }`}
               >
                 {badge.code}.{episodeText}
               </div>
@@ -216,7 +222,6 @@ const TrendingCard = ({ movie, index }) => {
           <p className="text-sm text-slate-400 font-medium line-clamp-1 mt-0.5">
             {movie.origin_name || movie.name}
           </p>
-
         </div>
       </div>
     </Link>

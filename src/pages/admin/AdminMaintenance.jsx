@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useAuth } from "../../context/AuthContext";
 import { Construction, ToggleLeft, ToggleRight } from "lucide-react";
 
 export default function AdminMaintenance() {
-  const [settings, setSettings] = useState({ enabled: false, title: "", message: "", statusText: "" });
+  const [settings, setSettings] = useState({
+    enabled: false,
+    title: "",
+    message: "",
+    statusText: "",
+  });
   const [localTitle, setLocalTitle] = useState("");
   const [localMessage, setLocalMessage] = useState("");
   const [localStatusText, setLocalStatusText] = useState("");
@@ -60,20 +65,35 @@ export default function AdminMaintenance() {
       <div>
         <h2 className="text-2xl font-bold text-white">Chế độ bảo trì</h2>
         <p className="text-slate-400 text-sm mt-1">
-          Khi bật, toàn bộ người dùng sẽ thấy thông báo bảo trì và không thể truy cập website
+          Khi bật, toàn bộ người dùng sẽ thấy thông báo bảo trì và không thể
+          truy cập website
         </p>
       </div>
 
       {/* Status toggle */}
       <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${settings.enabled ? "bg-amber-500/20" : "bg-white/5"}`}>
-            <Construction className={`h-6 w-6 ${settings.enabled ? "text-amber-400" : "text-slate-500"}`} />
+          <div
+            className={`h-12 w-12 rounded-xl flex items-center justify-center ${
+              settings.enabled ? "bg-amber-500/20" : "bg-white/5"
+            }`}
+          >
+            <Construction
+              className={`h-6 w-6 ${
+                settings.enabled ? "text-amber-400" : "text-slate-500"
+              }`}
+            />
           </div>
           <div>
             <p className="font-semibold text-white">Trạng thái hiện tại</p>
-            <p className={`text-sm font-medium ${settings.enabled ? "text-amber-400" : "text-emerald-400"}`}>
-              {settings.enabled ? "🔴 Đang bảo trì" : "🟢 Hoạt động bình thường"}
+            <p
+              className={`text-sm font-medium ${
+                settings.enabled ? "text-amber-400" : "text-emerald-400"
+              }`}
+            >
+              {settings.enabled
+                ? "🔴 Đang bảo trì"
+                : "🟢 Hoạt động bình thường"}
             </p>
           </div>
         </div>
@@ -87,9 +107,13 @@ export default function AdminMaintenance() {
           } disabled:opacity-60`}
         >
           {settings.enabled ? (
-            <><ToggleRight className="h-5 w-5" /> Tắt bảo trì</>
+            <>
+              <ToggleRight className="h-5 w-5" /> Tắt bảo trì
+            </>
           ) : (
-            <><ToggleLeft className="h-5 w-5" /> Bật bảo trì</>
+            <>
+              <ToggleLeft className="h-5 w-5" /> Bật bảo trì
+            </>
           )}
         </button>
       </div>
@@ -97,7 +121,9 @@ export default function AdminMaintenance() {
       {/* Content editor */}
       <form onSubmit={saveContent} className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-300">Tiêu đề thông báo</label>
+          <label className="text-sm font-semibold text-slate-300">
+            Tiêu đề thông báo
+          </label>
           <input
             type="text"
             value={localTitle}
@@ -107,7 +133,9 @@ export default function AdminMaintenance() {
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-300">Nội dung thông báo</label>
+          <label className="text-sm font-semibold text-slate-300">
+            Nội dung thông báo
+          </label>
           <textarea
             rows={4}
             value={localMessage}
@@ -117,7 +145,9 @@ export default function AdminMaintenance() {
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-300">Trạng thái (Badge)</label>
+          <label className="text-sm font-semibold text-slate-300">
+            Trạng thái (Badge)
+          </label>
           <input
             type="text"
             value={localStatusText}
@@ -137,14 +167,17 @@ export default function AdminMaintenance() {
 
       {/* Preview */}
       <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 space-y-3">
-        <p className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Xem trước (Trang bảo trì)</p>
+        <p className="text-xs uppercase tracking-widest text-slate-500 font-semibold">
+          Xem trước (Trang bảo trì)
+        </p>
         <div className="rounded-2xl bg-white p-8 text-center space-y-6 shadow-2xl">
           <div className="space-y-2">
             <h1 className="text-2xl font-black text-[#1e4e8c] uppercase tracking-tight">
               {localTitle || "BẢO TRÌ HỆ THỐNG"}
             </h1>
             <p className="text-slate-500 text-sm font-medium leading-relaxed whitespace-pre-wrap">
-              {localMessage || "Admin đang nghèo, ủng hộ Admin để duy trì website"}
+              {localMessage ||
+                "Admin đang nghèo, ủng hộ Admin để duy trì website"}
             </p>
           </div>
           <div className="flex justify-center">

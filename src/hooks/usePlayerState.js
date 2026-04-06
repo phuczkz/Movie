@@ -1,22 +1,26 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef } from "react";
 
 /**
  * Hook to manage common video player state.
  */
-export const usePlayerState = (initialTime = 0) => {
+export const usePlayerState = (_initialTime = 0) => {
+  const initialTime =
+    typeof _initialTime === "number" && Number.isFinite(_initialTime)
+      ? _initialTime
+      : 0;
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(initialTime);
   const [isBuffering, setIsBuffering] = useState(true);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [qualityLevels, setQualityLevels] = useState([]);
   const [currentLevel, setCurrentLevel] = useState(-1);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
-  
-  const lastPositionRef = useRef(0);
+
+  const lastPositionRef = useRef(initialTime);
   const initialTimeConsumed = useRef(false);
   const playbackIssueReportedRef = useRef(false);
 
@@ -31,17 +35,28 @@ export const usePlayerState = (initialTime = 0) => {
   }, []);
 
   return {
-    playing, setPlaying,
-    volume, setVolume,
-    muted, setMuted,
-    duration, setDuration,
-    progress, setProgress,
-    isBuffering, setIsBuffering,
-    playbackRate, setPlaybackRate,
-    qualityLevels, setQualityLevels,
-    currentLevel, setCurrentLevel,
-    showMoreMenu, setShowMoreMenu,
-    showVolumeSlider, setShowVolumeSlider,
+    playing,
+    setPlaying,
+    volume,
+    setVolume,
+    muted,
+    setMuted,
+    duration,
+    setDuration,
+    progress,
+    setProgress,
+    isBuffering,
+    setIsBuffering,
+    playbackRate,
+    setPlaybackRate,
+    qualityLevels,
+    setQualityLevels,
+    currentLevel,
+    setCurrentLevel,
+    showMoreMenu,
+    setShowMoreMenu,
+    showVolumeSlider,
+    setShowVolumeSlider,
     lastPositionRef,
     initialTimeConsumed,
     playbackIssueReportedRef,

@@ -72,7 +72,7 @@ const fetchTmdbDetail = async (id) => {
   try {
     const res = await tmdb.get(`/movie/${id}`, { params });
     detail = res.data;
-  } catch (error) {
+  } catch {
     // Fallback to TV if movie lookup fails
   }
 

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
+import React from "react";
+import { Volume2, VolumeX } from "lucide-react";
 
 /**
  * Volume controls for the player.
@@ -10,7 +10,6 @@ const VolumeControl = ({
   onVolumeChange,
   onToggleMute,
   showSlider,
-  setShowSlider,
 }) => {
   return (
     <div className="relative flex items-center gap-2 pl-2" data-control>
@@ -26,7 +25,7 @@ const VolumeControl = ({
           <Volume2 className="h-2.5 w-2.5 min-[360px]:h-3 min-[360px]:w-3" />
         )}
       </button>
-      
+
       {/* Desktop Slider */}
       <div className="hidden sm:block">
         <input

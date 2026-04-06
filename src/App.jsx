@@ -2,8 +2,6 @@ import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 
-import { useAuth } from "./context/AuthContext.jsx";
-
 const Home = lazy(() => import("./pages/Home.jsx"));
 const Category = lazy(() => import("./pages/Category.jsx"));
 const Country = lazy(() => import("./pages/Country.jsx"));
@@ -18,11 +16,6 @@ const Actor = lazy(() => import("./pages/Actor.jsx"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
 
 function App() {
-  const { userProfile, maintenance, loading } = useAuth();
-
-  const isAdmin = userProfile?.email === import.meta.env.VITE_ADMIN_EMAIL;
-  const isWhitelisted = userProfile?.isWhitelisted;
-
   return (
     <Suspense
       fallback={
@@ -40,31 +33,25 @@ function App() {
           path="/*"
           element={
             <Layout>
-              {loading ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="loader-orbit loader-orbit-sm" />
-                </div>
-              ) : (
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/category/:category" element={<Category />} />
-                  <Route
-                    path="/category/:category/:page"
-                    element={<Category />}
-                  />
-                  <Route path="/country/:country" element={<Country />} />
-                  <Route path="/country/:country/:page" element={<Country />} />
-                  <Route path="/movie/:slug" element={<Detail />} />
-                  <Route path="/watch/:slug" element={<Watch />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/favorites" element={<Saved />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/actor/:id" element={<Actor />} />
-                  <Route path="*" element={<Home />} />
-                </Routes>
-              )}
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/category/:category" element={<Category />} />
+                <Route
+                  path="/category/:category/:page"
+                  element={<Category />}
+                />
+                <Route path="/country/:country" element={<Country />} />
+                <Route path="/country/:country/:page" element={<Country />} />
+                <Route path="/movie/:slug" element={<Detail />} />
+                <Route path="/watch/:slug" element={<Watch />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/favorites" element={<Saved />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/actor/:id" element={<Actor />} />
+                <Route path="*" element={<Home />} />
+              </Routes>
             </Layout>
           }
         />

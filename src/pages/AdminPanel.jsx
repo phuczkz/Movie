@@ -103,19 +103,19 @@ export default function AdminPanel() {
 
         {/* Nav items */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+          {NAV_ITEMS.map((item) => (
             <button
-              key={id}
-              onClick={() => handleNav(id)}
+              key={item.id}
+              onClick={() => handleNav(item.id)}
               className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
-                section === id
+                section === item.id
                   ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-left">{label}</span>
-              {id === "maintenance" && maintenance?.enabled && (
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.id === "maintenance" && maintenance?.enabled && (
                 <span className="flex h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />
               )}
             </button>

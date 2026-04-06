@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="vi">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>KhoPhim - Xem phim online</title>
     <meta name="description" content="Xem phim trực tuyến miễn phí – Phim bộ, phim lẻ, hoạt hình cập nhật liên tục" />
@@ -30,14 +31,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Satoshi:wght@400;500;700&family=Alfa+Slab+One&family=Russo+One&display=swap" rel="stylesheet" />
 
-    <!-- Preconnect CDNs -->
-    <link rel="preconnect" href="https://image.tmdb.org" crossorigin />
+    <!-- Preconnect: keep <= 4 critical origins -->
+    <link rel="preconnect" href="https://wsrv.nl" />
+    <link rel="preconnect" href="https://api.themoviedb.org" />
+
+    <!-- DNS Prefetch: non-critical / route-dependent origins -->
     <link rel="dns-prefetch" href="https://image.tmdb.org" />
-    <link rel="preconnect" href="https://phimimg.com" crossorigin />
-    <link rel="preconnect" href="https://img.ophim.live" crossorigin />
-    <link rel="preconnect" href="https://wsrv.nl" crossorigin />
-    <link rel="preconnect" href="https://phimapi.com" crossorigin />
-    <link rel="preconnect" href="https://ophim1.com" crossorigin />
+    <link rel="dns-prefetch" href="https://phimimg.com" />
+    <link rel="dns-prefetch" href="https://img.ophim.live" />
+    <link rel="dns-prefetch" href="https://phimapi.com" />
+    <link rel="dns-prefetch" href="https://ophim1.com" />
   </head>
   <body>
     <div id="root"></div>

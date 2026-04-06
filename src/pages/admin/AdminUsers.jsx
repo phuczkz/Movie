@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import {
   Trash2,

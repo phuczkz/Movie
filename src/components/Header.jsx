@@ -148,8 +148,8 @@ const Header = () => {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${showTransparent
-          ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
-          : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
+        ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
+        : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
         }`}
     >
       {/* Mobile top bar */}

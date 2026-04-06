@@ -4,34 +4,36 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-  updateProfile,
-} from "firebase/auth";
-import {
-  Timestamp,
-  doc,
-  getDoc,
-  deleteDoc,
-  serverTimestamp,
-  setDoc,
-  onSnapshot,
-  updateDoc,
-} from "firebase/firestore";
-import {
-  auth,
-  db,
-  googleProvider,
-  isFirebaseConfigured,
-  storage,
-  adminAuth,
-} from "../firebase.config";
+
+let firebaseSdkPromise = null;
+
+const loadFirebaseSdk = () => {
+  if (firebaseSdkPromise) return firebaseSdkPromise;
+  firebaseSdkPromise = Promise.all([
+    import("../firebase.config.js"),
+    import("firebase/auth"),
+    import("firebase/firestore"),
+  ]).then(([config, authMod, firestoreMod]) => ({
+    config,
+    authMod,
+    firestoreMod,
+  }));
+  return firebaseSdkPromise;
+};
+
+const awaitAuthStateInit = async (authMod, auth) => {
+  if (!authMod?.onAuthStateChanged || !auth) return;
+  if (auth.currentUser) return;
+  await new Promise((resolve) => {
+    const unsubscribe = authMod.onAuthStateChanged(auth, () => {
+      unsubscribe();
+      resolve();
+    });
+  });
+};
 
 const AuthContext = createContext({
   user: null,
@@ -39,18 +41,18 @@ const AuthContext = createContext({
   loading: true,
   profileLoading: false,
   maintenance: { enabled: false, title: "", message: "", statusText: "" },
-  loginGoogle: async () => { },
-  loginEmail: async () => { },
-  registerEmail: async () => { },
-  updateProfileData: async () => { },
-  uploadAvatar: async () => { },
-  logout: async () => { },
-  saveMovie: async () => { },
-  removeSavedMovie: async () => { },
-  createAccountByAdmin: async () => { },
-  deleteUserByAdmin: async () => { },
-  toggleMaintenanceMode: async () => { },
-  toggleUserWhitelist: async () => { },
+  loginGoogle: async () => {},
+  loginEmail: async () => {},
+  registerEmail: async () => {},
+  updateProfileData: async () => {},
+  uploadAvatar: async () => {},
+  logout: async () => {},
+  saveMovie: async () => {},
+  removeSavedMovie: async () => {},
+  createAccountByAdmin: async () => {},
+  deleteUserByAdmin: async () => {},
+  toggleMaintenanceMode: async () => {},
+  toggleUserWhitelist: async () => {},
 });
 
 const rejectIfMissing = () => {
@@ -59,7 +61,7 @@ const rejectIfMissing = () => {
   );
 };
 
-const buildDefaultProfile = (currentUser) => ({
+const buildDefaultProfile = (currentUser, serverTimestamp) => ({
   email: currentUser.email,
   displayName: currentUser.displayName || "Người dùng",
   phoneNumber: currentUser.phoneNumber || "",
@@ -76,111 +78,166 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  const ensureFirebase = useCallback(() => {
-    if (!auth || !db) return rejectIfMissing();
-    return true;
-  }, []);
-
-  const ensureCurrentUser = useCallback(() => {
-    ensureFirebase();
-    const currentUser = auth.currentUser;
+  const ensureCurrentUser = useCallback(async () => {
+    const { config, authMod } = await loadFirebaseSdk();
+    if (!config.auth || !config.db) return rejectIfMissing();
+    await awaitAuthStateInit(authMod, config.auth);
+    const currentUser = config.auth.currentUser;
     if (!currentUser)
       throw new Error("Bạn cần đăng nhập để lưu hoặc quản lý phim.");
     return currentUser;
-  }, [ensureFirebase]);
-
-
-
-  const [maintenance, setMaintenance] = useState({ enabled: false, title: "", message: "", statusText: "" });
-
-  useEffect(() => {
-    if (!db) return undefined;
-    const ref = doc(db, "settings", "maintenance");
-    const unsubscribe = onSnapshot(ref, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setMaintenance({
-          enabled: data.enabled === true,
-          title: data.title || "BẢO TRÌ HỆ THỐNG",
-          message: data.message || "Admin đang nghèo, ủng hộ Admin để duy trì website",
-          statusText: data.statusText || "ĐANG NÂNG CẤP HỆ THỐNG",
-        });
-      }
-    });
-    return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (!isFirebaseConfigured || !auth) {
-      setLoading(false);
-      return undefined;
-    }
+  const [maintenance, setMaintenance] = useState({
+    enabled: false,
+    title: "",
+    message: "",
+    statusText: "",
+  });
 
-    let profileUnsubscribe = null;
+  const firebaseStartedRef = useRef(false);
+  const cleanup = useRef({
+    unsubscribeAuth: null,
+    profileUnsubscribe: null,
+    maintenanceUnsubscribe: null,
+  }).current;
 
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      
-      // Cleanup previous profile listener
-      if (profileUnsubscribe) {
-        profileUnsubscribe();
-        profileUnsubscribe = null;
-      }
+  const startFirebaseListeners = useCallback(async () => {
+    if (firebaseStartedRef.current) return;
+    firebaseStartedRef.current = true;
+    setLoading(true);
 
-      if (currentUser) {
-        if (!db) {
-          setLoading(false);
-          return;
-        }
+    try {
+      const { config, authMod, firestoreMod } = await loadFirebaseSdk();
 
-        const userRef = doc(db, "users", currentUser.uid);
-        
-        // Use onSnapshot for real-time profile updates
-        profileUnsubscribe = onSnapshot(userRef, async (snapshot) => {
-          if (!snapshot.exists()) {
-            const base = buildDefaultProfile(currentUser);
-            await setDoc(userRef, base);
-            // The snapshot listener will fire again with the new data
-          } else {
-            const data = snapshot.data();
-            
-            const normalizeDate = (value) => {
-              if (!value) return "";
-              if (value instanceof Timestamp)
-                return value.toDate().toISOString().slice(0, 10);
-              if (typeof value === "string") return value;
-              return "";
-            };
-
-            const profile = {
-              id: snapshot.id,
-              email: data.email || currentUser.email,
-              displayName: data.displayName || currentUser.displayName || "Người dùng",
-              phoneNumber: typeof data.phoneNumber === "string" ? data.phoneNumber.trim() : "",
-              birthday: normalizeDate(data.birthday),
-              isWhitelisted: data.isWhitelisted === true,
-              photoURL: data.photoURL || currentUser.photoURL || "",
-              createdAt: data.createdAt || Timestamp.now(),
-              updatedAt: data.updatedAt || Timestamp.now(),
-            };
-            setUserProfile(profile);
-            setLoading(false);
-          }
-        }, (error) => {
-          console.error("Profile onSnapshot error:", error);
-          setLoading(false);
-        });
-      } else {
-        setUserProfile(null);
+      if (!config.isFirebaseConfigured || !config.auth) {
         setLoading(false);
+        return;
       }
-    });
 
+      if (config.db) {
+        const maintenanceRef = firestoreMod.doc(
+          config.db,
+          "settings",
+          "maintenance"
+        );
+        cleanup.maintenanceUnsubscribe = firestoreMod.onSnapshot(
+          maintenanceRef,
+          (snap) => {
+            if (!snap.exists()) return;
+            const data = snap.data();
+            setMaintenance({
+              enabled: data.enabled === true,
+              title: data.title || "BẢO TRÌ HỆ THỐNG",
+              message:
+                data.message ||
+                "Admin đang nghèo, ủng hộ Admin để duy trì website",
+              statusText: data.statusText || "ĐANG NÂNG CẤP HỆ THỐNG",
+            });
+          }
+        );
+      }
+
+      cleanup.unsubscribeAuth = authMod.onAuthStateChanged(
+        config.auth,
+        async (currentUser) => {
+          setUser(currentUser);
+
+          if (cleanup.profileUnsubscribe) {
+            cleanup.profileUnsubscribe();
+            cleanup.profileUnsubscribe = null;
+          }
+
+          if (!currentUser) {
+            setUserProfile(null);
+            setProfileLoading(false);
+            setLoading(false);
+            return;
+          }
+
+          if (!config.db) {
+            setProfileLoading(false);
+            setLoading(false);
+            return;
+          }
+
+          setProfileLoading(true);
+          const userRef = firestoreMod.doc(config.db, "users", currentUser.uid);
+
+          cleanup.profileUnsubscribe = firestoreMod.onSnapshot(
+            userRef,
+            async (snapshot) => {
+              if (!snapshot.exists()) {
+                const base = buildDefaultProfile(
+                  currentUser,
+                  firestoreMod.serverTimestamp
+                );
+                await firestoreMod.setDoc(userRef, base);
+                return;
+              }
+
+              const data = snapshot.data();
+              const { Timestamp } = firestoreMod;
+              const normalizeDate = (value) => {
+                if (!value) return "";
+                if (Timestamp && value instanceof Timestamp)
+                  return value.toDate().toISOString().slice(0, 10);
+                if (typeof value === "string") return value;
+                return "";
+              };
+
+              const profile = {
+                id: snapshot.id,
+                email: data.email || currentUser.email,
+                displayName:
+                  data.displayName || currentUser.displayName || "Người dùng",
+                phoneNumber:
+                  typeof data.phoneNumber === "string"
+                    ? data.phoneNumber.trim()
+                    : "",
+                birthday: normalizeDate(data.birthday),
+                isWhitelisted: data.isWhitelisted === true,
+                photoURL: data.photoURL || currentUser.photoURL || "",
+                createdAt:
+                  data.createdAt || (Timestamp ? Timestamp.now() : undefined),
+                updatedAt:
+                  data.updatedAt || (Timestamp ? Timestamp.now() : undefined),
+              };
+              setUserProfile(profile);
+              setProfileLoading(false);
+              setLoading(false);
+            },
+            (error) => {
+              console.error("Profile onSnapshot error:", error);
+              setProfileLoading(false);
+              setLoading(false);
+            }
+          );
+        }
+      );
+    } catch (err) {
+      console.error("Firebase auth init failed:", err);
+      setLoading(false);
+    }
+  }, [cleanup]);
+
+  useEffect(() => {
     return () => {
-      unsubscribe();
-      if (profileUnsubscribe) profileUnsubscribe();
+      if (typeof cleanup.unsubscribeAuth === "function") {
+        cleanup.unsubscribeAuth();
+      }
+      if (typeof cleanup.profileUnsubscribe === "function") {
+        cleanup.profileUnsubscribe();
+      }
+      if (typeof cleanup.maintenanceUnsubscribe === "function") {
+        cleanup.maintenanceUnsubscribe();
+      }
     };
-  }, []);
+  }, [cleanup]);
+
+  useEffect(() => {
+    startFirebaseListeners();
+  }, [startFirebaseListeners]);
 
   const value = useMemo(
     () => ({
@@ -190,57 +247,83 @@ export const AuthProvider = ({ children }) => {
       profileLoading,
       maintenance,
       loginGoogle: async () => {
-        if (!auth || !googleProvider) return rejectIfMissing();
-        return signInWithPopup(auth, googleProvider);
+        const { config, authMod } = await loadFirebaseSdk();
+        if (!config.auth || !config.googleProvider) return rejectIfMissing();
+        return authMod.signInWithPopup(config.auth, config.googleProvider);
       },
       loginEmail: async (email, password) => {
-        if (!auth) return rejectIfMissing();
-        return signInWithEmailAndPassword(auth, email, password);
+        const { config, authMod } = await loadFirebaseSdk();
+        if (!config.auth) return rejectIfMissing();
+        return authMod.signInWithEmailAndPassword(config.auth, email, password);
       },
       registerEmail: async (email, password, displayName) => {
-        if (!auth) return rejectIfMissing();
-        const credential = await createUserWithEmailAndPassword(
-          auth,
+        const { config, authMod, firestoreMod } = await loadFirebaseSdk();
+        if (!config.auth) return rejectIfMissing();
+        const credential = await authMod.createUserWithEmailAndPassword(
+          config.auth,
           email,
           password
         );
         // Set displayName on Firebase Auth profile
         if (displayName) {
-          await updateProfile(credential.user, { displayName });
+          await authMod.updateProfile(credential.user, { displayName });
         }
-        if (db) {
-          const ref = doc(db, "users", credential.user.uid);
-          const profileData = buildDefaultProfile(credential.user);
+        if (config.db) {
+          const ref = firestoreMod.doc(config.db, "users", credential.user.uid);
+          const profileData = buildDefaultProfile(
+            credential.user,
+            firestoreMod.serverTimestamp
+          );
           if (displayName) profileData.displayName = displayName;
-          await setDoc(ref, profileData);
+          await firestoreMod.setDoc(ref, profileData);
         }
         return credential;
       },
       updateProfileData: async (data, timeoutMs = 15000) => {
-        ensureFirebase();
-        const currentUser = auth.currentUser;
+        const { config, authMod, firestoreMod } = await loadFirebaseSdk();
+        if (!config.auth || !config.db) return rejectIfMissing();
+        await awaitAuthStateInit(authMod, config.auth);
+        const currentUser = config.auth.currentUser;
         if (!currentUser) throw new Error("Cần đăng nhập để cập nhật hồ sơ.");
 
         const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Yêu cầu quá hạn (Timeout). Vui lòng kiểm tra kết nối mạng.")), timeoutMs)
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  "Yêu cầu quá hạn (Timeout). Vui lòng kiểm tra kết nối mạng."
+                )
+              ),
+            timeoutMs
+          )
         );
 
         try {
           console.log("Starting profile update with data:", data);
           const updateTask = (async () => {
-            const userRef = doc(db, "users", currentUser.uid);
+            const userRef = firestoreMod.doc(
+              config.db,
+              "users",
+              currentUser.uid
+            );
 
             if (data.displayName) {
               console.log("Updating displayName in Firebase Auth...");
-              await updateProfile(currentUser, { displayName: data.displayName });
+              await authMod.updateProfile(currentUser, {
+                displayName: data.displayName,
+              });
               console.log("Auth displayName updated.");
             }
 
             console.log("Updating Firestore document...");
-            await setDoc(userRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+            await firestoreMod.setDoc(
+              userRef,
+              { ...data, updatedAt: firestoreMod.serverTimestamp() },
+              { merge: true }
+            );
             console.log("Firestore document updated.");
 
-            setUserProfile(prev => ({ ...prev, ...data }));
+            setUserProfile((prev) => ({ ...prev, ...data }));
             return true;
           })();
 
@@ -252,12 +335,15 @@ export const AuthProvider = ({ children }) => {
         }
       },
       logout: async () => {
-        if (!auth) return rejectIfMissing();
-        return signOut(auth);
+        const { config, authMod } = await loadFirebaseSdk();
+        if (!config.auth) return rejectIfMissing();
+        return authMod.signOut(config.auth);
       },
       uploadAvatar: async (file, maxWidth = 400, quality = 0.7) => {
-        ensureFirebase();
-        const currentUser = auth.currentUser;
+        const { config, authMod, firestoreMod } = await loadFirebaseSdk();
+        if (!config.auth || !config.db) return rejectIfMissing();
+        await awaitAuthStateInit(authMod, config.auth);
+        const currentUser = config.auth.currentUser;
         if (!currentUser) throw new Error("Cần đăng nhập để tải ảnh lên.");
 
         try {
@@ -293,16 +379,25 @@ export const AuthProvider = ({ children }) => {
           });
 
           console.log("Image compressed. Base64 length:", base64.length);
-          if (base64.length > 800000) { // Safety check for Firestore (~0.8MB)
-            throw new Error("Ảnh quá lớn ngay cả khi đã nén. Vui lòng chọn ảnh nhỏ hơn.");
+          if (base64.length > 800000) {
+            // Safety check for Firestore (~0.8MB)
+            throw new Error(
+              "Ảnh quá lớn ngay cả khi đã nén. Vui lòng chọn ảnh nhỏ hơn."
+            );
           }
 
-          console.log("Updating Firestore document only (Auth has 2048 char limit)...");
-          const userRef = doc(db, "users", currentUser.uid);
-          await setDoc(userRef, { photoURL: base64, updatedAt: serverTimestamp() }, { merge: true });
+          console.log(
+            "Updating Firestore document only (Auth has 2048 char limit)..."
+          );
+          const userRef = firestoreMod.doc(config.db, "users", currentUser.uid);
+          await firestoreMod.setDoc(
+            userRef,
+            { photoURL: base64, updatedAt: firestoreMod.serverTimestamp() },
+            { merge: true }
+          );
           console.log("Firestore document updated.");
 
-          setUserProfile(prev => ({ ...prev, photoURL: base64 }));
+          setUserProfile((prev) => ({ ...prev, photoURL: base64 }));
           console.log("Profile updated successfully with Base64 in Firestore.");
           return base64;
         } catch (error) {
@@ -311,12 +406,14 @@ export const AuthProvider = ({ children }) => {
         }
       },
       saveMovie: async (movie) => {
-        const currentUser = ensureCurrentUser();
+        const { config, firestoreMod } = await loadFirebaseSdk();
+        if (!config.db || !config.auth) return rejectIfMissing();
+        const currentUser = await ensureCurrentUser();
         if (!movie || !movie.slug)
           throw new Error("Thiếu thông tin phim để lưu.");
 
-        const ref = doc(
-          db,
+        const ref = firestoreMod.doc(
+          config.db,
           "users",
           currentUser.uid,
           "FavoriteMovies",
@@ -330,70 +427,84 @@ export const AuthProvider = ({ children }) => {
           quality: movie.quality || null,
           lang: movie.lang || movie.language || null,
           type: movie.type || null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+          createdAt: firestoreMod.serverTimestamp(),
+          updatedAt: firestoreMod.serverTimestamp(),
         };
 
-        await setDoc(ref, payload, { merge: true });
+        await firestoreMod.setDoc(ref, payload, { merge: true });
         return true;
       },
       removeSavedMovie: async (slug) => {
-        const currentUser = ensureCurrentUser();
+        const { config, firestoreMod } = await loadFirebaseSdk();
+        if (!config.db || !config.auth) return rejectIfMissing();
+        const currentUser = await ensureCurrentUser();
         if (!slug) throw new Error("Thiếu slug phim cần xoá.");
-        const ref = doc(db, "users", currentUser.uid, "FavoriteMovies", slug);
-        await deleteDoc(ref);
+        const ref = firestoreMod.doc(
+          config.db,
+          "users",
+          currentUser.uid,
+          "FavoriteMovies",
+          slug
+        );
+        await firestoreMod.deleteDoc(ref);
         return true;
       },
       createAccountByAdmin: async (email, password, displayName) => {
-        if (!adminAuth) throw new Error("AdminAuth chưa được cấu hình.");
+        const { config, authMod, firestoreMod } = await loadFirebaseSdk();
+        if (!config.adminAuth) throw new Error("AdminAuth chưa được cấu hình.");
         // Use secondary auth to avoid signing out the current admin
-        const credential = await createUserWithEmailAndPassword(
-          adminAuth,
+        const credential = await authMod.createUserWithEmailAndPassword(
+          config.adminAuth,
           email,
           password
         );
         const newUser = credential.user;
-        
+
         if (displayName) {
-          await updateProfile(newUser, { displayName });
+          await authMod.updateProfile(newUser, { displayName });
         }
 
-        if (db) {
-          const userRef = doc(db, "users", newUser.uid);
-          const profileData = buildDefaultProfile(newUser);
+        if (config.db) {
+          const userRef = firestoreMod.doc(config.db, "users", newUser.uid);
+          const profileData = buildDefaultProfile(
+            newUser,
+            firestoreMod.serverTimestamp
+          );
           if (displayName) profileData.displayName = displayName;
-          await setDoc(userRef, profileData);
+          await firestoreMod.setDoc(userRef, profileData);
         }
-        
+
         // Return the new user info but don't switch context
         return credential;
       },
       deleteUserByAdmin: async (userId) => {
-        if (!db) return;
-        const ref = doc(db, "users", userId);
-        await deleteDoc(ref);
+        const { config, firestoreMod } = await loadFirebaseSdk();
+        if (!config.db) return;
+        const ref = firestoreMod.doc(config.db, "users", userId);
+        await firestoreMod.deleteDoc(ref);
         return true;
       },
       toggleMaintenanceMode: async (enabled) => {
-        if (!db) return;
-        const ref = doc(db, "settings", "maintenance");
-        await setDoc(ref, { enabled: enabled, updatedAt: serverTimestamp() }, { merge: true });
+        const { config, firestoreMod } = await loadFirebaseSdk();
+        if (!config.db) return;
+        const ref = firestoreMod.doc(config.db, "settings", "maintenance");
+        await firestoreMod.setDoc(
+          ref,
+          { enabled: enabled, updatedAt: firestoreMod.serverTimestamp() },
+          { merge: true }
+        );
       },
       toggleUserWhitelist: async (userId, whitelisted) => {
-        if (!db) return;
-        const ref = doc(db, "users", userId);
-        await updateDoc(ref, { isWhitelisted: whitelisted, updatedAt: serverTimestamp() });
+        const { config, firestoreMod } = await loadFirebaseSdk();
+        if (!config.db) return;
+        const ref = firestoreMod.doc(config.db, "users", userId);
+        await firestoreMod.updateDoc(ref, {
+          isWhitelisted: whitelisted,
+          updatedAt: firestoreMod.serverTimestamp(),
+        });
       },
     }),
-    [
-      user,
-      loading,
-      userProfile,
-      profileLoading,
-      maintenance,
-      ensureFirebase,
-      ensureCurrentUser,
-    ]
+    [user, loading, userProfile, profileLoading, maintenance, ensureCurrentUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

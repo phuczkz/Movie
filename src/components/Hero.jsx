@@ -10,9 +10,37 @@ const normalizeList = (items = []) => {
     .filter(Boolean);
 };
 
-const getHiRes = (url) => {
+const normalizeTmdbImageSize = (url, size = "w780") => {
   if (!url || typeof url !== "string") return url;
-  return url.replace(/\/w(92|154|185|300|342|500|780)\//, "/original/");
+  // Only rewrite TMDB image URLs. Keep other CDNs as-is.
+  try {
+    const host = new URL(url).hostname;
+    if (!host.includes("image.tmdb.org")) return url;
+  } catch {
+    return url;
+  }
+  return url.replace(/\/(w\d+|original)\//, `/${size}/`);
+};
+
+const toWsrv = (url, w = 640, q = 85) => {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+
+    // If already proxied through wsrv.nl, just update params.
+    if (parsed.hostname === "wsrv.nl") {
+      parsed.searchParams.set("w", String(w));
+      parsed.searchParams.set("output", "webp");
+      parsed.searchParams.set("q", String(q));
+      return parsed.toString();
+    }
+
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&w=${w}&output=webp&q=${q}`;
+  } catch {
+    return url;
+  }
 };
 
 const withWidthParam = (url, w = 640) => {
@@ -53,19 +81,24 @@ const Hero = ({ movie, movies = [] }) => {
 
   const categories = normalizeList(activeMovie.category);
   const countries = normalizeList(activeMovie.country);
-  const background = getHiRes(
+  const rawBackground =
     activeMovie.backdrop_url ||
     activeMovie.thumb_url ||
     activeMovie.poster_url ||
-    "https://placehold.co/1600x900"
-  );
-  const backgroundPreview = withWidthParam(background, 640) || background;
+    "https://placehold.co/1600x900";
+  // Avoid noticeable blur from upscaling: use a larger TMDB source for the hero backdrop.
+  // wsrv still delivers a properly sized WebP for each viewport.
+  const background =
+    normalizeTmdbImageSize(rawBackground, "w1280") || rawBackground;
+  const background640 = toWsrv(background, 640);
+  const background1280 = toWsrv(background, 1280);
+  const background1920 = toWsrv(background, 1920);
   const ratingValue =
     typeof activeMovie.rating === "number"
       ? activeMovie.rating
       : typeof activeMovie.vote_average === "number"
-        ? activeMovie.vote_average
-        : undefined;
+      ? activeMovie.vote_average
+      : undefined;
   const rating =
     typeof ratingValue === "number" ? ratingValue.toFixed(1) : undefined;
 
@@ -78,12 +111,8 @@ const Hero = ({ movie, movies = [] }) => {
       <div className="absolute inset-0">
         {/* Backdrop chính – dùng <img> để kiểm soát object-position trên mobile */}
         <img
-          src={background}
-          srcSet={`
-            https://wsrv.nl/?url=${encodeURIComponent(background)}&w=640&output=webp&q=80 640w,
-            https://wsrv.nl/?url=${encodeURIComponent(background)}&w=1280&output=webp&q=80 1280w,
-            https://wsrv.nl/?url=${encodeURIComponent(background)}&w=1920&output=webp&q=80 1920w
-          `}
+          src={background640}
+          srcSet={`${background640} 640w, ${background1280} 1280w, ${background1920} 1920w`}
           sizes="100vw"
           alt=""
           className="absolute inset-0 h-full w-full object-cover object-[center_20%] sm:object-[center_15%] md:object-center brightness-105 contrast-[1.08] transition-[src] duration-700 ease-out"
@@ -199,8 +228,8 @@ const Hero = ({ movie, movies = [] }) => {
                 "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
               const hasLandscape = Boolean(
                 item.backdrop_url ||
-                item.banner ||
-                item.thumb_url !== item.poster_url
+                  item.banner ||
+                  item.thumb_url !== item.poster_url
               );
               const fitClass = hasLandscape ? "object-cover" : "object-contain";
               return (
@@ -208,10 +237,11 @@ const Hero = ({ movie, movies = [] }) => {
                   key={item.slug}
                   type="button"
                   onClick={() => setActiveIndex(idx)}
-                  className={`group relative aspect-video w-20 sm:w-24 md:w-28 lg:w-32 overflow-hidden rounded-2xl md:rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${isActive
-                    ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
-                    : "border-white/15 hover:border-white/25"
-                    }`}
+                  className={`group relative aspect-video w-20 sm:w-24 md:w-28 lg:w-32 overflow-hidden rounded-2xl md:rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${
+                    isActive
+                      ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
+                      : "border-white/15 hover:border-white/25"
+                  }`}
                   aria-label={`Chọn ${item.name}`}
                 >
                   <img

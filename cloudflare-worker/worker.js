@@ -29,9 +29,8 @@ const CORS_HEADERS = {
 function absolutizeM3u8(content, baseUrl) {
   if (!content || typeof content !== "string") return content;
 
-  let base;
   try {
-    base = new URL(".", baseUrl).href;
+    new URL(".", baseUrl);
   } catch {
     return content;
   }
@@ -84,15 +83,17 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
+    const jsonHeaders = {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json; charset=utf-8",
+    };
+
     // Chỉ cho phép GET/HEAD
     if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response(
-        JSON.stringify({ error: "Method not allowed" }),
-        {
-          status: 405,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: jsonHeaders,
+      });
     }
 
     const url = new URL(request.url);
@@ -104,7 +105,7 @@ export default {
         JSON.stringify({ status: "ok", service: "stream-proxy" }),
         {
           status: 200,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+          headers: jsonHeaders,
         }
       );
     }
@@ -114,7 +115,7 @@ export default {
         JSON.stringify({ error: "Missing ?url= parameter" }),
         {
           status: 400,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+          headers: jsonHeaders,
         }
       );
     }
@@ -127,13 +128,10 @@ export default {
         throw new Error("Invalid protocol");
       }
     } catch {
-      return new Response(
-        JSON.stringify({ error: "Invalid URL" }),
-        {
-          status: 400,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Invalid URL" }), {
+        status: 400,
+        headers: jsonHeaders,
+      });
     }
 
     try {
@@ -165,7 +163,7 @@ export default {
           }),
           {
             status: upstream.status >= 400 ? upstream.status : 502,
-            headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+            headers: jsonHeaders,
           }
         );
       }
@@ -183,7 +181,7 @@ export default {
       if (isM3u8) {
         responseHeaders.set(
           "Content-Type",
-          "application/vnd.apple.mpegurl"
+          "application/vnd.apple.mpegurl; charset=utf-8"
         );
         responseHeaders.set("Cache-Control", "no-cache");
 
@@ -222,7 +220,7 @@ export default {
         JSON.stringify({ error: `Proxy error: ${err.message}` }),
         {
           status: 502,
-          headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
+          headers: jsonHeaders,
         }
       );
     }

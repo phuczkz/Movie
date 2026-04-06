@@ -4,7 +4,6 @@ import {
   addDoc,
   doc,
   updateDoc,
-  deleteDoc,
   writeBatch,
   increment,
   deleteField,
@@ -126,7 +125,7 @@ function CommentRow({
         }
       }
     },
-    [user, db, myReaction, movieSlug, comment.id]
+    [user, myReaction, movieSlug, comment.id]
   );
 
   /* ── Delete comment ── */
@@ -620,7 +619,7 @@ export default function Comments({ movieSlug, movieName }) {
           </div>
         )}
         {allDocs !== null && topComments.length === 0 && (
-          <div className="text-center text-sm font-medium text-slate-500 py-6">
+          <div className="text-center text-sm font-medium text-slate-300 py-6">
             Chưa có bình luận nào. Hãy là người đầu tiên!
           </div>
         )}

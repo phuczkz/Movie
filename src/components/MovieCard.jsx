@@ -55,7 +55,7 @@ const MovieCard = ({ movie, priority = false }) => {
     staleTime: 1000 * 60 * 30, // 30 mins
   });
 
-  const episodeText = useMemo(() => {
+  const episodeText = (() => {
     const latestFromList = episodeList.reduce((max, ep) => {
       const n = parseEpisodeNumber(ep?.name || ep?.slug);
       return Number.isFinite(n) ? Math.max(max, n) : max;
@@ -83,7 +83,7 @@ const MovieCard = ({ movie, priority = false }) => {
     // }
 
     // return raw || "Full";
-  }, [episodeList, movie?.episode_current, movie?.episode_total]);
+  })();
 
   const audioBadges = useMemo(() => {
     const badges = [];
@@ -160,8 +160,9 @@ const MovieCard = ({ movie, priority = false }) => {
           ref={imgRef}
           src={posterSrc}
           alt={movie.name}
-          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"
-            }`}
+          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           // Tăng mức độ ưu tiên tải cho các card quan trọng
@@ -182,14 +183,17 @@ const MovieCard = ({ movie, priority = false }) => {
               <div
                 key={badge.key}
                 title={badge.label}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
-                  ? "bg-slate-600/90 text-white backdrop-blur-md"
-                  : badge.code === "TM"
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
+                  badge.code === "PĐ"
+                    ? "bg-slate-600/90 text-white backdrop-blur-md"
+                    : badge.code === "TM"
                     ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
                     : "bg-sky-500/90 text-white backdrop-blur-md"
-                  }`}
+                }`}
               >
-                <span>{badge.code}.{episodeText}</span>
+                <span>
+                  {badge.code}.{episodeText}
+                </span>
               </div>
             ))}
           </div>

@@ -26,6 +26,7 @@ import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
+import { useActorsWithTmdbImages } from "../hooks/useActorsWithTmdbImages.js";
 import Comments from "../components/Comments.jsx";
 import MovieCard from "../components/MovieCard.jsx";
 import {
@@ -81,6 +82,51 @@ const buildEpisodeProviders = (episode) => {
 
   return providers;
 };
+
+const sortEpisodes = (list = []) =>
+  list
+    .map((ep, idx) => ({
+      ep,
+      idx,
+      num: parseEpisodeNumber(ep?.name || ep?.slug),
+    }))
+    .sort((a, b) => {
+      const aHasNum = a.num !== null && a.num !== undefined;
+      const bHasNum = b.num !== null && b.num !== undefined;
+      if (aHasNum && bHasNum) return a.num - b.num;
+      if (aHasNum) return -1;
+      if (bHasNum) return 1;
+      return a.idx - b.idx;
+    })
+    .map(({ ep }) => ep);
+
+const WatchSkeleton = () => (
+  <div className="space-y-6 animate-pulse">
+    <div className="space-y-2">
+      <div className="h-8 w-64 bg-slate-800 rounded-lg" />
+      <div className="h-4 w-32 bg-slate-800 rounded-lg" />
+    </div>
+
+    <div className="relative aspect-video w-full rounded-2xl bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center shadow-2xl transition-all">
+      <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/5 via-transparent to-emerald-500/5 opacity-40" />
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-14 w-14 rounded-full bg-slate-800 flex items-center justify-center shadow-lg">
+          <div className="h-0 w-0 border-y-[10px] border-y-transparent border-l-[16px] border-l-slate-700 ml-1" />
+        </div>
+        <div className="h-4 w-24 bg-slate-800 rounded-full" />
+      </div>
+    </div>
+
+    <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
+      <div className="rounded-3xl border border-white/5 bg-slate-950/80 p-8 space-y-6">
+        <div className="hidden aspect-[2/3] w-full bg-slate-800 rounded-2xl" />
+      </div>
+      <div className="space-y-6">
+        <div className="rounded-3xl border border-white/5 bg-slate-900/70 p-8 h-48" />
+      </div>
+    </div>
+  </div>
+);
 
 const Watch = () => {
   const { slug } = useParams();
@@ -165,34 +211,20 @@ const Watch = () => {
   const movie =
     !isTmdb || !loadingAlts || bestAltMatch ? bestAltMatch || baseMovie : null;
 
-  // LCP Optimization: Preload the video poster at the earliest possible lifecycle event
-  useEffect(() => {
-    const poster = movie?.thumb_url || movie?.poster_url;
-    if (poster) {
-      const url = `https://wsrv.nl/?url=${encodeURIComponent(poster)}&w=800&output=webp&q=75`;
-      const link = document.createElement("link");
-      link.rel = "preload";
-      link.as = "image";
-      link.href = url;
-      link.setAttribute("fetchpriority", "high");
-      document.head.appendChild(link);
-      return () => {
-        try { document.head.removeChild(link); } catch {}
-      };
-    }
-  }, [movie]);
-
   const episodes = altDetail?.episodes?.length
     ? altDetail.episodes
     : baseEpisodes;
-  const episodesList = Array.isArray(episodes) ? episodes : [];
-  const serverGroups = {};
-  episodesList.forEach((ep) => {
-    if (!ep) return;
-    const label = normalizeServerLabel(ep.server_name);
-    serverGroups[label] = serverGroups[label] || [];
-    serverGroups[label].push(ep);
-  });
+  const serverGroups = useMemo(() => {
+    const groups = {};
+    const list = Array.isArray(episodes) ? episodes : [];
+    list.forEach((ep) => {
+      if (!ep) return;
+      const label = normalizeServerLabel(ep.server_name);
+      groups[label] = groups[label] || [];
+      groups[label].push(ep);
+    });
+    return groups;
+  }, [episodes]);
 
   const preferredServer = serverGroups.Vietsub?.length
     ? "Vietsub"
@@ -205,23 +237,6 @@ const Watch = () => {
     requestedServer && serverGroups[requestedServer]?.length
       ? requestedServer
       : preferredServer;
-
-  const sortEpisodes = (list = []) =>
-    list
-      .map((ep, idx) => ({
-        ep,
-        idx,
-        num: parseEpisodeNumber(ep?.name || ep?.slug),
-      }))
-      .sort((a, b) => {
-        const aHasNum = a.num !== null && a.num !== undefined;
-        const bHasNum = b.num !== null && b.num !== undefined;
-        if (aHasNum && bHasNum) return a.num - b.num;
-        if (aHasNum) return -1;
-        if (bHasNum) return 1;
-        return a.idx - b.idx;
-      })
-      .map(({ ep }) => ep);
 
   const episodesForServer = sortEpisodes(serverGroups[activeServer] || []);
 
@@ -244,17 +259,10 @@ const Watch = () => {
   const autoProviderNotice =
     autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
 
-  const episodeProviders = useMemo(
-    () => buildEpisodeProviders(activeEpisode),
-    [activeEpisode]
-  );
-
-  const availableProviders = useMemo(
-    () => Object.entries(episodeProviders)
-      .filter(([, value]) => value?.link)
-      .map(([key]) => key),
-    [episodeProviders]
-  );
+  const episodeProviders = buildEpisodeProviders(activeEpisode);
+  const availableProviders = Object.entries(episodeProviders)
+    .filter(([, value]) => value?.link)
+    .map(([key]) => key);
 
   const preferredProvider =
     normalizeProviderParam(activeEpisode?._preferredProvider) ||
@@ -304,7 +312,7 @@ const Watch = () => {
       }
       setParams(nextParams, { replace: true });
     },
-    [params, playbackScopeKey, setParams]
+    [params, playbackScopeKey, setAutoProviderState, setParams]
   );
 
   const handlePlaybackIssue = useCallback(
@@ -341,6 +349,7 @@ const Watch = () => {
       availableProviders,
       episodeProviders,
       playbackScopeKey,
+      setAutoProviderState,
     ]
   );
 
@@ -463,15 +472,17 @@ const Watch = () => {
       .map((entry) => {
         if (!entry) return null;
         if (typeof entry === "string")
-          return { name: entry.trim(), image: null };
+          return { id: null, name: entry.trim(), image: null };
         if (typeof entry === "object")
           return {
+            id: entry.id || entry.tmdb_id || entry.person_id || null,
             name: String(
               entry.name || entry.full_name || entry.title || ""
             ).trim(),
             image:
               entry.avatar ||
               entry.image ||
+              entry.profile_path ||
               entry.photo ||
               entry.thumbnail ||
               null,
@@ -487,6 +498,8 @@ const Watch = () => {
       return true;
     });
   }, [movie, baseMovie?.actor, baseMovie?.slug]);
+
+  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors);
 
   const categorySlugs = useMemo(
     () => (movie?.category || []).map((c) => c.slug).filter(Boolean),
@@ -510,7 +523,7 @@ const Watch = () => {
     enabled: deferLoad && !!countrySlug,
   });
 
-  const relatedMovies = useMemo(() => {
+  const _relatedMovies = useMemo(() => {
     const combined = [];
     const max = 24;
     const len = Math.max(cat1Pool.length, cat2Pool.length, countryPool.length);
@@ -608,34 +621,6 @@ const Watch = () => {
       setParams(nextParams, { replace: true });
     }
   }, [episodesForServer, activeServer, params, setParams]);
-
-  const WatchSkeleton = () => (
-    <div className="space-y-6 animate-pulse">
-      <div className="space-y-2">
-        <div className="h-8 w-64 bg-slate-800 rounded-lg" />
-        <div className="h-4 w-32 bg-slate-800 rounded-lg" />
-      </div>
-
-      <div className="relative aspect-video w-full rounded-2xl bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center shadow-2xl transition-all">
-        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/5 via-transparent to-emerald-500/5 opacity-40" />
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-14 w-14 rounded-full bg-slate-800 flex items-center justify-center shadow-lg">
-            <div className="h-0 w-0 border-y-[10px] border-y-transparent border-l-[16px] border-l-slate-700 ml-1" />
-          </div>
-          <div className="h-4 w-24 bg-slate-800 rounded-full" />
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
-        <div className="rounded-3xl border border-white/5 bg-slate-950/80 p-8 space-y-6">
-          <div className="aspect-[2/3] w-full bg-slate-800 rounded-2xl" />
-        </div>
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-white/5 bg-slate-900/70 p-8 h-48" />
-        </div>
-      </div>
-    </div>
-  );
 
   if (
     isLoading ||
@@ -736,7 +721,8 @@ const Watch = () => {
               const nextParams = new URLSearchParams(params);
               nextParams.set("episode", nextEpisode.slug || nextEpisode.name);
               if (activeServer) nextParams.set("server", activeServer);
-              if (selectedProviderParam) nextParams.set("provider", selectedProviderParam);
+              if (selectedProviderParam)
+                nextParams.set("provider", selectedProviderParam);
               navigate(`/watch/${slug}?${nextParams.toString()}`);
             }}
             hasNextEpisode={Boolean(nextEpisode)}
@@ -760,16 +746,6 @@ const Watch = () => {
         <div className="space-y-6">
           <div className="rounded-3xl border border-white/5 bg-slate-950/80 shadow-2xl px-6 py-8 lg:px-8 lg:py-9 space-y-6">
             <div className="flex flex-col gap-6">
-              <div className="flex gap-4 lg:gap-6">
-                <div className="w-36 sm:w-44 lg:w-48 shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/50">
-                  <img
-                    src={movie?.poster_url}
-                    alt={movie?.name}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-              </div>
               <div className="space-y-3">
                 <h1 className="text-3xl font-bold text-white leading-tight">
                   {movie?.name}
@@ -806,15 +782,15 @@ const Watch = () => {
                       {movie.time}
                     </span>
                   )}
-                </div>
-
-                <div className="flex flex-wrap gap-2 pt-1 text-xs text-slate-200">
                   {countryText && (
                     <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
                       <Globe2 className="h-4 w-4" />
                       {countryText}
                     </span>
                   )}
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1 text-xs text-slate-200">
                   {categoriesText && (
                     <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
                       <Star className="h-4 w-4 text-amber-300" />
@@ -822,6 +798,13 @@ const Watch = () => {
                     </span>
                   )}
                 </div>
+                <Link
+                  to={`/movie/${movie?.slug || slug}`}
+                  className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-white/10"
+                >
+                  <Info className="h-4 w-4" />
+                  Xem chi tiết phim
+                </Link>
               </div>
             </div>
           </div>
@@ -929,17 +912,27 @@ const Watch = () => {
                       key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
                       to={`/watch/${slug}?episode=${encodeURIComponent(
                         ep.slug || ep.name || `ep-${idx + 1}`
-                      )}${activeServer ? `&server=${encodeURIComponent(activeServer)}` : ""}${selectedProviderParam ? `&provider=${encodeURIComponent(selectedProviderParam)}` : ""}`}
+                      )}${
+                        activeServer
+                          ? `&server=${encodeURIComponent(activeServer)}`
+                          : ""
+                      }${
+                        selectedProviderParam
+                          ? `&provider=${encodeURIComponent(
+                              selectedProviderParam
+                            )}`
+                          : ""
+                      }`}
                       className={`group flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                         activeEpisode?.slug === ep.slug
-                          ? "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                          ? "border-emerald-500 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/30"
                           : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/60 hover:bg-white/10"
                       }`}
                     >
                       <Play
                         className={`h-4 w-4 mr-2 ${
                           activeEpisode?.slug === ep.slug
-                            ? "text-white"
+                            ? "text-slate-950"
                             : "text-emerald-300"
                         }`}
                       />
@@ -953,18 +946,24 @@ const Watch = () => {
             )}
           </div>
 
-          {actors.length ? (
+          <div id="comments">
+            {movie && movie.slug && (
+              <Comments movieSlug={movie.slug} movieName={movie.name} />
+            )}
+          </div>
+
+          {actorsWithImages.length ? (
             <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-4">
               <div className="flex items-center gap-3">
                 <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
                   Diễn viên
                 </p>
                 <span className="text-xs font-semibold text-slate-400">
-                  {actors.length}
+                  {actorsWithImages.length}
                 </span>
               </div>
               <div className="flex overflow-x-auto gap-4 md:gap-6 pb-2 snap-x custom-scrollbar">
-                {actors.map((actor) => {
+                {actorsWithImages.map((actor) => {
                   return (
                     <Link
                       key={actor.name}
@@ -992,14 +991,6 @@ const Watch = () => {
               </div>
             </div>
           ) : null}
-
-          <div id="comments">
-            {movie && movie.slug && (
-              <Comments movieSlug={movie.slug} movieName={movie.name} />
-            )}
-          </div>
-
-
         </div>
       </div>
     </div>

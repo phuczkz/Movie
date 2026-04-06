@@ -2,6 +2,7 @@ import React, {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -39,13 +40,12 @@ const Player = ({
   const containerRef = useRef(null);
   const ignoreNextClickRef = useRef(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const isSmallScreenRef = useRef(false);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
     [source]
   );
-  
+
   const isHls = useMemo(() => {
     if (!source) return false;
     try {
@@ -58,75 +58,142 @@ const Player = ({
 
   // Logic & State Hooks
   const {
-    playing, setPlaying,
-    volume, setVolume,
-    muted, setMuted,
-    duration, setDuration,
-    progress, setProgress,
-    isBuffering, setIsBuffering,
-    playbackRate, setPlaybackRate,
-    qualityLevels, setQualityLevels,
-    currentLevel, setCurrentLevel,
-    showMoreMenu, setShowMoreMenu,
-    showVolumeSlider, setShowVolumeSlider,
+    playing,
+    setPlaying,
+    volume,
+    setVolume,
+    muted,
+    setMuted,
+    duration,
+    setDuration,
+    progress,
+    setProgress,
+    isBuffering,
+    setIsBuffering,
+    playbackRate,
+    setPlaybackRate,
+    qualityLevels,
+    setQualityLevels,
+    currentLevel,
+    setCurrentLevel,
+    showMoreMenu,
+    setShowMoreMenu,
+    showVolumeSlider,
+    setShowVolumeSlider,
     lastPositionRef,
     initialTimeConsumed,
     playbackIssueReportedRef,
     resetState,
   } = usePlayerState(initialTime);
 
-  const { controlsVisible, showControls, handleUserActivity } = usePlayerActivity(playing);
-  
-  const { Hls, hlsRef, hlsConfig, effectiveSource, isFiltering } = useHlsHandler(source, isHls);
+  const playingRef = useRef(playing);
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
+
+  const { controlsVisible, showControls, handleUserActivity } =
+    usePlayerActivity(playing);
+
+  const { Hls, hlsRef, hlsConfig, effectiveSource, isFiltering } =
+    useHlsHandler(source, isHls);
+
+  const posterUrl = useMemo(() => {
+    if (!poster) return null;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      poster
+    )}&w=800&output=webp&q=75`;
+  }, [poster]);
+
+  // LCP Optimization: Ensure the poster request is prioritized as early as possible.
+  // Note: In a client-rendered SPA, this still won't be discoverable in the initial HTML document.
+  useLayoutEffect(() => {
+    if (!posterUrl) return;
+
+    const existing = document.head.querySelector(
+      `link[rel="preload"][as="image"][href="${posterUrl}"]`
+    );
+    if (existing) return;
+
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = posterUrl;
+    link.setAttribute("fetchpriority", "high");
+    link.dataset.copilot = "lcp-poster";
+
+    document.head.appendChild(link);
+    return () => {
+      if (link.parentNode) link.parentNode.removeChild(link);
+    };
+  }, [posterUrl]);
 
   // Combined buffering state including ad manifest filtering time
   const playerIsBuffering = isBuffering || isFiltering;
-  
+
   // --- Handlers ---
   const onPlaybackIssueRef = useRef(onPlaybackIssue);
   useEffect(() => {
     onPlaybackIssueRef.current = onPlaybackIssue;
   }, [onPlaybackIssue]);
 
-  const reportPlaybackIssue = useCallback((reason) => {
-    if (!onPlaybackIssueRef.current || playbackIssueReportedRef.current) return;
-    playbackIssueReportedRef.current = true;
-    onPlaybackIssueRef.current(reason || "playback-issue");
-  }, []);
+  const reportPlaybackIssue = useCallback(
+    (reason) => {
+      if (!onPlaybackIssueRef.current || playbackIssueReportedRef.current)
+        return;
+      playbackIssueReportedRef.current = true;
+      onPlaybackIssueRef.current(reason || "playback-issue");
+    },
+    [playbackIssueReportedRef]
+  );
 
   const togglePlay = useCallback(() => {
     setPlaying((v) => !v);
     showControls();
-  }, [showControls]);
+  }, [setPlaying, showControls]);
 
-  const seekBy = useCallback((seconds) => {
-    const video = videoRef.current || (reactPlayerRef.current?.getInternalPlayer());
-    if (!video) return;
-    const newTime = Math.max(0, Math.min(video.currentTime + seconds, video.duration));
-    video.currentTime = newTime;
-    setProgress(newTime);
-    showControls();
-  }, [showControls]);
+  const seekBy = useCallback(
+    (seconds) => {
+      const video =
+        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
+      if (!video) return;
+      const newTime = Math.max(
+        0,
+        Math.min(video.currentTime + seconds, video.duration)
+      );
+      video.currentTime = newTime;
+      setProgress(newTime);
+      showControls();
+    },
+    [setProgress, showControls]
+  );
 
-  const handleSeekBar = useCallback((e) => {
-    if (!containerRef.current || duration <= 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const clickedPerc = x / rect.width;
-    const seekTime = clickedPerc * duration;
-    
-    const video = videoRef.current || (reactPlayerRef.current?.getInternalPlayer());
-    if (video) video.currentTime = seekTime;
-    setProgress(seekTime);
-    showControls();
-  }, [duration, showControls]);
+  const handleSeekBar = useCallback(
+    (e) => {
+      if (!containerRef.current || duration <= 0) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const clickedPerc = x / rect.width;
+      const seekTime = clickedPerc * duration;
 
-  const handleVolumeChange = useCallback((val) => {
-    setVolume(val);
-    setMuted(val === 0);
-    const video = videoRef.current || (reactPlayerRef.current?.getInternalPlayer());
-    if (video) video.volume = val;
-  }, []);
+      const video =
+        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
+      if (video) video.currentTime = seekTime;
+      setProgress(seekTime);
+      showControls();
+    },
+    [duration, setProgress, showControls]
+  );
+
+  const handleVolumeChange = useCallback(
+    (val) => {
+      setVolume(val);
+      setMuted(val === 0);
+      const video =
+        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
+      if (video) video.volume = val;
+    },
+    [setMuted, setVolume]
+  );
 
   const handleVolumeButton = useCallback(() => {
     if (window.innerWidth <= 640) {
@@ -134,18 +201,25 @@ const Player = ({
     } else {
       setMuted((v) => !v);
     }
-  }, []);
+  }, [setMuted, setShowVolumeSlider]);
 
-  const handleChangePlaybackRate = useCallback((rate) => {
-    setPlaybackRate(rate);
-    const video = videoRef.current || (reactPlayerRef.current?.getInternalPlayer());
-    if (video) video.playbackRate = rate;
-  }, []);
+  const handleChangePlaybackRate = useCallback(
+    (rate) => {
+      setPlaybackRate(rate);
+      const video =
+        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
+      if (video) video.playbackRate = rate;
+    },
+    [setPlaybackRate]
+  );
 
-  const handleQualityChange = useCallback((level) => {
-    setCurrentLevel(level);
-    if (hlsRef.current) hlsRef.current.currentLevel = level;
-  }, []);
+  const handleQualityChange = useCallback(
+    (level) => {
+      setCurrentLevel(level);
+      if (hlsRef.current) hlsRef.current.currentLevel = level;
+    },
+    [hlsRef, setCurrentLevel]
+  );
 
   // Sync play/pause state to native video
   useEffect(() => {
@@ -173,9 +247,12 @@ const Player = ({
       lastPositionRef.current = t;
       if (onTimeUpdate) onTimeUpdate(t, video.duration || 0);
     };
-    
+
     const onDuration = () => setDuration(video.duration || 0);
-    const onPlay = () => { setPlaying(true); setIsBuffering(false); };
+    const onPlay = () => {
+      setPlaying(true);
+      setIsBuffering(false);
+    };
     const onPause = () => setPlaying(false);
     const onBuffer = () => setIsBuffering(true);
     const onCanPlay = () => setIsBuffering(false);
@@ -192,7 +269,7 @@ const Player = ({
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("playing", onCanPlay);
     video.addEventListener("error", onError);
-    
+
     video.playbackRate = playbackRate;
 
     return () => {
@@ -208,7 +285,17 @@ const Player = ({
       video.removeEventListener("playing", onCanPlay);
       video.removeEventListener("error", onError);
     };
-  }, [isHls, onTimeUpdate, playbackRate, reportPlaybackIssue]);
+  }, [
+    isHls,
+    lastPositionRef,
+    onTimeUpdate,
+    playbackRate,
+    reportPlaybackIssue,
+    setDuration,
+    setIsBuffering,
+    setPlaying,
+    setProgress,
+  ]);
 
   // Tracking for domains that consistently fail via proxy
   const proxyFailedGlobalDomains = useRef(new Set());
@@ -221,7 +308,7 @@ const Player = ({
   // HLS Instance Management
   useEffect(() => {
     if (!source || !isHls || !videoRef.current || !Hls) return undefined;
-    
+
     // Reset state synchronously when source changes to avoid race conditions
     handleReset();
 
@@ -245,10 +332,13 @@ const Player = ({
             let originalOrigin = null;
             try {
               if (originalUrl) originalOrigin = new URL(originalUrl).origin;
-            } catch {}
+            } catch {
+              originalOrigin = null;
+            }
 
-            const shouldBypassProxy = proxyFailedUrls.has(context.url) || 
-                                     (originalOrigin && proxyFailedDomains.has(originalOrigin));
+            const shouldBypassProxy =
+              proxyFailedUrls.has(context.url) ||
+              (originalOrigin && proxyFailedDomains.has(originalOrigin));
 
             if (
               STREAM_PROXY &&
@@ -256,7 +346,9 @@ const Player = ({
               !context.url.includes(STREAM_PROXY) &&
               !shouldBypassProxy
             ) {
-              context.url = `${STREAM_PROXY}?url=${encodeURIComponent(context.url)}`;
+              context.url = `${STREAM_PROXY}?url=${encodeURIComponent(
+                context.url
+              )}`;
             }
 
             const onSuccess = callbacks?.onSuccess;
@@ -284,11 +376,12 @@ const Player = ({
                         data: filtered,
                       };
                     }
-                  } catch (err) {
-                    // console.debug("[HLS] Playlist filter skipped", err);
+                  } catch {
+                    // Ignore malformed ad-filtering input and keep original playlist.
                   }
                 }
-                if (onSuccess) onSuccess(nextResponse, stats, ctx, networkDetails);
+                if (onSuccess)
+                  onSuccess(nextResponse, stats, ctx, networkDetails);
               },
               onError: (error, ctx, networkDetails, stats) => {
                 if (
@@ -297,20 +390,33 @@ const Player = ({
                   context.url.includes(STREAM_PROXY)
                 ) {
                   let proxyOrigin = null;
-                  try { if (originalUrl) proxyOrigin = new URL(originalUrl).origin; } catch {}
+                  try {
+                    if (originalUrl) proxyOrigin = new URL(originalUrl).origin;
+                  } catch {
+                    proxyOrigin = null;
+                  }
 
                   if (!proxyFailedUrls.has(originalUrl)) {
                     // Only log once per session per domain to avoid log explosion
                     if (proxyOrigin && !proxyFailedDomains.has(proxyOrigin)) {
-                      console.debug(`[HLS] Proxy failed for domain ${proxyOrigin}, switching to direct mode.`);
+                      console.debug(
+                        `[HLS] Proxy failed for domain ${proxyOrigin}, switching to direct mode.`
+                      );
                       proxyFailedDomains.add(proxyOrigin);
                     }
                     proxyFailedUrls.add(originalUrl);
 
-                    try { this.abort(); } catch { /* ignore */ }
+                    try {
+                      this.abort();
+                    } catch {
+                      /* ignore */
+                    }
                     const directLoader = new AdFreeLoader(config);
                     const directContext = { ...context, url: originalUrl };
-                    directLoader.load(directContext, config, { ...callbacks, onSuccess: wrappedCallbacks.onSuccess });
+                    directLoader.load(directContext, config, {
+                      ...callbacks,
+                      onSuccess: wrappedCallbacks.onSuccess,
+                    });
                     return;
                   }
                 }
@@ -344,7 +450,7 @@ const Player = ({
           level: lvl.level,
         }))
         .filter((lvl) => !lvl.height || preferredHeights.includes(lvl.height));
-        
+
       const uniqueByHeight = [];
       const seen = new Set();
       for (const lvl of levels) {
@@ -356,20 +462,22 @@ const Player = ({
 
       setQualityLevels([{ level: -1, label: "Tự động" }, ...uniqueByHeight]);
       setCurrentLevel(-1);
-      
+
       if (startOffset > 0) {
         videoRef.current.currentTime = startOffset;
         initialTimeConsumed.current = true;
       }
-      
+
       // Handle auto-play if already set to true
       const video = videoRef.current;
-      if (video && playing && video.paused) {
+      if (video && playingRef.current && video.paused) {
         video.play().catch(() => setPlaying(false));
       }
     });
 
-    hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => setCurrentLevel(data.level));
+    hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) =>
+      setCurrentLevel(data.level)
+    );
 
     let networkRecoveryAttempts = 0;
     let mediaRecoveryAttempts = 0;
@@ -394,7 +502,8 @@ const Player = ({
             }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
           } else {
             reportPlaybackIssue("network-timeout");
-            const currentPos = videoRef.current?.currentTime || lastPositionRef.current;
+            const currentPos =
+              videoRef.current?.currentTime || lastPositionRef.current;
             networkRecoveryAttempts = 0;
             hls.loadSource(effectiveSource);
             if (currentPos > 0) {
@@ -430,41 +539,106 @@ const Player = ({
       setQualityLevels([]);
       setCurrentLevel(-1);
     };
-  }, [effectiveSource, isHls, Hls, hlsConfig, initialTime, reportPlaybackIssue, isFiltering]);
+  }, [
+    effectiveSource,
+    handleReset,
+    hlsConfig,
+    Hls,
+    hlsRef,
+    initialTime,
+    initialTimeConsumed,
+    isFiltering,
+    isHls,
+    lastPositionRef,
+    playingRef,
+    reportPlaybackIssue,
+    setCurrentLevel,
+    setPlaying,
+    setQualityLevels,
+    source,
+  ]);
+
+  // Sync Fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(
+        !!(
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement ||
+          document.msFullscreenElement
+        )
+      );
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
+  }, []);
 
   // External Controls / Fullscreen
   const handleFullscreen = useCallback(() => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
+    const container = containerRef.current;
+    const video = videoRef.current || reactPlayerRef.current?.getInternalPlayer();
+    if (!container) return;
+
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen().catch(() => {});
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else if (video && video.webkitEnterFullscreen) {
+        video.webkitEnterFullscreen();
+      }
     } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
     }
   }, []);
 
-  const togglePip = useCallback(async () => {
-    const video = videoRef.current || (reactPlayerRef.current?.getInternalPlayer());
+  const togglePip = useCallback(() => {
+    const video = videoRef.current || reactPlayerRef.current?.getInternalPlayer();
     if (!video) return;
+
     try {
       if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else if (document.pictureInPictureEnabled) {
-        await video.requestPictureInPicture();
+        document.exitPictureInPicture()
+          .then(() => setIsFullscreen(false))
+          .catch(err => console.error("Exit PiP error", err));
+      } else if (video.requestPictureInPicture) {
+        video.requestPictureInPicture()
+          .catch(err => console.error("Request PiP error", err));
+      } else if (video.webkitSupportsPresentationMode && typeof video.webkitSetPresentationMode === "function") {
+        const mode = video.webkitPresentationMode === "picture-in-picture" ? "inline" : "picture-in-picture";
+        video.webkitSetPresentationMode(mode);
+      } else if (video.webkitEnterPictureInPicture) {
+        video.webkitEnterPictureInPicture();
       }
     } catch (e) {
-      console.error("PiP error", e);
+      console.error("Critical PiP error", e);
     }
   }, []);
 
   // Utility to handle clicks on the container (toggle play)
-  const handleContainerClick = useCallback((e) => {
-    if (ignoreNextClickRef.current) return;
-    if (e.target.closest("[data-control]")) return;
-    togglePlay();
-  }, [togglePlay]);
-
+  const handleContainerClick = useCallback(
+    (e) => {
+      if (ignoreNextClickRef.current) return;
+      if (e.target.closest("[data-control]")) return;
+      togglePlay();
+    },
+    [togglePlay]
+  );
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -498,30 +672,57 @@ const Player = ({
 
   // UI Components
   const overlay = (
-    <div 
-      className="absolute inset-0 z-20 flex flex-col justify-between transition-opacity duration-300"
-      style={{ opacity: controlsVisible ? 1 : 0, pointerEvents: controlsVisible ? "auto" : "none" }}
+    <div
+      className="absolute inset-0 z-20 transition-opacity duration-300"
+      style={{
+        opacity: controlsVisible ? 1 : 0,
+        pointerEvents: controlsVisible ? "auto" : "none",
+      }}
     >
-      <PlayerHeader 
-        title={title} 
-        subtitle={subtitle} 
-        actionSlot={actionSlot} 
-        isFullscreen={isFullscreen} 
-      />
-      
+      <div className="absolute inset-x-0 top-0">
+        <PlayerHeader
+          title={title}
+          subtitle={subtitle}
+          actionSlot={actionSlot}
+          isFullscreen={isFullscreen}
+        />
+      </div>
+
       {!canUseIframe && (
-        <div className="pointer-events-auto bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-12 pb-3 sm:pb-4 px-1.5 sm:px-4 space-y-1.5 sm:space-y-2" data-control>
-          <ProgressBar progress={progress} duration={duration} onSeek={handleSeekBar} />
-          <PlayerControls 
-            playing={playing} togglePlay={togglePlay} onSeekBy={seekBy}
-            onNextEpisode={onNextEpisode} hasNextEpisode={hasNextEpisode}
-            volume={volume} muted={muted} onVolumeChange={handleVolumeChange} onToggleMute={handleVolumeButton}
-            showVolumeSlider={showVolumeSlider} setShowVolumeSlider={setShowVolumeSlider}
-            showMoreMenu={showMoreMenu} setShowMoreMenu={setShowMoreMenu}
-            playbackRate={playbackRate} onPlaybackRateChange={handleChangePlaybackRate}
-            isHls={isHls} qualityLevels={qualityLevels} currentLevel={currentLevel} onQualityChange={handleQualityChange}
-            onTogglePip={togglePip} onToggleTheater={onToggleTheater} theaterMode={theaterMode}
-            onFullscreen={handleFullscreen} isFullscreen={isFullscreen}
+        <div
+          className="absolute inset-x-0 bottom-0 pointer-events-auto bg-gradient-to-t from-black/95 via-black/40 to-transparent pt-6 pb-2.5 sm:pb-5 px-2.5 sm:px-5 space-y-2 sm:space-y-4"
+          data-control
+        >
+          <ProgressBar
+            progress={progress}
+            duration={duration}
+            onSeek={handleSeekBar}
+          />
+          <PlayerControls
+            playing={playing}
+            togglePlay={togglePlay}
+            onSeekBy={seekBy}
+            onNextEpisode={onNextEpisode}
+            hasNextEpisode={hasNextEpisode}
+            volume={volume}
+            muted={muted}
+            onVolumeChange={handleVolumeChange}
+            onToggleMute={handleVolumeButton}
+            showVolumeSlider={showVolumeSlider}
+            setShowVolumeSlider={setShowVolumeSlider}
+            showMoreMenu={showMoreMenu}
+            setShowMoreMenu={setShowMoreMenu}
+            playbackRate={playbackRate}
+            onPlaybackRateChange={handleChangePlaybackRate}
+            isHls={isHls}
+            qualityLevels={qualityLevels}
+            currentLevel={currentLevel}
+            onQualityChange={handleQualityChange}
+            onTogglePip={togglePip}
+            onToggleTheater={onToggleTheater}
+            theaterMode={theaterMode}
+            onFullscreen={handleFullscreen}
+            isFullscreen={isFullscreen}
           />
         </div>
       )}
@@ -531,45 +732,79 @@ const Player = ({
   return (
     <div
       ref={containerRef}
-      className={`relative aspect-video overflow-hidden bg-black shadow-2xl transition-all duration-500 ${
-        theaterMode && !isFullscreen ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10" : "z-10 rounded-2xl border border-white/10"
+      className={`relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 ${
+        theaterMode && !isFullscreen
+          ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
+          : "z-10 rounded-2xl border border-white/10"
       }`}
+      style={{
+        height: isFullscreen ? "100vh" : undefined,
+        aspectRatio: isFullscreen ? "unset" : "16 / 9",
+      }}
       onClick={handleContainerClick}
       onMouseMove={handleUserActivity}
       onTouchStart={handleUserActivity}
     >
       {isHls ? (
         <>
-          {poster && (
-            <img 
-              src={`https://wsrv.nl/?url=${encodeURIComponent(poster)}&w=800&output=webp&q=75`}
-              alt="poster preloader" className="hidden" fetchPriority="high" decoding="sync" 
-            />
-          )}
           <video
             ref={videoRef}
-            poster={poster ? `https://wsrv.nl/?url=${encodeURIComponent(poster)}&w=800&output=webp&q=75` : undefined}
-            preload="auto" playsInline className="player-native h-full w-full object-contain"
-            autoPlay controls={false} controlsList="nodownload noremoteplayback noplaybackrate"
+            poster={posterUrl || undefined}
+            preload="auto"
+            playsInline
+            webkit-playsinline="true"
+            x5-playsinline="true"
+            className="player-native h-full w-full object-contain"
+            autoPlay
+            controls={false}
+            disablePictureInPicture={false}
+            controlsList="nodownload noremoteplayback noplaybackrate"
           />
         </>
       ) : canUseIframe ? (
-        <iframe title="player" src={source} className="h-full w-full" allowFullScreen onLoad={() => setIsBuffering(false)} />
+        <iframe
+          title="player"
+          src={source}
+          className="h-full w-full"
+          allowFullScreen
+          onLoad={() => setIsBuffering(false)}
+        />
       ) : (
         <Suspense fallback={<BufferingOverlay isBuffering={true} />}>
           <ReactPlayer
-            ref={reactPlayerRef} url={effectiveSource} playing={playing} controls={false}
-            volume={muted ? 0 : volume} muted={muted} playbackRate={playbackRate}
-            width="100%" height="100%" light={poster}
-            onClickPreview={() => { ignoreNextClickRef.current = true; setPlaying(true); showControls(); setTimeout(() => { ignoreNextClickRef.current = false; }, 0); }}
-            onDuration={setDuration} onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
-            onPlay={() => { setPlaying(true); setIsBuffering(false); }} onPause={() => setPlaying(false)}
-            onReady={() => setIsBuffering(false)} onBuffer={() => setIsBuffering(true)} onBufferEnd={() => setIsBuffering(false)}
+            ref={reactPlayerRef}
+            url={effectiveSource}
+            playing={playing}
+            controls={false}
+            volume={muted ? 0 : volume}
+            muted={muted}
+            playbackRate={playbackRate}
+            width="100%"
+            height="100%"
+            light={posterUrl || poster}
+            onClickPreview={() => {
+              ignoreNextClickRef.current = true;
+              setPlaying(true);
+              showControls();
+              setTimeout(() => {
+                ignoreNextClickRef.current = false;
+              }, 0);
+            }}
+            onDuration={setDuration}
+            onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
+            onPlay={() => {
+              setPlaying(true);
+              setIsBuffering(false);
+            }}
+            onPause={() => setPlaying(false)}
+            onReady={() => setIsBuffering(false)}
+            onBuffer={() => setIsBuffering(true)}
+            onBufferEnd={() => setIsBuffering(false)}
             onError={() => reportPlaybackIssue("react-player-error")}
           />
         </Suspense>
       )}
-      
+
       {overlay}
       <BufferingOverlay isBuffering={playerIsBuffering} />
     </div>
