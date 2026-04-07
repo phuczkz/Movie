@@ -1,13 +1,18 @@
 import MovieCard from "../components/MovieCard.jsx";
+import ComicCard from "../components/comics/ComicCard.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useSearchParams } from "react-router-dom";
+import { useAppMode } from "../context/AppModeContext.jsx";
 
 const Search = () => {
   const [params] = useSearchParams();
   const query = params.get("q") || "";
-  const { data = [], isFetching } = useSearchMovies(query);
+  const { appMode } = useAppMode();
+  const isComicMode = appMode === "comic";
+  
+  const { data = [], isFetching } = useSearchMovies(query, appMode);
 
   return (
     <div className="space-y-6">
@@ -33,9 +38,13 @@ const Search = () => {
 
       {query ? (
         data.length ? (
-          <div className="grid-movies">
-            {data.map((movie) => (
-              <MovieCard key={movie.slug} movie={movie} />
+          <div className={isComicMode ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 xl:gap-6" : "grid-movies"}>
+            {data.map((item) => (
+              isComicMode ? (
+                <ComicCard key={item.slug} comic={item} />
+              ) : (
+                <MovieCard key={item.slug} movie={item} />
+              )
             ))}
           </div>
         ) : (

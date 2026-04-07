@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Timestamp } from "firebase/firestore";
-import { Camera, Check, Shield } from "lucide-react";
+import { Camera, Check, Shield, BookOpen, Play } from "lucide-react";
 import { isFirebaseConfigured } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
 import WatchHistory from "../components/WatchHistory.jsx";
+import ComicHistory from "../components/comics/ComicHistory.jsx";
 import AvatarModal from "../components/AvatarModal.jsx";
+import { useAppMode } from "../context/AppModeContext";
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -26,6 +28,7 @@ const Profile = () => {
     updateProfileData,
     logout,
   } = useAuth();
+  const { appMode } = useAppMode();
   const [displayName, setDisplayName] = useState("");
   const [birthday, setBirthday] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -117,8 +120,8 @@ const Profile = () => {
 
         <div className="flex-1 text-center sm:text-left space-y-2">
           <div>
-            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] text-emerald-500 font-black mb-1">
-              Thành viên Movie
+            <p className={`text-[10px] sm:text-xs uppercase tracking-[0.2em] font-black mb-1 ${appMode === 'comic' ? 'text-purple-500' : 'text-emerald-500'}`}>
+              Thành viên {appMode === 'comic' ? 'MangaHub' : 'Movie'}
             </p>
             <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight break-words">
               {displayName || "Người dùng"}
@@ -126,7 +129,7 @@ const Profile = () => {
           </div>
           <p className="text-slate-400 text-sm sm:text-base max-w-md mx-auto sm:mx-0">
             Quản lý thông tin cá nhân, cập nhật ảnh đại diện và xem lại lịch sử
-            xem phim của bạn.
+            {appMode === 'comic' ? ' đọc truyện' : ' xem phim'} của bạn.
           </p>
 
           <div className="pt-4 flex flex-wrap justify-center sm:justify-start gap-3">
@@ -148,6 +151,18 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {appMode === 'comic' ? (
+        <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 text-purple-200 text-sm flex items-center gap-3">
+          <BookOpen size={16} className="text-purple-500" />
+          Bạn đang ở chế độ <b>MangaHub</b> (Đọc truyện)
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-emerald-200 text-sm flex items-center gap-3">
+          <Play size={16} className="text-emerald-500" />
+          Bạn đang ở chế độ <b>Movie</b> (Xem phim)
+        </div>
+      )}
 
       {!isFirebaseConfigured && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-100 px-4 py-3 text-sm">
@@ -243,7 +258,7 @@ const Profile = () => {
         </form>
       </div>
 
-      <WatchHistory />
+      {appMode === 'comic' ? <ComicHistory /> : <WatchHistory />}
 
       <AvatarModal
         isOpen={showAvatarModal}

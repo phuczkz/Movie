@@ -2,6 +2,8 @@ import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
+import { useAppMode } from "../context/AppModeContext";
+import SelectionScreen from "./SelectionScreen.jsx";
 
 const MaintenanceIllustration = lazy(() =>
   import("./MaintenanceIllustration.jsx")
@@ -11,6 +13,7 @@ const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 export default function MaintenanceGuard({ children }) {
   const { user, logout, userProfile, maintenance } = useAuth();
+  const { appMode, setAppMode } = useAppMode();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -19,7 +22,7 @@ export default function MaintenanceGuard({ children }) {
   const isLoginPath = location.pathname === "/login";
 
   const isActive =
-    maintenance?.enabled && !isAdmin && !isWhitelisted && !isLoginPath;
+    appMode === "movie" && maintenance?.enabled && !isAdmin && !isWhitelisted && !isLoginPath;
 
   // Block DevTools shortcuts
   useEffect(() => {
@@ -46,6 +49,10 @@ export default function MaintenanceGuard({ children }) {
       window.removeEventListener("contextmenu", blockCtxMenu, true);
     };
   }, [isActive]);
+
+  if (!appMode && !isLoginPath) {
+    return <SelectionScreen />;
+  }
 
   return (
     <>
@@ -87,18 +94,24 @@ export default function MaintenanceGuard({ children }) {
                 </span>
               </div>
 
-              {/* Logout Option for trapped users */}
-              {user && (
-                <div className="pt-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-4 items-center justify-center">
+                {user && (
                   <button
                     onClick={() => logout().then(() => navigate("/login"))}
-                    className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-xl hover:shadow-slate-200 active:scale-95 text-sm font-bold"
+                    className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 transition-all shadow-md active:scale-95 text-sm font-bold"
                   >
                     <LogOut size={18} />
                     Đăng xuất tài khoản
                   </button>
-                </div>
-              )}
+                )}
+
+                <button
+                  onClick={() => setAppMode(null)}
+                  className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-xl hover:shadow-slate-200 active:scale-95 text-sm font-bold"
+                >
+                  Quay lại chọn mục giải trí
+                </button>
+              </div>
             </div>
           </div>
 

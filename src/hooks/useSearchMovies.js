@@ -5,6 +5,7 @@ import {
   getKKphimByCountry,
   searchKKphim,
 } from "../api/kkphim";
+import { comicApi } from "../api/comicApi";
 
 const slugify = (text = "") =>
   text
@@ -27,13 +28,12 @@ const dedupeBySlug = (items = []) => {
   return out;
 };
 
-export const useSearchMovies = (query, page = 1) =>
+export const useSearchMovies = (query, appMode = "movie", page = 1) =>
   useQuery({
-    queryKey: ["search", query, page],
+    queryKey: ["search", query, appMode, page],
     queryFn: async () => {
       const q = (query || "").trim();
       if (!q) return [];
-      const slug = slugify(q);
 
       const safe = async (fn) => {
         try {
@@ -44,6 +44,14 @@ export const useSearchMovies = (query, page = 1) =>
         }
       };
 
+      if (appMode === "comic") {
+        const res = await safe(() => comicApi.search(q));
+        // otruyenapi structure: { data: { items: [...] } }
+        return res?.data?.items || [];
+      }
+
+      // Default: Movie search
+      const slug = slugify(q);
       const [
         kkResults,
         ophimResults,
@@ -68,7 +76,6 @@ export const useSearchMovies = (query, page = 1) =>
         ...ophimCat,
         ...ophimCountry,
       ]);
-
     },
     enabled: Boolean(query?.trim()),
     staleTime: 10 * 60 * 1000,

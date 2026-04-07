@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, LogIn, Menu, Search, X, User } from "lucide-react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { ChevronDown, LogIn, Menu, Search, X, User, Film, BookOpen } from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useAppMode } from "../context/AppModeContext";
+import { comicApi } from "../api/comicApi";
 import SearchBar from "./SearchBar.jsx";
 
-const primaryNav = [
+const moviePrimaryNav = [
   { label: "Trang Chủ", to: "/" },
   { label: "Phim Bộ", to: "/category/phim-bo" },
   { label: "Hoạt Hình", to: "/category/hoat-hinh" },
@@ -12,7 +14,7 @@ const primaryNav = [
   { label: "Yêu Thích", to: "/favorites" },
 ];
 
-const yearOptions = [
+const movieYearOptions = [
   { label: "2025", to: "/search?q=2025" },
   { label: "2024", to: "/search?q=2024" },
   { label: "2023", to: "/search?q=2023" },
@@ -20,7 +22,7 @@ const yearOptions = [
   { label: "Trước 2022", to: "/search?q=2010-2021" },
 ];
 
-const genreOptions = [
+const movieGenreOptions = [
   { label: "Hành Động", to: "/category/hanh-dong" },
   { label: "Tình Cảm", to: "/category/tinh-cam" },
   { label: "Hài Hước", to: "/category/hai-huoc" },
@@ -29,7 +31,7 @@ const genreOptions = [
   { label: "Phiêu Lưu", to: "/category/phieu-luu" },
 ];
 
-const countryOptions = [
+const movieCountryOptions = [
   { label: "Việt Nam", to: "/country/viet-nam" },
   { label: "Hàn Quốc", to: "/country/han-quoc" },
   { label: "Nhật Bản", to: "/country/nhat-ban" },
@@ -38,7 +40,7 @@ const countryOptions = [
   { label: "Thái Lan", to: "/country/thai-lan" },
 ];
 
-const moreOptions = [
+const movieMoreOptions = [
   { label: "Phim Mới", to: "/category/phim-moi" },
   { label: "TV Show", to: "/search?q=tv-show" },
   { label: "Phim Sắp Chiếu", to: "/search?q=sap-chieu" },
@@ -46,7 +48,24 @@ const moreOptions = [
   { label: "Phim Yêu Thích", to: "/favorites" },
 ];
 
-const Dropdown = ({ label, options }) => {
+const comicPrimaryNav = [
+  { label: "MangaHub", to: "/comics" },
+  { label: "Đang phát hành", to: "/comics/danh-sach/dang-phat-hanh" },
+  { label: "Hoàn thành", to: "/comics/danh-sach/hoan-thanh" },
+  { label: "Sắp ra mắt", to: "/comics/danh-sach/sap-ra-mat" },
+  { label: "Yêu Thích", to: "/comics/favorites" },
+];
+
+const comicGenreOptions = [
+  { label: "Action", to: "/comics/the-loai/action" },
+  { label: "Adventure", to: "/comics/the-loai/adventure" },
+  { label: "Fantasy", to: "/comics/the-loai/fantasy" },
+  { label: "Romance", to: "/comics/the-loai/romance" },
+  { label: "Manga", to: "/comics/the-loai/manga" },
+  { label: "Manhwa", to: "/comics/the-loai/manhwa" },
+];
+
+const Dropdown = ({ label, options, isWide = false }) => {
   const [open, setOpen] = useState(false);
   const timerRef = useRef(null);
 
@@ -69,13 +88,17 @@ const Dropdown = ({ label, options }) => {
         />
       </button>
       {open && (
-        <div className="absolute left-1/2 top-full z-30 mt-2 w-48 -translate-x-1/2 pt-1">
-          <div className="rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-2 space-y-1">
+        <div className={`absolute z-30 mt-2 pt-1 ${isWide 
+          ? "fixed inset-x-4 lg:absolute lg:-right-40 lg:left-auto lg:translate-x-0 lg:w-[800px] xl:w-[1100px] 2xl:w-[1250px]" 
+          : "left-1/2 -translate-x-1/2 w-48"}`}>
+          <div className={`rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-4 custom-scrollbar overflow-y-auto ${isWide 
+            ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-x-2 gap-y-1 max-h-[350px]" 
+            : "space-y-1 max-h-[400px]"}`}>
             {options.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10 transition-colors whitespace-nowrap"
               >
                 <span>{item.label}</span>
               </Link>
@@ -102,7 +125,7 @@ const MobileDropdown = ({ label, options, onNavigate }) => {
         />
       </button>
       {open && (
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-white/90">
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-white/90 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
           {options.map((item) => (
             <Link
               key={item.to}
@@ -123,9 +146,30 @@ const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [apiGenreOptions, setApiGenreOptions] = useState([]);
   const location = useLocation();
   const { user, userProfile } = useAuth();
+  const { appMode, setAppMode } = useAppMode();
+  const navigate = useNavigate();
   const avatarUrl = userProfile?.photoURL || user?.photoURL || (user?.uid ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}` : null);
+
+  useEffect(() => {
+    const fetchGenres = async () => {
+      try {
+        const data = await comicApi.getCategoryList();
+        if (data.status === "success" && data.data && data.data.items) {
+          const formatted = data.data.items.map(item => ({
+            label: item.name,
+            to: `/comics/the-loai/${item.slug}`
+          }));
+          setApiGenreOptions(formatted);
+        }
+      } catch (err) {
+        console.error("Failed to fetch genres:", err);
+      }
+    };
+    fetchGenres();
+  }, []);
 
   const closeAll = () => {
     setMenuOpen(false);
@@ -141,8 +185,12 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const isHome = location.pathname === "/";
-  const isDetail = location.pathname.startsWith("/movie/");
+  const isComicMode = appMode === "comic";
+  const primaryNav = isComicMode ? comicPrimaryNav : moviePrimaryNav;
+  const genreOptions = isComicMode ? (apiGenreOptions.length > 0 ? apiGenreOptions : comicGenreOptions) : movieGenreOptions;
+
+  const isHome = location.pathname === "/" || location.pathname === "/comics";
+  const isDetail = location.pathname.startsWith("/movie/") || location.pathname.startsWith("/comics/");
   const showTransparent = (isHome || isDetail) && !scrolled;
 
   return (
@@ -176,6 +224,23 @@ const Header = () => {
         </Link> */}
 
         <div className="flex items-center gap-2">
+          {/* Mobile Toggle Button */}
+          <button
+            onClick={() => {
+              setAppMode(appMode === "movie" ? "comic" : "movie");
+              if (appMode === "movie") navigate("/comics");
+              else navigate("/");
+            }}
+            className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
+            title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"}`}
+          >
+            {appMode === "movie" ? (
+              <BookOpen className="h-5 w-5 text-purple-400" />
+            ) : (
+              <Film className="h-5 w-5 text-blue-400" />
+            )}
+          </button>
+
           <button
             aria-label="Open search"
             onClick={() => {
@@ -193,7 +258,7 @@ const Header = () => {
 
           {user ? (
             <Link
-              to="/profile"
+              to={isComicMode ? "/comics/profile" : "/profile"}
               onClick={closeAll}
               className="h-10 w-10 flex-shrink-0 rounded-full border border-white/15 bg-slate-800/80 overflow-hidden shadow-lg shadow-black/20"
             >
@@ -239,16 +304,38 @@ const Header = () => {
               {item.label}
             </NavLink>
           ))}
-          <Dropdown label="Năm" options={yearOptions} />
-          <Dropdown label="Thể Loại" options={genreOptions} />
-          <Dropdown label="Quốc Gia" options={countryOptions} />
-          <Dropdown label="Thêm" options={moreOptions} />
+          {!isComicMode && <Dropdown label="Năm" options={movieYearOptions} />}
+          <Dropdown label="Thể Loại" options={genreOptions} isWide={isComicMode} />
+          {!isComicMode && <Dropdown label="Quốc Gia" options={movieCountryOptions} />}
+          {!isComicMode && <Dropdown label="Thêm" options={movieMoreOptions} />}
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Desktop Toggle Button */}
+          <button
+            onClick={() => {
+              setAppMode(appMode === "movie" ? "comic" : "movie");
+              if (appMode === "movie") navigate("/comics");
+              else navigate("/");
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/80 hover:bg-slate-700/80 text-sm font-semibold transition-colors mr-2"
+          >
+            {appMode === "movie" ? (
+              <>
+                <BookOpen className="w-4 h-4 text-purple-400" />
+                <span className="text-slate-200">Đọc Truyện</span>
+              </>
+            ) : (
+              <>
+                <Film className="w-4 h-4 text-blue-400" />
+                <span className="text-slate-200">Xem Phim</span>
+              </>
+            )}
+          </button>
+
           {user ? (
             <Link
-              to="/profile"
+              to={isComicMode ? "/comics/profile" : "/profile"}
               className="h-10 w-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
             >
               {avatarUrl ? (
@@ -304,26 +391,32 @@ const Header = () => {
                   {item.label}
                 </Link>
               ))}
-              <MobileDropdown
-                label="Năm"
-                options={yearOptions}
-                onNavigate={closeAll}
-              />
+              {!isComicMode && (
+                <MobileDropdown
+                  label="Năm"
+                  options={movieYearOptions}
+                  onNavigate={closeAll}
+                />
+              )}
               <MobileDropdown
                 label="Thể Loại"
                 options={genreOptions}
                 onNavigate={closeAll}
               />
-              <MobileDropdown
-                label="Quốc Gia"
-                options={countryOptions}
-                onNavigate={closeAll}
-              />
-              <MobileDropdown
-                label="Thêm"
-                options={moreOptions}
-                onNavigate={closeAll}
-              />
+              {!isComicMode && (
+                <MobileDropdown
+                  label="Quốc Gia"
+                  options={movieCountryOptions}
+                  onNavigate={closeAll}
+                />
+              )}
+              {!isComicMode && (
+                <MobileDropdown
+                  label="Thêm"
+                  options={movieMoreOptions}
+                  onNavigate={closeAll}
+                />
+              )}
             </div>
           </div>
         </div>

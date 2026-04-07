@@ -2,24 +2,30 @@ import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
+import { useAppMode } from "../context/AppModeContext";
 
 const MOBILE_WIDTH = 640;
 const FALLBACK_POSTER =
   "https://placehold.co/120x180/0f172a/94a3b8?text=No+Image";
 
 // Dùng cùng logic tối ưu poster như MovieCard để đồng bộ ảnh với Category page
-const getOptimizedPoster = (url, w = 360) => {
+const getOptimizedPoster = (url, w = 360, isComic = false) => {
   if (!url) return FALLBACK_POSTER;
   try {
-    const rawHost = new URL(url).hostname;
+    let fullUrl = url;
+    if (isComic && !url.startsWith("http")) {
+      fullUrl = `${import.meta.env.VITE_COMIC_IMAGE_CDN}${url}`;
+    }
+
+    const rawHost = new URL(fullUrl).hostname;
     if (rawHost.includes("tmdb.org")) {
-      return url.replace(
+      return fullUrl.replace(
         /\/w(92|154|185|300|342|500|780|original)\//,
         `/w${w > 400 ? 500 : 342}/`
       );
     }
     return `https://wsrv.nl/?url=${encodeURIComponent(
-      url
+      fullUrl
     )}&output=webp&w=${w}&fit=cover&q=80`;
   } catch {
     return url;
@@ -27,11 +33,14 @@ const getOptimizedPoster = (url, w = 360) => {
 };
 
 const SearchBar = ({
-  placeholder = "Tìm phim...",
+  placeholder: customPlaceholder = null,
   autoFocus = false,
   className = "",
 }) => {
   const navigate = useNavigate();
+  const { appMode } = useAppMode();
+  const isComicMode = appMode === "comic";
+  const placeholder = customPlaceholder || (isComicMode ? "Tìm truyện tranh..." : "Tìm phim, diễn viên...");
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
   const [debouncedQuery, setDebouncedQuery] = useState(query.trim());
@@ -67,7 +76,7 @@ const SearchBar = ({
       document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
-  const { data = [], isFetching } = useSearchMovies(debouncedQuery);
+  const { data = [], isFetching } = useSearchMovies(debouncedQuery, appMode);
   const hasQuery = Boolean(debouncedQuery);
   const limit = isMobile ? 3 : 8;
   const results = data.slice(0, limit);
@@ -83,7 +92,7 @@ const SearchBar = ({
 
   const handleSelect = (slug) => {
     if (!slug) return;
-    navigate(`/movie/${slug}`);
+    navigate(isComicMode ? `/comics/${slug}` : `/movie/${slug}`);
     setOpen(false);
   };
 
@@ -136,7 +145,9 @@ const SearchBar = ({
                 >
                   <img
                     src={getOptimizedPoster(
-                      movie.poster_url || movie.thumb_url
+                      movie.poster_url || movie.thumb_url,
+                      360,
+                      isComicMode
                     )}
                     alt={movie.name}
                     className="w-12 h-16 rounded-md object-cover flex-shrink-0"
