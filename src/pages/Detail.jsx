@@ -191,8 +191,6 @@ const Detail = () => {
     isSaved,
     loading: saving,
     error,
-    message,
-    lastAction,
     toggleSave,
   } = useSavedMovie(baseMovie);
 
@@ -457,21 +455,14 @@ const Detail = () => {
   const nextEpisodeNumber =
     latestEpisodeNumber >= 0 ? latestEpisodeNumber + 1 : null;
 
-  const watchedEpisodeNumber = (() => {
-    if (Number.isFinite(Number(resumeData?.episodeNumber))) {
-      return Number(resumeData.episodeNumber);
-    }
-    const parsedFromProgress = parseEpisodeNumber(
-      resumeData?.episodeName || resumeData?.episodeSlug
-    );
-    if (parsedFromProgress !== null && parsedFromProgress !== undefined) {
-      return parsedFromProgress;
-    }
-    if (latestEpisodeNumber >= 0) return latestEpisodeNumber;
-    return null;
-  })();
+  const getLocalIsoDate = (date = new Date()) => {
+    const yyyy = date.getFullYear();
+    const MM = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    return `${yyyy}-${MM}-${dd}`;
+  };
 
-  const formatNextTime = (value) => {
+  const parseNextTime = (value) => {
     if (!value) return null;
     const raw = String(value).trim();
     const lower = raw.toLowerCase();
@@ -488,7 +479,7 @@ const Detail = () => {
       const dd = `${d.getDate()}`.padStart(2, "0");
       const MM = `${d.getMonth() + 1}`.padStart(2, "0");
       const yyyy = d.getFullYear();
-      return `${hh}h${mm} ngày ${dd}/${MM}/${yyyy}`;
+      return { label: `${hh}h${mm} ngày ${dd}/${MM}/${yyyy}`, date: d };
     }
 
     // Try pattern: YYYY-MM-DD or YYYY/MM/DD with optional HH:mm(:ss)
@@ -499,11 +490,23 @@ const Detail = () => {
       const [, yyyy, MM, dd, hh, mm] = isoMatch;
       const day = dd.padStart(2, "0");
       const month = MM.padStart(2, "0");
+      const date = new Date(
+        Number(yyyy),
+        Number(MM) - 1,
+        Number(dd),
+        hh ? Number(hh) : 0,
+        mm ? Number(mm) : 0,
+        0,
+        0
+      );
       if (hh && mm) {
         const hour = hh.padStart(2, "0");
-        return `${hour}h${mm} ngày ${day}/${month}/${yyyy}`;
+        return {
+          label: `${hour}h${mm} ngày ${day}/${month}/${yyyy}`,
+          date,
+        };
       }
-      return `Ngày ${day}/${month}/${yyyy}`;
+      return { label: `Ngày ${day}/${month}/${yyyy}`, date };
     }
 
     // Try pattern: HH:mm DD/MM/YYYY or variants with separators
@@ -517,24 +520,38 @@ const Detail = () => {
       const day = dd.padStart(2, "0");
       const month = MM.padStart(2, "0");
       const year = `${yyyy}`.length === 2 ? `20${yyyy}` : yyyy;
+      const date = new Date(
+        Number(year),
+        Number(MM) - 1,
+        Number(dd),
+        hour ? Number(hour) : 0,
+        minute ? Number(minute) : 0,
+        0,
+        0
+      );
       if (hour && minute)
-        return `${hour}h${minute} ngày ${day}/${month}/${year}`;
-      return `Ngày ${day}/${month}/${year}`;
+        return {
+          label: `${hour}h${minute} ngày ${day}/${month}/${year}`,
+          date,
+        };
+      return { label: `Ngày ${day}/${month}/${year}`, date };
     }
 
     // Fallback: show raw text
-    return raw;
+    return { label: raw, date: null };
   };
 
-  const formattedNextTime = formatNextTime(nextEpisodeText);
-  const showUpcomingNotice =
-    !isCompleted &&
-    nextEpisodeNumber &&
-    nextEpisodeNumber > latestEpisodeNumber;
+  const nextTimeInfo = parseNextTime(nextEpisodeText);
+  const formattedNextTime = nextTimeInfo?.label || null;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const isNextTimeInFuture = nextTimeInfo?.date
+    ? nextTimeInfo.date.getTime() >= startOfToday.getTime()
+    : false;
 
   const upcomingTmdbMessage = (() => {
+    if (isCompleted) return null;
     if (!canUseTmdbSchedule || !tmdbFullEpisodes.length) return null;
-    if (!Number.isFinite(watchedEpisodeNumber)) return null;
 
     const tmdbEpisodes = tmdbFullEpisodes
       .filter(
@@ -548,32 +565,19 @@ const Detail = () => {
 
     if (!tmdbEpisodes.length) return null;
 
-    // If multiple seasons have the same episode number, pick the latest aired one.
-    const currentCandidates = tmdbEpisodes.filter(
-      (ep) => ep.episode_number === watchedEpisodeNumber
-    );
-    if (!currentCandidates.length) return null;
+    // Pick the next airing date from today (local time) onward.
+    const todayIso = getLocalIsoDate();
+    const upcoming = tmdbEpisodes.filter((ep) => ep.air_date >= todayIso);
+    if (!upcoming.length) return null;
 
-    const currentEp = currentCandidates.reduce(
-      (latest, ep) => (ep.air_date > latest.air_date ? ep : latest),
-      currentCandidates[0]
-    );
-    const currentAirDate = currentEp?.air_date;
-    if (!currentAirDate) return null;
-
-    const futureEpisodes = tmdbEpisodes.filter(
-      (ep) => ep.air_date > currentAirDate
-    );
-    if (!futureEpisodes.length) return null;
-
-    const minAirDate = futureEpisodes.reduce(
+    const nextAirDate = upcoming.reduce(
       (min, ep) => (ep.air_date < min ? ep.air_date : min),
-      futureEpisodes[0].air_date
+      upcoming[0].air_date
     );
-    const matchingEpisodes = futureEpisodes.filter(
-      (ep) => ep.air_date === minAirDate
+    const matchingEpisodes = upcoming.filter(
+      (ep) => ep.air_date === nextAirDate
     );
-    const [y, m, d] = minAirDate.split("-");
+    const [y, m, d] = nextAirDate.split("-");
     const formattedDate = `${d}/${m}/${y}`;
 
     const epNums = Array.from(
@@ -584,14 +588,13 @@ const Detail = () => {
     const epLabel =
       epNums.length > 2 ? `${epNums[0]}, ${epNums[1]}, ...` : epNums.join(", ");
 
-    return `Tập ${epLabel} sẽ phát vào ngày ${formattedDate} `;
+    return `Tập ${epLabel} sẽ phát vào ngày ${formattedDate}.`;
   })();
 
-  const fallbackUpcomingText = showUpcomingNotice
-    ? formattedNextTime && nextEpisodeNumber
+  const fallbackUpcomingText =
+    !isCompleted && formattedNextTime && isNextTimeInFuture && nextEpisodeNumber
       ? `Tập ${nextEpisodeNumber} sẽ phát hành vào ${formattedNextTime}.`
-      : null
-    : null;
+      : null;
 
   const upcomingNotice = upcomingTmdbMessage
     ? {
@@ -844,17 +847,6 @@ const Detail = () => {
                     : "Yêu thích"}
                 </button>
 
-                {message ? (
-                  <span
-                    className={`text-xs font-semibold ${
-                      lastAction === "remove"
-                        ? "text-rose-200"
-                        : "text-emerald-200"
-                    }`}
-                  >
-                    {message}
-                  </span>
-                ) : null}
                 {error ? (
                   <span className="text-xs text-amber-200">
                     {error.message || "Không thể cập nhật Yêu thích."}
