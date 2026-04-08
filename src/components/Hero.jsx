@@ -97,8 +97,8 @@ const Hero = ({ movie, movies = [] }) => {
     typeof activeMovie.rating === "number"
       ? activeMovie.rating
       : typeof activeMovie.vote_average === "number"
-      ? activeMovie.vote_average
-      : undefined;
+        ? activeMovie.vote_average
+        : undefined;
   const rating =
     typeof ratingValue === "number" ? ratingValue.toFixed(1) : undefined;
 
@@ -228,8 +228,8 @@ const Hero = ({ movie, movies = [] }) => {
                 "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
               const hasLandscape = Boolean(
                 item.backdrop_url ||
-                  item.banner ||
-                  item.thumb_url !== item.poster_url
+                item.banner ||
+                item.thumb_url !== item.poster_url
               );
               const fitClass = hasLandscape ? "object-cover" : "object-contain";
               return (
@@ -237,11 +237,10 @@ const Hero = ({ movie, movies = [] }) => {
                   key={item.slug}
                   type="button"
                   onClick={() => setActiveIndex(idx)}
-                  className={`group relative aspect-video w-20 sm:w-24 md:w-28 lg:w-32 overflow-hidden rounded-2xl md:rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${
-                    isActive
-                      ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
-                      : "border-white/15 hover:border-white/25"
-                  }`}
+                  className={`group relative aspect-video w-20 sm:w-24 md:w-28 lg:w-32 overflow-hidden rounded-2xl md:rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${isActive
+                    ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
+                    : "border-white/15 hover:border-white/25"
+                    }`}
                   aria-label={`Chọn ${item.name}`}
                 >
                   <img

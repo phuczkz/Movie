@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { useAppMode } from "../context/AppModeContext";
 import SelectionScreen from "./SelectionScreen.jsx";
@@ -16,13 +16,26 @@ export default function MaintenanceGuard({ children }) {
   const { appMode, setAppMode } = useAppMode();
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
 
   const isAdmin = userProfile?.email === ADMIN_EMAIL;
   const isWhitelisted = userProfile?.isWhitelisted;
   const isLoginPath = location.pathname === "/login";
 
   const isActive =
-    appMode === "movie" && maintenance?.enabled && !isAdmin && !isWhitelisted && !isLoginPath;
+    appMode === "movie" &&
+    maintenance?.enabled &&
+    !isAdmin &&
+    !isWhitelisted &&
+    !isLoginPath;
+
+  useEffect(() => {
+    // Only auto-redirect on direct entry/refresh. Do not override explicit in-app navigation.
+    if (navigationType !== "POP") return;
+    if (appMode === "comic" && location.pathname === "/") {
+      navigate("/comics", { replace: true });
+    }
+  }, [appMode, location.pathname, navigate, navigationType]);
 
   // Block DevTools shortcuts
   useEffect(() => {
@@ -60,13 +73,22 @@ export default function MaintenanceGuard({ children }) {
       {isActive && (
         <div
           style={{ zIndex: 99999 }}
-          className="fixed inset-0 flex flex-col items-center justify-center bg-white select-none text-slate-800"
+          className="fixed inset-0 grid grid-rows-[1fr_auto] bg-white select-none text-slate-800 overflow-hidden"
           onContextMenu={(e) => e.preventDefault()}
         >
+          <button
+            onClick={() => {
+              setAppMode(null);
+              navigate("/", { replace: true });
+            }}
+            className="absolute top-4 right-4 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-xl hover:shadow-slate-200 active:scale-95 text-xs sm:text-sm font-bold"
+          >
+            Quay lại chọn mục
+          </button>
+
           {/* Main Content Container */}
-          {/* Main Content Container */}
-          <div className="flex-1 w-full flex flex-col items-center justify-center overflow-y-auto custom-scrollbar py-12">
-            <div className="max-w-4xl w-full px-6 flex flex-col items-center text-center space-y-8 animate-in fade-in zoom-in duration-500">
+          <div className="w-full flex items-center justify-center px-6 py-6">
+            <div className="max-w-4xl w-full flex flex-col items-center text-center space-y-6 animate-in fade-in zoom-in duration-500">
               {/* Illustration */}
               <Suspense fallback={<div className="h-40 w-full" />}>
                 <MaintenanceIllustration />
@@ -106,7 +128,10 @@ export default function MaintenanceGuard({ children }) {
                 )}
 
                 <button
-                  onClick={() => setAppMode(null)}
+                  onClick={() => {
+                    setAppMode(null);
+                    navigate("/", { replace: true });
+                  }}
                   className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-xl hover:shadow-slate-200 active:scale-95 text-sm font-bold"
                 >
                   Quay lại chọn mục giải trí

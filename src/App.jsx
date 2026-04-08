@@ -1,5 +1,10 @@
 import { Suspense, lazy } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import {
+  Route,
+  Routes,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
 import Layout from "./components/Layout.jsx";
 import ComicLayout from "./components/comics/ComicLayout.jsx";
 import { useAppMode } from "./context/AppModeContext";
@@ -27,20 +32,32 @@ const ComicFavorites = lazy(() => import("./pages/comics/ComicFavorites.jsx"));
 
 function App() {
   const location = useLocation();
-  const { setAppMode } = useAppMode();
+  const navigationType = useNavigationType();
+  const { appMode, setAppMode } = useAppMode();
 
   useEffect(() => {
-    // Tự động nhận diện Chế độ dựa trên URL (Tránh bị hiện lại Selection Screen khi F5)
-    if (location.pathname.startsWith("/comics")) {
-      setAppMode("comic");
-    } else if (location.pathname === "/" || location.pathname === "/login" || location.pathname === "/register") {
-      // Khi ở trang chủ hoặc trang auth, giữ nguyên hoặc để logic khác xử lý
-    } else if (location.pathname === "/profile") {
-      // Giữ nguyên mode hiện tại khi xem profile
-    } else {
+    const path = location.pathname;
+
+    // Tự động nhận diện chế độ dựa trên URL, nhưng tôn trọng lựa chọn comic đã lưu ở trang "/"
+    if (path.startsWith("/comics")) {
+      if (appMode !== "comic") setAppMode("comic");
+      return;
+    }
+
+    if (path === "/login" || path === "/register" || path === "/profile") {
+      return;
+    }
+
+    // Keep comic mode at root only on direct entry/refresh.
+    // For in-app navigation to "/", switch to movie mode so Header state stays in sync.
+    if (path === "/" && appMode === "comic" && navigationType === "POP") {
+      return;
+    }
+
+    if (appMode !== "movie") {
       setAppMode("movie");
     }
-  }, [location.pathname, setAppMode]);
+  }, [location.pathname, setAppMode, appMode, navigationType]);
 
   return (
     <Suspense
@@ -69,6 +86,7 @@ function App() {
                 <Route path="/:slug" element={<ComicDetail />} />
                 <Route path="/chapter/:chapterId" element={<ComicReader />} />
                 <Route path="/favorites" element={<ComicFavorites />} />
+                <Route path="/search" element={<Search />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="*" element={<ComicHome />} />
               </Routes>

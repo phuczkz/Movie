@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import Hero from "../components/Hero.jsx";
 import MovieCard from "../components/MovieCard.jsx";
 import Section from "../components/Section.jsx";
@@ -9,6 +10,57 @@ import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
 import LoginBanner from "../components/LoginBanner.jsx";
 import TrendingSection from "../components/TrendingSection.jsx";
+
+const quickFocusCards = [
+  {
+    title: "Hàn Quốc",
+    subtitle: "Phim Bộ",
+    to: "/country/han-quoc",
+    gradient: "from-[#6d7fd1] to-[#b791bc]",
+  },
+  {
+    title: "Trung Quốc",
+    subtitle: "Hoa Ngữ",
+    to: "/country/trung-quoc",
+    gradient: "from-[#d290b2] to-[#cf7ea1]",
+  },
+  {
+    title: "Thái Lan",
+    subtitle: "Cực Hay",
+    to: "/country/thai-lan",
+    gradient: "from-[#6887d0] to-[#9d5f8e]",
+  },
+  {
+    title: "Sitcom",
+    subtitle: "Game Shows",
+    to: "/search?q=sitcom",
+    gradient: "from-[#5f9f8e] to-[#9d7f72]",
+  },
+  {
+    title: "Chiếu Rạp",
+    subtitle: "Mới Nhất",
+    to: "/search?q=chieu-rap",
+    gradient: "from-[#8f75b2] to-[#b57887]",
+  },
+  {
+    title: "Kinh Dị",
+    subtitle: "Thót Tim",
+    to: "/category/kinh-di",
+    gradient: "from-[#c48374] to-[#b76563]",
+  },
+  {
+    title: "Cổ Trang",
+    subtitle: "Huyền Huyễn",
+    to: "/search?q=co-trang",
+    gradient: "from-[#b56168] to-[#a94b59]",
+  },
+  {
+    title: "Thuyết Minh",
+    subtitle: "VietDub",
+    to: "/search?q=thuyet-minh",
+    gradient: "from-[#6f7d94] to-[#4f5f78]",
+  },
+];
 
 // Observe once per section to lazy-enable fetching and rendering
 const useSectionVisibility = () => {
@@ -113,6 +165,39 @@ const Home = () => {
       <LoginBanner />
 
       <Hero movies={heroMovies} />
+
+      <section className="rounded-3xl border border-white/5 bg-slate-950/80 px-4 py-5 sm:px-6 sm:py-6">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <span className="h-7 w-1 rounded-full bg-gradient-to-b from-slate-200 to-slate-400" />
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Bạn đang quan tâm gì?
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+          {quickFocusCards.map((item) => (
+            <Link
+              key={item.title}
+              to={item.to}
+              className="group relative overflow-hidden rounded-2xl border border-white/15 p-4 min-h-[106px] sm:min-h-[120px]"
+            >
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-95 transition-opacity group-hover:opacity-100`}
+              />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(0,0,0,0.12)_100%)]" />
+              <div className="relative z-10 flex h-full flex-col justify-between">
+                <p className="text-2xl font-extrabold text-white leading-tight drop-shadow-sm">
+                  {item.title}
+                </p>
+                <div className="inline-flex items-center gap-1.5 text-white/90 text-base font-semibold">
+                  <span>{item.subtitle}</span>
+                  <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <TrendingSection
         movies={kkSeries.slice(0, 10)}

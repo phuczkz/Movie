@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, LogIn, Menu, Search, X, User, Film, BookOpen } from "lucide-react";
+import {
+  ChevronDown,
+  LogIn,
+  Menu,
+  Search,
+  X,
+  User,
+  Film,
+  BookOpen,
+} from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useAppMode } from "../context/AppModeContext";
@@ -88,12 +97,20 @@ const Dropdown = ({ label, options, isWide = false }) => {
         />
       </button>
       {open && (
-        <div className={`absolute z-30 mt-2 pt-1 ${isWide 
-          ? "fixed inset-x-4 lg:absolute lg:-right-40 lg:left-auto lg:translate-x-0 lg:w-[800px] xl:w-[1100px] 2xl:w-[1250px]" 
-          : "left-1/2 -translate-x-1/2 w-48"}`}>
-          <div className={`rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-4 custom-scrollbar overflow-y-auto ${isWide 
-            ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-x-2 gap-y-1 max-h-[350px]" 
-            : "space-y-1 max-h-[400px]"}`}>
+        <div
+          className={`absolute z-30 mt-2 pt-1 ${
+            isWide
+              ? "fixed inset-x-4 lg:absolute lg:-right-40 lg:left-auto lg:translate-x-0 lg:w-[800px] xl:w-[1100px] 2xl:w-[1250px]"
+              : "left-1/2 -translate-x-1/2 w-48"
+          }`}
+        >
+          <div
+            className={`rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-4 custom-scrollbar overflow-y-auto ${
+              isWide
+                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-x-2 gap-y-1 max-h-[350px]"
+                : "space-y-1 max-h-[400px]"
+            }`}
+          >
             {options.map((item) => (
               <Link
                 key={item.to}
@@ -151,16 +168,21 @@ const Header = () => {
   const { user, userProfile } = useAuth();
   const { appMode, setAppMode } = useAppMode();
   const navigate = useNavigate();
-  const avatarUrl = userProfile?.photoURL || user?.photoURL || (user?.uid ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}` : null);
+  const avatarUrl =
+    userProfile?.photoURL ||
+    user?.photoURL ||
+    (user?.uid
+      ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
+      : null);
 
   useEffect(() => {
     const fetchGenres = async () => {
       try {
         const data = await comicApi.getCategoryList();
         if (data.status === "success" && data.data && data.data.items) {
-          const formatted = data.data.items.map(item => ({
+          const formatted = data.data.items.map((item) => ({
             label: item.name,
-            to: `/comics/the-loai/${item.slug}`
+            to: `/comics/the-loai/${item.slug}`,
           }));
           setApiGenreOptions(formatted);
         }
@@ -187,18 +209,25 @@ const Header = () => {
 
   const isComicMode = appMode === "comic";
   const primaryNav = isComicMode ? comicPrimaryNav : moviePrimaryNav;
-  const genreOptions = isComicMode ? (apiGenreOptions.length > 0 ? apiGenreOptions : comicGenreOptions) : movieGenreOptions;
+  const genreOptions = isComicMode
+    ? apiGenreOptions.length > 0
+      ? apiGenreOptions
+      : comicGenreOptions
+    : movieGenreOptions;
 
   const isHome = location.pathname === "/" || location.pathname === "/comics";
-  const isDetail = location.pathname.startsWith("/movie/") || location.pathname.startsWith("/comics/");
+  const isDetail =
+    location.pathname.startsWith("/movie/") ||
+    location.pathname.startsWith("/comics/");
   const showTransparent = (isHome || isDetail) && !scrolled;
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${showTransparent
-        ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
-        : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
-        }`}
+      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${
+        showTransparent
+          ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
+          : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
+      }`}
     >
       {/* Mobile top bar */}
       <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
@@ -232,7 +261,9 @@ const Header = () => {
               else navigate("/");
             }}
             className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
-            title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"}`}
+            title={`Chuyển sang ${
+              appMode === "movie" ? "MangaHub" : "Xem Phim"
+            }`}
           >
             {appMode === "movie" ? (
               <BookOpen className="h-5 w-5 text-purple-400" />
@@ -263,7 +294,11 @@ const Header = () => {
               className="h-10 w-10 flex-shrink-0 rounded-full border border-white/15 bg-slate-800/80 overflow-hidden shadow-lg shadow-black/20"
             >
               {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                <img
+                  src={avatarUrl}
+                  alt="avatar"
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-white font-bold text-sm uppercase">
                   {(user.email || "U").charAt(0)}
@@ -286,7 +321,9 @@ const Header = () => {
       <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
         <div className="flex-1 min-w-0">
           <SearchBar
-            placeholder="Tìm kiếm phim, diễn viên"
+            placeholder={
+              isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
+            }
             className="max-w-xs lg:max-w-sm xl:max-w-xl"
           />
         </div>
@@ -297,7 +334,8 @@ const Header = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
+                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${
+                  isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
                 }`
               }
             >
@@ -305,8 +343,14 @@ const Header = () => {
             </NavLink>
           ))}
           {!isComicMode && <Dropdown label="Năm" options={movieYearOptions} />}
-          <Dropdown label="Thể Loại" options={genreOptions} isWide={isComicMode} />
-          {!isComicMode && <Dropdown label="Quốc Gia" options={movieCountryOptions} />}
+          <Dropdown
+            label="Thể Loại"
+            options={genreOptions}
+            isWide={isComicMode}
+          />
+          {!isComicMode && (
+            <Dropdown label="Quốc Gia" options={movieCountryOptions} />
+          )}
           {!isComicMode && <Dropdown label="Thêm" options={movieMoreOptions} />}
         </nav>
 
@@ -369,7 +413,9 @@ const Header = () => {
         <div className="lg:hidden absolute left-0 right-0 top-full px-4 pb-3 z-40">
           <div className="rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl shadow-black/30 p-3">
             <SearchBar
-              placeholder="Tìm kiếm phim, diễn viên"
+              placeholder={
+                isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
+              }
               className="w-full"
             />
           </div>

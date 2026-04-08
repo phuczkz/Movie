@@ -40,7 +40,9 @@ const SearchBar = ({
   const navigate = useNavigate();
   const { appMode } = useAppMode();
   const isComicMode = appMode === "comic";
-  const placeholder = customPlaceholder || (isComicMode ? "Tìm truyện tranh..." : "Tìm phim, diễn viên...");
+  const placeholder =
+    customPlaceholder ||
+    (isComicMode ? "Tìm truyện tranh..." : "Tìm phim, diễn viên...");
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
   const [debouncedQuery, setDebouncedQuery] = useState(query.trim());
@@ -81,12 +83,13 @@ const SearchBar = ({
   const limit = isMobile ? 3 : 8;
   const results = data.slice(0, limit);
   const shouldShowDropdown = open && hasQuery;
+  const searchPath = isComicMode ? "/comics/search" : "/search";
 
   const onSubmit = (event) => {
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
-    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    navigate(`${searchPath}?q=${encodeURIComponent(trimmed)}`);
     setOpen(false);
   };
 
@@ -99,7 +102,7 @@ const SearchBar = ({
   const viewAll = () => {
     const trimmed = query.trim();
     if (!trimmed) return;
-    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+    navigate(`${searchPath}?q=${encodeURIComponent(trimmed)}`);
     setOpen(false);
   };
 
