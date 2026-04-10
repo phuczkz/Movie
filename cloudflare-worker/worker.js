@@ -135,13 +135,40 @@ export default {
     }
 
     try {
-      // ===== Fetch upstream =====
+      // ===== User-Agent rotation =====
+      const USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+      ];
+      const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+
+      // ===== Generate random Vietnamese residential IP =====
+      // Common VN ISP IP ranges (Viettel, FPT, VNPT)
+      const VN_IP_PREFIXES = [
+        "113.160", "113.161", "113.185", "14.160", "14.161",
+        "14.162", "14.176", "14.177", "27.64", "27.65",
+        "42.112", "42.113", "42.114", "42.115", "42.116",
+        "42.117", "42.118", "42.119", "58.186", "58.187",
+        "171.224", "171.225", "171.226", "171.250", "171.251",
+        "183.80", "183.81", "115.73", "115.74", "115.75",
+      ];
+      const prefix = VN_IP_PREFIXES[Math.floor(Math.random() * VN_IP_PREFIXES.length)];
+      const randomIP = `${prefix}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+
+      // ===== Build fetch headers =====
+      // Important: Do NOT mirror the target's own origin as Referer/Origin.
+      // Many CDNs detect this pattern as a proxy/leech and respond with 403/404.
+      // Instead, use a common Vietnamese movie site or omit them entirely.
       const fetchHeaders = {
-        "User-Agent":
-          request.headers.get("User-Agent") ||
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Referer: parsedTarget.origin + "/",
-        Origin: parsedTarget.origin,
+        "User-Agent": request.headers.get("User-Agent") || randomUA,
+        Accept: "*/*",
+        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+        "X-Forwarded-For": randomIP,
+        "X-Real-IP": randomIP,
       };
 
       // Forward Range header (important for seeking in ts segments)
@@ -150,19 +177,45 @@ export default {
         fetchHeaders["Range"] = rangeHeader;
       }
 
-      const upstream = await fetch(targetUrl, {
-        headers: fetchHeaders,
-        redirect: "follow",
-      });
+      // ===== Attempt fetch with retry =====
+      // Strategy 1: Minimal headers (no Origin/Referer — look like a direct browser hit)
+      // Strategy 2: With Referer pointing to a known embedder
+      const strategies = [
+        { ...fetchHeaders },
+        { ...fetchHeaders, Referer: "https://ophim.cc/", Origin: "https://ophim.cc" },
+        { ...fetchHeaders, Referer: parsedTarget.origin + "/", Origin: parsedTarget.origin },
+      ];
 
-      if (!upstream.ok && upstream.status !== 206) {
+      let upstream = null;
+      let lastStatus = 0;
+
+      for (const hdrs of strategies) {
+        try {
+          const resp = await fetch(targetUrl, {
+            headers: hdrs,
+            redirect: "follow",
+          });
+          lastStatus = resp.status;
+
+          if (resp.ok || resp.status === 206) {
+            upstream = resp;
+            break;
+          }
+          // Consume body to free connection for next attempt
+          await resp.text().catch(() => {});
+        } catch {
+          // Network error — try next strategy
+        }
+      }
+
+      if (!upstream) {
         return new Response(
           JSON.stringify({
-            error: `Upstream returned ${upstream.status}`,
+            error: `Upstream returned ${lastStatus || 502}`,
             url: targetUrl,
           }),
           {
-            status: upstream.status >= 400 ? upstream.status : 502,
+            status: lastStatus >= 400 ? lastStatus : 502,
             headers: jsonHeaders,
           }
         );

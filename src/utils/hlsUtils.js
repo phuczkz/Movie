@@ -9,6 +9,12 @@ export const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || "")
   .trim()
   .replace(/\/$/, "");
 
+// Secondary proxy — used when the primary STREAM_PROXY fails (e.g. blocked by CDN).
+// Falls back to direct connection only after both proxies fail.
+export const FALLBACK_PROXY = (import.meta.env.VITE_HLS_PROXY_BASE || "")
+  .trim()
+  .replace(/\/$/, "");
+
 /**
  * Loại bỏ các đoạn quảng cáo khỏi playlist HLS dựa trên từ khóa đen.
  * Đồng thời chuyển đổi các URL tương đối thành tuyệt đối.

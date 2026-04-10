@@ -11,7 +11,7 @@ import { usePlayerState } from "../hooks/usePlayerState";
 import { usePlayerActivity } from "../hooks/usePlayerActivity";
 import { useHlsHandler } from "../hooks/useHlsHandler";
 import { SEEK_STEP, MOBILE_MEDIA_QUERY } from "../utils/playerUtils";
-import { STREAM_PROXY, stripAdSegmentsFromPlaylist } from "../utils/hlsUtils";
+import { STREAM_PROXY, FALLBACK_PROXY, stripAdSegmentsFromPlaylist } from "../utils/hlsUtils";
 
 // Sub-components
 import PlayerHeader from "./Player/PlayerHeader";
@@ -297,8 +297,9 @@ const Player = ({
     setProgress,
   ]);
 
-  // Tracking for domains that consistently fail via proxy
-  const proxyFailedGlobalDomains = useRef(new Set());
+  // Tracking for domains: maps origin -> which proxies have failed
+  // Value: Set<string> containing proxy base URLs that failed (or "direct" for direct)
+  const proxyFailedGlobalDomains = useRef(new Map());
 
   // Reset state helper
   const handleReset = useCallback(() => {
@@ -322,8 +323,40 @@ const Player = ({
     }
 
     const BaseLoader = Hls.DefaultConfig?.loader;
-    const proxyFailedUrls = new Set();
-    const proxyFailedDomains = proxyFailedGlobalDomains.current;
+    // Per-URL tracking — which proxy was used and failed
+    // Maps originalUrl -> Set of proxy base URLs that failed ("direct" for direct)
+    const urlFailedProxies = new Map();
+    const domainFailedProxies = proxyFailedGlobalDomains.current;
+
+    // Build ordered list of available proxies
+    const PROXY_CHAIN = [
+      ...(STREAM_PROXY ? [STREAM_PROXY] : []),
+      ...(FALLBACK_PROXY && FALLBACK_PROXY !== STREAM_PROXY ? [FALLBACK_PROXY] : []),
+    ];
+
+    /**
+     * Get the best proxy for a given origin.
+     * Returns the proxy base URL or null (meaning direct connection).
+     */
+    const getBestProxy = (origin) => {
+      const domainFailed = origin ? domainFailedProxies.get(origin) : null;
+      for (const proxy of PROXY_CHAIN) {
+        if (domainFailed && domainFailed.has(proxy)) continue;
+        return proxy;
+      }
+      return null; // All proxies exhausted — try direct
+    };
+
+    /**
+     * Mark a proxy as failed for a given origin.
+     */
+    const markProxyFailed = (origin, proxyBase) => {
+      if (!origin) return;
+      if (!domainFailedProxies.has(origin)) {
+        domainFailedProxies.set(origin, new Set());
+      }
+      domainFailedProxies.get(origin).add(proxyBase);
+    };
 
     const AdFreeLoader = BaseLoader
       ? class extends BaseLoader {
@@ -336,19 +369,14 @@ const Player = ({
               originalOrigin = null;
             }
 
-            const shouldBypassProxy =
-              proxyFailedUrls.has(context.url) ||
-              (originalOrigin && proxyFailedDomains.has(originalOrigin));
-
-            if (
-              STREAM_PROXY &&
-              context.url &&
-              !context.url.includes(STREAM_PROXY) &&
-              !shouldBypassProxy
-            ) {
-              context.url = `${STREAM_PROXY}?url=${encodeURIComponent(
-                context.url
-              )}`;
+            // Determine which proxy to use (if any)
+            let activeProxy = null;
+            const alreadyProxied = PROXY_CHAIN.some((p) => context.url.includes(p));
+            if (!alreadyProxied && context.url) {
+              activeProxy = getBestProxy(originalOrigin);
+              if (activeProxy) {
+                context.url = `${activeProxy}?url=${encodeURIComponent(context.url)}`;
+              }
             }
 
             const onSuccess = callbacks?.onSuccess;
@@ -384,33 +412,41 @@ const Player = ({
                   onSuccess(nextResponse, stats, ctx, networkDetails);
               },
               onError: (error, ctx, networkDetails, stats) => {
-                if (
-                  STREAM_PROXY &&
-                  originalUrl &&
-                  context.url.includes(STREAM_PROXY)
-                ) {
-                  let proxyOrigin = null;
-                  try {
-                    if (originalUrl) proxyOrigin = new URL(originalUrl).origin;
-                  } catch {
-                    proxyOrigin = null;
+                // If the request went through a proxy and failed, try the next tier
+                if (activeProxy && originalUrl) {
+                  // Mark this proxy as failed for the domain
+                  markProxyFailed(originalOrigin, activeProxy);
+
+                  // Check what's next in the chain
+                  const nextProxy = getBestProxy(originalOrigin);
+
+                  if (nextProxy && nextProxy !== activeProxy) {
+                    // Tier 2: try fallback proxy
+                    console.debug(
+                      `[HLS] Primary proxy failed for ${originalOrigin}, falling back to secondary proxy.`
+                    );
+                    try { this.abort(); } catch { /* ignore */ }
+                    const retryLoader = new AdFreeLoader(config);
+                    const retryContext = { ...context, url: originalUrl };
+                    retryLoader.load(retryContext, config, {
+                      ...callbacks,
+                      onSuccess: wrappedCallbacks.onSuccess,
+                    });
+                    return;
                   }
 
-                  if (!proxyFailedUrls.has(originalUrl)) {
-                    // Only log once per session per domain to avoid log explosion
-                    if (proxyOrigin && !proxyFailedDomains.has(proxyOrigin)) {
-                      console.debug(
-                        `[HLS] Proxy failed for domain ${proxyOrigin}, switching to direct mode.`
-                      );
-                      proxyFailedDomains.add(proxyOrigin);
+                  // Tier 3: try direct connection as last resort
+                  const urlFailed = urlFailedProxies.get(originalUrl);
+                  if (!urlFailed || !urlFailed.has("direct")) {
+                    console.debug(
+                      `[HLS] All proxies failed for ${originalOrigin}, trying direct connection.`
+                    );
+                    if (!urlFailedProxies.has(originalUrl)) {
+                      urlFailedProxies.set(originalUrl, new Set());
                     }
-                    proxyFailedUrls.add(originalUrl);
+                    urlFailedProxies.get(originalUrl).add("direct");
 
-                    try {
-                      this.abort();
-                    } catch {
-                      /* ignore */
-                    }
+                    try { this.abort(); } catch { /* ignore */ }
                     const directLoader = new AdFreeLoader(config);
                     const directContext = { ...context, url: originalUrl };
                     directLoader.load(directContext, config, {
