@@ -35,15 +35,18 @@ const runWithConcurrency = async (tasks, concurrency) => {
 
 export const useActorsWithTmdbImages = (actors = [], options = {}) => {
   const enabled = options.enabled ?? true;
+  const itemLimit = options.itemLimit ?? 8; // Default to 8 actors per batch
 
   return useQuery({
     queryKey: [
       "tmdb-actor-images",
       actors
+        .slice(0, 20) // Limit key size
         .map((a) =>
           a?.id ? `id:${a.id}` : `name:${normalizeNameKey(a?.name)}`
         )
         .join("|"),
+        itemLimit
     ],
     enabled:
       enabled &&
@@ -74,6 +77,7 @@ export const useActorsWithTmdbImages = (actors = [], options = {}) => {
       const seenName = new Set();
       const seenId = new Set();
 
+      // Collect tasks for missing images
       for (const actor of missing) {
         const nameKey = normalizeNameKey(actor?.name);
         if (!nameKey) continue;
@@ -91,10 +95,9 @@ export const useActorsWithTmdbImages = (actors = [], options = {}) => {
               if (image)
                 resolvedById.set(idKey, { id: detail?.id || actorId, image });
             } catch {
-              // Ignore individual failures
+              /* ignore */
             }
           });
-
           continue;
         }
 
@@ -112,13 +115,15 @@ export const useActorsWithTmdbImages = (actors = [], options = {}) => {
               });
             }
           } catch {
-            // Ignore individual failures
+            /* ignore */
           }
         });
       }
 
-      // Keep TMDB requests under control.
-      await runWithConcurrency(tasks, 4);
+      // Optimization: Limit the number of TMDB requests per call to avoid 429 or slowing down main page.
+      // We only process the first 'itemLimit' truly missing actors.
+      const cappedTasks = tasks.slice(0, itemLimit);
+      await runWithConcurrency(cappedTasks, 4);
 
       return base.map((actor) => {
         if (!actor?.name) return actor;

@@ -24,11 +24,8 @@ import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useMoviesList } from "../hooks/useMoviesList.js";
-import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
 import { useActorsWithTmdbImages } from "../hooks/useActorsWithTmdbImages.js";
 import Comments from "../components/Comments.jsx";
-import MovieCard from "../components/MovieCard.jsx";
 import {
   getEpisodeLabel,
   normalizeServerLabel,
@@ -139,6 +136,13 @@ const Watch = () => {
   const initialTime = location.state?.initialTime || 0;
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const lastSaveRef = useRef(0);
+  const [deferLoad, setDeferLoad] = useState(false);
+
+  useEffect(() => {
+    // Increase defer delay from 1.5s to 4s to prioritize player initialization and HLS buffering
+    const timer = setTimeout(() => setDeferLoad(true), 4000);
+    return () => clearTimeout(timer);
+  }, []);
   const metaRef = useRef({
     slug: null,
     name: null,
@@ -174,6 +178,7 @@ const Watch = () => {
     provider: null,
     notice: "",
   });
+  const [useEmbedFallback, setUseEmbedFallback] = useState(false);
   const { data, isLoading } = useMovieDetail(slug);
 
   const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
@@ -260,6 +265,14 @@ const Watch = () => {
     autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
 
   const episodeProviders = buildEpisodeProviders(activeEpisode);
+
+  // Reset fallback state whenever the episode/server changes (render phase reset to avoid cascading renders)
+  const [prevScopeKey, setPrevScopeKey] = useState(playbackScopeKey);
+  if (playbackScopeKey !== prevScopeKey) {
+    setPrevScopeKey(playbackScopeKey);
+    setUseEmbedFallback(false);
+  }
+
   const availableProviders = Object.entries(episodeProviders)
     .filter(([, value]) => value?.link)
     .map(([key]) => key);
@@ -280,11 +293,12 @@ const Watch = () => {
 
   const activeProviderLabel = PROVIDER_LABELS[activeProvider] || "Mặc định";
 
-  const activeSource =
-    (activeProvider ? episodeProviders[activeProvider]?.link : "") ||
-    activeEpisode?.link_m3u8 ||
-    activeEpisode?.embed ||
-    "";
+  const activeSource = useEmbedFallback
+    ? activeEpisode?.link_embed || activeEpisode?.embed || ""
+    : (activeProvider ? episodeProviders[activeProvider]?.link : "") ||
+      activeEpisode?.link_m3u8 ||
+      activeEpisode?.embed ||
+      "";
 
   const currentIndex = activeEpisode
     ? episodesForServer.findIndex((ep) => ep.slug === activeEpisode.slug)
@@ -330,7 +344,21 @@ const Watch = () => {
           return prev;
         }
         const isDeadSource =
-          reason === "manifest-error" || reason === "fatal-hls";
+          reason === "manifest-error" || 
+          reason === "fatal-hls" || 
+          reason === "network-error" || 
+          reason === "network-timeout";
+        
+        // If the current M3U8 is dead, try falling back to embed for this episode
+        if (isDeadSource && activeEpisode?.link_embed && !useEmbedFallback) {
+          setUseEmbedFallback(true);
+          return {
+            key: playbackScopeKey,
+            provider: prev.provider || null,
+            notice: `Nguồn ${activeProviderLabel} gặp sự cố kỹ thuật. Hệ thống đang tự động chuyển sang Trình phát dự phòng (Embed) để bạn tiếp tục xem.`,
+          };
+        }
+
         const issueText = isDeadSource
           ? "không khả dụng"
           : `đang chậm (${reason})`;
@@ -346,10 +374,14 @@ const Watch = () => {
     [
       selectedProviderParam,
       activeProvider,
+      activeProviderLabel,
       availableProviders,
       episodeProviders,
       playbackScopeKey,
       setAutoProviderState,
+      activeEpisode?.link_embed,
+      useEmbedFallback,
+      setUseEmbedFallback,
     ]
   );
 
@@ -499,52 +531,17 @@ const Watch = () => {
     });
   }, [movie, baseMovie?.actor, baseMovie?.slug]);
 
-  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors);
-
-  const categorySlugs = useMemo(
-    () => (movie?.category || []).map((c) => c.slug).filter(Boolean),
-    [movie?.category]
-  );
-  const countrySlug = movie?.country?.[0]?.slug;
-
-  const [deferLoad, setDeferLoad] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setDeferLoad(true), 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], {
-    enabled: deferLoad && !!categorySlugs[0],
-  });
-  const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], {
-    enabled: deferLoad && !!categorySlugs[1],
-  });
-  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, {
-    enabled: deferLoad && !!countrySlug,
+  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors, {
+    enabled: deferLoad && actors.length > 0,
+    itemLimit: 10 // Only fetch images for top 10 actors to save bandwidth
   });
 
-  const _relatedMovies = useMemo(() => {
-    const combined = [];
-    const max = 24;
-    const len = Math.max(cat1Pool.length, cat2Pool.length, countryPool.length);
 
-    for (let i = 0; i < len; i++) {
-      if (cat1Pool[i]) combined.push(cat1Pool[i]);
-      if (countryPool[i]) combined.push(countryPool[i]);
-      if (cat2Pool[i]) combined.push(cat2Pool[i]);
-      if (combined.length >= max) break;
-    }
 
-    const seen = new Set();
-    seen.add(movie?.slug);
-    return combined
-      .filter((m) => {
-        if (!m || !m.slug || seen.has(m.slug)) return false;
-        seen.add(m.slug);
-        return true;
-      })
-      .slice(0, 16);
-  }, [cat1Pool, cat2Pool, countryPool, movie?.slug]);
+
+
+
+
 
   // Keep track of the current episode meta for the unmount flush
   useEffect(() => {
@@ -726,6 +723,7 @@ const Watch = () => {
               navigate(`/watch/${slug}?${nextParams.toString()}`);
             }}
             hasNextEpisode={Boolean(nextEpisode)}
+            nextEpisodeTitle={nextEpisode?.name}
             onTimeUpdate={onTimeUpdate}
             initialTime={initialTime}
             theaterMode={isTheater}

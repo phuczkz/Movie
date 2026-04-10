@@ -1,26 +1,18 @@
 import React, {
-  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
-import { usePlayerState } from "../hooks/usePlayerState";
-import { usePlayerActivity } from "../hooks/usePlayerActivity";
+import Artplayer from "artplayer";
 import { useHlsHandler } from "../hooks/useHlsHandler";
-import { SEEK_STEP, MOBILE_MEDIA_QUERY } from "../utils/playerUtils";
 import { STREAM_PROXY, FALLBACK_PROXY, stripAdSegmentsFromPlaylist } from "../utils/hlsUtils";
+import { SkipForward, X } from "lucide-react";
 
-// Sub-components
-import PlayerHeader from "./Player/PlayerHeader";
-import PlayerControls from "./Player/PlayerControls";
-import ProgressBar from "./Player/ProgressBar";
-import BufferingOverlay from "./Player/BufferingOverlay";
-
-const ReactPlayer = React.lazy(() => import("react-player"));
-
+// ─────────────────────────────────────────────
+// Main Player Component
+// ─────────────────────────────────────────────
 const Player = ({
   source,
   poster,
@@ -35,11 +27,21 @@ const Player = ({
   onToggleTheater,
   onPlaybackIssue,
 }) => {
-  const videoRef = useRef(null);
-  const reactPlayerRef = useRef(null);
-  const containerRef = useRef(null);
-  const ignoreNextClickRef = useRef(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const artRef = useRef(null);           // DOM mount point for ArtPlayer
+  const artInstanceRef = useRef(null);   // ArtPlayer instance
+  const hlsInstanceRef = useRef(null);   // hls.js instance
+  const mountedRef = useRef(false);      // Guard against StrictMode double-mount
+
+  const onPlaybackIssueRef = useRef(onPlaybackIssue);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onNextEpisodeRef = useRef(onNextEpisode);
+  const playbackIssueReportedRef = useRef(false);
+  const lastPositionRef = useRef(
+    typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0
+  );
+  useEffect(() => { onPlaybackIssueRef.current = onPlaybackIssue; }, [onPlaybackIssue]);
+  useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
+  useEffect(() => { onNextEpisodeRef.current = onNextEpisode; }, [onNextEpisode]);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -56,793 +58,642 @@ const Player = ({
     }
   }, [source]);
 
-  // Logic & State Hooks
-  const {
-    playing,
-    setPlaying,
-    volume,
-    setVolume,
-    muted,
-    setMuted,
-    duration,
-    setDuration,
-    progress,
-    setProgress,
-    isBuffering,
-    setIsBuffering,
-    playbackRate,
-    setPlaybackRate,
-    qualityLevels,
-    setQualityLevels,
-    currentLevel,
-    setCurrentLevel,
-    showMoreMenu,
-    setShowMoreMenu,
-    showVolumeSlider,
-    setShowVolumeSlider,
-    lastPositionRef,
-    initialTimeConsumed,
-    playbackIssueReportedRef,
-    resetState,
-  } = usePlayerState(initialTime);
+  const { Hls, hlsConfig } = useHlsHandler(source, isHls);
 
-  const playingRef = useRef(playing);
-  useEffect(() => {
-    playingRef.current = playing;
-  }, [playing]);
-
-  const { controlsVisible, showControls, handleUserActivity } =
-    usePlayerActivity(playing);
-
-  const { Hls, hlsRef, hlsConfig, effectiveSource, isFiltering } =
-    useHlsHandler(source, isHls);
-
+  // Optimized poster URL via wsrv.nl
   const posterUrl = useMemo(() => {
     if (!poster) return null;
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      poster
-    )}&w=800&output=webp&q=75`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(poster)}&w=800&output=webp&q=75`;
   }, [poster]);
 
-  // LCP Optimization: Ensure the poster request is prioritized as early as possible.
-  // Note: In a client-rendered SPA, this still won't be discoverable in the initial HTML document.
+  // LCP Optimization: preload poster image
   useLayoutEffect(() => {
     if (!posterUrl) return;
-
     const existing = document.head.querySelector(
       `link[rel="preload"][as="image"][href="${posterUrl}"]`
     );
     if (existing) return;
-
     const link = document.createElement("link");
     link.rel = "preload";
     link.as = "image";
     link.href = posterUrl;
     link.setAttribute("fetchpriority", "high");
     link.dataset.copilot = "lcp-poster";
-
     document.head.appendChild(link);
-    return () => {
-      if (link.parentNode) link.parentNode.removeChild(link);
-    };
+    return () => { if (link.parentNode) link.parentNode.removeChild(link); };
   }, [posterUrl]);
 
-  // Combined buffering state including ad manifest filtering time
-  const playerIsBuffering = isBuffering || isFiltering;
+  // Report playback issue (at most once per source)
+  const reportPlaybackIssue = useCallback((reason) => {
+    if (!onPlaybackIssueRef.current || playbackIssueReportedRef.current) return;
+    playbackIssueReportedRef.current = true;
+    onPlaybackIssueRef.current(reason || "playback-issue");
+  }, []);
 
-  // --- Handlers ---
-  const onPlaybackIssueRef = useRef(onPlaybackIssue);
-  useEffect(() => {
-    onPlaybackIssueRef.current = onPlaybackIssue;
-  }, [onPlaybackIssue]);
+  // ─── Build the AdFreeLoader class (proxy chain + ad stripping) ───
+  const buildAdFreeLoader = useCallback((BaseLoader, effectiveSource) => {
+    if (!BaseLoader) return null;
 
-  const reportPlaybackIssue = useCallback(
-    (reason) => {
-      if (!onPlaybackIssueRef.current || playbackIssueReportedRef.current)
-        return;
-      playbackIssueReportedRef.current = true;
-      onPlaybackIssueRef.current(reason || "playback-issue");
-    },
-    [playbackIssueReportedRef]
-  );
-
-  const togglePlay = useCallback(() => {
-    setPlaying((v) => !v);
-    showControls();
-  }, [setPlaying, showControls]);
-
-  const seekBy = useCallback(
-    (seconds) => {
-      const video =
-        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
-      if (!video) return;
-      const newTime = Math.max(
-        0,
-        Math.min(video.currentTime + seconds, video.duration)
-      );
-      video.currentTime = newTime;
-      setProgress(newTime);
-      showControls();
-    },
-    [setProgress, showControls]
-  );
-
-  const handleSeekBar = useCallback(
-    (e) => {
-      if (!containerRef.current || duration <= 0) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const clickedPerc = x / rect.width;
-      const seekTime = clickedPerc * duration;
-
-      const video =
-        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
-      if (video) video.currentTime = seekTime;
-      setProgress(seekTime);
-      showControls();
-    },
-    [duration, setProgress, showControls]
-  );
-
-  const handleVolumeChange = useCallback(
-    (val) => {
-      setVolume(val);
-      setMuted(val === 0);
-      const video =
-        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
-      if (video) video.volume = val;
-    },
-    [setMuted, setVolume]
-  );
-
-  const handleVolumeButton = useCallback(() => {
-    if (window.innerWidth <= 640) {
-      setShowVolumeSlider((v) => !v);
-    } else {
-      setMuted((v) => !v);
-    }
-  }, [setMuted, setShowVolumeSlider]);
-
-  const handleChangePlaybackRate = useCallback(
-    (rate) => {
-      setPlaybackRate(rate);
-      const video =
-        videoRef.current || reactPlayerRef.current?.getInternalPlayer();
-      if (video) video.playbackRate = rate;
-    },
-    [setPlaybackRate]
-  );
-
-  const handleQualityChange = useCallback(
-    (level) => {
-      setCurrentLevel(level);
-      if (hlsRef.current) hlsRef.current.currentLevel = level;
-    },
-    [hlsRef, setCurrentLevel]
-  );
-
-  // Sync play/pause state to native video
-  useEffect(() => {
-    if (!isHls || !videoRef.current) return;
-    const video = videoRef.current;
-    if (playing) {
-      if (video.paused) {
-        video.play().catch(() => setPlaying(false));
-      }
-    } else {
-      if (!video.paused) {
-        video.pause();
-      }
-    }
-  }, [isHls, playing, setPlaying]);
-
-  // Native Video Event Handlers
-  useEffect(() => {
-    if (!isHls || !videoRef.current) return undefined;
-    const video = videoRef.current;
-
-    const onTime = () => {
-      const t = video.currentTime || 0;
-      setProgress(t);
-      lastPositionRef.current = t;
-      if (onTimeUpdate) onTimeUpdate(t, video.duration || 0);
-    };
-
-    const onDuration = () => setDuration(video.duration || 0);
-    const onPlay = () => {
-      setPlaying(true);
-      setIsBuffering(false);
-    };
-    const onPause = () => setPlaying(false);
-    const onBuffer = () => setIsBuffering(true);
-    const onCanPlay = () => setIsBuffering(false);
-    const onError = () => reportPlaybackIssue("video-error");
-
-    video.addEventListener("timeupdate", onTime);
-    video.addEventListener("loadedmetadata", onDuration);
-    video.addEventListener("durationchange", onDuration);
-    video.addEventListener("play", onPlay);
-    video.addEventListener("pause", onPause);
-    video.addEventListener("waiting", onBuffer);
-    video.addEventListener("seeking", onBuffer);
-    video.addEventListener("seeked", onCanPlay);
-    video.addEventListener("canplay", onCanPlay);
-    video.addEventListener("playing", onCanPlay);
-    video.addEventListener("error", onError);
-
-    video.playbackRate = playbackRate;
-
-    return () => {
-      video.removeEventListener("timeupdate", onTime);
-      video.removeEventListener("loadedmetadata", onDuration);
-      video.removeEventListener("durationchange", onDuration);
-      video.removeEventListener("play", onPlay);
-      video.removeEventListener("pause", onPause);
-      video.removeEventListener("waiting", onBuffer);
-      video.removeEventListener("seeking", onBuffer);
-      video.removeEventListener("seeked", onCanPlay);
-      video.removeEventListener("canplay", onCanPlay);
-      video.removeEventListener("playing", onCanPlay);
-      video.removeEventListener("error", onError);
-    };
-  }, [
-    isHls,
-    lastPositionRef,
-    onTimeUpdate,
-    playbackRate,
-    reportPlaybackIssue,
-    setDuration,
-    setIsBuffering,
-    setPlaying,
-    setProgress,
-  ]);
-
-  // Tracking for domains: maps origin -> which proxies have failed
-  // Value: Set<string> containing proxy base URLs that failed (or "direct" for direct)
-  const proxyFailedGlobalDomains = useRef(new Map());
-
-  // Reset state helper
-  const handleReset = useCallback(() => {
-    resetState();
-  }, [resetState]);
-
-  // HLS Instance Management
-  useEffect(() => {
-    if (!source || !isHls || !videoRef.current || !Hls) return undefined;
-
-    // Reset state synchronously when source changes to avoid race conditions
-    handleReset();
-
-    if (isFiltering) return undefined;
-
-    const startOffset = initialTime > 0 ? initialTime : lastPositionRef.current;
-
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-
-    const BaseLoader = Hls.DefaultConfig?.loader;
-    // Per-URL tracking — which proxy was used and failed
-    // Maps originalUrl -> Set of proxy base URLs that failed ("direct" for direct)
-    const urlFailedProxies = new Map();
-    const domainFailedProxies = proxyFailedGlobalDomains.current;
-
-    // Build ordered list of available proxies
     const PROXY_CHAIN = [
       ...(STREAM_PROXY ? [STREAM_PROXY] : []),
       ...(FALLBACK_PROXY && FALLBACK_PROXY !== STREAM_PROXY ? [FALLBACK_PROXY] : []),
     ];
 
-    /**
-     * Get the best proxy for a given origin.
-     * Returns the proxy base URL or null (meaning direct connection).
-     */
+    const domainFailedProxies = new Map();
+    const urlFailedProxies = new Map();
+
     const getBestProxy = (origin) => {
       const domainFailed = origin ? domainFailedProxies.get(origin) : null;
       for (const proxy of PROXY_CHAIN) {
         if (domainFailed && domainFailed.has(proxy)) continue;
         return proxy;
       }
-      return null; // All proxies exhausted — try direct
+      return null;
     };
 
-    /**
-     * Mark a proxy as failed for a given origin.
-     */
     const markProxyFailed = (origin, proxyBase) => {
       if (!origin) return;
-      if (!domainFailedProxies.has(origin)) {
-        domainFailedProxies.set(origin, new Set());
-      }
+      if (!domainFailedProxies.has(origin)) domainFailedProxies.set(origin, new Set());
       domainFailedProxies.get(origin).add(proxyBase);
     };
 
-    const AdFreeLoader = BaseLoader
-      ? class extends BaseLoader {
-          load(context, config, callbacks) {
-            const originalUrl = context.url;
-            let originalOrigin = null;
-            try {
-              if (originalUrl) originalOrigin = new URL(originalUrl).origin;
-            } catch {
-              originalOrigin = null;
+    return class AdFreeLoader extends BaseLoader {
+      load(context, config, callbacks) {
+        const originalUrl = context.url;
+        let originalOrigin = null;
+        try {
+          if (originalUrl) originalOrigin = new URL(originalUrl).origin;
+        } catch { /* ignore */ }
+
+        let activeProxy = null;
+        const alreadyProxied = PROXY_CHAIN.some((p) => context.url.includes(p));
+        if (!alreadyProxied && context.url) {
+          activeProxy = getBestProxy(originalOrigin);
+          if (activeProxy) {
+            context.url = `${activeProxy}?url=${encodeURIComponent(context.url)}`;
+          }
+        }
+
+        const onSuccess = callbacks?.onSuccess;
+        const onError = callbacks?.onError;
+        const wrappedCallbacks = {
+          ...callbacks,
+          onSuccess: (response, stats, ctx, networkDetails) => {
+            let nextResponse = response;
+            if (
+              typeof response?.data === "string" &&
+              (ctx?.type === "manifest" || ctx?.type === "level")
+            ) {
+              try {
+                const filtered = stripAdSegmentsFromPlaylist(
+                  response.data,
+                  response.url || ctx?.url || effectiveSource
+                );
+                if (
+                  typeof filtered === "string" &&
+                  filtered.includes("#EXTM3U") &&
+                  filtered.includes("#EXTINF")
+                ) {
+                  nextResponse = { ...response, data: filtered };
+                }
+              } catch { /* Ignore malformed ad-filtering input */ }
+            }
+            if (onSuccess) onSuccess(nextResponse, stats, ctx, networkDetails);
+          },
+          onError: (error, ctx, networkDetails, stats) => {
+            if (activeProxy && originalUrl) {
+              markProxyFailed(originalOrigin, activeProxy);
+              const nextProxy = getBestProxy(originalOrigin);
+
+              if (nextProxy && nextProxy !== activeProxy) {
+                console.debug(`[HLS] Primary proxy failed for ${originalOrigin}, trying secondary.`);
+                try { this.abort(); } catch { /* ignore */ }
+                const retryLoader = new (this.constructor)(config);
+                const retryContext = { ...context, url: originalUrl };
+                retryLoader.load(retryContext, config, {
+                  ...callbacks,
+                  onSuccess: wrappedCallbacks.onSuccess,
+                });
+                return;
+              }
+
+              const urlFailed = urlFailedProxies.get(originalUrl);
+              if (!urlFailed || !urlFailed.has("direct")) {
+                console.debug(`[HLS] All proxies failed for ${originalOrigin}, trying direct.`);
+                if (!urlFailedProxies.has(originalUrl)) urlFailedProxies.set(originalUrl, new Set());
+                urlFailedProxies.get(originalUrl).add("direct");
+                try { this.abort(); } catch { /* ignore */ }
+                const directLoader = new (this.constructor)(config);
+                const directContext = { ...context, url: originalUrl };
+                directLoader.load(directContext, config, {
+                  ...callbacks,
+                  onSuccess: wrappedCallbacks.onSuccess,
+                });
+                return;
+              }
+            }
+            if (onError) onError(error, ctx, networkDetails, stats);
+          },
+        };
+        super.load(context, config, wrappedCallbacks);
+      }
+    };
+  }, []);
+
+  // ─── Initialize ArtPlayer ───
+  useEffect(() => {
+    // Don't init if iframe source or no DOM mount point
+    if (canUseIframe || !artRef.current) return;
+
+    // For HLS sources, wait until hls.js has been lazy-loaded
+    if (isHls && !Hls) return;
+
+    // StrictMode guard: ignore the second mount in development
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
+    // Reset per-source state
+    playbackIssueReportedRef.current = false;
+
+    const isMobile =
+      /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      window.innerWidth <= 768;
+
+    // ── Build HLS customType ──
+    let customType;
+    if (isHls && Hls && Hls.isSupported()) {
+      customType = {
+        m3u8: (videoEl, url, artObj) => {
+          const BaseLoader = Hls.DefaultConfig?.loader;
+          const AdFreeLoader = buildAdFreeLoader(BaseLoader, url);
+
+          const hls = new Hls({
+            ...hlsConfig,
+            capLevelToPlayerSize: false,
+            ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
+          });
+
+          hlsInstanceRef.current = hls;
+          hls.loadSource(url);
+          hls.attachMedia(videoEl);
+
+          let networkRecoveryAttempts = 0;
+          let mediaRecoveryAttempts = 0;
+
+          hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+            const art = artObj || artInstanceRef.current;
+
+            // Build quality levels list
+            const preferredHeights = [240, 360, 480, 720, 1080];
+            const levels = (data?.levels || [])
+              .map((lvl, idx) => ({ height: lvl.height, level: idx }))
+              .sort((a, b) => (a.height || 0) - (b.height || 0))
+              .filter((lvl) => !lvl.height || preferredHeights.includes(lvl.height));
+
+            const seen = new Set();
+            const unique = [];
+            for (const lvl of levels) {
+              const lbl = lvl.height ? `${lvl.height}p` : "Auto";
+              if (!seen.has(lbl)) { seen.add(lbl); unique.push({ label: lbl, level: lvl.level }); }
             }
 
-            // Determine which proxy to use (if any)
-            let activeProxy = null;
-            const alreadyProxied = PROXY_CHAIN.some((p) => context.url.includes(p));
-            if (!alreadyProxied && context.url) {
-              activeProxy = getBestProxy(originalOrigin);
-              if (activeProxy) {
-                context.url = `${activeProxy}?url=${encodeURIComponent(context.url)}`;
+            if (art) {
+              const qualityConfig = {
+                name: "quality",
+                width: 200,
+                html: "Chất lượng",
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+                tooltip: "Chất lượng",
+                selector: [
+                  { default: true, html: "Tự động", level: -1 },
+                  ...unique.map((q) => ({ html: q.label, level: q.level })),
+                ],
+                onSelect(item) {
+                  hls.currentLevel = item.level;
+                  return item.html;
+                },
+              };
+
+              const addQuality = () => {
+                if (!art.setting) return;
+                const existing = art.setting.settings?.find(s => s.name === "quality");
+                if (existing) {
+                  art.setting.update(qualityConfig);
+                } else {
+                  art.setting.add(qualityConfig);
+                }
+              };
+
+              if (art.isReady) {
+                addQuality();
+              } else {
+                art.on("ready", addQuality);
               }
             }
 
-            const onSuccess = callbacks?.onSuccess;
-            const onError = callbacks?.onError;
-            const wrappedCallbacks = {
-              ...callbacks,
-              onSuccess: (response, stats, ctx, networkDetails) => {
-                let nextResponse = response;
-                if (
-                  typeof response?.data === "string" &&
-                  (ctx?.type === "manifest" || ctx?.type === "level")
-                ) {
-                  try {
-                    const filtered = stripAdSegmentsFromPlaylist(
-                      response.data,
-                      response.url || ctx?.url || source
-                    );
-                    if (
-                      typeof filtered === "string" &&
-                      filtered.includes("#EXTM3U") &&
-                      filtered.includes("#EXTINF")
-                    ) {
-                      nextResponse = {
-                        ...response,
-                        data: filtered,
-                      };
-                    }
-                  } catch {
-                    // Ignore malformed ad-filtering input and keep original playlist.
-                  }
-                }
-                if (onSuccess)
-                  onSuccess(nextResponse, stats, ctx, networkDetails);
-              },
-              onError: (error, ctx, networkDetails, stats) => {
-                // If the request went through a proxy and failed, try the next tier
-                if (activeProxy && originalUrl) {
-                  // Mark this proxy as failed for the domain
-                  markProxyFailed(originalOrigin, activeProxy);
-
-                  // Check what's next in the chain
-                  const nextProxy = getBestProxy(originalOrigin);
-
-                  if (nextProxy && nextProxy !== activeProxy) {
-                    // Tier 2: try fallback proxy
-                    console.debug(
-                      `[HLS] Primary proxy failed for ${originalOrigin}, falling back to secondary proxy.`
-                    );
-                    try { this.abort(); } catch { /* ignore */ }
-                    const retryLoader = new AdFreeLoader(config);
-                    const retryContext = { ...context, url: originalUrl };
-                    retryLoader.load(retryContext, config, {
-                      ...callbacks,
-                      onSuccess: wrappedCallbacks.onSuccess,
-                    });
-                    return;
-                  }
-
-                  // Tier 3: try direct connection as last resort
-                  const urlFailed = urlFailedProxies.get(originalUrl);
-                  if (!urlFailed || !urlFailed.has("direct")) {
-                    console.debug(
-                      `[HLS] All proxies failed for ${originalOrigin}, trying direct connection.`
-                    );
-                    if (!urlFailedProxies.has(originalUrl)) {
-                      urlFailedProxies.set(originalUrl, new Set());
-                    }
-                    urlFailedProxies.get(originalUrl).add("direct");
-
-                    try { this.abort(); } catch { /* ignore */ }
-                    const directLoader = new AdFreeLoader(config);
-                    const directContext = { ...context, url: originalUrl };
-                    directLoader.load(directContext, config, {
-                      ...callbacks,
-                      onSuccess: wrappedCallbacks.onSuccess,
-                    });
-                    return;
-                  }
-                }
-                if (onError) onError(error, ctx, networkDetails, stats);
-              },
-            };
-
-            super.load(context, config, wrappedCallbacks);
-          }
-        }
-      : null;
-
-    let hlsConfigOpts = {
-      ...hlsConfig,
-      capLevelToPlayerSize: false,
-      ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
-    };
-
-    const hls = new Hls(hlsConfigOpts);
-    hlsRef.current = hls;
-    hls.loadSource(effectiveSource);
-    hls.attachMedia(videoRef.current);
-
-    hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-      const preferredHeights = [320, 480, 720, 1080];
-      const levels = (data?.levels || [])
-        .map((lvl, idx) => ({ height: lvl.height, level: idx }))
-        .sort((a, b) => (a.height || 0) - (b.height || 0))
-        .map((lvl) => ({
-          label: lvl.height ? `${lvl.height}p` : "Auto",
-          level: lvl.level,
-        }))
-        .filter((lvl) => !lvl.height || preferredHeights.includes(lvl.height));
-
-      const uniqueByHeight = [];
-      const seen = new Set();
-      for (const lvl of levels) {
-        if (!seen.has(lvl.label)) {
-          seen.add(lvl.label);
-          uniqueByHeight.push(lvl);
-        }
-      }
-
-      setQualityLevels([{ level: -1, label: "Tự động" }, ...uniqueByHeight]);
-      setCurrentLevel(-1);
-
-      if (startOffset > 0) {
-        videoRef.current.currentTime = startOffset;
-        initialTimeConsumed.current = true;
-      }
-
-      // Handle auto-play if already set to true
-      const video = videoRef.current;
-      if (video && playingRef.current && video.paused) {
-        video.play().catch(() => setPlaying(false));
-      }
-    });
-
-    hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) =>
-      setCurrentLevel(data.level)
-    );
-
-    let networkRecoveryAttempts = 0;
-    let mediaRecoveryAttempts = 0;
-
-    hls.on(Hls.Events.ERROR, (event, data) => {
-      if (!data.fatal) return;
-
-      switch (data.type) {
-        case Hls.ErrorTypes.NETWORK_ERROR:
-          networkRecoveryAttempts += 1;
-          if (
-            data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
-            data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
-            data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR
-          ) {
-            reportPlaybackIssue("manifest-error");
-            break;
-          }
-          if (networkRecoveryAttempts <= 5) {
-            setTimeout(() => {
-              if (hlsRef.current) hls.startLoad();
-            }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
-          } else {
-            reportPlaybackIssue("network-timeout");
-            const currentPos =
-              videoRef.current?.currentTime || lastPositionRef.current;
-            networkRecoveryAttempts = 0;
-            hls.loadSource(effectiveSource);
-            if (currentPos > 0) {
-              hls.once(Hls.Events.MANIFEST_PARSED, () => {
-                if (videoRef.current) videoRef.current.currentTime = currentPos;
-              });
+            // Seek to initial time
+            const startOffset = lastPositionRef.current;
+            if (startOffset > 0 && videoEl) {
+              videoEl.currentTime = startOffset;
             }
-          }
-          break;
-        case Hls.ErrorTypes.MEDIA_ERROR:
-          mediaRecoveryAttempts += 1;
-          if (mediaRecoveryAttempts <= 2) {
-            hls.recoverMediaError();
-          } else {
-            hls.swapAudioCodec();
-            hls.recoverMediaError();
-            mediaRecoveryAttempts = 0;
-          }
-          break;
-        default:
-          reportPlaybackIssue("fatal-hls");
-          hls.destroy();
-          hlsRef.current = null;
-          break;
+          });
+
+          hls.on(Hls.Events.ERROR, (_, data) => {
+            if (!data.fatal) return;
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                networkRecoveryAttempts += 1;
+                if (
+                  data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                  data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+                  data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR
+                ) {
+                  reportPlaybackIssue("manifest-error");
+                  break;
+                }
+                if (networkRecoveryAttempts <= 5) {
+                  setTimeout(
+                    () => { if (hlsInstanceRef.current) hls.startLoad(); },
+                    Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000)
+                  );
+                } else {
+                  reportPlaybackIssue("network-timeout");
+                  networkRecoveryAttempts = 0;
+                  hls.loadSource(url);
+                }
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                mediaRecoveryAttempts += 1;
+                if (mediaRecoveryAttempts <= 2) {
+                  hls.recoverMediaError();
+                } else {
+                  hls.swapAudioCodec();
+                  hls.recoverMediaError();
+                  mediaRecoveryAttempts = 0;
+                }
+                break;
+              default:
+                reportPlaybackIssue("fatal-hls");
+                hls.destroy();
+                hlsInstanceRef.current = null;
+            }
+          });
+        },
+      };
+    }
+
+    // Header HTML layer
+    const headerHtml = `
+      <div id="art-header-layer" style="
+        pointer-events:none;
+        background:linear-gradient(to bottom,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.3) 45%,transparent 100%);
+        padding:12px 16px;
+        display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+        width:100%;box-sizing:border-box;
+      ">
+        <div style="overflow:hidden">
+          ${title ? `<p style="margin:0;font-size:13px;font-weight:600;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:480px">${title}</p>` : ""}
+          ${subtitle ? `<p style="margin:4px 0 0;font-size:11px;color:rgba(255,255,255,0.85);text-shadow:0 2px 6px rgba(0,0,0,1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:480px">${subtitle}</p>` : ""}
+        </div>
+      </div>`;
+
+    // ── ArtPlayer options ──
+    const option = {
+      container: artRef.current,
+      url: source || "",
+      type: isHls ? "m3u8" : undefined,
+      poster: posterUrl || undefined,
+      volume: 0.8,
+      autoplay: true,
+      pip: true,
+      fullscreen: true,
+      fullscreenWeb: false,
+      playbackRate: true,
+      setting: true,
+      hotkey: true,
+      theme: "#10b981",
+      lang: "vi",
+      muted: false,
+      autoSize: false,
+      aspectRatio: false,
+      lock: isMobile,
+      fastForward: isMobile,
+      autoPlayback: false,
+      airplay: true,
+      playsInline: true,
+      controls: [
+        // Seek backward 10s (left side, after play button)
+        {
+          position: "left",
+          index: 11,
+          html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path style="fill:transparent!important;" d="M3 3v5h5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
+          tooltip: "Lùi 10 giây",
+          click: (art) => {
+            art.backward = 10;
+          },
+        },
+        // Seek forward 10s (left side, after backward button)
+        {
+          position: "left",
+          index: 12,
+          html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path style="fill:transparent!important;" d="M21 3v5h-5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
+          tooltip: "Tiến 10 giây",
+          click: (art) => {
+            art.forward = 10;
+          },
+        },
+        // Theater mode button (desktop only)
+        ...(onToggleTheater && !isMobile
+          ? [
+            {
+              position: "right",
+              index: 15,
+              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
+              tooltip: theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim",
+              click: () => { if (onToggleTheater) onToggleTheater(); },
+            },
+          ]
+          : []),
+        // Next Episode button
+        ...(onNextEpisode && hasNextEpisode
+          ? [
+            {
+              position: "right",
+              index: 20,
+              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
+              tooltip: "Tập tiếp theo",
+              click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
+            },
+          ]
+          : []),
+      ],
+      layers: [
+        {
+          name: "header",
+          html: headerHtml,
+          style: {
+            position: "absolute",
+            top: "0",
+            left: "0",
+            right: "0",
+            pointerEvents: "none",
+            opacity: "0",
+            transition: "opacity 0.3s ease",
+          },
+        },
+      ],
+      customType: customType || undefined,
+    };
+
+    // Remove undefined keys to avoid ArtPlayer validation errors
+    if (!customType) delete option.customType;
+    if (!option.type) delete option.type;
+    if (!option.poster) delete option.poster;
+
+
+    let art;
+    try {
+      art = new Artplayer(option);
+      artInstanceRef.current = art;
+    } catch (err) {
+      console.error("[Player] ArtPlayer init error:", err);
+      mountedRef.current = false;
+      return;
+    }
+
+    // Show/hide header layer with controls visibility
+    art.on("ready", () => {
+      const layer = art.template?.$player?.querySelector?.("#art-header-layer");
+      if (layer) {
+        const parentLayer = layer.closest(".art-layer");
+        if (parentLayer) {
+          parentLayer.style.opacity = "1";
+        }
+        art.on("controls:show", () => {
+          if (parentLayer) parentLayer.style.opacity = "1";
+        });
+        art.on("controls:hide", () => {
+          if (parentLayer) parentLayer.style.opacity = "0";
+        });
+      }
+
+      // Note: Custom hotkeys (F, Space, Arrows) are now handled by a global document listener
+      // defined below using a separate useEffect, ensuring they work regardless of focus.
+    });
+
+    // Track time progress
+    art.on("video:timeupdate", () => {
+      const video = art.video;
+      if (!video) return;
+      const t = video.currentTime || 0;
+      const d = video.duration || 0;
+      lastPositionRef.current = t;
+      if (onTimeUpdateRef.current) onTimeUpdateRef.current(t, d);
+    });
+
+    // Video ended → auto jump to next episode without overlay
+    art.on("video:ended", () => {
+      if (hasNextEpisode && onNextEpisodeRef.current) {
+        onNextEpisodeRef.current();
       }
     });
 
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      setQualityLevels([]);
-      setCurrentLevel(-1);
-    };
-  }, [
-    effectiveSource,
-    handleReset,
-    hlsConfig,
-    Hls,
-    hlsRef,
-    initialTime,
-    initialTimeConsumed,
-    isFiltering,
-    isHls,
-    lastPositionRef,
-    playingRef,
-    reportPlaybackIssue,
-    setCurrentLevel,
-    setPlaying,
-    setQualityLevels,
-    source,
-  ]);
-
-  // Sync Fullscreen state
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(
-        !!(
-          document.fullscreenElement ||
-          document.webkitFullscreenElement ||
-          document.mozFullScreenElement ||
-          document.msFullscreenElement
-        )
-      );
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
-    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    // Error reporting
+    art.on("video:error", () => reportPlaybackIssue("video-error"));
 
     return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+      mountedRef.current = false;
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
+        hlsInstanceRef.current = null;
+      }
+      if (artInstanceRef.current) {
+        artInstanceRef.current.destroy(false);
+        artInstanceRef.current = null;
+      }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, Hls, isHls, canUseIframe]);
 
-  // External Controls / Fullscreen
-  const handleFullscreen = useCallback(() => {
-    const container = containerRef.current;
-    const video = videoRef.current || reactPlayerRef.current?.getInternalPlayer();
-    if (!container) return;
-
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      if (container.requestFullscreen) {
-        container.requestFullscreen().catch(() => {});
-      } else if (container.webkitRequestFullscreen) {
-        container.webkitRequestFullscreen();
-      } else if (video && video.webkitEnterFullscreen) {
-        video.webkitEnterFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      }
-    }
-  }, []);
-
-  const togglePip = useCallback(() => {
-    const video = videoRef.current || reactPlayerRef.current?.getInternalPlayer();
-    if (!video) return;
-
-    try {
-      if (document.pictureInPictureElement) {
-        document.exitPictureInPicture()
-          .then(() => setIsFullscreen(false))
-          .catch(err => console.error("Exit PiP error", err));
-      } else if (video.requestPictureInPicture) {
-        video.requestPictureInPicture()
-          .catch(err => console.error("Request PiP error", err));
-      } else if (video.webkitSupportsPresentationMode && typeof video.webkitSetPresentationMode === "function") {
-        const mode = video.webkitPresentationMode === "picture-in-picture" ? "inline" : "picture-in-picture";
-        video.webkitSetPresentationMode(mode);
-      } else if (video.webkitEnterPictureInPicture) {
-        video.webkitEnterPictureInPicture();
-      }
-    } catch (e) {
-      console.error("Critical PiP error", e);
-    }
-  }, []);
-
-  // Utility to handle clicks on the container (toggle play)
-  const handleContainerClick = useCallback(
-    (e) => {
-      if (ignoreNextClickRef.current) return;
-      if (e.target.closest("[data-control]")) return;
-      togglePlay();
-    },
-    [togglePlay]
-  );
-
-  // Keyboard Shortcuts
+  // When source changes (e.g. episode switch), reset state
+  // Note: mountedRef reset happens in the cleanup of the main useEffect
   useEffect(() => {
-    const isTypingTarget = (target) => {
-      if (!target) return false;
-      if (target.isContentEditable) return true;
-      const tag = target.tagName?.toLowerCase?.();
-      if (!tag) return false;
-      return tag === "input" || tag === "textarea" || tag === "select";
-    };
+    playbackIssueReportedRef.current = false;
+    lastPositionRef.current =
+      typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0;
+  }, [source, initialTime]);
 
-    const handler = (e) => {
-      if (isTypingTarget(e.target)) return;
-      if (e.key === "ArrowLeft") {
+  // Global hotkeys (Space, F, Left, Right)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // Do not trigger if user is typing in an input, textarea, or contenteditable
+      const target = e.target;
+      if (
+        target &&
+        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const art = artInstanceRef.current;
+      if (!art || !art.isReady) return;
+
+      if (e.code === 'Space') {
         e.preventDefault();
-        seekBy(-SEEK_STEP);
-      } else if (e.key === "ArrowRight") {
+        art.toggle();
+      } else if (e.code === 'KeyF') {
         e.preventDefault();
-        seekBy(SEEK_STEP);
-      } else if (e.code === "Space") {
+        art.fullscreen = !art.fullscreen;
+      } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        togglePlay();
-      } else if (e.key.toLowerCase() === "f") {
+        art.backward = 10;
+      } else if (e.code === 'ArrowRight') {
         e.preventDefault();
-        handleFullscreen();
+        art.forward = 10;
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [seekBy, togglePlay, handleFullscreen]);
 
-  // UI Components
-  const overlay = (
-    <div
-      className="absolute inset-0 z-20 transition-opacity duration-300"
-      style={{
-        opacity: controlsVisible ? 1 : 0,
-        pointerEvents: controlsVisible ? "auto" : "none",
-      }}
-    >
-      <div className="absolute inset-x-0 top-0">
-        <PlayerHeader
-          title={title}
-          subtitle={subtitle}
-          actionSlot={actionSlot}
-          isFullscreen={isFullscreen}
-        />
-      </div>
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
-      {!canUseIframe && (
-        <div
-          className="absolute inset-x-0 bottom-0 pointer-events-auto bg-gradient-to-t from-black/95 via-black/40 to-transparent pt-6 pb-2.5 sm:pb-5 px-2.5 sm:px-5 space-y-2 sm:space-y-4"
-          data-control
-        >
-          <ProgressBar
-            progress={progress}
-            duration={duration}
-            onSeek={handleSeekBar}
-          />
-          <PlayerControls
-            playing={playing}
-            togglePlay={togglePlay}
-            onSeekBy={seekBy}
-            onNextEpisode={onNextEpisode}
-            hasNextEpisode={hasNextEpisode}
-            volume={volume}
-            muted={muted}
-            onVolumeChange={handleVolumeChange}
-            onToggleMute={handleVolumeButton}
-            showVolumeSlider={showVolumeSlider}
-            setShowVolumeSlider={setShowVolumeSlider}
-            showMoreMenu={showMoreMenu}
-            setShowMoreMenu={setShowMoreMenu}
-            playbackRate={playbackRate}
-            onPlaybackRateChange={handleChangePlaybackRate}
-            isHls={isHls}
-            qualityLevels={qualityLevels}
-            currentLevel={currentLevel}
-            onQualityChange={handleQualityChange}
-            onTogglePip={togglePip}
-            onToggleTheater={onToggleTheater}
-            theaterMode={theaterMode}
-            onFullscreen={handleFullscreen}
-            isFullscreen={isFullscreen}
-          />
-        </div>
-      )}
-    </div>
-  );
+  // ── Theater mode container classes ──
+  const containerClass = `relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 ${theaterMode
+      ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
+      : "z-10 rounded-2xl border border-white/10"
+    }`;
 
-  return (
-    <div
-      ref={containerRef}
-      className={`relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 ${
-        theaterMode && !isFullscreen
-          ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
-          : "z-10 rounded-2xl border border-white/10"
-      }`}
-      style={{
-        height: isFullscreen ? "100vh" : undefined,
-        aspectRatio: isFullscreen ? "unset" : "16 / 9",
-      }}
-      onClick={handleContainerClick}
-      onMouseMove={handleUserActivity}
-      onTouchStart={handleUserActivity}
-    >
-      {isHls ? (
-        <>
-          <video
-            ref={videoRef}
-            poster={posterUrl || undefined}
-            preload="auto"
-            playsInline
-            webkit-playsinline="true"
-            x5-playsinline="true"
-            className="player-native h-full w-full object-contain"
-            autoPlay
-            controls={false}
-            disablePictureInPicture={false}
-            controlsList="nodownload noremoteplayback noplaybackrate"
-          />
-        </>
-      ) : canUseIframe ? (
+  // ── Iframe source ──
+  if (canUseIframe) {
+    return (
+      <div
+        className={containerClass}
+        style={{ aspectRatio: "16 / 9" }}
+      >
         <iframe
           title="player"
           src={source}
           className="h-full w-full"
           allowFullScreen
-          onLoad={() => setIsBuffering(false)}
         />
-      ) : (
-        <Suspense fallback={<BufferingOverlay isBuffering={true} />}>
-          <ReactPlayer
-            ref={reactPlayerRef}
-            url={effectiveSource}
-            playing={playing}
-            controls={false}
-            volume={muted ? 0 : volume}
-            muted={muted}
-            playbackRate={playbackRate}
-            width="100%"
-            height="100%"
-            light={posterUrl || poster}
-            onClickPreview={() => {
-              ignoreNextClickRef.current = true;
-              setPlaying(true);
-              showControls();
-              setTimeout(() => {
-                ignoreNextClickRef.current = false;
-              }, 0);
-            }}
-            onDuration={setDuration}
-            onProgress={({ playedSeconds }) => setProgress(playedSeconds)}
-            onPlay={() => {
-              setPlaying(true);
-              setIsBuffering(false);
-            }}
-            onPause={() => setPlaying(false)}
-            onReady={() => setIsBuffering(false)}
-            onBuffer={() => setIsBuffering(true)}
-            onBufferEnd={() => setIsBuffering(false)}
-            onError={() => reportPlaybackIssue("react-player-error")}
-          />
-        </Suspense>
+      </div>
+    );
+  }
+
+  // ── ArtPlayer ──
+  return (
+    <div
+      className={containerClass}
+      style={{ aspectRatio: "16 / 9" }}
+    >
+      {/* ArtPlayer mount target — must have explicit height */}
+      <div
+        ref={artRef}
+        style={{ width: "100%", height: "100%", display: "block" }}
+      />
+
+      {/* Action slot (e.g. admin buttons) */}
+      {actionSlot && (
+        <div className="absolute top-3 right-3 z-40 pointer-events-auto" data-control>
+          {actionSlot}
+        </div>
       )}
 
-      {overlay}
-      <BufferingOverlay isBuffering={playerIsBuffering} />
+      {/* Responsive control bar optimization */}
+      <style>
+        {`
+          /* Tablet and Mobile Adjustments (Desktop remains default) */
+          @media (max-width: 768px) {
+            /* Overall adjustments to prevent pushing out of frame */
+            .art-bottom {
+              white-space: nowrap !important;
+              width: 100% !important;
+              box-sizing: border-box !important;
+              overflow: hidden !important;
+              padding-right: 4px !important;
+              padding-left: 4px !important;
+            }
+            .art-controls-left, .art-controls-right {
+              display: flex !important;
+              align-items: center !important;
+              flex-shrink: 1 !important;
+              min-width: 0 !important;
+            }
+            /* Force all controls to not have fixed large widths/margins naturally */
+            .art-bottom .art-control {
+              min-width: 0 !important;
+              margin: 0 !important;
+              padding: 0 4px !important;
+            }
+            .art-bottom .art-control svg {
+              width: 18px !important;
+              height: 18px !important;
+            }
+            .art-bottom .custom-10s-btn svg {
+              width: 18px !important;
+              height: 18px !important;
+            }
+            .art-bottom .custom-10s-btn span {
+              font-size: 8px !important;
+            }
+            .art-bottom .art-control-time {
+              font-size: 10px !important;
+              padding: 0 4px !important;
+            }
+          }
+
+          /* Mobile L */
+          @media (max-width: 480px) {
+            .art-bottom .art-control {
+              padding: 0 2px !important;
+            }
+            .art-bottom .art-control svg {
+              width: 16px !important;
+              height: 16px !important;
+            }
+            .art-bottom .custom-10s-btn svg {
+              width: 16px !important;
+              height: 16px !important;
+            }
+            .art-bottom .custom-10s-btn span {
+              font-size: 7.5px !important;
+            }
+            .art-bottom .art-control-time {
+              font-size: 9px !important;
+              padding: 0 2px !important;
+              letter-spacing: -0.5px !important;
+            }
+            .art-bottom {
+              padding-right: 2px !important;
+              padding-left: 2px !important;
+            }
+          }
+
+          /* Mobile S */
+          @media (max-width: 360px) {
+            .art-bottom .art-control {
+              padding: 0 1px !important;
+            }
+            .art-bottom .art-control svg {
+              width: 14px !important;
+              height: 14px !important;
+            }
+            .art-bottom .custom-10s-btn svg {
+              width: 14px !important;
+              height: 14px !important;
+            }
+            .art-bottom .custom-10s-btn span {
+              font-size: 6px !important;
+            }
+            .art-bottom .art-control-time {
+              font-size: 8px !important;
+              letter-spacing: -1px !important;
+              padding: 0 1px !important;
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };

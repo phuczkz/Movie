@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { STREAM_PROXY, stripAdSegmentsFromPlaylist } from "../utils/hlsUtils";
+import { STREAM_PROXY, FALLBACK_PROXY, stripAdSegmentsFromPlaylist } from "../utils/hlsUtils";
 
 /**
  * Hook to handle HLS library loading, manifest filtering for ad-stripping,
@@ -78,12 +78,38 @@ export const useHlsHandler = (source, isHls) => {
     const fetchAndFilter = async () => {
       setIsFiltering(true);
       try {
-        const fetchUrl = STREAM_PROXY
-          ? `${STREAM_PROXY}?url=${encodeURIComponent(source)}`
-          : source;
-        const res = await fetch(fetchUrl);
-        const text = await res.text();
+        let fetchSuccess = false;
+        let text = "";
+
+        // Chain of URLs to attempt
+        const urlsToTry = [
+          STREAM_PROXY ? `${STREAM_PROXY}?url=${encodeURIComponent(source)}` : null,
+          FALLBACK_PROXY && FALLBACK_PROXY !== STREAM_PROXY ? `${FALLBACK_PROXY}?url=${encodeURIComponent(source)}` : null,
+          source // Direct connection fallback
+        ].filter(Boolean);
+
+        for (const url of urlsToTry) {
+          try {
+            const res = await fetch(url);
+            if (res.ok) {
+              const resText = await res.text();
+              // Check if the response actually looks like an m3u8 playlist to avoid parsing JSON errors
+              if (resText.includes("#EXTM3U") || resText.includes("#EXTINF")) {
+                text = resText;
+                fetchSuccess = true;
+                break;
+              }
+            }
+          } catch {
+            // Ignore fetch errors to try the next fallback
+          }
+        }
+
         if (cancelled) return;
+
+        if (!fetchSuccess) {
+          throw new Error("All proxies and direct connection failed to load valid master playlist.");
+        }
 
         const filtered = stripAdSegmentsFromPlaylist(text, source);
         const blob = new Blob([filtered], {
