@@ -60,9 +60,10 @@ const Player = ({
 
   const { Hls, hlsConfig } = useHlsHandler(source, isHls);
 
-  // Optimized poster URL via wsrv.nl
+  // Optimized poster URL via wsrv.nl (only for absolute URLs)
   const posterUrl = useMemo(() => {
     if (!poster) return null;
+    if (!poster.startsWith("http")) return poster;
     return `https://wsrv.nl/?url=${encodeURIComponent(poster)}&w=800&output=webp&q=75`;
   }, [poster]);
 
@@ -364,7 +365,7 @@ const Player = ({
       type: isHls ? "m3u8" : undefined,
       poster: posterUrl || undefined,
       volume: 0.8,
-      autoplay: true,
+      autoplay: false,
       pip: true,
       fullscreen: true,
       fullscreenWeb: false,
@@ -603,6 +604,11 @@ const Player = ({
       {/* Responsive control bar optimization */}
       <style>
         {`
+          /* Darken poster */
+          .art-poster {
+            filter: brightness(0.4) contrast(1.1) !important;
+          }
+
           /* Tablet and Mobile Adjustments (Desktop remains default) */
           @media (max-width: 768px) {
             /* Overall adjustments to prevent pushing out of frame */

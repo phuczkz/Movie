@@ -701,7 +701,7 @@ const Watch = () => {
         ) : (
           <Player
             source={activeSource}
-            poster={movie?.thumb_url || movie?.poster_url}
+            poster="/anime_player_poster.png"
             title={movie?.name}
             subtitle={
               activeEpisode?.name
