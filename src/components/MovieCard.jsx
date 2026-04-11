@@ -43,7 +43,7 @@ const MovieCard = ({ movie, priority = false }) => {
   // Điều này giúp dành toàn bộ băng thông cho việc tải ảnh Poster trước
   useEffect(() => {
     if (shouldLoad || priority) {
-      const timer = setTimeout(() => setApiReady(true), 800);
+      const timer = setTimeout(() => setApiReady(true), 500);
       return () => clearTimeout(timer);
     }
   }, [shouldLoad, priority]);
@@ -71,18 +71,6 @@ const MovieCard = ({ movie, priority = false }) => {
       return `${formatEp(latestFromList)}`;
     }
 
-    // const raw = (movie?.episode_current || "")
-    //   .replace(/hoàn tất\s*/gi, "")
-    //   .trim();
-    // const parsedRaw = parseEpisodeNumber(raw);
-
-    // if (Number.isFinite(parsedRaw)) {
-    //   if (Number.isFinite(epTotal) && epTotal > 0)
-    //     return `${formatEp(parsedRaw)}/${epTotal}`;
-    //   return `${formatEp(parsedRaw)}`;
-    // }
-
-    // return raw || "Full";
   })();
 
   const audioBadges = useMemo(() => {
@@ -160,9 +148,8 @@ const MovieCard = ({ movie, priority = false }) => {
           ref={imgRef}
           src={posterSrc}
           alt={movie.name}
-          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"
+            }`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           // Tăng mức độ ưu tiên tải cho các card quan trọng
@@ -183,13 +170,12 @@ const MovieCard = ({ movie, priority = false }) => {
               <div
                 key={badge.key}
                 title={badge.label}
-                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${
-                  badge.code === "PĐ"
+                className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
                     ? "bg-slate-600/90 text-white backdrop-blur-md"
                     : badge.code === "TM"
-                    ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
-                    : "bg-sky-500/90 text-white backdrop-blur-md"
-                }`}
+                      ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
+                      : "bg-sky-500/90 text-white backdrop-blur-md"
+                  }`}
               >
                 <span>
                   {badge.code}.{episodeText}

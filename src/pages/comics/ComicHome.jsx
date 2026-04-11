@@ -12,8 +12,50 @@ export default function ComicHome() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["comicHome", page],
-    // Sử dụng getList với slug 'truyen-moi' để có dữ liệu phân trang thay vì getHome
-    queryFn: () => comicApi.getList("truyen-moi", page),
+    queryFn: async () => {
+      // Fetch 5 API pages to consolidate into 1 UI page to ensure we have enough content with chapters
+      const pagesToFetch = 5;
+      const startPage = (page - 1) * pagesToFetch + 1;
+      
+      const responses = await Promise.allSettled(
+        Array.from({ length: pagesToFetch }, (_, i) => 
+          comicApi.getList("truyen-moi", startPage + i)
+        )
+      );
+
+      const items = [];
+      let totalPagesApi = 0;
+      let totalItemsApi = 0;
+
+      responses.forEach((res, idx) => {
+        if (res.status === "fulfilled" && res.value?.data) {
+          const pageItems = res.value.data.items || [];
+          items.push(...pageItems);
+          if (idx === 0) {
+            totalItemsApi = res.value.data.params?.pagination?.totalItems || 0;
+            const itemsPerPage = res.value.data.params?.pagination?.totalItemsPerPage || 24;
+            totalPagesApi = Math.ceil(totalItemsApi / itemsPerPage);
+          }
+        }
+      });
+
+      // Filter: Only include comics that have actual chapters
+      const filteredItems = items.filter(
+        (comic) => comic.chaptersLatest && comic.chaptersLatest.length > 0
+      );
+
+      return {
+        data: {
+          items: filteredItems,
+          params: {
+            pagination: {
+              totalItems: totalItemsApi,
+              totalPages: Math.ceil(totalPagesApi / pagesToFetch),
+            },
+          },
+        },
+      };
+    },
     keepPreviousData: true,
     staleTime: 5 * 60 * 1000,
   });
@@ -36,9 +78,7 @@ export default function ComicHome() {
 
   const items = data?.data?.items || [];
   const pagination = data?.data?.params?.pagination;
-  const totalItems = pagination?.totalItems || 0;
-  const itemsPerPage = pagination?.totalItemsPerPage || 20;
-  const totalPages = pagination?.totalPages || Math.ceil(totalItems / itemsPerPage);
+  const totalPages = pagination?.totalPages || 1;
   const hasNext = totalPages > page;
 
   const handlePageChange = (newPage) => {
@@ -62,7 +102,7 @@ export default function ComicHome() {
           )}
         </div>
         
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 xl:gap-6">
+        <div className="grid-movies">
           {items.map((comic) => (
             <ComicCard key={comic._id} comic={comic} />
           ))}

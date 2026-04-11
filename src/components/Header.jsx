@@ -24,11 +24,12 @@ const moviePrimaryNav = [
 ];
 
 const movieYearOptions = [
+  { label: "2026", to: "/search?q=2026" },
   { label: "2025", to: "/search?q=2025" },
   { label: "2024", to: "/search?q=2024" },
   { label: "2023", to: "/search?q=2023" },
   { label: "2022", to: "/search?q=2022" },
-  { label: "Trước 2022", to: "/search?q=2010-2021" },
+  // { label: "Trước 2022", to: "/search?q=2010-2021" },
 ];
 
 const movieGenreOptions = [
@@ -98,18 +99,16 @@ const Dropdown = ({ label, options, isWide = false }) => {
       </button>
       {open && (
         <div
-          className={`absolute z-30 mt-2 pt-1 ${
-            isWide
-              ? "fixed inset-x-4 lg:absolute lg:-right-40 lg:left-auto lg:translate-x-0 lg:w-[800px] xl:w-[1100px] 2xl:w-[1250px]"
-              : "left-1/2 -translate-x-1/2 w-48"
-          }`}
+          className={`absolute z-30 mt-2 pt-1 ${isWide
+            ? "fixed inset-x-4 lg:absolute lg:-right-40 lg:left-auto lg:translate-x-0 lg:w-[800px] xl:w-[1100px] 2xl:w-[1250px]"
+            : "left-1/2 -translate-x-1/2 w-48"
+            }`}
         >
           <div
-            className={`rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-4 custom-scrollbar overflow-y-auto ${
-              isWide
-                ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-x-2 gap-y-1 max-h-[350px]"
-                : "space-y-1 max-h-[400px]"
-            }`}
+            className={`rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-4 custom-scrollbar overflow-y-auto ${isWide
+              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-x-2 gap-y-1 max-h-[350px]"
+              : "space-y-1 max-h-[400px]"
+              }`}
           >
             {options.map((item) => (
               <Link
@@ -198,14 +197,32 @@ const Header = () => {
     setSearchOpen(false);
   };
 
+  const [isHidden, setIsHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 40);
+      const currentScrollY = window.scrollY;
+      setScrolled(currentScrollY > 40);
+
+      const isReadingComic = location.pathname.includes("/comics/chapter/");
+
+      if (isReadingComic) {
+        if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+          setIsHidden(true);
+        } else if (currentScrollY < lastScrollY.current) {
+          setIsHidden(false);
+        }
+      } else {
+        setIsHidden(false);
+      }
+
+      lastScrollY.current = currentScrollY;
     };
     handleScroll();
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [location.pathname]);
 
   const isComicMode = appMode === "comic";
   const primaryNav = isComicMode ? comicPrimaryNav : moviePrimaryNav;
@@ -223,11 +240,11 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${
-        showTransparent
+      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${isHidden ? "-translate-y-full" : "translate-y-0"
+        } ${showTransparent
           ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
           : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
-      }`}
+        }`}
     >
       {/* Mobile top bar */}
       <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
@@ -242,16 +259,6 @@ const Header = () => {
           {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
 
-        {/* <Link
-          to="/"
-          onClick={closeAll}
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 text-white"
-        >
-          <span className="rounded-lg bg-white/10 px-3 py-2 text-base font-bold tracking-tight shadow-lg shadow-black/40">
-            KhoPhim
-          </span>
-        </Link> */}
-
         <div className="flex items-center gap-2">
           {/* Mobile Toggle Button */}
           <button
@@ -261,9 +268,8 @@ const Header = () => {
               else navigate("/");
             }}
             className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
-            title={`Chuyển sang ${
-              appMode === "movie" ? "MangaHub" : "Xem Phim"
-            }`}
+            title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"
+              }`}
           >
             {appMode === "movie" ? (
               <BookOpen className="h-5 w-5 text-purple-400" />
@@ -334,8 +340,7 @@ const Header = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${
-                  isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
+                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
                 }`
               }
             >

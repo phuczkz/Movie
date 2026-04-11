@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { db } from "../../firebase.config";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { comicApi } from "../../api/comicApi";
 
 export default function ComicReader() {
   const { chapterId } = useParams();
@@ -12,8 +13,16 @@ export default function ComicReader() {
   const location = useLocation();
 
   const fetchUrl = decodeURIComponent(chapterId);
-  const { chapters, slug, thumb_url } = location.state || {}; // Add thumb_url if available
+  const { chapters: stateChapters, slug, thumb_url } = location.state || {}; // Add thumb_url if available
   const { user } = useAuth();
+  
+  const { data: detailData } = useQuery({
+    queryKey: ["comicDetail", slug],
+    queryFn: () => comicApi.getDetail(slug),
+    enabled: !stateChapters && !!slug,
+  });
+
+  const chapters = stateChapters || detailData?.data?.item?.chapters?.[0]?.server_data || null;
 
   const [eraserMode, setEraserMode] = useState(false);
   const [blurBoxes, setBlurBoxes] = useState([]);
@@ -32,18 +41,18 @@ export default function ComicReader() {
   }, []);
 
   const currentChapterIndex = chapters?.findIndex(c => c.chapter_api_data === fetchUrl);
-  const hasPrev = currentChapterIndex !== undefined && currentChapterIndex > 0;
+  const hasPrev = currentChapterIndex !== undefined && currentChapterIndex !== -1 && currentChapterIndex > 0;
   const hasNext = currentChapterIndex !== undefined && currentChapterIndex !== -1 && currentChapterIndex < chapters.length - 1;
 
   const handlePrev = () => {
     if (hasPrev) {
-      navigate(`/comics/chapter/${encodeURIComponent(chapters[currentChapterIndex - 1].chapter_api_data)}`, { state: location.state });
+      navigate(`/comics/chapter/${encodeURIComponent(chapters[currentChapterIndex - 1].chapter_api_data)}`, { state: { ...location.state, chapters } });
     }
   };
 
   const handleNext = () => {
     if (hasNext) {
-      navigate(`/comics/chapter/${encodeURIComponent(chapters[currentChapterIndex + 1].chapter_api_data)}`, { state: location.state });
+      navigate(`/comics/chapter/${encodeURIComponent(chapters[currentChapterIndex + 1].chapter_api_data)}`, { state: { ...location.state, chapters } });
     }
   };
 
@@ -59,6 +68,31 @@ export default function ComicReader() {
       return res.json();
     },
   });
+
+  const activeChapterRef = useRef(null);
+
+  const [isHidden, setIsHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsHidden(true);
+      } else if (currentScrollY < lastScrollY.current) {
+        setIsHidden(false);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (showChapters && activeChapterRef.current) {
+      activeChapterRef.current.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+  }, [showChapters]);
 
   // Lưu lịch sử đọc truyện
   useEffect(() => {
@@ -110,9 +144,9 @@ export default function ComicReader() {
 
 
   return (
-    <div className="max-w-3xl mx-auto pb-20 animate-in fade-in zoom-in-95 duration-500 bg-black min-h-screen">
+    <div className="max-w-3xl mx-auto pb-4 sm:pb-0 animate-in fade-in zoom-in-95 duration-500 bg-black min-h-screen">
 
-      <div className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg shadow-black/50">
+      <div className={`sticky top-0 z-40 bg-slate-900/90 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg shadow-black/50 overflow-hidden transition-transform duration-300 ${isHidden ? '-translate-y-full' : 'translate-y-0'}`}>
         <button
           onClick={() => navigate(-1)}
           className="p-2 rounded-full hover:bg-white/10 transition-colors text-slate-300 hover:text-white flex flex-shrink-0"
@@ -134,7 +168,8 @@ export default function ComicReader() {
         </div>
       )}
 
-      <div className="flex flex-col items-center w-full min-h-screen mt-4 shadow-2xl bg-black">
+      {/* Image Container with removed padding on mobile/tablet */}
+      <div className="flex flex-col items-center min-h-screen mt-4 shadow-2xl bg-black -mx-4 w-[calc(100%+32px)] md:-mx-6 md:w-[calc(100%+48px)] lg:mx-0 lg:w-full">
         {chapter_image && chapter_image.length > 0 ? (
           (chapter_image.length > 4 ? chapter_image.slice(1, -1) : chapter_image).map((img, index) => {
             const imgSrc = `${domain_cdn}/${chapter_path}/${img.image_file}`;
@@ -198,14 +233,24 @@ export default function ComicReader() {
       </div>
 
       {/* Footer / Done Reading */}
-      <div className="text-center pt-8 pb-24">
+      <div className="text-center pt-8 pb-6 px-4">
         <p className="text-slate-400 text-sm font-semibold mb-4">Hết chương {chapter_name}</p>
-        <button
-          onClick={() => navigate(slug ? `/comics/${slug}` : '/comics')}
-          className="px-6 py-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-200 transition-colors font-medium border border-white/10 shadow-lg"
-        >
-          Quay lại danh sách chương
-        </button>
+        <div className="flex flex-row flex-nowrap items-center justify-center gap-2 sm:gap-3">
+          <button
+            onClick={() => navigate(slug ? `/comics/${slug}` : '/comics')}
+            className="px-4 sm:px-6 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-200 transition-colors font-medium border border-white/10 shadow-lg text-[13px] sm:text-base whitespace-nowrap"
+          >
+            Danh sách chương
+          </button>
+          {hasNext && (
+            <button
+              onClick={handleNext}
+              className="px-4 sm:px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-full text-white transition-all font-bold shadow-lg shadow-purple-900/50 flex items-center justify-center gap-1 sm:gap-2 hover:scale-105 text-[13px] sm:text-base whitespace-nowrap"
+            >
+              Chương tiếp <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Bottom Navigation Bar */}
@@ -257,18 +302,19 @@ export default function ComicReader() {
                 {showChapters && (
                   <div 
                     className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 w-40 md:w-48 bg-white rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.5)] z-[60] flex flex-col py-1 overflow-y-auto custom-scrollbar animate-in slide-in-from-bottom-2 fade-in"
-                    style={{ maxHeight: '320px' }} 
+                    style={{ maxHeight: '400px' }} 
                   >
                     {chapters.map(chap => {
                       const isActive = chap.chapter_api_data === fetchUrl;
                       return (
                         <button
-                          key={chap.chapter_name}
+                          key={chap.chapter_api_data}
+                          ref={isActive ? activeChapterRef : null}
                           onClick={() => {
-                            navigate(`/comics/chapter/${encodeURIComponent(chap.chapter_api_data)}`, { state: location.state });
+                            navigate(`/comics/chapter/${encodeURIComponent(chap.chapter_api_data)}`, { state: { ...location.state, chapters } });
                             setShowChapters(false);
                           }}
-                          className={`px-4 py-2.5 text-center hover:bg-indigo-50 transition-colors text-sm md:text-base border-b border-slate-100 last:border-0 ${isActive ? 'bg-indigo-100 text-indigo-700 font-black' : 'text-slate-800 font-semibold'}`}
+                          className={`px-4 py-3 text-center hover:bg-indigo-50 transition-colors text-sm md:text-base border-b border-slate-100 last:border-0 ${isActive ? 'bg-indigo-100 text-indigo-700 font-extrabold shadow-inner' : 'text-slate-800 font-semibold'}`}
                         >
                           Chương {chap.chapter_name}
                         </button>

@@ -7,7 +7,7 @@ import { Clock } from "lucide-react";
  * @param {Object} props.comic - The comic object
  */
 const ComicCard = ({ comic }) => {
-  const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN;
+  const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
   const thumbUrl = comic.thumb_url?.startsWith('http') 
     ? comic.thumb_url 
     : `${IMAGE_CDN}${comic.thumb_url}`;
@@ -55,8 +55,14 @@ const ComicCard = ({ comic }) => {
         
         {/* Comic-Specific Overlays */}
         <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 items-end">
-            {/* Status Badge */}
-            {comic.status && (
+            {/* Trailer Tag for comics without chapters */}
+            {(!comic.chaptersLatest || comic.chaptersLatest.length === 0) && (
+              <div className="px-2 py-0.5 rounded text-[10px] font-bold shadow-lg uppercase backdrop-blur-md bg-orange-500/90 text-white">
+                Trailer
+              </div>
+            )}
+            {/* Status Badge - Only show if has chapters (not a trailer) */}
+            {comic.status && comic.chaptersLatest && comic.chaptersLatest.length > 0 && (
             <div className={`px-2 py-0.5 rounded text-[10px] font-bold shadow-lg uppercase backdrop-blur-md ${
                 comic.status === 'completed' 
                 ? 'bg-emerald-500/90 text-slate-950' 

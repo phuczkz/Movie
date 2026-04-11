@@ -166,32 +166,36 @@ const Home = () => {
 
       <Hero movies={heroMovies} />
 
-      <section className="rounded-3xl border border-white/5 bg-slate-950/80 px-4 py-5 sm:px-6 sm:py-6">
-        <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <span className="h-7 w-1 rounded-full bg-gradient-to-b from-slate-200 to-slate-400" />
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+      <section className="rounded-3xl border border-white/5 bg-slate-950/80 p-0 overflow-hidden relative">
+        <div className="mb-4 flex items-center gap-3 pt-6 px-4 sm:px-6 sm:mb-5">
+          <span className="h-7 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
             Bạn đang quan tâm gì?
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar px-4 sm:px-6 xl:grid xl:grid-cols-8 xl:gap-4 xl:pb-6">
           {quickFocusCards.map((item) => (
             <Link
               key={item.title}
               to={item.to}
-              className="group relative overflow-hidden rounded-2xl border border-white/15 p-4 min-h-[106px] sm:min-h-[120px]"
+              title={`Khám phá ngay ${item.title}`}
+              aria-label={`Xem danh sách phim ${item.title} - ${item.subtitle}`}
+              className="group relative flex-shrink-0 w-[150px] sm:w-[170px] xl:w-auto overflow-hidden rounded-2xl border border-white/10 p-5 min-h-[110px] sm:min-h-[130px] transition-all duration-500 hover:border-white/25 hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/20"
             >
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-95 transition-opacity group-hover:opacity-100`}
+                className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-80 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110`}
               />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(0,0,0,0.12)_100%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
+              <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl transition-all duration-500 group-hover:bg-white/20" />
+              
               <div className="relative z-10 flex h-full flex-col justify-between">
-                <p className="text-2xl font-extrabold text-white leading-tight drop-shadow-sm">
+                <h3 className="text-2xl font-black text-white leading-none tracking-tight drop-shadow-md">
                   {item.title}
-                </p>
-                <div className="inline-flex items-center gap-1.5 text-white/90 text-base font-semibold">
+                </h3>
+                <div className="inline-flex items-center gap-1.5 text-white/90 text-sm font-bold tracking-wide uppercase">
                   <span>{item.subtitle}</span>
-                  <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  <ChevronRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
                 </div>
               </div>
             </Link>

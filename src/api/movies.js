@@ -33,10 +33,19 @@ const normalizeLandscape = (url = "") => {
 };
 
 const normalizeMovie = (raw = {}) => {
-  const poster =
-    raw.poster_url || raw.poster || raw.thumb_url || raw.banner || "";
+  let rawPoster = raw.poster_url || "";
+  let rawThumb = raw.thumb_url || "";
+
+  const isRelativeOphim = (url) => url && !url.startsWith("http");
+
+  if (isRelativeOphim(rawPoster) && isRelativeOphim(rawThumb)) {
+    // Swap: Ophim's thumb_url is actually portrait, poster_url is actually landscape
+    [rawPoster, rawThumb] = [rawThumb, rawPoster];
+  }
+
+  const poster = rawPoster || raw.poster || rawThumb || raw.banner || "";
   const backdrop =
-    raw.banner || raw.backdrop_url || raw.thumb_url || raw.poster_url || "";
+    raw.banner || raw.backdrop_url || rawThumb || rawPoster || "";
   const posterNormalized = normalizePoster(poster);
   const thumbNormalized = normalizeLandscape(backdrop);
 

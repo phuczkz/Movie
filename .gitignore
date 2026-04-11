@@ -25,3 +25,12 @@ dist-ssr
 *.sw?
 .env
 .firebase/
+
+# Agent Rules & Configs (Local only)
+.agent_rules/
+.cursorrules
+.windsurfrules
+.ai/instructions.md
+.gemini/style_guide.md
+.github/copilot-instructions.md
+RULES.md

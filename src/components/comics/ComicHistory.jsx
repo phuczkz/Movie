@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { comicApi } from "../../api/comicApi";
 import { updateDoc } from "firebase/firestore";
 
-const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN;
+const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
 
 function ComicHistoryCard({ item, handleDelete, uid }) {
   const isMissingInfo = !item.posterUrl || !item.comicName;

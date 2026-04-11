@@ -14,7 +14,8 @@ const getOptimizedPoster = (url, w = 360, isComic = false) => {
   try {
     let fullUrl = url;
     if (isComic && !url.startsWith("http")) {
-      fullUrl = `${import.meta.env.VITE_COMIC_IMAGE_CDN}${url}`;
+      const comicCdn = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
+      fullUrl = `${comicCdn}${url}`;
     }
 
     const rawHost = new URL(fullUrl).hostname;

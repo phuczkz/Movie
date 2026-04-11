@@ -24,9 +24,55 @@ export default function ComicList() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["comics", isCategory ? "the-loai" : "danh-sach", currentSlug, page],
-    queryFn: () => isCategory 
-      ? comicApi.getCategory(currentSlug, page) 
-      : comicApi.getList(currentSlug, page),
+    queryFn: async () => {
+      // Fetch multiple API pages to fill up filtered results
+      const pagesToFetch = 5;
+      const startPage = (page - 1) * pagesToFetch + 1;
+      
+      const responses = await Promise.allSettled(
+        Array.from({ length: pagesToFetch }, (_, i) => 
+          isCategory 
+            ? comicApi.getCategory(currentSlug, startPage + i) 
+            : comicApi.getList(currentSlug, startPage + i)
+        )
+      );
+
+      const items = [];
+      let totalPagesApi = 0;
+      let totalItemsApi = 0;
+
+      responses.forEach((res, idx) => {
+        if (res.status === "fulfilled" && res.value?.data) {
+          const pageItems = res.value.data.items || [];
+          items.push(...pageItems);
+          if (idx === 0) {
+            totalItemsApi = res.value.data.params?.pagination?.totalItems || 0;
+            const itemsPerPage = res.value.data.params?.pagination?.totalItemsPerPage || 24;
+            totalPagesApi = Math.ceil(totalItemsApi / itemsPerPage);
+          }
+        }
+      });
+
+      const filteredItems = items.filter((comic) => {
+        const hasChapters = comic.chaptersLatest && comic.chaptersLatest.length > 0;
+        if (currentSlug === "sap-ra-mat") {
+          return !hasChapters;
+        }
+        return hasChapters;
+      });
+
+      return {
+        data: {
+          items: filteredItems,
+          params: {
+            pagination: {
+              totalItems: totalItemsApi,
+              totalPages: Math.ceil(totalPagesApi / pagesToFetch),
+            },
+          },
+        },
+      };
+    },
     keepPreviousData: true,
     staleTime: 5 * 60 * 1000,
   });
@@ -40,9 +86,7 @@ export default function ComicList() {
 
   const items = data?.data?.items || [];
   const pagination = data?.data?.params?.pagination;
-  const totalItems = pagination?.totalItems || 0;
-  const itemsPerPage = pagination?.totalItemsPerPage || 24;
-  const totalPages = pagination?.totalPages || Math.ceil(totalItems / itemsPerPage);
+  const totalPages = pagination?.totalPages || 1;
   const hasNext = totalPages > page;
 
   const handlePageChange = (newPage) => {
@@ -96,7 +140,7 @@ export default function ComicList() {
 
       {items.length > 0 ? (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 xl:gap-6">
+          <div className="grid-movies">
             {items.map((comic) => (
               <ComicCard key={comic._id} comic={comic} />
             ))}
