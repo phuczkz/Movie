@@ -18,7 +18,7 @@ export default defineConfig({
         return deps.filter((dep) => {
           return (
             !dep.includes("vendor-hls") &&
-            !dep.includes("vendor-player") &&
+            !dep.includes("vendor-artplayer") &&
             !dep.includes("dash.all")
           );
         });
@@ -36,7 +36,7 @@ export default defineConfig({
             // get pulled into the initial page load and show up as "unused JS".
             if (id.includes("firebase")) return "vendor-fb";
             if (id.includes("hls.js")) return "vendor-hls";
-            if (id.includes("react-player")) return "vendor-player";
+            if (id.includes("artplayer")) return "vendor-artplayer";
             if (id.includes("@tanstack/react-query")) return "vendor-query";
             if (id.includes("lucide-react")) return "vendor-lucide";
             if (id.includes("react-router-dom")) return "vendor-router";

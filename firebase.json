@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "movie-dev-78f25",
     "public": "dist",
     "ignore": [
       "firebase.json",
