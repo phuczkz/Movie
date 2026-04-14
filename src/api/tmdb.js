@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Using the Proxy URL to keep the API Key secret on the server
-const baseURL = "https://stream.khophim.io.vn/tmdb";
+const baseURL = "https://stream.khophim.io.vn/tmdb/";
 const posterBase = import.meta.env.VITE_TMDB_IMAGE_BASE;
 const backdropBase = import.meta.env.VITE_TMDB_BACKDROP_BASE;
 const profileBase = import.meta.env.VITE_TMDB_PROFILE_BASE;
@@ -70,14 +70,14 @@ const fetchTmdbDetail = async (id) => {
   let mediaType = "movie";
 
   try {
-    const res = await tmdb.get(`/movie/${id}`, { params });
+    const res = await tmdb.get(`movie/${id}`, { params });
     detail = res.data;
   } catch {
     // Fallback to TV if movie lookup fails
   }
 
   if (!detail) {
-    const res = await tmdb.get(`/tv/${id}`, { params });
+    const res = await tmdb.get(`tv/${id}`, { params });
     detail = res.data;
     mediaType = "tv";
   }
@@ -86,7 +86,7 @@ const fetchTmdbDetail = async (id) => {
 };
 
 export const getPopular = async (page = 1) => {
-  const { data } = await tmdb.get("/movie/popular", {
+  const { data } = await tmdb.get("movie/popular", {
     params: { page },
   });
   return data?.results?.map(normalizeTmdbMovie) || [];
@@ -108,7 +108,7 @@ export const getTmdbDetailBySlug = async (slug) => {
     // Direct fetch using the known media type from the slug
     try {
       const params = { append_to_response: "credits" };
-      const res = await tmdb.get(`/${mediaType}/${id}`, { params });
+      const res = await tmdb.get(`${mediaType}/${id}`, { params });
       detail = res.data;
     } catch (err) {
       console.warn(
@@ -145,7 +145,7 @@ export const getTmdbDetailBySlug = async (slug) => {
 export const searchTmdbMovie = async (query, year) => {
   if (!query) return null;
   try {
-    const { data } = await tmdb.get("/search/multi", {
+    const { data } = await tmdb.get("search/multi", {
       params: { query, year },
     });
     const results = data?.results || [];
@@ -164,7 +164,7 @@ export const searchTmdbMovie = async (query, year) => {
 export const getTmdbCredits = async (id, mediaType = "movie") => {
   if (!id) return [];
   try {
-    const { data } = await tmdb.get(`/${mediaType}/${id}/credits`);
+    const { data } = await tmdb.get(`${mediaType}/${id}/credits`);
     const cast = data?.cast || [];
     return cast.slice(0, 20).map((c) => ({
       id: c.id,
@@ -178,7 +178,7 @@ export const getTmdbCredits = async (id, mediaType = "movie") => {
   }
 };
 export const getTmdbByGenre = async (genreId, page = 1) => {
-  const { data } = await tmdb.get("/discover/movie", {
+  const { data } = await tmdb.get("discover/movie", {
     params: {
       with_genres: genreId,
       page,
@@ -191,7 +191,7 @@ export const getTmdbByGenre = async (genreId, page = 1) => {
 export const searchTmdbPerson = async (query) => {
   if (!query) return null;
   try {
-    const { data } = await tmdb.get("/search/person", {
+    const { data } = await tmdb.get("search/person", {
       params: { query },
     });
     return data?.results?.[0] || null;
@@ -204,7 +204,7 @@ export const searchTmdbPerson = async (query) => {
 export const getTmdbPersonCredits = async (personId) => {
   if (!personId) return [];
   try {
-    const { data } = await tmdb.get(`/person/${personId}/combined_credits`);
+    const { data } = await tmdb.get(`person/${personId}/combined_credits`);
     const cast = data?.cast || [];
     // Filter and normalize
     const normalized = cast
@@ -228,7 +228,7 @@ export const getTmdbPersonCredits = async (personId) => {
 export const getTmdbPersonDetail = async (personId) => {
   if (!personId) return null;
   try {
-    const { data } = await tmdb.get(`/person/${personId}`);
+    const { data } = await tmdb.get(`person/${personId}`);
     return {
       id: data.id,
       name: data.name,
@@ -256,7 +256,7 @@ export const getTmdbFullEpisodes = async (
 
     // For non-TMDB primary sources, seasons may be missing: resolve from TV detail first.
     if (!seasonList.length) {
-      const { data: tvDetail } = await tmdb.get(`/tv/${id}`);
+      const { data: tvDetail } = await tmdb.get(`tv/${id}`);
       seasonList = tvDetail?.seasons || [];
     }
 
@@ -269,7 +269,7 @@ export const getTmdbFullEpisodes = async (
     // To keep it simple and avoid too many requests, fetch only the latest seasons.
     const seasonResults = await Promise.all(
       targetSeasons.map(async (s) => {
-        const { data } = await tmdb.get(`/tv/${id}/season/${s.season_number}`);
+        const { data } = await tmdb.get(`tv/${id}/season/${s.season_number}`);
         return data.episodes || [];
       })
     );

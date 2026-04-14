@@ -143,7 +143,7 @@ const Home = () => {
   //   { enabled: showSingle, ...commonQueryOpts }
   // );
   const { data: popular = [], isLoading: loadingPopular } = useTmdbPopular(1, {
-    enabled: showPopular,
+    enabled: true,
     ...commonQueryOpts,
   });
 
@@ -156,7 +156,7 @@ const Home = () => {
     { enabled: showKKSingle, ...commonQueryOpts }
   );
 
-  const heroSource = popular && popular.length >= 4 ? popular : latest;
+  const heroSource = latest && latest.length >= 4 ? latest : popular;
   const heroMovies = heroSource.slice(0, 4);
   const cap = (list) => list.slice(0, 7);
 

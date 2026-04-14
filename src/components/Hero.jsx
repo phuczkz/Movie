@@ -77,7 +77,7 @@ const Hero = ({ movie, movies = [] }) => {
   // Yêu cầu: mọi CTA từ hero dẫn qua trang chi tiết trước khi xem
   const primaryLink = `/movie/${activeMovie.slug}`;
   const secondaryLink = `/watch/${activeMovie.slug}`;
-  const primaryLabel = "Xem chi tiết";
+  const primaryLabel = "";
 
   const categories = normalizeList(activeMovie.category);
   const countries = normalizeList(activeMovie.country);
@@ -129,15 +129,6 @@ const Hero = ({ movie, movies = [] }) => {
 
       <div className="relative z-10 flex h-full flex-col justify-center md:justify-center lg:justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-10 pt-16 md:px-10 md:pb-12 lg:px-16 lg:pb-8">
         <div className="max-w-3xl space-y-5 md:space-y-6">
-          <div className="hidden md:inline-flex items-center gap-3 rounded-full bg-white/10 px-3 md:px-4 py-2 text-[10px] md:text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur">
-            <Sparkles className="h-4 w-4" />
-            Đề cử hôm nay
-            {slides.length > 1 ? (
-              <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] md:text-[10px] font-bold">
-                {safeIndex + 1}/{slides.length}
-              </span>
-            ) : null}
-          </div>
 
           <div className="space-y-1.5 md:space-y-2">
             {activeMovie.origin_name ? (
@@ -174,10 +165,6 @@ const Hero = ({ movie, movies = [] }) => {
             ) : null}
           </div>
 
-          {/* <p className="hidden md:block max-w-3xl text-[15px] md:text-lg leading-relaxed text-slate-100/90 drop-shadow-[0_12px_24px_rgba(0,0,0,0.55)]">
-            {activeMovie.content ||
-              "Vào thời kỳ biến động, những nhân vật chủ chốt buộc phải đối mặt với lựa chọn định đoạt vận mệnh của cả vùng đất."}
-          </p> */}
 
           <div className="hidden sm:flex flex-wrap gap-3 text-sm text-slate-200">
             {countries.length ? (
@@ -196,7 +183,7 @@ const Hero = ({ movie, movies = [] }) => {
 
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-1">
             <Link
-              to={primaryLink}
+              to={secondaryLink}
               className="group inline-flex items-center gap-2.5 sm:gap-3 rounded-full bg-[rgb(16,185,129)] px-4 sm:px-5 md:px-6 py-2 md:py-3 text-[12px] sm:text-[13px] md:text-sm font-semibold text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
             >
               <span className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
@@ -206,7 +193,7 @@ const Hero = ({ movie, movies = [] }) => {
             </Link>
 
             <Link
-              to={secondaryLink}
+              to={primaryLink}
               className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30 transition hover:-translate-y-[1px] hover:border-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
             >
               <Info className="h-4 w-4" />
@@ -216,7 +203,7 @@ const Hero = ({ movie, movies = [] }) => {
         </div>
 
         {slides.length > 1 ? (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex gap-1.5 md:gap-2 rounded-2xl bg-black/10 px-2 py-2 lg:bg-black/35 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex gap-1.5 md:gap-2 rounded-2xl px-2 py-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
             {slides.slice(0, 6).map((item, idx) => {
               const isActive = idx === safeIndex;
               const thumbSource =

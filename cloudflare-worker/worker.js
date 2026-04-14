@@ -100,8 +100,11 @@ export default {
 
     // ===================== TMDB API Proxy =====================
     // Logic: https://your-worker.com/tmdb/movie/popular -> https://api.themoviedb.org/3/movie/popular?api_key=...
-    if (url.pathname.startsWith("/tmdb/")) {
-      const tmdbPath = url.pathname.replace("/tmdb/", "");
+    const pathname = url.pathname;
+    if (pathname.includes("/tmdb")) {
+      // Extract the part after /tmdb (e.g., /tmdb/movie/popular -> movie/popular)
+      const parts = pathname.split("/tmdb");
+      const tmdbPath = (parts[1] || "").replace(/^\//, "");
       const tmdbUrl = new URL(`https://api.themoviedb.org/3/${tmdbPath}`);
 
       // Copy all query params from the client request
