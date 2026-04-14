@@ -30,5 +30,10 @@ export const comicApi = {
     const res = await fetch(`${COMIC_API}/tim-kiem?keyword=${encodeURIComponent(keyword)}`);
     if (!res.ok) throw new Error("Lỗi tìm kiếm truyện");
     return res.json();
+  },
+  getChapter: async (fetchUrl) => {
+    const res = await fetch(fetchUrl);
+    if (!res.ok) throw new Error("Không thể tải chương này.");
+    return res.json();
   }
 };

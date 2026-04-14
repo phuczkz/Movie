@@ -129,6 +129,22 @@ export const searchKKphim = async (keyword, page = 1) => {
   return items.map(normalizeKKphimMovie);
 };
 
+export const getKKphimByYear = async (year, page = 1) => {
+  const [le, bo] = await Promise.all([
+    kkphim
+      .get("/danh-sach/phim-le", { params: { year, page } })
+      .catch(() => ({ data: null })),
+    kkphim
+      .get("/danh-sach/phim-bo", { params: { year, page } })
+      .catch(() => ({ data: null })),
+  ]);
+  const items = [
+    ...(le?.data?.data?.items || le?.data?.items || []),
+    ...(bo?.data?.data?.items || bo?.data?.items || []),
+  ];
+  return uniqueBySlug(items).map(normalizeKKphimMovie);
+};
+
 export const getKKphimByCategory = async (slug, page = 1) => {
   const { data } = await kkphim.get(`/the-loai/${slug}`, { params: { page } });
   const items = data?.data?.items || data?.items || [];

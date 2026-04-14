@@ -41,8 +41,8 @@ export default function ComicReader() {
   }, []);
 
   const currentChapterIndex = chapters?.findIndex(c => c.chapter_api_data === fetchUrl);
-  const hasPrev = currentChapterIndex !== undefined && currentChapterIndex !== -1 && currentChapterIndex > 0;
-  const hasNext = currentChapterIndex !== undefined && currentChapterIndex !== -1 && currentChapterIndex < chapters.length - 1;
+  const hasPrev = currentChapterIndex > 0;
+  const hasNext = chapters && currentChapterIndex !== -1 && currentChapterIndex < chapters.length - 1;
 
   const handlePrev = () => {
     if (hasPrev) {
@@ -62,11 +62,7 @@ export default function ComicReader() {
 
   const { data: chapterRes, isLoading, error } = useQuery({
     queryKey: ["comicChapter", fetchUrl],
-    queryFn: async () => {
-      const res = await fetch(fetchUrl);
-      if (!res.ok) throw new Error("Không thể tải chương này.");
-      return res.json();
-    },
+    queryFn: () => comicApi.getChapter(fetchUrl),
   });
 
   const activeChapterRef = useRef(null);
@@ -119,6 +115,29 @@ export default function ComicReader() {
     }
   }, [user, slug, chapterRes, fetchUrl, thumb_url]);
 
+  const { domain_cdn, item } = chapterRes?.data || {};
+  const { chapter_path, chapter_image, chapter_name, comic_name } = item || {};
+
+  // Optimizing performance by preconnecting to the CDN
+  useEffect(() => {
+    if (domain_cdn) {
+      const preconnect = document.createElement("link");
+      preconnect.rel = "preconnect";
+      preconnect.href = domain_cdn;
+      document.head.appendChild(preconnect);
+      
+      const dnsPrefetch = document.createElement("link");
+      dnsPrefetch.rel = "dns-prefetch";
+      dnsPrefetch.href = domain_cdn;
+      document.head.appendChild(dnsPrefetch);
+
+      return () => {
+        document.head.removeChild(preconnect);
+        document.head.removeChild(dnsPrefetch);
+      };
+    }
+  }, [domain_cdn]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
@@ -139,12 +158,8 @@ export default function ComicReader() {
     );
   }
 
-  const { domain_cdn, item } = chapterRes.data;
-  const { chapter_path, chapter_image, chapter_name, comic_name } = item;
-
-
   return (
-    <div className="max-w-3xl mx-auto pb-4 sm:pb-0 animate-in fade-in zoom-in-95 duration-500 bg-black min-h-screen">
+    <div className="max-w-3xl mx-auto animate-in fade-in zoom-in-95 duration-500 bg-black min-h-screen">
 
       <div className={`sticky top-0 z-40 bg-slate-900/90 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg shadow-black/50 overflow-hidden transition-transform duration-300 ${isHidden ? '-translate-y-full' : 'translate-y-0'}`}>
         <button
@@ -171,15 +186,18 @@ export default function ComicReader() {
       {/* Image Container with removed padding on mobile/tablet */}
       <div className="flex flex-col items-center min-h-screen mt-4 shadow-2xl bg-black -mx-4 w-[calc(100%+32px)] md:-mx-6 md:w-[calc(100%+48px)] lg:mx-0 lg:w-full">
         {chapter_image && chapter_image.length > 0 ? (
-          (chapter_image.length > 4 ? chapter_image.slice(1, -1) : chapter_image).map((img, index) => {
+          chapter_image.map((img, index) => {
             const imgSrc = `${domain_cdn}/${chapter_path}/${img.image_file}`;
+            const isPriority = index < 2; // Priority load for first 2 pages
             return (
-              <div key={index} className={`w-full relative bg-black overflow-hidden block ${index !== 0 ? '-mt-[1px]' : ''}`}>
+              <div key={index} className={`w-full relative bg-slate-900/10 min-h-[400px] overflow-hidden block ${index !== 0 ? '-mt-[1px]' : ''}`}>
                 <img
                   src={imgSrc}
                   alt={`Trang ${img.image_page}`}
-                  loading="lazy"
-                  className={`w-full h-auto block m-0 p-0 align-top ${eraserMode ? 'cursor-crosshair' : ''}`}
+                  loading={isPriority ? "eager" : "lazy"}
+                  fetchPriority={isPriority ? "high" : "auto"}
+                  decoding="async"
+                  className={`w-full h-auto block m-0 p-0 align-top transition-opacity duration-300 ${eraserMode ? 'cursor-crosshair' : ''}`}
                   onClick={(e) => {
                     if (!eraserMode) return;
                     const rect = e.target.getBoundingClientRect();
@@ -232,8 +250,8 @@ export default function ComicReader() {
         )}
       </div>
 
-      {/* Footer / Done Reading */}
-      <div className="text-center pt-8 pb-6 px-4">
+      {/* Footer / Done Reading - Added padding for bottom fixed bar */}
+      <div className="text-center pt-8 pb-32 sm:pb-36 px-4">
         <p className="text-slate-400 text-sm font-semibold mb-4">Hết chương {chapter_name}</p>
         <div className="flex flex-row flex-nowrap items-center justify-center gap-2 sm:gap-3">
           <button
@@ -253,8 +271,8 @@ export default function ComicReader() {
         </div>
       </div>
 
-      {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e2022]/95 backdrop-blur-md shadow-[0_-5px_20px_rgba(0,0,0,0.5)] border-t border-white/5">
+      {/* Bottom Navigation Bar - Optimized for mobile safe areas */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e2022]/98 backdrop-blur-md shadow-[0_-5px_20px_rgba(0,0,0,0.5)] border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-3xl mx-auto px-2 py-1.5 md:py-2 flex items-center justify-center gap-1 md:gap-3">
           <button
             onClick={() => navigate(slug ? `/comics/${slug}` : '/comics')}

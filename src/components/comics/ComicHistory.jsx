@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { BookOpen, Trash2 } from "lucide-react";
 import { db } from "../../firebase.config";
 import { useAuth } from "../../context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { comicApi } from "../../api/comicApi";
-import { updateDoc } from "firebase/firestore";
 
 const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
 

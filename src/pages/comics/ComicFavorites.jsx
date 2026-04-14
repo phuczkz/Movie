@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, BookOpen, Trash2, LogIn } from 'lucide-react';
 import { useSavedComicsList } from '../../hooks/useSavedComicsList';

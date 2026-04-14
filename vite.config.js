@@ -30,10 +30,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            // Keep only truly shared, core dependencies in stable chunks.
-            // Avoid forcing *all* dependencies into one big vendor chunk,
-            // otherwise route-level lazy imports (e.g. react-player, hls.js)
-            // get pulled into the initial page load and show up as "unused JS".
+            
             if (id.includes("firebase")) return "vendor-fb";
             if (id.includes("hls.js")) return "vendor-hls";
             if (id.includes("artplayer")) return "vendor-artplayer";

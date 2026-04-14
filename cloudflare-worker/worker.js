@@ -77,7 +77,7 @@ function absolutizeM3u8(content, baseUrl) {
 // ===================== Main Handler =====================
 
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     // CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -97,7 +97,42 @@ export default {
     }
 
     const url = new URL(request.url);
+
+    // ===================== TMDB API Proxy =====================
+    // Logic: https://your-worker.com/tmdb/movie/popular -> https://api.themoviedb.org/3/movie/popular?api_key=...
+    if (url.pathname.startsWith("/tmdb/")) {
+      const tmdbPath = url.pathname.replace("/tmdb/", "");
+      const tmdbUrl = new URL(`https://api.themoviedb.org/3/${tmdbPath}`);
+
+      // Copy all query params from the client request
+      url.searchParams.forEach((value, key) => {
+        tmdbUrl.searchParams.set(key, value);
+      });
+
+      // Attach the secret API Key from environment variables
+      const TMDB_KEY = env.TMDB_API_KEY;
+      if (!TMDB_KEY) {
+        return new Response(
+          JSON.stringify({ error: "TMDB_API_KEY not configured on worker" }),
+          { status: 500, headers: jsonHeaders }
+        );
+      }
+      tmdbUrl.searchParams.set("api_key", TMDB_KEY);
+
+      const tmdbRes = await fetch(tmdbUrl.toString());
+      const tmdbData = await tmdbRes.arrayBuffer();
+
+      const responseHeaders = new Headers(CORS_HEADERS);
+      responseHeaders.set("Content-Type", "application/json; charset=utf-8");
+      
+      return new Response(tmdbData, {
+        status: tmdbRes.status,
+        headers: responseHeaders,
+      });
+    }
+
     const targetUrl = url.searchParams.get("url");
+
 
     // Health check endpoint
     if (!targetUrl && url.pathname === "/") {

@@ -608,6 +608,20 @@ export const searchMovies = (query, page = 1) =>
     return uniqueBySlug([...actorMovies, ...ophimMovies]);
   }, []);
 
+export const getByYear = (year, page = 1) =>
+  withFallback(async () => {
+    const [le, bo] = await Promise.all([
+      client
+        .get("/danh-sach/phim-le", { params: { year, page } })
+        .catch(() => ({ data: null })),
+      client
+        .get("/danh-sach/phim-bo", { params: { year, page } })
+        .catch(() => ({ data: null })),
+    ]);
+    const items = [...unwrapItems(le?.data), ...unwrapItems(bo?.data)];
+    return mapOrFallback(uniqueBySlug(items));
+  }, []);
+
 export const getEpisodes = (slug) =>
   withFallback(async () => {
     const detail = await getDetail(slug);

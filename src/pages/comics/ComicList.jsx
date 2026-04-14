@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { comicApi } from "../../api/comicApi";
 import ComicCard from "../../components/comics/ComicCard";
@@ -73,7 +73,7 @@ export default function ComicList() {
         },
       };
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
   });
 

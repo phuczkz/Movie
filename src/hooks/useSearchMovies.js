@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { getCategory, getCountry, searchMovies } from "../api/movies";
+import { getCategory, getCountry, searchMovies, getByYear } from "../api/movies";
 import {
   getKKphimByCategory,
   getKKphimByCountry,
   searchKKphim,
+  getKKphimByYear,
 } from "../api/kkphim";
 import { comicApi } from "../api/comicApi";
 
@@ -51,31 +52,26 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
       }
 
       // Default: Movie search
+      const isYear = /^\d{4}$/.test(q);
       const slug = slugify(q);
-      const [
-        kkResults,
-        ophimResults,
-        kkCat,
-        kkCountry,
-        ophimCat,
-        ophimCountry,
-      ] = await Promise.all([
+
+      const requests = [
         safe(() => searchKKphim(q, page)),
         safe(() => searchMovies(q, page)),
         safe(() => getKKphimByCategory(slug)),
         safe(() => getKKphimByCountry(slug)),
         safe(() => getCategory(slug)),
         safe(() => getCountry(slug)),
-      ]);
+      ];
 
-      return dedupeBySlug([
-        ...ophimResults,
-        ...kkResults,
-        ...kkCat,
-        ...kkCountry,
-        ...ophimCat,
-        ...ophimCountry,
-      ]);
+      if (isYear) {
+        requests.push(safe(() => getKKphimByYear(q, page)));
+        requests.push(safe(() => getByYear(q, page)));
+      }
+
+      const results = await Promise.all(requests);
+
+      return dedupeBySlug(results.flat());
     },
     enabled: Boolean(query?.trim()),
     staleTime: 10 * 60 * 1000,

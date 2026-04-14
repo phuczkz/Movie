@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { Clock } from "lucide-react";
 
+const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
+
 /**
  * ComicCard component for displaying a comic with a frame synchronized with MovieCard.
  * @param {Object} props
  * @param {Object} props.comic - The comic object
  */
 const ComicCard = ({ comic }) => {
-  const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
   const thumbUrl = comic.thumb_url?.startsWith('http') 
     ? comic.thumb_url 
     : `${IMAGE_CDN}${comic.thumb_url}`;

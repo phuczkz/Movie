@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { comicApi } from "../../api/comicApi";
 import { Flame } from "lucide-react";
@@ -56,7 +56,7 @@ export default function ComicHome() {
         },
       };
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
   });
 

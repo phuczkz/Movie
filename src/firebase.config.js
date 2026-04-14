@@ -2,6 +2,21 @@ import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+/**
+ * LƯU Ý BẢO MẬT FIREBASE:
+ * 
+ * 1. Hiển thị Khóa API: Trong ứng dụng Vite/React (phía client), API key của Firebase 
+ *    BẮT BUỘC phải xuất hiện trong gói code để SDK có thể định danh dự án của bạn.
+ *    Đây là điều HOÀN TOÀN BÌNH THƯỜNG và được thiết kế bởi Google.
+ * 
+ * 2. Cách bảo mật: "Bí mật" KHÔNG nằm ở API Key. Bảo mật được thực thi thông qua:
+ *    - Firebase Console > Auth > Settings > Authorized Domains (Thêm domain sản phẩm của bạn vào đây)
+ *    - Firebase Console > Cloud Firestore/Storage > Rules (Định nghĩa ai có quyền đọc/ghi)
+ * 
+ * 3. Biến môi trường: Chúng ta sử dụng import.meta.env để thuận tiện, nhưng Vite 
+ *    sẽ thay thế chúng bằng các chuỗi ký tự thực tế trong quá trình đóng gói.
+ */
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -11,8 +26,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// Only initialize if we have the configuration
 export const isFirebaseConfigured =
-  Object.values(firebaseConfig).every(Boolean);
+  Boolean(firebaseConfig.apiKey) && 
+  Boolean(firebaseConfig.projectId);
 
 const app =
   isFirebaseConfigured && !getApps().length
@@ -26,8 +43,9 @@ export const googleProvider = app ? new GoogleAuthProvider() : null;
 export const db = app ? getFirestore(app) : null;
 
 // Secondary Firebase app for administrative tasks (like creating users)
-// to avoid signing out the current admin session.
+// Note: This relies on Security Rules for actual permission control.
 export const adminApp = isFirebaseConfigured
   ? initializeApp(firebaseConfig, "AdminApp")
   : null;
 export const adminAuth = adminApp ? getAuth(adminApp) : null;
+

@@ -1,7 +1,7 @@
 import axios from "axios";
 
-const apiKey = import.meta.env.VITE_TMDB_API_KEY;
-const baseURL = import.meta.env.VITE_TMDB_API;
+// Using the Proxy URL to keep the API Key secret on the server
+const baseURL = "https://stream.khophim.io.vn/tmdb";
 const posterBase = import.meta.env.VITE_TMDB_IMAGE_BASE;
 const backdropBase = import.meta.env.VITE_TMDB_BACKDROP_BASE;
 const profileBase = import.meta.env.VITE_TMDB_PROFILE_BASE;
@@ -64,7 +64,7 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
 };
 
 const fetchTmdbDetail = async (id) => {
-  const params = { api_key: apiKey, append_to_response: "credits" };
+  const params = { append_to_response: "credits" };
 
   let detail = null;
   let mediaType = "movie";
@@ -86,16 +86,13 @@ const fetchTmdbDetail = async (id) => {
 };
 
 export const getPopular = async (page = 1) => {
-  if (!apiKey) throw new Error("Missing VITE_TMDB_API_KEY");
   const { data } = await tmdb.get("/movie/popular", {
-    params: { api_key: apiKey, page },
+    params: { page },
   });
   return data?.results?.map(normalizeTmdbMovie) || [];
 };
 
 export const getTmdbDetailBySlug = async (slug) => {
-  if (!apiKey) throw new Error("Missing VITE_TMDB_API_KEY");
-
   const parts = slug.split("-");
   const id = parts[parts.length - 1];
   let mediaType = parts[parts.length - 2];
@@ -110,7 +107,7 @@ export const getTmdbDetailBySlug = async (slug) => {
   } else {
     // Direct fetch using the known media type from the slug
     try {
-      const params = { api_key: apiKey, append_to_response: "credits" };
+      const params = { append_to_response: "credits" };
       const res = await tmdb.get(`/${mediaType}/${id}`, { params });
       detail = res.data;
     } catch (err) {
@@ -146,10 +143,10 @@ export const getTmdbDetailBySlug = async (slug) => {
   return { movie, episodes: [] };
 };
 export const searchTmdbMovie = async (query, year) => {
-  if (!apiKey || !query) return null;
+  if (!query) return null;
   try {
     const { data } = await tmdb.get("/search/multi", {
-      params: { api_key: apiKey, query, year },
+      params: { query, year },
     });
     const results = data?.results || [];
     // Focus on movie/tv results that have a backdrop or poster
@@ -165,11 +162,9 @@ export const searchTmdbMovie = async (query, year) => {
 };
 
 export const getTmdbCredits = async (id, mediaType = "movie") => {
-  if (!apiKey || !id) return [];
+  if (!id) return [];
   try {
-    const { data } = await tmdb.get(`/${mediaType}/${id}/credits`, {
-      params: { api_key: apiKey },
-    });
+    const { data } = await tmdb.get(`/${mediaType}/${id}/credits`);
     const cast = data?.cast || [];
     return cast.slice(0, 20).map((c) => ({
       id: c.id,
@@ -183,10 +178,8 @@ export const getTmdbCredits = async (id, mediaType = "movie") => {
   }
 };
 export const getTmdbByGenre = async (genreId, page = 1) => {
-  if (!apiKey) throw new Error("Missing VITE_TMDB_API_KEY");
   const { data } = await tmdb.get("/discover/movie", {
     params: {
-      api_key: apiKey,
       with_genres: genreId,
       page,
       sort_by: "popularity.desc",
@@ -196,10 +189,10 @@ export const getTmdbByGenre = async (genreId, page = 1) => {
   return data?.results?.map((r) => normalizeTmdbMovie(r, "movie")) || [];
 };
 export const searchTmdbPerson = async (query) => {
-  if (!apiKey || !query) return null;
+  if (!query) return null;
   try {
     const { data } = await tmdb.get("/search/person", {
-      params: { api_key: apiKey, query },
+      params: { query },
     });
     return data?.results?.[0] || null;
   } catch (error) {
@@ -209,11 +202,9 @@ export const searchTmdbPerson = async (query) => {
 };
 
 export const getTmdbPersonCredits = async (personId) => {
-  if (!apiKey || !personId) return [];
+  if (!personId) return [];
   try {
-    const { data } = await tmdb.get(`/person/${personId}/combined_credits`, {
-      params: { api_key: apiKey },
-    });
+    const { data } = await tmdb.get(`/person/${personId}/combined_credits`);
     const cast = data?.cast || [];
     // Filter and normalize
     const normalized = cast
@@ -235,11 +226,9 @@ export const getTmdbPersonCredits = async (personId) => {
   }
 };
 export const getTmdbPersonDetail = async (personId) => {
-  if (!apiKey || !personId) return null;
+  if (!personId) return null;
   try {
-    const { data } = await tmdb.get(`/person/${personId}`, {
-      params: { api_key: apiKey },
-    });
+    const { data } = await tmdb.get(`/person/${personId}`);
     return {
       id: data.id,
       name: data.name,
@@ -261,15 +250,13 @@ export const getTmdbFullEpisodes = async (
   mediaType = "tv",
   seasons = []
 ) => {
-  if (!apiKey || !id || mediaType !== "tv") return [];
+  if (!id || mediaType !== "tv") return [];
   try {
     let seasonList = Array.isArray(seasons) ? seasons : [];
 
     // For non-TMDB primary sources, seasons may be missing: resolve from TV detail first.
     if (!seasonList.length) {
-      const { data: tvDetail } = await tmdb.get(`/tv/${id}`, {
-        params: { api_key: apiKey },
-      });
+      const { data: tvDetail } = await tmdb.get(`/tv/${id}`);
       seasonList = tvDetail?.seasons || [];
     }
 
@@ -282,9 +269,7 @@ export const getTmdbFullEpisodes = async (
     // To keep it simple and avoid too many requests, fetch only the latest seasons.
     const seasonResults = await Promise.all(
       targetSeasons.map(async (s) => {
-        const { data } = await tmdb.get(`/tv/${id}/season/${s.season_number}`, {
-          params: { api_key: apiKey },
-        });
+        const { data } = await tmdb.get(`/tv/${id}/season/${s.season_number}`);
         return data.episodes || [];
       })
     );
@@ -294,3 +279,4 @@ export const getTmdbFullEpisodes = async (
     return [];
   }
 };
+
