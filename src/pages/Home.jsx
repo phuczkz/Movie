@@ -143,7 +143,7 @@ const Home = () => {
   //   { enabled: showSingle, ...commonQueryOpts }
   // );
   const { data: popular = [], isLoading: loadingPopular } = useTmdbPopular(1, {
-    enabled: true,
+    enabled: showPopular,
     ...commonQueryOpts,
   });
 

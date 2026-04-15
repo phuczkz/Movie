@@ -244,166 +244,166 @@ const Header = () => {
   return (
     <>
       <header
-      className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${isHidden ? "-translate-y-full" : "translate-y-0"
-        } ${showTransparent
-          ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
-          : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
-        }`}
-    >
-      {/* Mobile top bar */}
-      <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
-        <button
-          aria-label="Toggle menu"
-          onClick={() => {
-            setMenuOpen((v) => !v);
-            setSearchOpen(false);
-          }}
-          className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
-        >
-          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-
-        <div className="flex items-center gap-2">
+        className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${isHidden ? "-translate-y-full" : "translate-y-0"
+          } ${showTransparent
+            ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
+            : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
+          }`}
+      >
+        {/* Mobile top bar */}
+        <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
           <button
-            aria-label="Open search"
+            aria-label="Toggle menu"
             onClick={() => {
-              setSearchOpen((v) => !v);
-              setMenuOpen(false);
+              setMenuOpen((v) => !v);
+              setSearchOpen(false);
             }}
-            className="inline-flex flex-shrink-0 items-center justify-center text-white p-2"
+            className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
           >
-            {searchOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Search className="h-5 w-5" />
-            )}
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
 
-          {/* Mobile Toggle Button */}
-          <button
-            onClick={() => {
-              setAppMode(appMode === "movie" ? "comic" : "movie");
-              if (appMode === "movie") navigate("/comics");
-              else navigate("/");
-            }}
-            className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
-            title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"
-              }`}
-          >
-            {appMode === "movie" ? (
-              <BookOpen className="h-5 w-5 text-purple-400" />
-            ) : (
-              <Film className="h-5 w-5 text-blue-400" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Desktop / tablet bar */}
-      <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
-        <div className="flex-1 min-w-0">
-          <SearchBar
-            placeholder={
-              isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
-            }
-            className="max-w-xs lg:max-w-sm xl:max-w-xl"
-          />
-        </div>
-
-        <nav className="flex items-center gap-0.5 xl:gap-1 text-white">
-          {primaryNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
-                }`
-              }
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Open search"
+              onClick={() => {
+                setSearchOpen((v) => !v);
+                setMenuOpen(false);
+              }}
+              className="inline-flex flex-shrink-0 items-center justify-center text-white p-2"
             >
-              {item.label}
-            </NavLink>
-          ))}
-          {!isComicMode && <Dropdown label="Năm" options={movieYearOptions} />}
-          <Dropdown
-            label="Thể Loại"
-            options={genreOptions}
-            isWide={isComicMode}
-          />
-          {!isComicMode && (
-            <Dropdown label="Quốc Gia" options={movieCountryOptions} />
-          )}
-          {!isComicMode && <Dropdown label="Thêm" options={movieMoreOptions} />}
-        </nav>
-
-        <div className="flex items-center gap-2">
-          {/* Desktop Toggle Button */}
-          <button
-            onClick={() => {
-              setAppMode(appMode === "movie" ? "comic" : "movie");
-              if (appMode === "movie") navigate("/comics");
-              else navigate("/");
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/80 hover:bg-slate-700/80 text-sm font-semibold transition-colors mr-2"
-          >
-            {appMode === "movie" ? (
-              <>
-                <BookOpen className="w-4 h-4 text-purple-400" />
-                <span className="text-slate-200">Đọc Truyện</span>
-              </>
-            ) : (
-              <>
-                <Film className="w-4 h-4 text-blue-400" />
-                <span className="text-slate-200">Xem Phim</span>
-              </>
-            )}
-          </button>
-
-          {user ? (
-            <Link
-              to={isComicMode ? "/comics/profile" : "/profile"}
-              className="h-10 w-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
-            >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="avatar"
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                />
+              {searchOpen ? (
+                <X className="h-5 w-5" />
               ) : (
-                <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-sm">
-                  {(user.email || "").charAt(0).toUpperCase()}
-                </div>
+                <Search className="h-5 w-5" />
               )}
-            </Link>
-          ) : (
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400"
-            >
-              <LogIn className="h-4 w-4" />
-              <span>Đăng nhập</span>
-            </Link>
-          )}
-        </div>
-      </div>
+            </button>
 
-      {/* Mobile search overlay */}
-      {searchOpen && (
-        <div className="lg:hidden absolute left-0 right-0 top-full px-4 pb-3 z-40">
-          <div className="rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl shadow-black/30 p-3">
+            {/* Mobile Toggle Button */}
+            <button
+              onClick={() => {
+                setAppMode(appMode === "movie" ? "comic" : "movie");
+                if (appMode === "movie") navigate("/comics");
+                else navigate("/");
+              }}
+              className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
+              title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"
+                }`}
+            >
+              {appMode === "movie" ? (
+                <BookOpen className="h-5 w-5 text-purple-400" />
+              ) : (
+                <Film className="h-5 w-5 text-blue-400" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop / tablet bar */}
+        <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
+          <div className="flex-1 min-w-0">
             <SearchBar
               placeholder={
                 isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
               }
-              className="w-full"
+              className="max-w-xs lg:max-w-sm xl:max-w-xl"
             />
           </div>
-        </div>
-      )}
 
-    </header>
+          <nav className="flex items-center gap-0.5 xl:gap-1 text-white">
+            {primaryNav.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+            {!isComicMode && <Dropdown label="Năm" options={movieYearOptions} />}
+            <Dropdown
+              label="Thể Loại"
+              options={genreOptions}
+              isWide={isComicMode}
+            />
+            {!isComicMode && (
+              <Dropdown label="Quốc Gia" options={movieCountryOptions} />
+            )}
+            {!isComicMode && <Dropdown label="Thêm" options={movieMoreOptions} />}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            {/* Desktop Toggle Button */}
+            <button
+              onClick={() => {
+                setAppMode(appMode === "movie" ? "comic" : "movie");
+                if (appMode === "movie") navigate("/comics");
+                else navigate("/");
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/80 hover:bg-slate-700/80 text-sm font-semibold transition-colors mr-2"
+            >
+              {appMode === "movie" ? (
+                <>
+                  <BookOpen className="w-4 h-4 text-purple-400" />
+                  <span className="text-slate-200">Đọc Truyện</span>
+                </>
+              ) : (
+                <>
+                  <Film className="w-4 h-4 text-blue-400" />
+                  <span className="text-slate-200">Xem Phim</span>
+                </>
+              )}
+            </button>
+
+            {user ? (
+              <Link
+                to={isComicMode ? "/comics/profile" : "/profile"}
+                className="h-10 w-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-sm">
+                    {(user.email || "").charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </Link>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Đăng nhập</span>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile search overlay */}
+        {searchOpen && (
+          <div className="lg:hidden absolute left-0 right-0 top-full px-4 pb-3 z-40">
+            <div className="rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl shadow-black/30 p-3">
+              <SearchBar
+                placeholder={
+                  isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
+                }
+                className="w-full"
+              />
+            </div>
+          </div>
+        )}
+
+      </header>
 
       {/* Mobile Sidebar & Backdrop - Moved outside header for proper stacking and to avoid clipping */}
       <div
@@ -430,7 +430,7 @@ const Header = () => {
                   {isComicMode ? <BookOpen className="h-4 w-4 text-purple-400" /> : <Film className="h-4 w-4 text-blue-400" />}
                 </div>
                 <span className="text-lg font-bold text-white tracking-tight">
-                  {isComicMode ? "MangaHub" : "PHUCZK"}
+                  {isComicMode ? "MangaHub" : "KhoPhim"}
                 </span>
               </Link>
               <button
