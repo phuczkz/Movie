@@ -17,7 +17,7 @@ import {
   Timer,
   User,
 } from "lucide-react";
-import { onSnapshot, doc } from "firebase/firestore";
+import { onSnapshot, doc, increment, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config.js";
 import Player from "../components/Player.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
@@ -235,6 +235,8 @@ const Watch = () => {
     ? "Vietsub"
     : serverGroups["Thuyết Minh"]?.length
     ? "Thuyết Minh"
+    : serverGroups["Lồng Tiếng"]?.length
+    ? "Lồng Tiếng"
     : Object.keys(serverGroups)[0];
 
   const requestedServer = normalizeServerLabel(selectedServerParam);
@@ -247,6 +249,7 @@ const Watch = () => {
 
   const hasVietsub = Boolean(serverGroups.Vietsub?.length);
   const hasThuyetMinh = Boolean(serverGroups["Thuyết Minh"]?.length);
+  const hasLongTieng = Boolean(serverGroups["Lồng Tiếng"]?.length);
 
   const activeEpisode =
     episodesForServer.find((ep) => ep.slug === selectedEpisode) ||
@@ -619,6 +622,32 @@ const Watch = () => {
     }
   }, [episodesForServer, activeServer, params, setParams]);
 
+  // ––– View Tracking Logic (Request Volume) –––
+  useEffect(() => {
+    if (!slug || !db) return;
+
+    const trackView = async () => {
+      try {
+        const viewRef = doc(db, "movieViews", slug);
+        await setDoc(
+          viewRef,
+          {
+            slug,
+            name: movie?.name || movie?.title || slug, // Fallback to slug if movie not loaded yet
+            poster: movie?.poster_url || movie?.thumb_url || "",
+            views: increment(1),
+            lastViewedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn("[ViewTracking] Error updating views:", err);
+      }
+    };
+
+    trackView();
+  }, [slug, db]); // Fire on every unique slug access in this mount
+
   if (
     isLoading ||
     (isTmdb && loadingAlts && !bestAltMatch) ||
@@ -849,6 +878,19 @@ const Watch = () => {
                         Thuyết Minh
                       </button>
                     )}
+                    {hasLongTieng && (
+                      <button
+                        type="button"
+                        onClick={() => handleServerChange("Lồng Tiếng")}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                          activeServer === "Lồng Tiếng"
+                            ? "bg-emerald-400 text-slate-950"
+                            : "text-slate-200 hover:bg-white/10"
+                        }`}
+                      >
+                        Lồng Tiếng
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -903,7 +945,7 @@ const Watch = () => {
             </div>
 
             {episodesForServer.length ? (
-              <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {episodesForServer.map((ep, idx) => (
                     <Link
@@ -934,7 +976,11 @@ const Watch = () => {
                             : "text-emerald-300"
                         }`}
                       />
-                      {ep.name || `Tập ${idx + 1}`}
+                      {activeProvider === "ophim" &&
+                      ep.name &&
+                      !ep.name.toLowerCase().includes("tập")
+                        ? `Tập ${ep.name}`
+                        : ep.name || `Tập ${idx + 1}`}
                     </Link>
                   ))}
                 </div>

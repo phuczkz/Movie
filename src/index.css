@@ -650,3 +650,24 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     overflow: visible;
   }
 }
+
+/* ── Movie Card Image Skeleton Shimmer ────────────────────────────────────── */
+/*
+ * Displayed while the poster image is still loading via wsrv.nl proxy.
+ * Uses a sweeping gradient to convey an active loading state.
+ */
+@keyframes mc-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.mc-img-skeleton {
+  background: linear-gradient(
+    105deg,
+    #1e293b 25%,
+    #334155 50%,
+    #1e293b 75%
+  );
+  background-size: 200% 100%;
+  animation: mc-shimmer 1.6s ease-in-out infinite;
+}

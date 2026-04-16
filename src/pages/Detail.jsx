@@ -9,7 +9,7 @@ import {
   Info,
   Calendar,
 } from "lucide-react";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, increment, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
@@ -248,6 +248,32 @@ const Detail = () => {
     const timer = setTimeout(() => setDeferLoad(true), 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  // ––– View Tracking Logic (Request Volume) –––
+  useEffect(() => {
+    if (!slug || !db) return;
+
+    const trackView = async () => {
+      try {
+        const viewRef = doc(db, "movieViews", slug);
+        await setDoc(
+          viewRef,
+          {
+            slug,
+            name: movie?.name || movie?.title || slug,
+            poster: movie?.poster_url || movie?.thumb_url || "",
+            views: increment(1),
+            lastViewedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn("[ViewTracking] Error updating views:", err);
+      }
+    };
+
+    trackView();
+  }, [slug, db]); // Count every visit (request) to this page
 
   const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], {
     enabled: deferLoad && !!categorySlugs[0],
@@ -807,7 +833,8 @@ const Detail = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    navigate(`/watch/${slug}`);
+                    const serverParam = selectedServer ? `?server=${encodeURIComponent(selectedServer)}` : "";
+                    navigate(`/watch/${slug}${serverParam}`);
                   }}
                   className={`flex flex-1 lg:flex-none justify-center lg:justify-start items-center gap-2 rounded-full bg-emerald-500 px-4 sm:px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 relative z-30 cursor-pointer ${
                     episodes.length ? "" : "opacity-90"

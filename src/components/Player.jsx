@@ -27,10 +27,11 @@ const Player = ({
   onToggleTheater,
   onPlaybackIssue,
 }) => {
-  const artRef = useRef(null);           // DOM mount point for ArtPlayer
-  const artInstanceRef = useRef(null);   // ArtPlayer instance
-  const hlsInstanceRef = useRef(null);   // hls.js instance
-  const mountedRef = useRef(false);      // Guard against StrictMode double-mount
+  const artRef = useRef(null);             // DOM mount point for ArtPlayer
+  const artInstanceRef = useRef(null);     // ArtPlayer instance
+  const hlsInstanceRef = useRef(null);     // hls.js instance
+  const mountedRef = useRef(false);        // Guard against StrictMode double-mount
+  const nextEpBtnElRef = useRef(null);     // DOM ref for next-episode control button
 
   const onPlaybackIssueRef = useRef(onPlaybackIssue);
   const onTimeUpdateRef = useRef(onTimeUpdate);
@@ -244,30 +245,43 @@ const Player = ({
           hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
             const art = artObj || artInstanceRef.current;
 
-            // Build quality levels list
-            const preferredHeights = [240, 360, 480, 720, 1080];
+            // Build quality levels list (Highest to Lowest)
             const levels = (data?.levels || [])
-              .map((lvl, idx) => ({ height: lvl.height, level: idx }))
-              .sort((a, b) => (a.height || 0) - (b.height || 0))
-              .filter((lvl) => !lvl.height || preferredHeights.includes(lvl.height));
+              .map((lvl, idx) => ({
+                height: lvl.height,
+                level: idx,
+                bitrate: lvl.bitrate
+              }))
+              .sort((a, b) => (b.height || 0) - (a.height || 0) || (b.bitrate || 0) - (a.bitrate || 0));
 
-            const seen = new Set();
             const unique = [];
+            const seen = new Set();
             for (const lvl of levels) {
-              const lbl = lvl.height ? `${lvl.height}p` : "Auto";
-              if (!seen.has(lbl)) { seen.add(lbl); unique.push({ label: lbl, level: lvl.level }); }
+              let label = "";
+              if (lvl.height) {
+                label = `${lvl.height}p`;
+              } else if (lvl.bitrate) {
+                label = `${Math.round(lvl.bitrate / 1000)}k`;
+              } else {
+                label = `SD ${lvl.level + 1}`;
+              }
+
+              if (!seen.has(label)) {
+                seen.add(label);
+                unique.push({ html: label, level: lvl.level });
+              }
             }
 
             if (art) {
               const qualityConfig = {
                 name: "quality",
-                width: 200,
+                width: 180,
                 html: "Chất lượng",
-                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
                 tooltip: "Chất lượng",
                 selector: [
                   { default: true, html: "Tự động", level: -1 },
-                  ...unique.map((q) => ({ html: q.label, level: q.level })),
+                  ...unique,
                 ],
                 onSelect(item) {
                   hls.currentLevel = item.level;
@@ -415,7 +429,7 @@ const Player = ({
             },
           ]
           : []),
-        // Next Episode button
+        // Next Episode button (always visible in control bar if next exists)
         ...(onNextEpisode && hasNextEpisode
           ? [
             {
@@ -442,6 +456,48 @@ const Player = ({
             transition: "opacity 0.3s ease",
           },
         },
+        // Floating Next Episode button (shows above control bar)
+        ...(onNextEpisode && hasNextEpisode
+          ? [
+            {
+              name: "next-episode-overlay",
+              html: `
+                <div id="art-next-ep-layer" style="
+                  display: none;
+                  position: absolute;
+                  bottom: 80px;
+                  right: 24px;
+                  background: rgba(255, 255, 255, 0.08);
+                  backdrop-filter: blur(16px);
+                  -webkit-backdrop-filter: blur(16px);
+                  border: 1px solid rgba(255, 255, 255, 0.15);
+                  border-radius: 12px;
+                  padding: 12px 24px;
+                  color: #ffffff;
+                  font-size: 14px;
+                  font-weight: 700;
+                  cursor: pointer;
+                  align-items: center;
+                  gap: 10px;
+                  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+                  pointer-events: auto;
+                  user-select: none;
+                ">
+                  <span style="letter-spacing: 0.03em;">Tập tiếp theo</span>
+                </div>`,
+              click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
+              style: {
+                position: "absolute",
+                top: "0",
+                left: "0",
+                right: "0",
+                bottom: "0",
+                pointerEvents: "none",
+              },
+            },
+          ]
+          : []),
       ],
       customType: customType || undefined,
     };
@@ -478,11 +534,33 @@ const Player = ({
         });
       }
 
+      // Cache ref to the next-episode DOM button (injected via layer html)
+      if (onNextEpisode && hasNextEpisode) {
+        nextEpBtnElRef.current =
+          art.template?.$player?.querySelector?.("#art-next-ep-layer") || null;
+
+        // Add hover effect
+        if (nextEpBtnElRef.current) {
+          nextEpBtnElRef.current.onmouseenter = () => {
+            nextEpBtnElRef.current.style.background = "rgba(255, 255, 255, 0.18)";
+            nextEpBtnElRef.current.style.borderColor = "rgba(255, 255, 255, 0.3)";
+            nextEpBtnElRef.current.style.transform = "translateY(-4px)";
+            nextEpBtnElRef.current.style.boxShadow = "0 25px 50px rgba(0, 0, 0, 0.5)";
+          };
+          nextEpBtnElRef.current.onmouseleave = () => {
+            nextEpBtnElRef.current.style.background = "rgba(255, 255, 255, 0.08)";
+            nextEpBtnElRef.current.style.borderColor = "rgba(255, 255, 255, 0.15)";
+            nextEpBtnElRef.current.style.transform = "translateY(0)";
+            nextEpBtnElRef.current.style.boxShadow = "0 20px 40px rgba(0, 0, 0, 0.4)";
+          };
+        }
+      }
+
       // Note: Custom hotkeys (F, Space, Arrows) are now handled by a global document listener
       // defined below using a separate useEffect, ensuring they work regardless of focus.
     });
 
-    // Track time progress
+    // Track time progress + next-episode button visibility
     art.on("video:timeupdate", () => {
       const video = art.video;
       if (!video) return;
@@ -490,10 +568,21 @@ const Player = ({
       const d = video.duration || 0;
       lastPositionRef.current = t;
       if (onTimeUpdateRef.current) onTimeUpdateRef.current(t, d);
+
+      // Show "Tập tiếp theo" button when the video is nearing its end
+      const btn = nextEpBtnElRef.current;
+      if (btn && hasNextEpisode && d > 0) {
+        // Show if remaining time <= 3 minutes (190s) OR progress >= 90% (for short clips)
+        const remainingTime = d - t;
+        const shouldShow = remainingTime <= 190 || (t / d >= 0.9);
+        btn.style.display = shouldShow ? "inline-flex" : "none";
+      }
     });
 
-    // Video ended → auto jump to next episode without overlay
+    // Video ended → show button immediately + auto jump to next episode
     art.on("video:ended", () => {
+      const btn = nextEpBtnElRef.current;
+      if (btn && hasNextEpisode) btn.style.display = "inline-flex";
       if (hasNextEpisode && onNextEpisodeRef.current) {
         onNextEpisodeRef.current();
       }
@@ -561,8 +650,8 @@ const Player = ({
 
   // ── Theater mode container classes ──
   const containerClass = `relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 ${theaterMode
-      ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
-      : "z-10 rounded-2xl border border-white/10"
+    ? "z-[60] rounded-none sm:rounded-xl ring-1 ring-white/10"
+    : "z-10 rounded-2xl border border-white/10"
     }`;
 
   // ── Iframe source ──
@@ -607,6 +696,18 @@ const Player = ({
           /* Darken poster */
           .art-poster {
             filter: brightness(0.4) contrast(1.1) !important;
+          }
+
+          /* Force font family on all player elements */
+          .art-video-player, 
+          .art-video-player *, 
+          .art-control, 
+          .art-layer, 
+          .art-setting, 
+          .art-info, 
+          .art-contextmenu {
+            font-family: 'Manrope', 'Satoshi', system-ui, -apple-system, sans-serif !important;
+            -webkit-font-smoothing: antialiased;
           }
 
           /* Tablet and Mobile Adjustments (Desktop remains default) */
@@ -696,6 +797,24 @@ const Player = ({
               font-size: 8px !important;
               letter-spacing: -1px !important;
               padding: 0 1px !important;
+            }
+          }
+
+          /* Hover effect for floating button */
+          #art-next-ep-layer:hover {
+            /* Handled in JS for background, shadow handled here */
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6) !important;
+          }
+
+          /* Adjust position for mobile */
+          @media (max-width: 768px) {
+            #art-next-ep-layer {
+              bottom: 65px !important;
+              right: 16px !important;
+              padding: 10px 16px !important;
+              font-size: 11px !important;
+              border-radius: 8px !important;
+              font-weight: 900 !important;
             }
           }
         `}

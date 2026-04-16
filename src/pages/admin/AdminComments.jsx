@@ -11,6 +11,8 @@ import {
   setDoc,
   collectionGroup,
   limit,
+  where,
+  orderBy,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useAuth } from "../../context/AuthContext";
@@ -27,6 +29,10 @@ import {
   CornerDownRight,
   RefreshCw,
   AlertCircle,
+  Filter,
+  CalendarDays,
+  List,
+  Layers,
 } from "lucide-react";
 import { useSearchMovies } from "../../hooks/useSearchMovies";
 import ConfirmModal from "../../components/ConfirmModal";
@@ -61,17 +67,26 @@ function AdminCommentRow({
   replies = [],
   onDelete,
   onReply,
+  showMovieContext = false,
 }) {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Helper to extract movie title from slug
+  const displayContext = showMovieContext && comment.movieSlug ? (
+    <div className="flex items-center gap-1.5 mb-2 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 w-fit">
+      <Film size={10} />
+      {cleanName(comment.movieSlug)}
+    </div>
+  ) : null;
 
   const handleSubmitReply = async (e) => {
     e.preventDefault();
     if (!replyText.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await onReply(comment.id, replyText);
+      await onReply(comment.id, replyText, movieSlug);
       setReplyText("");
       setShowReplyInput(false);
     } finally {
@@ -103,6 +118,7 @@ function AdminCommentRow({
         </div>
 
         <div className="flex-1 min-w-0">
+          {displayContext}
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-bold text-slate-200">
               {comment.displayName || "Ẩn danh"}
@@ -126,7 +142,7 @@ function AdminCommentRow({
               </button>
             )}
             <button
-              onClick={() => onDelete(comment.id)}
+              onClick={() => onDelete(comment.id, movieSlug)}
               className="text-[11px] font-bold text-rose-500 hover:text-rose-400 uppercase tracking-wider"
             >
               Xóa
@@ -193,8 +209,13 @@ export default function AdminComments() {
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     commentId: null,
+    movieSlug: null,
     loading: false,
   });
+
+  const [viewMode, setViewMode] = useState("by-movie"); // 'by-movie' or 'all'
+  const [dateFilter, setDateFilter] = useState("all"); // 'all', 'today', 'specific'
+  const [selectedDate, setSelectedDate] = useState("");
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
@@ -289,26 +310,70 @@ export default function AdminComments() {
     }
   };
 
-  // 2. Snapshot for active movie comments
+  // 2. Snapshot for active movie comments or global comments
   useEffect(() => {
-    if (!movieSlug || view !== "detail") {
+    if (viewMode === "by-movie" && (!movieSlug || view !== "detail")) {
       setAllComments([]);
       return;
     }
-    setLoading(true);
-    const q = query(collection(db, `comments/${movieSlug}/items`));
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setAllComments(data);
-      setLoading(false);
 
-      // Auto-cleanup: If this movie is in the quick list but has 0 comments, remove it
-      if (data.length === 0 && view === "detail" && movieSlug) {
-        deleteDoc(doc(db, "commentedMovies", movieSlug)).catch(console.error);
+    setLoading(true);
+    let q;
+    const constraints = [orderBy("createdAt", "desc"), limit(200)];
+
+    if (dateFilter === "today") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      constraints.push(where("createdAt", ">=", today));
+    } else if (dateFilter === "specific" && selectedDate) {
+      const start = new Date(selectedDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(selectedDate);
+      end.setHours(23, 59, 59, 999);
+      constraints.push(where("createdAt", ">=", start));
+      constraints.push(where("createdAt", "<=", end));
+    }
+
+    if (viewMode === "all") {
+      q = query(collectionGroup(db, "items"), ...constraints);
+    } else {
+      q = query(collection(db, `comments/${movieSlug}/items`), ...constraints);
+    }
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const data = snap.docs.map((d) => {
+          const item = { id: d.id, ...d.data() };
+          if (viewMode === "all") {
+            const parts = d.ref.path.split("/");
+            if (parts[0] === "comments") item.movieSlug = parts[1];
+          }
+          return item;
+        });
+        setAllComments(data);
+        setLoading(false);
+
+        // Auto-cleanup only in by-movie detail view
+        if (
+          viewMode === "by-movie" &&
+          data.length === 0 &&
+          view === "detail" &&
+          movieSlug
+        ) {
+          deleteDoc(doc(db, "commentedMovies", movieSlug)).catch(console.error);
+        }
+      },
+      (err) => {
+        console.error("Comment fetch error:", err);
+        if (err.message?.includes("index")) {
+          showToast("Thiếu Index Firestore. Vui lòng kiểm tra Console.", "error");
+        }
+        setLoading(false);
       }
-    });
+    );
     return unsub;
-  }, [movieSlug, view]);
+  }, [movieSlug, view, viewMode, dateFilter, selectedDate]);
 
   // 3. Threading logic
   const { topComments, repliesMap } = useMemo(() => {
@@ -336,10 +401,13 @@ export default function AdminComments() {
     return { topComments: tops, repliesMap: rMap };
   }, [allComments]);
 
-  const handleReply = async (parentId, text) => {
+  const handleReply = async (parentId, text, targetSlug) => {
+    const activeSlug = targetSlug || movieSlug;
+    if (!activeSlug) return;
+
     try {
       // 1. Add the reply
-      await addDoc(collection(db, `comments/${movieSlug}/items`), {
+      await addDoc(collection(db, `comments/${activeSlug}/items`), {
         userId: user.uid,
         displayName: userProfile?.displayName || "Admin",
         photoURL: userProfile?.photoURL || null,
@@ -353,16 +421,16 @@ export default function AdminComments() {
 
       // 2. Ensure the parent document in 'comments' is NOT virtual (add a dummy field)
       await setDoc(
-        doc(db, "comments", movieSlug),
+        doc(db, "comments", activeSlug),
         { exists: true },
         { merge: true }
       );
 
       // 3. Update 'commentedMovies' index metadata
       await setDoc(
-        doc(db, "commentedMovies", movieSlug),
+        doc(db, "commentedMovies", activeSlug),
         {
-          movieName,
+          movieName: movieName || cleanName(activeSlug),
           lastCommentAt: serverTimestamp(),
         },
         { merge: true }
@@ -372,49 +440,57 @@ export default function AdminComments() {
     }
   };
 
-  const handleDelete = (commentId) => {
+  const handleDelete = (commentId, targetSlug) => {
     setConfirmModal({
       isOpen: true,
       commentId,
+      movieSlug: targetSlug || movieSlug,
       loading: false,
     });
   };
 
   const confirmDelete = async () => {
-    const commentId = confirmModal.commentId;
-    if (!commentId) return;
+    const { commentId, movieSlug: targetSlug } = confirmModal;
+    if (!commentId || !targetSlug) return;
 
     setConfirmModal((prev) => ({ ...prev, loading: true }));
     try {
       // 1. Delete the comment
-      await deleteDoc(doc(db, "comments", movieSlug, "items", commentId));
+      await deleteDoc(doc(db, "comments", targetSlug, "items", commentId));
 
       // 2. Find the next most recent comment to update the index timestamp
       const remaining = allComments.filter((calc) => calc.id !== commentId);
-      if (remaining.length > 0) {
-        remaining.sort(
-          (a, b) =>
-            (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
-        );
-        const latest = remaining[0];
+      if (viewMode === "by-movie") {
+        if (remaining.length > 0) {
+          remaining.sort(
+            (a, b) =>
+              (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
+          );
+          const latest = remaining[0];
 
-        await setDoc(
-          doc(db, "commentedMovies", movieSlug),
-          {
-            movieName: movieName,
-            lastCommentAt: latest.createdAt || serverTimestamp(),
-          },
-          { merge: true }
-        );
-      } else {
-        await deleteDoc(doc(db, "commentedMovies", movieSlug));
-        setView("list");
-        showToast("Đã dọn dẹp danh sách quản lý.", "success");
+          await setDoc(
+            doc(db, "commentedMovies", targetSlug),
+            {
+              movieName: movieName,
+              lastCommentAt: latest.createdAt || serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } else {
+          await deleteDoc(doc(db, "commentedMovies", targetSlug));
+          setView("list");
+          showToast("Đã dọn dẹp danh sách quản lý.", "success");
+        }
       }
     } catch (err) {
       showToast("Lỗi xóa: " + err.message, "error");
     } finally {
-      setConfirmModal({ isOpen: false, commentId: null, loading: false });
+      setConfirmModal({
+        isOpen: false,
+        commentId: null,
+        movieSlug: null,
+        loading: false,
+      });
     }
   };
 
@@ -489,7 +565,75 @@ export default function AdminComments() {
         </div>
       </div>
 
-      {view === "list" ? (
+      {/* Controls: Mode & Filter */}
+      <div className="flex flex-wrap items-center gap-3 bg-white/[0.03] border border-white/5 p-2 rounded-2xl shadow-inner">
+        {/* View Mode Toggle */}
+        <div className="flex bg-slate-950/40 p-1 rounded-xl border border-white/5 shrink-0">
+          <button
+            onClick={() => {
+              setViewMode("by-movie");
+              if (view === "detail") setView("list");
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              viewMode === "by-movie"
+                ? "bg-emerald-500 text-slate-950 shadow-lg"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <Layers size={14} /> Theo phim
+          </button>
+          <button
+            onClick={() => {
+              setViewMode("all");
+              setView("detail");
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              viewMode === "all"
+                ? "bg-emerald-500 text-slate-950 shadow-lg"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            <List size={14} /> Tất cả
+          </button>
+        </div>
+
+        {/* Date Filter */}
+        <div className="h-6 w-px bg-white/10 hidden sm:block mx-1" />
+
+        <div className="flex items-center gap-2 grow min-w-[200px]">
+          <Filter size={14} className="text-slate-500 ml-1" />
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="bg-transparent border-none text-xs font-bold text-slate-300 focus:ring-0 cursor-pointer hover:text-white transition-colors appearance-none pr-6"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(100,116,139,1)'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right center",
+              backgroundSize: "12px",
+            }}
+          >
+            <option value="all" className="bg-slate-900">Tất cả thời gian</option>
+            <option value="today" className="bg-slate-900">Hôm nay</option>
+            <option value="specific" className="bg-slate-900">Chọn ngày cụ thể</option>
+          </select>
+
+          {dateFilter === "specific" && (
+            <div className="relative flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
+              <CalendarDays size={14} className="text-emerald-500" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-emerald-500/50"
+                max={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {viewMode === "by-movie" && view === "list" ? (
         <div className="space-y-6">
           {/* Search Box */}
           <div className="relative">
@@ -594,10 +738,11 @@ export default function AdminComments() {
                   <AdminCommentRow
                     key={c.id}
                     comment={c}
-                    movieSlug={movieSlug}
+                    movieSlug={movieSlug || c.movieSlug}
                     replies={repliesMap[c.id] || []}
                     onDelete={handleDelete}
                     onReply={handleReply}
+                    showMovieContext={viewMode === "all"}
                   />
                 ))}
               </div>

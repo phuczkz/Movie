@@ -241,7 +241,7 @@ const MovieCard = ({ movie, priority = false }) => {
           observer.disconnect();
         }
       },
-      { rootMargin: "600px", threshold: 0.01 }
+      { rootMargin: "900px", threshold: 0.01 }
     );
     observer.observe(imgRef.current);
     return () => observer.disconnect();
@@ -270,15 +270,17 @@ const MovieCard = ({ movie, priority = false }) => {
         className="relative flex flex-col"
       >
         <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-300">
-          {!loaded && (shouldLoad || priority) && (
-            <div className="absolute inset-0 animate-pulse bg-slate-700/50" />
+          {/* Skeleton shimmer — visible until image is loaded */}
+          {!loaded && (
+            <div className="absolute inset-0 mc-img-skeleton" />
           )}
           <img
             ref={imgRef}
             src={posterSrc}
             alt={movie.name}
-            className={`absolute h-full w-full object-cover transition duration-500 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"
-              }`}
+            className={`absolute h-full w-full object-cover transition-opacity duration-500 group-hover:scale-105 ${
+              loaded ? "opacity-100 scale-100" : "opacity-0"
+            }`}
             loading={priority ? "eager" : "lazy"}
             decoding="async"
             {...(priority

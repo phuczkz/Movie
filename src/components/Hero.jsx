@@ -77,7 +77,7 @@ const Hero = ({ movie, movies = [] }) => {
   // Yêu cầu: mọi CTA từ hero dẫn qua trang chi tiết trước khi xem
   const primaryLink = `/movie/${activeMovie.slug}`;
   const secondaryLink = `/watch/${activeMovie.slug}`;
-  const primaryLabel = "";
+  const primaryLabel = "Xem Ngay";
 
   const categories = normalizeList(activeMovie.category);
   const countries = normalizeList(activeMovie.country);
@@ -186,8 +186,8 @@ const Hero = ({ movie, movies = [] }) => {
               to={secondaryLink}
               className="group inline-flex items-center gap-2.5 sm:gap-3 rounded-full bg-[rgb(16,185,129)] px-4 sm:px-5 md:px-6 py-2 md:py-3 text-[12px] sm:text-[13px] md:text-sm font-semibold text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
             >
-              <span className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
-                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+              <span className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
+                <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" fill="currentColor" />
               </span>
               {primaryLabel}
             </Link>
