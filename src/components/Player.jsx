@@ -620,7 +620,7 @@ const Player = ({
       const target = e.target;
       if (
         target &&
-        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+        (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
           target.isContentEditable)
       ) {
         return;
@@ -629,18 +629,30 @@ const Player = ({
       const art = artInstanceRef.current;
       if (!art || !art.isReady) return;
 
-      if (e.code === 'Space') {
+      // Handle Space for Play/Pause
+      if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
+        const isPaused = art.video.paused;
         art.toggle();
-      } else if (e.code === 'KeyF') {
+        art.notice.show(isPaused ? "Đang phát" : "Đã tạm dừng");
+      } 
+      // Handle F for Fullscreen
+      else if (e.code === "KeyF" || e.key === "f" || e.key === "F") {
         e.preventDefault();
         art.fullscreen = !art.fullscreen;
-      } else if (e.code === 'ArrowLeft') {
+        art.notice.show(art.fullscreen ? "Toàn màn hình" : "Thoát toàn màn hình");
+      } 
+      // Handle Seek Backward
+      else if (e.code === "ArrowLeft" || e.key === "ArrowLeft") {
         e.preventDefault();
         art.backward = 10;
-      } else if (e.code === 'ArrowRight') {
+        art.notice.show("Lùi 10 giây");
+      } 
+      // Handle Seek Forward
+      else if (e.code === "ArrowRight" || e.key === "ArrowRight") {
         e.preventDefault();
         art.forward = 10;
+        art.notice.show("Tiến 10 giây");
       }
     };
 

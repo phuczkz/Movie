@@ -23,14 +23,8 @@ const app =
     ? getApp()
     : null;
 
+// Auth and DB are initialized on demand or shared across the app
 export const auth = app ? getAuth(app) : null;
 export const googleProvider = app ? new GoogleAuthProvider() : null;
 export const db = app ? getFirestore(app) : null;
-
-// Secondary Firebase app for administrative tasks (like creating users)
-// Note: This relies on Security Rules for actual permission control.
-export const adminApp = isFirebaseConfigured
-  ? initializeApp(firebaseConfig, "AdminApp")
-  : null;
-export const adminAuth = adminApp ? getAuth(adminApp) : null;
 

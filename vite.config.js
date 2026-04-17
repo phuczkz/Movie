@@ -30,22 +30,18 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            
-            if (id.includes("firebase")) return "vendor-fb";
-            if (id.includes("hls.js")) return "vendor-hls";
-            if (id.includes("artplayer")) return "vendor-artplayer";
-            if (id.includes("@tanstack/react-query")) return "vendor-query";
-            if (id.includes("lucide-react")) return "vendor-lucide";
-            if (id.includes("react-router-dom")) return "vendor-router";
+            // Group core React dependencies together as they are used everywhere
             if (
               id.includes("react-dom") ||
               id.includes("react/jsx-runtime") ||
               id.includes("react/")
-            )
+            ) {
               return "vendor-react";
-            if (id.includes("axios")) return "vendor-axios";
-
-            // Let Rollup decide the rest; this preserves async chunking.
+            }
+            
+            // For other libraries like Firebase, HLS, Artplayer, etc., 
+            // we let Vite/Rollup decide the best splitting strategy.
+            // This ensures they are only loaded on routes that actually need them.
             return undefined;
           }
         },

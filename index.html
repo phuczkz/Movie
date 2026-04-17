@@ -7,6 +7,27 @@
     <title>KhoPhim - Xem phim online</title>
     <meta name="description" content="Xem phim trực tuyến miễn phí – Phim bộ, phim lẻ, hoạt hình cập nhật liên tục" />
 
+    <!-- Performance: Preconnect & DNS Prefetch -->
+    <link rel="preconnect" href="https://wsrv.nl" />
+    <link rel="preconnect" href="https://api.themoviedb.org" />
+    <link rel="dns-prefetch" href="https://image.tmdb.org" />
+    <link rel="dns-prefetch" href="https://phimimg.com" />
+    <link rel="dns-prefetch" href="https://img.ophim.live" />
+    <link rel="dns-prefetch" href="https://phimapi.com" />
+    <link rel="dns-prefetch" href="https://ophim1.com" />
+
+    <!-- Font Imports -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <!-- Font Preloads (Local) -->
+    <link rel="preload" href="/fonts/Manrope-Variable.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/AlfaSlabOne-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/RussoOne-Regular.woff2" as="font" type="font/woff2" crossorigin />
+
+
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0b0b15" />
@@ -17,7 +38,7 @@
     <meta name="apple-mobile-web-app-title" content="KhoPhim" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <!-- iOS Splash Screens – covers most iPhones/iPads -->
+    <!-- iOS Splash Screens -->
     <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
 
     <!-- Android Chrome themeColor -->
@@ -26,21 +47,6 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
 
-    <!-- Google Fonts Preconnect -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Satoshi:wght@400;500;700&family=Alfa+Slab+One&family=Russo+One&display=swap" rel="stylesheet" />
-
-    <!-- Preconnect: keep <= 4 critical origins -->
-    <link rel="preconnect" href="https://wsrv.nl" />
-    <link rel="preconnect" href="https://api.themoviedb.org" />
-
-    <!-- DNS Prefetch: non-critical / route-dependent origins -->
-    <link rel="dns-prefetch" href="https://image.tmdb.org" />
-    <link rel="dns-prefetch" href="https://phimimg.com" />
-    <link rel="dns-prefetch" href="https://img.ophim.live" />
-    <link rel="dns-prefetch" href="https://phimapi.com" />
-    <link rel="dns-prefetch" href="https://ophim1.com" />
   </head>
   <body>
     <div id="root"></div>

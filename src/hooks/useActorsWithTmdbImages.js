@@ -123,7 +123,7 @@ export const useActorsWithTmdbImages = (actors = [], options = {}) => {
       // Optimization: Limit the number of TMDB requests per call to avoid 429 or slowing down main page.
       // We only process the first 'itemLimit' truly missing actors.
       const cappedTasks = tasks.slice(0, itemLimit);
-      await runWithConcurrency(cappedTasks, 4);
+      await runWithConcurrency(cappedTasks, 6);
 
       return base.map((actor) => {
         if (!actor?.name) return actor;

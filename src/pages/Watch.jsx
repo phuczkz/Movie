@@ -187,8 +187,10 @@ const Watch = () => {
   const baseYear = baseMovie?.year || null;
   const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
 
+  // Only search for alternatives if this is a TMDB-primary movie AND we don't have enough episodes yet
+  const needsAltSearch = isTmdb && (!baseEpisodes || baseEpisodes.length < 1);
   const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
-    isTmdb ? baseMovie?.name : ""
+    needsAltSearch ? baseMovie?.name : ""
   );
 
   const bestAltMatch = (() => {
@@ -209,10 +211,11 @@ const Watch = () => {
     });
   })();
 
+  const altSlug = bestAltMatch?.slug;
   const { data: altDetail, isLoading: loadingAltDetail } = useMovieDetail(
-    bestAltMatch?.slug
+    altSlug && altSlug !== slug ? altSlug : null
   );
-
+  
   const movie =
     !isTmdb || !loadingAlts || bestAltMatch ? bestAltMatch || baseMovie : null;
 

@@ -159,8 +159,10 @@ const Detail = () => {
     setShowResumeModal(false);
   }, [slug, clearProgress]);
 
+  // Only search for alternatives if this is a TMDB-primary movie AND we don't have enough episodes yet
+  const needsAltSearch = isTmdb && (!baseEpisodes || baseEpisodes.length < 1);
   const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
-    isTmdb ? baseMovie?.name : ""
+    needsAltSearch ? baseMovie?.name : ""
   );
 
   const bestAltMatch = useMemo(() => {
@@ -214,17 +216,15 @@ const Detail = () => {
     return passedMovie || detailMovie || null;
   }, [altDetail?.movie, baseMovie, passedMovie]);
 
-  // LCP Optimization: Preload hero image ASAP
+  // LCP Optimization: Preload hero/banner image ASAP
   useEffect(() => {
     const img =
       movie?.backdrop_url ||
       movie?.banner ||
       movie?.thumb_url ||
       movie?.poster_url;
-    if (img) {
-      const url = `https://wsrv.nl/?url=${encodeURIComponent(
-        img
-      )}&output=webp&w=1000&fit=cover&q=75`;
+    if (img && !isLoading) {
+      const url = getOptimizedImage(getHiRes(img), 1200);
       const link = document.createElement("link");
       link.rel = "preload";
       link.as = "image";
@@ -235,7 +235,7 @@ const Detail = () => {
         if (link.parentNode) link.parentNode.removeChild(link);
       };
     }
-  }, [movie]);
+  }, [movie, isLoading]);
 
   const categorySlugs = useMemo(
     () => (movie?.category || []).map((c) => c.slug).filter(Boolean),

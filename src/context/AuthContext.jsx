@@ -41,20 +41,20 @@ const AuthContext = createContext({
   loading: true,
   profileLoading: false,
   maintenance: { enabled: false, title: "", message: "", statusText: "" },
-  loginGoogle: async () => {},
-  loginEmail: async () => {},
-  registerEmail: async () => {},
-  updateProfileData: async () => {},
-  uploadAvatar: async () => {},
-  logout: async () => {},
-  saveMovie: async () => {},
-  removeSavedMovie: async () => {},
-  saveComic: async () => {},
-  removeSavedComic: async () => {},
-  createAccountByAdmin: async () => {},
-  deleteUserByAdmin: async () => {},
-  toggleMaintenanceMode: async () => {},
-  toggleUserWhitelist: async () => {},
+  loginGoogle: async () => { },
+  loginEmail: async () => { },
+  registerEmail: async () => { },
+  updateProfileData: async () => { },
+  uploadAvatar: async () => { },
+  logout: async () => { },
+  saveMovie: async () => { },
+  removeSavedMovie: async () => { },
+  saveComic: async () => { },
+  removeSavedComic: async () => { },
+  createAccountByAdmin: async () => { },
+  deleteUserByAdmin: async () => { },
+  toggleMaintenanceMode: async () => { },
+  toggleUserWhitelist: async () => { },
 });
 
 const rejectIfMissing = () => {
@@ -465,7 +465,7 @@ export const AuthProvider = ({ children }) => {
           "FavoriteComics",
           comic.slug
         );
-        
+
         // Extract necessary fields for card display, handling both API detail and card-like objects
         const payload = {
           slug: comic.slug,
@@ -476,7 +476,7 @@ export const AuthProvider = ({ children }) => {
           author: comic.author || null,
           updatedAt: comic.updatedAt || firestoreMod.serverTimestamp(),
           // Store latest chapter if available
-          chaptersLatest: comic.chapters?.[0]?.server_data?.length > 0 
+          chaptersLatest: comic.chapters?.[0]?.server_data?.length > 0
             ? [{ chapter_name: comic.chapters[0].server_data[comic.chapters[0].server_data.length - 1].chapter_name }]
             : (Array.isArray(comic.chaptersLatest) ? comic.chaptersLatest : []),
           createdAt: firestoreMod.serverTimestamp(),
@@ -503,13 +503,19 @@ export const AuthProvider = ({ children }) => {
       },
       createAccountByAdmin: async (email, password, displayName) => {
         const { config, authMod, firestoreMod } = await loadFirebaseSdk();
-        if (!config.adminAuth) throw new Error("AdminAuth chưa được cấu hình.");
+        
+        // Initialize AdminApp on demand to save initial bundle size
+        const { initializeApp, getAuth } = await import("firebase/app");
+        const adminApp = initializeApp(config.firebaseConfig, "AdminApp_" + Date.now());
+        const adminAuth = getAuth(adminApp);
+
         // Use secondary auth to avoid signing out the current admin
         const credential = await authMod.createUserWithEmailAndPassword(
-          config.adminAuth,
+          adminAuth,
           email,
           password
         );
+
         const newUser = credential.user;
 
         if (displayName) {

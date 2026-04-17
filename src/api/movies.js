@@ -502,72 +502,76 @@ export const getDetail = (slug) =>
         }
       }
 
-      // Final enrichment: Always try to find the movie on TMDB to ensure a consistent,
+      // Final enrichment: Always try to find the movie on TMDB in parallel to ensure a consistent,
       // high-quality cast list with proper avatars and TMDB Person IDs.
       if (movie && !movie.slug?.startsWith("tmdb-")) {
-        try {
-          // Identify potential TMDB match
-          const tmdbMatch = await searchTmdbMovie(
-            movie.name || movie.origin_name,
-            movie.year
-          );
-          if (tmdbMatch) {
+        const enrichmentTimeout = 5000; // 5s timeout for enrichment
+
+        const tryEnrich = async () => {
+          try {
+            // 1. Identify potential TMDB match
+            const tmdbMatch = await searchTmdbMovie(
+              movie.name || movie.origin_name,
+              movie.year
+            );
+            if (!tmdbMatch) return;
+
             movie.tmdb = {
               id: tmdbMatch.id,
               mediaType: tmdbMatch.media_type,
             };
 
+            // 2. Fetch credits
             const tmdbActors = await getTmdbCredits(
               tmdbMatch.id,
               tmdbMatch.media_type
             );
-            if (tmdbActors && tmdbActors.length) {
-              // If we already have actors from Ophim, try to merge or prefer TMDB if more complete
-              if (!movie.actor || !movie.actor.length) {
-                movie.actor = tmdbActors;
-              } else {
-                // Merge logic: match by name and update image + id
-                movie.actor = movie.actor.map((original) => {
-                  if (!original?.name) return original;
-                  const match = tmdbActors.find((ta) => {
-                    if (!ta?.name) return false;
-                    const taName = ta.name.toLowerCase();
-                    const origName = original.name.toLowerCase();
-                    return (
-                      taName === origName ||
-                      origName.includes(taName) ||
-                      taName.includes(origName)
-                    );
-                  });
-                  return match
-                    ? {
-                        ...original,
-                        image: match.image || original.image,
-                        id: match.id,
-                      }
-                    : original;
-                });
+            if (!tmdbActors || !tmdbActors.length) return;
 
-                // Also add actors from TMDB that weren't in the original list but are prominent (first 10)
-                const existingNames = new Set(
-                  movie.actor.map((a) => a?.name?.toLowerCase()).filter(Boolean)
+            // 3. Merge actors
+            if (!movie.actor || !movie.actor.length) {
+              movie.actor = tmdbActors;
+            } else {
+              // Merge logic: match by name and update image + id
+              const tmdbMap = new Map();
+              tmdbActors.forEach(ta => {
+                if (ta.name) tmdbMap.set(ta.name.toLowerCase(), ta);
+              });
+
+              movie.actor = movie.actor.map((original) => {
+                if (!original?.name) return original;
+                const match = tmdbMap.get(original.name.toLowerCase());
+                return match
+                  ? {
+                      ...original,
+                      image: match.image || original.image,
+                      id: match.id,
+                    }
+                  : original;
+              });
+
+              // Add top 8 actors from TMDB that weren't in the original list
+              const existingNames = new Set(
+                movie.actor.map((a) => a?.name?.toLowerCase()).filter(Boolean)
+              );
+              const tmdbExclusives = tmdbActors
+                .slice(0, 8)
+                .filter(
+                  (ta) =>
+                    ta?.name && !existingNames.has(ta.name.toLowerCase())
                 );
-                const tmdbExclusives = tmdbActors
-                  .slice(0, 10)
-                  .filter(
-                    (ta) =>
-                      ta?.name && !existingNames.has(ta.name.toLowerCase())
-                  );
-                movie.actor = [...movie.actor, ...tmdbExclusives];
-              }
+              movie.actor = [...movie.actor, ...tmdbExclusives];
             }
+          } catch (enrichError) {
+            console.warn("[getDetail] Enrichment background failed:", enrichError.message);
           }
-        } catch (enrichError) {
-          console.warn(
-            "[getDetail] TMDB enrichment failed",
-            enrichError.message
-          );
-        }
+        };
+
+        // We wrap the enrichment in a timeout race to ensure it doesn't hang the main fetch
+        await Promise.race([
+          tryEnrich(),
+          new Promise((resolve) => setTimeout(resolve, enrichmentTimeout)),
+        ]);
       }
 
       return { movie, episodes };
