@@ -121,7 +121,12 @@ const HoverCard = ({ movie, thumbSrc, audioBadges, alignment }) => {
           {qualityLabel && <span className="hc-meta-badge hc-meta-badge--blue">{qualityLabel}</span>}
           {statusLabel && <span className="hc-meta-badge hc-meta-badge--green">{statusLabel}</span>}
           {audioBadges.map((b) => (
-            <span key={b.key} className="hc-meta-badge hc-meta-badge--orange">
+            <span
+              key={b.key}
+              className={`hc-meta-badge ${
+                b.code === "Trailer" ? "hc-meta-badge--red" : "hc-meta-badge--orange"
+              }`}
+            >
               {b.code}
             </span>
           ))}
@@ -145,7 +150,7 @@ const HoverCard = ({ movie, thumbSrc, audioBadges, alignment }) => {
 };
 
 // ─── Main MovieCard ──────────────────────────────────────────────────────────
-const MovieCard = ({ movie, priority = false }) => {
+const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const imgRef = useRef(null);
   const cardRef = useRef(null);
   const [shouldLoad, setShouldLoad] = useState(false);
@@ -159,6 +164,8 @@ const MovieCard = ({ movie, priority = false }) => {
   const movieLang = movie?.lang;
 
   const handleMouseEnter = (e) => {
+    if (suppressHover) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
     const threshold = 160; // Half of popup width + padding
@@ -202,6 +209,21 @@ const MovieCard = ({ movie, priority = false }) => {
       }
       return `${formatEp(latestFromList)}`;
     }
+
+    // Fallback for single movies or when episode list is empty
+    const current = (movie?.episode_current || "").toLowerCase();
+    if (current.includes("full") || current.includes("hoàn tất")) return "Full";
+    
+    // If it's something like "Tập 1" or "1/1"
+    const parsedCurrent = parseEpisodeNumber(current);
+    if (parsedCurrent !== null && parsedCurrent > 0) {
+        if (Number.isFinite(epTotal) && epTotal > 1) {
+            return `${formatEp(parsedCurrent)}/${epTotal}`;
+        }
+        return formatEp(parsedCurrent);
+    }
+    
+    return null;
   })();
 
   const audioBadges = useMemo(() => {
@@ -229,8 +251,13 @@ const MovieCard = ({ movie, priority = false }) => {
         badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng" });
     }
 
+    const statusText = (episodeCurrentText || movie?.status || "").toLowerCase();
+    if (statusText.includes("trailer")) {
+      badges.push({ key: "trailer", code: "Trailer", label: "Trailer" });
+    }
+
     return badges;
-  }, [episodeList, episodeCurrentText, movieLang]);
+  }, [episodeList, episodeCurrentText, movieLang, movie?.status]);
 
   useEffect(() => {
     if (!imgRef.current || shouldLoad) return undefined;
@@ -304,11 +331,13 @@ const MovieCard = ({ movie, priority = false }) => {
                       ? "bg-slate-600/90 text-white backdrop-blur-md"
                       : badge.code === "TM"
                         ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
-                        : "bg-sky-500/90 text-white backdrop-blur-md"
+                        : badge.code === "Trailer"
+                          ? "bg-rose-500/90 text-white backdrop-blur-md"
+                          : "bg-sky-500/90 text-white backdrop-blur-md"
                     }`}
                 >
                   <span>
-                    {badge.code}.{episodeText}
+                    {badge.code}{badge.code !== "Trailer" && episodeText ? `.${episodeText}` : ""}
                   </span>
                 </div>
               ))}

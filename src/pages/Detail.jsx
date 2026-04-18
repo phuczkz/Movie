@@ -415,27 +415,38 @@ const Detail = () => {
     (isLoading && !passedMovie) ||
     (isTmdb && loadingAlts && !altDetail?.movie && !passedMovie);
 
+  const isTrailer = useMemo(() => {
+    const statusTextLower = (
+      movie?.status ||
+      movie?.episode_current ||
+      ""
+    ).toLowerCase();
+    return (
+      statusTextLower.includes("trailer") ||
+      (episodes.length === 0 && !isActuallyLoading)
+    );
+  }, [
+    movie?.status,
+    movie?.episode_current,
+    episodes.length,
+    isActuallyLoading,
+  ]);
+
+  // While loading, we show the page frame (Layout is already around it)
+  // but without the "noisy" blocky blocks.
   if (isActuallyLoading)
     return (
-      <div className="space-y-8 lg:space-y-12 animate-pulse">
-        {/* Skeleton Banner matching the real hero banner height for LCP/CLS */}
-        <div className="relative h-[400px] md:h-[500px] lg:h-[600px] w-full bg-slate-900 border-b border-white/5 overflow-hidden flex items-center justify-center">
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800/50 to-slate-900" />
-          <div className="loader-orbit loader-orbit-md relative z-10Opacity-50"></div>
-        </div>
-
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-14 md:-mt-20 lg:-mt-28 relative z-20">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="w-36 sm:w-44 lg:w-48 aspect-[2/3] bg-slate-800 rounded-3xl shrink-0 shadow-2xl" />
-            <div className="space-y-4 flex-1 pt-6">
-              <div className="h-10 w-3/4 bg-slate-800 rounded-xl" />
-              <div className="h-4 w-1/4 bg-slate-800 rounded-lg" />
-              <div className="flex gap-2 pt-2">
-                <div className="h-8 w-16 bg-slate-800 rounded-full" />
-                <div className="h-8 w-16 bg-slate-800 rounded-full" />
-                <div className="h-8 w-16 bg-slate-800 rounded-full" />
-              </div>
-            </div>
+      <div className="relative min-h-[80vh] flex flex-col items-center justify-center -mt-20">
+        <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[2px] z-0" />
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className="loader-orbit loader-orbit-lg"></div>
+          <div className="text-center space-y-1">
+            <p className="text-emerald-400 font-bold text-lg tracking-wide uppercase drop-shadow-sm">
+              Đang chuẩn bị phim
+            </p>
+            <p className="text-slate-400 text-sm font-medium opacity-80">
+              Vui lòng đợi trong giây lát...
+            </p>
           </div>
         </div>
       </div>
@@ -451,6 +462,8 @@ const Detail = () => {
     latestSelectedEpisodeNumber >= 0
       ? latestSelectedEpisodeNumber
       : latestCatalogEpisodeNumber;
+
+
   const epTotal = parseEpisodeNumber(movie?.episode_total);
   const statusText = (
     movie?.status ||
@@ -645,35 +658,35 @@ const Detail = () => {
   );
 
   return (
-    <div className="space-y-2 relative">
+    <div className="relative">
       {heroImage ? (
         <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none pointer-events-none">
           {/* Spacer: Giữ nguyên khoảng trống gốc để không đẩy content đi chỗ khác */}
           <div className="aspect-[16/10] md:aspect-[2/1] xl:aspect-[21/9] w-full invisible pointer-events-none" />
 
           {/* Banner chỉ kéo dài xuống khoảng 25% phía dưới spacer (tương đương 1/3 khung thông tin đầu tiên) */}
-          <div className="absolute top-0 left-0 w-full h-[125%] bg-slate-950 z-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[125%] bg-[#0b0b15] z-0 pointer-events-none overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full">
               <img
-                src={getOptimizedImage(heroImage, 1000)}
+                src={getOptimizedImage(heroImage, 1200)}
                 alt={movie?.name || "Banner"}
-                className="w-full h-full object-cover object-[50%_10%]"
+                className="w-full h-full object-cover object-[50%_15%]"
                 fetchPriority="high"
               />
               {/* Lớp phủ tối ở trên để bảo vệ Header (Search, Menu, Logo) */}
-              <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-slate-950/80 via-slate-950/40 to-transparent" />
+              <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-[#0b0b15] via-[#0b0b15]/40 to-transparent" />
 
               {/* Lớp phủ tối ở dưới đậm hơn để bảo vệ thông tin phim (Title, Metadata) */}
-              <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-[#0b0b15] via-[#0b0b15]/80 to-transparent" />
             </div>
           </div>
           <div
-            className="absolute top-full bottom-[-25%] left-0 w-full bg-slate-950/70 backdrop-blur-[6px] z-0 pointer-events-none"
+            className="absolute top-full bottom-[-40%] left-0 w-full bg-slate-950/80 backdrop-blur-[8px] z-0 pointer-events-none"
             style={{
               WebkitMaskImage:
-                "linear-gradient(to bottom, transparent 0%, black 30%)",
+                "linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)",
               maskImage:
-                "linear-gradient(to bottom, transparent 0%, black 30%)",
+                "linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)",
             }}
           />
         </div>
@@ -681,8 +694,8 @@ const Detail = () => {
 
       <div className="relative z-10 flex flex-col space-y-8 lg:space-y-12 pb-16">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-center lg:items-start -mt-14 sm:-mt-16 md:-mt-20 lg:-mt-28 xl:-mt-36 relative z-20">
-            <div className="mx-auto lg:mx-0 w-28 sm:w-32 md:w-36 lg:w-56 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 lg:border-4 lg:border-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.8)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30">
+          <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-center lg:items-end -mt-24 sm:-mt-32 md:-mt-40 lg:-mt-52 xl:-mt-64 relative z-20">
+            <div className="mx-auto lg:mx-0 w-32 sm:w-40 md:w-44 lg:w-64 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 lg:border-4 lg:border-slate-900 shadow-[0_30px_60px_rgba(0,0,0,0.9)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30 transition-transform duration-500 hover:scale-[1.02]">
               <img
                 src={getOptimizedImage(
                   passedMovie?.poster_url || movie?.poster_url,
@@ -729,6 +742,8 @@ const Detail = () => {
                     ? epTotal && !movie.episode_current.includes("/")
                       ? `${movie.episode_current}/${epTotal}`
                       : movie.episode_current
+                    : isTrailer
+                    ? "Trailer"
                     : "HD"}
                 </span>
 
@@ -782,6 +797,8 @@ const Detail = () => {
                       ? epTotal && !movie.episode_current.includes("/")
                         ? `${movie.episode_current}/${epTotal}`
                         : movie.episode_current
+                      : isTrailer
+                      ? "Trailer"
                       : "HD"}
                   </span>
 
@@ -833,14 +850,16 @@ const Detail = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    const serverParam = selectedServer ? `?server=${encodeURIComponent(selectedServer)}` : "";
+                    const serverParam = selectedServer
+                      ? `?server=${encodeURIComponent(selectedServer)}`
+                      : "";
                     navigate(`/watch/${slug}${serverParam}`);
                   }}
                   className={`flex flex-1 lg:flex-none justify-center lg:justify-start items-center gap-2 rounded-full bg-emerald-500 px-4 sm:px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 relative z-30 cursor-pointer ${
                     episodes.length ? "" : "opacity-90"
                   }`}
                 >
-                  {movieOverride?.mode === "trailer" ? (
+                  {movieOverride?.mode === "trailer" || isTrailer ? (
                     <>
                       <Film className="h-4 w-4" fill="currentColor" />
                       Xem Trailer
@@ -1103,7 +1122,11 @@ const Detail = () => {
               {relatedMovies.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {relatedMovies.map((relMovie) => (
-                    <MovieCard key={relMovie.slug} movie={relMovie} />
+                    <MovieCard
+                      key={relMovie.slug}
+                      movie={relMovie}
+                      suppressHover={true}
+                    />
                   ))}
                 </div>
               ) : (
@@ -1302,7 +1325,7 @@ const Detail = () => {
                       key={relMovie.slug}
                       className="min-w-[170px] sm:min-w-[200px] snap-start"
                     >
-                      <MovieCard movie={relMovie} />
+                      <MovieCard movie={relMovie} suppressHover={true} />
                     </div>
                   ))}
                 </div>

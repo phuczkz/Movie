@@ -161,7 +161,9 @@ const Category = () => {
       </div>
 
       {isLoading ? (
-        <GridSkeleton count={12} />
+        <div className="flex h-[60vh] w-full items-center justify-center">
+          <div className="loader-orbit loader-orbit-lg"></div>
+        </div>
       ) : (
         <>
           <div className="grid-movies">

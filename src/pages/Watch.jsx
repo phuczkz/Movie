@@ -19,18 +19,25 @@ import {
 } from "lucide-react";
 import { onSnapshot, doc, increment, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config.js";
-import Player from "../components/Player.jsx";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useActorsWithTmdbImages } from "../hooks/useActorsWithTmdbImages.js";
 import Comments from "../components/Comments.jsx";
+import RelatedMovies from "../components/RelatedMovies.jsx";
 import {
   getEpisodeLabel,
   normalizeServerLabel,
   parseEpisodeNumber,
 } from "../utils/episodes.js";
+
+// Sub-components
+import WatchHeader from "../components/watch/WatchHeader.jsx";
+import PlayerSection from "../components/watch/PlayerSection.jsx";
+import WatchSidebar from "../components/watch/WatchSidebar.jsx";
+import WatchEpisodeGrid from "../components/watch/WatchEpisodeGrid.jsx";
+import ActorSection from "../components/detail/ActorSection.jsx";
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
@@ -50,43 +57,24 @@ const normalizeProviderParam = (value) => {
 
 const buildEpisodeProviders = (episode) => {
   if (!episode) return {};
-  const providers = {
-    ...(episode._providers || {}),
-  };
-
-  const directLink =
-    episode.link_m3u8 || episode.m3u8 || episode.linkplay || episode.link || "";
+  const providers = { ...(episode._providers || {}) };
+  const directLink = episode.link_m3u8 || episode.m3u8 || episode.linkplay || episode.link || "";
   const embedLink = episode.embed || "";
-  const inferredProvider =
-    normalizeProviderParam(episode._provider) || "kkphim";
+  const inferredProvider = normalizeProviderParam(episode._provider) || "kkphim";
 
   if (!providers[inferredProvider]?.link) {
     const fallbackLink = directLink || embedLink;
-    if (fallbackLink) {
-      providers[inferredProvider] = {
-        link: fallbackLink,
-        kind: directLink ? "m3u8" : "embed",
-      };
-    }
+    if (fallbackLink) providers[inferredProvider] = { link: fallbackLink, kind: directLink ? "m3u8" : "embed" };
   }
-
   if (!providers.ophim?.link && embedLink && inferredProvider !== "ophim") {
-    providers.ophim = {
-      link: embedLink,
-      kind: "embed",
-    };
+    providers.ophim = { link: embedLink, kind: "embed" };
   }
-
   return providers;
 };
 
 const sortEpisodes = (list = []) =>
   list
-    .map((ep, idx) => ({
-      ep,
-      idx,
-      num: parseEpisodeNumber(ep?.name || ep?.slug),
-    }))
+    .map((ep, idx) => ({ ep, idx, num: parseEpisodeNumber(ep?.name || ep?.slug) }))
     .sort((a, b) => {
       const aHasNum = a.num !== null && a.num !== undefined;
       const bHasNum = b.num !== null && b.num !== undefined;
@@ -96,34 +84,6 @@ const sortEpisodes = (list = []) =>
       return a.idx - b.idx;
     })
     .map(({ ep }) => ep);
-
-const WatchSkeleton = () => (
-  <div className="space-y-6 animate-pulse">
-    <div className="space-y-2">
-      <div className="h-8 w-64 bg-slate-800 rounded-lg" />
-      <div className="h-4 w-32 bg-slate-800 rounded-lg" />
-    </div>
-
-    <div className="relative aspect-video w-full rounded-2xl bg-slate-900 border border-white/10 overflow-hidden flex items-center justify-center shadow-2xl transition-all">
-      <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/5 via-transparent to-emerald-500/5 opacity-40" />
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-14 w-14 rounded-full bg-slate-800 flex items-center justify-center shadow-lg">
-          <div className="h-0 w-0 border-y-[10px] border-y-transparent border-l-[16px] border-l-slate-700 ml-1" />
-        </div>
-        <div className="h-4 w-24 bg-slate-800 rounded-full" />
-      </div>
-    </div>
-
-    <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
-      <div className="rounded-3xl border border-white/5 bg-slate-950/80 p-8 space-y-6">
-        <div className="hidden aspect-[2/3] w-full bg-slate-800 rounded-2xl" />
-      </div>
-      <div className="space-y-6">
-        <div className="rounded-3xl border border-white/5 bg-slate-900/70 p-8 h-48" />
-      </div>
-    </div>
-  </div>
-);
 
 const Watch = () => {
   const { slug } = useParams();
@@ -139,93 +99,64 @@ const Watch = () => {
   const [deferLoad, setDeferLoad] = useState(false);
 
   useEffect(() => {
-    // Increase defer delay from 1.5s to 4s to prioritize player initialization and HLS buffering
-    const timer = setTimeout(() => setDeferLoad(true), 4000);
+    const timer = setTimeout(() => setDeferLoad(true), 1000);
     return () => clearTimeout(timer);
   }, []);
-  const metaRef = useRef({
-    slug: null,
-    name: null,
-    episodeNumber: null,
-    server: null,
-    movieName: null,
-    posterUrl: null,
-  });
+
+  const metaRef = useRef({ slug: null, name: null, episodeNumber: null, server: null, movieName: null, posterUrl: null });
   const [movieOverride, setMovieOverride] = useState(null);
   const [isTheater, setIsTheater] = useState(false);
 
-  // Listen for admin movie override (trailer mode)
   useEffect(() => {
     if (!db || !slug) return;
-    const unsub = onSnapshot(
-      doc(db, "movieOverrides", slug),
-      (snap) => {
-        setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
-      },
-      (err) => {
-        console.warn("MovieOverride error:", err);
-        setMovieOverride({ mode: "full" });
-      }
-    );
-    return unsub;
+    return onSnapshot(doc(db, "movieOverrides", slug), (snap) => {
+      setMovieOverride(snap.exists() ? snap.data() : { mode: "full" });
+    }, (err) => {
+      console.warn("MovieOverride error:", err);
+      setMovieOverride({ mode: "full" });
+    });
   }, [slug]);
+
   const [params, setParams] = useSearchParams();
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
   const selectedProviderParam = normalizeProviderParam(params.get("provider"));
-  const [autoProviderState, setAutoProviderState] = useState({
-    key: "",
-    provider: null,
-    notice: "",
-  });
+
+  const [autoProviderState, setAutoProviderState] = useState({ key: "", provider: null, notice: "" });
   const [useEmbedFallback, setUseEmbedFallback] = useState(false);
   const { data, isLoading } = useMovieDetail(slug);
 
   const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
-  const baseName = baseMovie?.name || "";
-  const baseOriginName = baseMovie?.origin_name || "";
-  const baseYear = baseMovie?.year || null;
   const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
 
-  // Only search for alternatives if this is a TMDB-primary movie AND we don't have enough episodes yet
   const needsAltSearch = isTmdb && (!baseEpisodes || baseEpisodes.length < 1);
-  const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(
-    needsAltSearch ? baseMovie?.name : ""
-  );
+  const { data: altResults = [], isLoading: loadingAlts } = useSearchMovies(needsAltSearch ? baseMovie?.name : "");
 
-  const bestAltMatch = (() => {
+  const bestAltMatch = useMemo(() => {
     if (!isTmdb || loadingAlts) return null;
     const normalized = (text) => (text || "").toLowerCase().trim();
-    const namesToMatch = [baseName, baseOriginName]
-      .map(normalized)
-      .filter(Boolean);
-    const targetYear = baseYear;
-
+    const namesToMatch = [baseMovie?.name, baseMovie?.origin_name].map(normalized).filter(Boolean);
+    const targetYear = baseMovie?.year;
     return altResults.find((m) => {
-      const nameHit =
-        namesToMatch.includes(normalized(m.name)) ||
-        namesToMatch.includes(normalized(m.origin_name));
-      const yearHit =
-        targetYear && m.year ? String(m.year) === String(targetYear) : true;
+      const nameHit = namesToMatch.includes(normalized(m.name)) || namesToMatch.includes(normalized(m.origin_name));
+      const yearHit = targetYear && m.year ? String(m.year) === String(targetYear) : true;
       return nameHit && yearHit;
     });
-  })();
+  }, [altResults, baseMovie, isTmdb, loadingAlts]);
 
   const altSlug = bestAltMatch?.slug;
-  const { data: altDetail, isLoading: loadingAltDetail } = useMovieDetail(
-    altSlug && altSlug !== slug ? altSlug : null
-  );
-  
-  const movie =
-    !isTmdb || !loadingAlts || bestAltMatch ? bestAltMatch || baseMovie : null;
+  const { data: altDetail, isLoading: loadingAltDetail } = useMovieDetail(altSlug && altSlug !== slug ? altSlug : null);
 
-  const episodes = altDetail?.episodes?.length
-    ? altDetail.episodes
-    : baseEpisodes;
+  const movie = !isTmdb || !loadingAlts || bestAltMatch ? bestAltMatch || baseMovie : null;
+  const episodes = altDetail?.episodes?.length ? altDetail.episodes : baseEpisodes;
+
+  // Comprehensive loading state to prevent flickering during TMDB alternative search
+  const isReallyLoading = isLoading || (needsAltSearch && loadingAlts) || (altSlug && altSlug !== slug && loadingAltDetail);
+  const isNoMovie = !isLoading && !baseMovie && !loadingAlts;
+
   const serverGroups = useMemo(() => {
     const groups = {};
-    const list = Array.isArray(episodes) ? episodes : [];
-    list.forEach((ep) => {
+    (Array.isArray(episodes) ? episodes : []).forEach((ep) => {
       if (!ep) return;
       const label = normalizeServerLabel(ep.server_name);
       groups[label] = groups[label] || [];
@@ -234,810 +165,257 @@ const Watch = () => {
     return groups;
   }, [episodes]);
 
-  const preferredServer = serverGroups.Vietsub?.length
-    ? "Vietsub"
-    : serverGroups["Thuyết Minh"]?.length
-    ? "Thuyết Minh"
-    : serverGroups["Lồng Tiếng"]?.length
-    ? "Lồng Tiếng"
-    : Object.keys(serverGroups)[0];
-
+  const preferredServer = serverGroups.Vietsub?.length ? "Vietsub" : serverGroups["Thuyết Minh"]?.length ? "Thuyết Minh" : serverGroups["Lồng Tiếng"]?.length ? "Lồng Tiếng" : Object.keys(serverGroups)[0];
   const requestedServer = normalizeServerLabel(selectedServerParam);
-  const activeServer =
-    requestedServer && serverGroups[requestedServer]?.length
-      ? requestedServer
-      : preferredServer;
-
+  const activeServer = requestedServer && serverGroups[requestedServer]?.length ? requestedServer : preferredServer;
   const episodesForServer = sortEpisodes(serverGroups[activeServer] || []);
 
-  const hasVietsub = Boolean(serverGroups.Vietsub?.length);
-  const hasThuyetMinh = Boolean(serverGroups["Thuyết Minh"]?.length);
-  const hasLongTieng = Boolean(serverGroups["Lồng Tiếng"]?.length);
+  const activeEpisode = episodesForServer.find((ep) => ep.slug === selectedEpisode) || episodesForServer[0] || null;
+  const playbackScopeKey = `${slug || ""}__${activeServer || ""}__${activeEpisode?.slug || ""}`;
 
-  const activeEpisode =
-    episodesForServer.find((ep) => ep.slug === selectedEpisode) ||
-    episodesForServer[0] ||
-    null;
-
-  const playbackScopeKey = `${slug || ""}__${activeServer || ""}__${
-    activeEpisode?.slug || ""
-  }`;
-
-  const autoProviderOverride =
-    autoProviderState.key === playbackScopeKey
-      ? autoProviderState.provider
-      : null;
-  const autoProviderNotice =
-    autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
-
+  const autoProviderOverride = autoProviderState.key === playbackScopeKey ? autoProviderState.provider : null;
+  const autoProviderNotice = autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
   const episodeProviders = buildEpisodeProviders(activeEpisode);
 
-  // Reset fallback state whenever the episode/server changes (render phase reset to avoid cascading renders)
   const [prevScopeKey, setPrevScopeKey] = useState(playbackScopeKey);
   if (playbackScopeKey !== prevScopeKey) {
     setPrevScopeKey(playbackScopeKey);
     setUseEmbedFallback(false);
   }
 
-  const availableProviders = Object.entries(episodeProviders)
-    .filter(([, value]) => value?.link)
-    .map(([key]) => key);
-
-  const preferredProvider =
-    normalizeProviderParam(activeEpisode?._preferredProvider) ||
-    availableProviders[0] ||
-    null;
-
-  const activeProvider =
-    (selectedProviderParam && episodeProviders[selectedProviderParam]?.link
-      ? selectedProviderParam
-      : null) ||
-    (autoProviderOverride && episodeProviders[autoProviderOverride]?.link
-      ? autoProviderOverride
-      : null) ||
-    preferredProvider;
-
+  const availableProviders = Object.entries(episodeProviders).filter(([, v]) => v?.link).map(([k]) => k);
+  const preferredProvider = normalizeProviderParam(activeEpisode?._preferredProvider) || availableProviders[0] || null;
+  const activeProvider = (selectedProviderParam && episodeProviders[selectedProviderParam]?.link ? selectedProviderParam : null) || (autoProviderOverride && episodeProviders[autoProviderOverride]?.link ? autoProviderOverride : null) || preferredProvider;
   const activeProviderLabel = PROVIDER_LABELS[activeProvider] || "Mặc định";
 
-  const activeSource = useEmbedFallback
-    ? activeEpisode?.link_embed || activeEpisode?.embed || ""
-    : (activeProvider ? episodeProviders[activeProvider]?.link : "") ||
-      activeEpisode?.link_m3u8 ||
-      activeEpisode?.embed ||
-      "";
+  const activeSource = useEmbedFallback ? activeEpisode?.link_embed || activeEpisode?.embed || "" : (activeProvider ? episodeProviders[activeProvider]?.link : "") || activeEpisode?.link_m3u8 || activeEpisode?.embed || "";
 
-  const currentIndex = activeEpisode
-    ? episodesForServer.findIndex((ep) => ep.slug === activeEpisode.slug)
-    : -1;
-  const nextEpisode =
-    currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
+  const currentIndex = activeEpisode ? episodesForServer.findIndex((ep) => ep.slug === activeEpisode.slug) : -1;
+  const nextEpisode = currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
 
-  const handleProviderChange = useCallback(
-    (provider) => {
-      const nextParams = new URLSearchParams(params);
-      if (provider === "auto") {
-        nextParams.delete("provider");
-        setAutoProviderState({
-          key: playbackScopeKey,
-          provider: null,
-          notice: "",
-        });
-      } else {
-        nextParams.set("provider", provider);
-        setAutoProviderState({
-          key: playbackScopeKey,
-          provider: null,
-          notice: "",
-        });
+  const handleProviderChange = useCallback((provider) => {
+    const nextParams = new URLSearchParams(params);
+    if (provider === "auto") {
+      nextParams.delete("provider");
+      setAutoProviderState({ key: playbackScopeKey, provider: null, notice: "" });
+    } else {
+      nextParams.set("provider", provider);
+      setAutoProviderState({ key: playbackScopeKey, provider: null, notice: "" });
+    }
+    setParams(nextParams, { replace: true });
+  }, [params, playbackScopeKey, setParams]);
+
+  const handlePlaybackIssue = useCallback((reason) => {
+    if (selectedProviderParam || !activeProvider) return;
+    const fallbackProvider = availableProviders.find(p => p !== activeProvider && episodeProviders[p]?.link);
+    if (!fallbackProvider) return;
+
+    setAutoProviderState((prev) => {
+      if (prev.key === playbackScopeKey && prev.notice) return prev;
+      const isDeadSource = ["manifest-error", "fatal-hls", "network-error", "network-timeout"].includes(reason);
+      if (isDeadSource && activeEpisode?.link_embed && !useEmbedFallback) {
+        setUseEmbedFallback(true);
+        return { key: playbackScopeKey, provider: prev.provider || null, notice: `Nguồn ${activeProviderLabel} gặp sự cố kỹ thuật. Hệ thống đang tự động chuyển sang Trình phát dự phòng.` };
       }
-      setParams(nextParams, { replace: true });
-    },
-    [params, playbackScopeKey, setAutoProviderState, setParams]
-  );
+      return { key: playbackScopeKey, provider: prev.provider || null, notice: `${PROVIDER_LABELS[activeProvider] || activeProvider} đang chậm. Vui lòng thử chuyển sang nguồn khác.` };
+    });
+  }, [selectedProviderParam, activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback]);
 
-  const handlePlaybackIssue = useCallback(
-    (reason) => {
-      if (selectedProviderParam) return;
-      if (!activeProvider) return;
-      const fallbackProvider = availableProviders.find(
-        (provider) =>
-          provider !== activeProvider && episodeProviders[provider]?.link
-      );
-      if (!fallbackProvider) return;
-
-      setAutoProviderState((prev) => {
-        if (prev.key === playbackScopeKey && prev.notice) {
-          return prev;
-        }
-        const isDeadSource =
-          reason === "manifest-error" || 
-          reason === "fatal-hls" || 
-          reason === "network-error" || 
-          reason === "network-timeout";
-        
-        // If the current M3U8 is dead, try falling back to embed for this episode
-        if (isDeadSource && activeEpisode?.link_embed && !useEmbedFallback) {
-          setUseEmbedFallback(true);
-          return {
-            key: playbackScopeKey,
-            provider: prev.provider || null,
-            notice: `Nguồn ${activeProviderLabel} gặp sự cố kỹ thuật. Hệ thống đang tự động chuyển sang Trình phát dự phòng (Embed) để bạn tiếp tục xem.`,
-          };
-        }
-
-        const issueText = isDeadSource
-          ? "không khả dụng"
-          : `đang chậm (${reason})`;
-        return {
-          key: playbackScopeKey,
-          provider: prev.provider || null,
-          notice: `${PROVIDER_LABELS[activeProvider] || activeProvider} (${
-            PROVIDER_SOURCE_NAMES[activeProvider] || activeProvider
-          }) ${issueText}. Vui lòng thử chuyển sang nguồn khác ở danh sách bên dưới.`,
-        };
-      });
-    },
-    [
-      selectedProviderParam,
-      activeProvider,
-      activeProviderLabel,
-      availableProviders,
-      episodeProviders,
-      playbackScopeKey,
-      setAutoProviderState,
-      activeEpisode?.link_embed,
-      useEmbedFallback,
-      setUseEmbedFallback,
-    ]
-  );
-
-  const handleServerChange = useCallback(
-    (serverLabel) => {
-      const targetLabel = normalizeServerLabel(serverLabel);
-      if (!targetLabel || targetLabel === activeServer) return;
-      const candidates = sortEpisodes(serverGroups[targetLabel] || []);
-      if (!candidates.length) return;
-
-      const currentSlug = params.get("episode");
-      const matched = candidates.find((ep) => ep.slug === currentSlug);
-      const nextSlug = (matched || candidates[0]).slug;
-
-      const nextParams = new URLSearchParams(params);
-      nextParams.set("server", targetLabel);
-      nextParams.set("episode", nextSlug);
-      setParams(nextParams, { replace: true });
-    },
-    [activeServer, serverGroups, params, setParams]
-  );
+  const handleServerChange = useCallback((serverLabel) => {
+    const targetLabel = normalizeServerLabel(serverLabel);
+    if (!targetLabel || targetLabel === activeServer) return;
+    const candidates = sortEpisodes(serverGroups[targetLabel] || []);
+    if (!candidates.length) return;
+    const nextSlug = (candidates.find(ep => ep.slug === params.get("episode")) || candidates[0]).slug;
+    const nextParams = new URLSearchParams(params);
+    nextParams.set("server", targetLabel);
+    nextParams.set("episode", nextSlug);
+    setParams(nextParams, { replace: true });
+  }, [activeServer, serverGroups, params, setParams]);
 
   useEffect(() => {
-    if (!selectedEpisode || !playerRef.current) return;
-    playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (selectedEpisode && playerRef.current) playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedEpisode]);
 
-  // Save progress periodically via Player's onTimeUpdate
-  // Throttle 5 giây để tránh gọi Firebase quá nhiều (giảm lag trên mobile)
-  const onTimeUpdate = useCallback(
-    (currentTime, duration) => {
-      progressRef.current = { currentTime, duration };
-      if (!user || !slug || !activeEpisode) return;
-      const now = Date.now();
-      if (now - lastSaveRef.current < 5000) return; // Throttle: tối đa 1 lần / 5 giây
-      lastSaveRef.current = now;
-      saveProgress(slug, {
-        episodeSlug: activeEpisode.slug || activeEpisode.name,
-        episodeName: activeEpisode.name,
-        episodeNumber: parseEpisodeNumber(
-          activeEpisode.name || activeEpisode.slug
-        ),
+  const onTimeUpdate = useCallback((currentTime, duration) => {
+    progressRef.current = { currentTime, duration };
+    if (!user || !slug || !activeEpisode) return;
+    const now = Date.now();
+    if (now - lastSaveRef.current < 5000) return;
+    lastSaveRef.current = now;
+    saveProgress(slug, {
+      episodeSlug: activeEpisode.slug || activeEpisode.name,
+      episodeName: activeEpisode.name,
+      episodeNumber: parseEpisodeNumber(activeEpisode.name || activeEpisode.slug),
+      server: activeServer || null,
+      currentTime, duration,
+      movieName: movie?.name,
+      posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
+    });
+  }, [user, slug, activeEpisode, activeServer, saveProgress, movie]);
+
+  useEffect(() => {
+    if (activeEpisode) {
+      metaRef.current = {
+        slug: activeEpisode.slug || activeEpisode.name,
+        name: activeEpisode.name,
+        episodeNumber: parseEpisodeNumber(activeEpisode.name || activeEpisode.slug),
         server: activeServer || null,
-        currentTime,
-        duration,
         movieName: movie?.name,
         posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
-      });
-    },
-    [
-      user,
-      slug,
-      activeEpisode,
-      activeServer,
-      saveProgress,
-      movie?.name,
-      movie?.poster_url,
-      movie?.thumb_url,
-      movie?.backdrop_url,
-    ]
-  );
+      };
+    }
+  }, [activeEpisode, activeServer, movie]);
 
-  // Force-save khi user chuyển app (iOS background) - tránh mất progress
   useEffect(() => {
-    if (!user || !slug) return undefined;
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        const { currentTime, duration } = progressRef.current;
-        const {
-          slug: epSlug,
-          name: epName,
-          episodeNumber,
-          server: epServer,
-          movieName,
-          posterUrl,
-        } = metaRef.current;
-        if (currentTime > 10) {
-          forceSave(slug, {
-            episodeSlug: epSlug,
-            episodeName: epName,
-            episodeNumber,
-            server: epServer,
-            currentTime,
-            duration,
-            movieName,
-            posterUrl,
-          });
-        }
-      }
+    return () => {
+      if (!user || !slug) return;
+      const { currentTime, duration } = progressRef.current;
+      const m = metaRef.current;
+      if (currentTime > 10) forceSave(slug, { ...m, episodeSlug: m.slug, episodeName: m.name, currentTime, duration });
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [user, slug, forceSave]);
 
+  useEffect(() => {
+    if (!episodesForServer.length) return;
+    const nextParams = new URLSearchParams(params);
+    let changed = false;
+    if (activeServer && params.get("server") !== activeServer) { nextParams.set("server", activeServer); changed = true; }
+    if (!episodesForServer.some(ep => ep.slug === params.get("episode"))) { nextParams.set("episode", episodesForServer[0].slug); changed = true; }
+    if (changed) setParams(nextParams, { replace: true });
+  }, [episodesForServer, activeServer, params, setParams]);
+
+  useEffect(() => {
+    if (!slug || !db) return;
+    setDoc(doc(db, "movieViews", slug), {
+      slug,
+      name: movie?.name || movie?.title || slug,
+      poster: movie?.poster_url || movie?.thumb_url || "",
+      views: increment(1),
+      lastViewedAt: serverTimestamp(),
+    }, { merge: true }).catch(err => console.warn("[ViewTracking] Error updating views:", err));
+  }, [slug, db, movie]);
+
   const actors = useMemo(() => {
-    // Prioritize actors from the original TMDB source if available
-    const baseActors = baseMovie?.slug?.startsWith("tmdb-")
-      ? baseMovie?.actor
-      : null;
-
-    const pools = [
-      baseActors,
-      movie?.actor,
-      movie?.actors,
-      movie?.cast,
-      movie?.origin?.actor,
-      movie?.origin?.actors,
-      movie?.origin?.cast,
-    ];
-
+    const baseActors = baseMovie?.slug?.startsWith("tmdb-") ? baseMovie?.actor : null;
+    const pools = [baseActors, movie?.actor, movie?.actors, movie?.cast, movie?.origin?.actor, movie?.origin?.actors, movie?.origin?.cast];
     const collect = pools.flatMap((item) => {
       if (!item) return [];
       if (Array.isArray(item)) return item;
       if (typeof item === "string") return item.split(/[,/|]/);
       return [];
     });
-
-    const normalized = collect
-      .map((entry) => {
-        if (!entry) return null;
-        if (typeof entry === "string")
-          return { id: null, name: entry.trim(), image: null };
-        if (typeof entry === "object")
-          return {
-            id: entry.id || entry.tmdb_id || entry.person_id || null,
-            name: String(
-              entry.name || entry.full_name || entry.title || ""
-            ).trim(),
-            image:
-              entry.avatar ||
-              entry.image ||
-              entry.profile_path ||
-              entry.photo ||
-              entry.thumbnail ||
-              null,
-          };
-        return null;
-      })
-      .filter((item) => item && item.name);
-
+    const normalized = collect.map((entry) => {
+      if (!entry) return null;
+      if (typeof entry === "string") return { id: null, name: entry.trim(), image: null };
+      if (typeof entry === "object") return {
+        id: entry.id || entry.tmdb_id || entry.person_id || null,
+        name: String(entry.name || entry.full_name || entry.title || "").trim(),
+        image: entry.avatar || entry.image || entry.profile_path || entry.photo || entry.thumbnail || null,
+      };
+      return null;
+    }).filter((item) => item && item.name);
     const seen = new Set();
     return normalized.filter((item) => {
       if (seen.has(item.name)) return false;
       seen.add(item.name);
       return true;
     });
-  }, [movie, baseMovie?.actor, baseMovie?.slug]);
+  }, [movie, baseMovie]);
 
-  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors, {
-    enabled: deferLoad && actors.length > 0,
-    itemLimit: 10 // Only fetch images for top 10 actors to save bandwidth
-  });
+  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors);
 
-
-
-
-
-
-
-
-  // Keep track of the current episode meta for the unmount flush
-  useEffect(() => {
-    if (activeEpisode) {
-      metaRef.current = {
-        slug: activeEpisode.slug || activeEpisode.name,
-        name: activeEpisode.name,
-        episodeNumber: parseEpisodeNumber(
-          activeEpisode.name || activeEpisode.slug
-        ),
-        server: activeServer || null,
-        movieName: movie?.name,
-        posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
-      };
-    }
-  }, [
-    activeEpisode,
-    activeServer,
-    movie?.name,
-    movie?.poster_url,
-    movie?.thumb_url,
-    movie?.backdrop_url,
-  ]);
-
-  // Force-save on pause or unmount
-  useEffect(() => {
-    return () => {
-      if (!user || !slug) return;
-      const { currentTime, duration } = progressRef.current;
-      const {
-        slug: epSlug,
-        name: epName,
-        episodeNumber,
-        server: epServer,
-        movieName,
-        posterUrl,
-      } = metaRef.current;
-      if (currentTime > 10) {
-        forceSave(slug, {
-          episodeSlug: epSlug,
-          episodeName: epName,
-          episodeNumber,
-          server: epServer,
-          currentTime,
-          duration,
-          movieName,
-          posterUrl,
-        });
-      }
-    };
-  }, [user, slug, forceSave]);
-
-  useEffect(() => {
-    if (!episodesForServer.length) return;
-
-    const nextParams = new URLSearchParams(params);
-    let changed = false;
-
-    if (activeServer && params.get("server") !== activeServer) {
-      nextParams.set("server", activeServer);
-      changed = true;
-    }
-
-    const currentEpisode = params.get("episode");
-    const hasEpisode = episodesForServer.some(
-      (ep) => ep.slug === currentEpisode
-    );
-    if (!hasEpisode) {
-      nextParams.set("episode", episodesForServer[0].slug);
-      changed = true;
-    }
-
-    if (changed) {
-      setParams(nextParams, { replace: true });
-    }
-  }, [episodesForServer, activeServer, params, setParams]);
-
-  // ––– View Tracking Logic (Request Volume) –––
-  useEffect(() => {
-    if (!slug || !db) return;
-
-    const trackView = async () => {
-      try {
-        const viewRef = doc(db, "movieViews", slug);
-        await setDoc(
-          viewRef,
-          {
-            slug,
-            name: movie?.name || movie?.title || slug, // Fallback to slug if movie not loaded yet
-            poster: movie?.poster_url || movie?.thumb_url || "",
-            views: increment(1),
-            lastViewedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-      } catch (err) {
-        console.warn("[ViewTracking] Error updating views:", err);
-      }
-    };
-
-    trackView();
-  }, [slug, db]); // Fire on every unique slug access in this mount
-
-  if (
-    isLoading ||
-    (isTmdb && loadingAlts && !bestAltMatch) ||
-    (bestAltMatch && loadingAltDetail)
-  ) {
-    return <WatchSkeleton />;
-  }
-
-  if (!episodes.length) {
-    return (
-      <div className="space-y-3">
-        <p className="text-slate-200">
-          {isTmdb
-            ? "TMDB không có nguồn và không tìm thấy nguồn thay thế."
-            : "Phim này chưa có nguồn phát."}
-        </p>
-        <Link
-          to={`/movie/${slug}`}
-          className="inline-flex items-center gap-2 text-emerald-300 hover:underline"
-        >
-          <Info className="h-4 w-4" />
-          Quay lại trang chi tiết
-        </Link>
+  // 1. Initial Loading State
+  if (isReallyLoading || (!deferLoad && !movie)) return (
+    <div className="min-h-[70vh] flex flex-col items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_50%)]" />
+      <div className="relative z-10 flex flex-col items-center gap-6">
+        <div className="loader-orbit loader-orbit-lg"></div>
+        <div className="text-center space-y-2">
+          <p className="text-emerald-400 font-bold text-lg tracking-wide uppercase">Đang kết nối...</p>
+          <p className="text-slate-400 text-sm font-medium animate-pulse">Phim sẽ tải xong trong giây lát...</p>
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  const statusLabel = getEpisodeLabel(movie, episodes);
-  const notifyText = movie?.notify || movie?.showtimes;
-  const categoriesText = (movie?.category || [])
-    .map((c) => c.name || c)
-    .join(", ");
-  const countryText = (movie?.country || []).map((c) => c.name || c).join(", ");
+  // 2. Not Found State
+  if (isNoMovie || (!movie && !isReallyLoading)) return (
+    <div className="min-h-[80vh] flex flex-col items-center justify-center gap-6 text-center px-6">
+      <div className="h-20 w-20 rounded-3xl bg-slate-900 border border-white/5 flex items-center justify-center shadow-2xl">
+        <Globe2 className="h-10 w-10 text-slate-500" />
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-2xl font-bold text-white">Không tìm thấy phim</h2>
+        <p className="text-slate-400 max-w-md mx-auto">Vui lòng kiểm tra lại đường dẫn hoặc quay lại trang chủ để tìm kiếm những bộ phim khác.</p>
+      </div>
+      <Link to="/" className="px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-emerald-500/20">
+        Quay lại trang chủ
+      </Link>
+    </div>
+  );
+
+  // 3. No Sources State (After all fallbacks failed)
+  if (!episodes.length && !isReallyLoading) return (
+    <div className="min-h-[70vh] flex flex-col items-center justify-center gap-6 text-center px-6">
+      <div className="h-20 w-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-2xl">
+        <Info className="h-10 w-10 text-amber-500" />
+      </div>
+      <div className="space-y-3">
+        <p className="text-white font-bold text-xl">{isTmdb ? "Dữ liệu nguồn phim đang gặp sự cố" : "Phim này chưa có nguồn phát"}</p>
+        <p className="text-slate-400 max-w-sm mx-auto">Chúng tôi không tìm thấy nguồn phát phù hợp cho phim này. Quý khách vui lòng chọn phim khác.</p>
+        <div className="pt-4">
+          <Link to={`/movie/${slug}`} className="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold group transition-all">
+            <Info className="h-5 w-5 group-hover:scale-110 transition-transform" /> 
+            Quay lại trang chi tiết
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+
+  const countryText = (movie?.country || []).map(c => c.name || c).join(", ");
+  const categoriesText = (movie?.category || []).map(c => c.name || c).join(", ");
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-white">{movie?.name}</h1>
-        {activeEpisode ? (
-          <p className="text-slate-300">
-            {episodes.length === 1 &&
-            parseEpisodeNumber(activeEpisode.name) === 1
-              ? "Full"
-              : activeEpisode.name}{" "}
-          </p>
-        ) : null}
-        {autoProviderNotice ? (
-          <p className="text-amber-300 text-sm">{autoProviderNotice}</p>
-        ) : null}
-      </div>
+    <div className="space-y-8 pb-12">
+      <WatchHeader movie={movie} activeEpisode={activeEpisode} episodes={episodes} autoProviderNotice={autoProviderNotice} />
 
-      <div ref={playerRef}>
-        {movieOverride?.mode === "trailer" ? (
-          <div
-            className="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-white/10"
-            style={{ aspectRatio: "16/9" }}
-          >
-            {movieOverride.trailerUrl ? (
-              <iframe
-                src={movieOverride.trailerUrl}
-                title="Trailer"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-6">
-                <div className="h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                  <Info className="h-8 w-8 text-amber-400" />
-                </div>
-                <p className="text-white font-bold text-lg">
-                  Phim đang chuẩn bị
-                </p>
-                <p className="text-slate-400 text-sm">
-                  Phim này hiện chỉ có trailer. Vui lòng quay lại sau.
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <Player
-            source={activeSource}
-            poster="/anime_player_poster.png"
-            title={movie?.name}
-            subtitle={
-              activeEpisode?.name
-                ? `${
-                    episodes.length === 1 &&
-                    parseEpisodeNumber(activeEpisode.name) === 1
-                      ? "Full"
-                      : activeEpisode.name
-                  } • ${activeServer || "Vietsub"} • ${activeProviderLabel}`
-                : undefined
-            }
-            onNextEpisode={() => {
-              if (!nextEpisode) return;
-              const nextParams = new URLSearchParams(params);
-              nextParams.set("episode", nextEpisode.slug || nextEpisode.name);
-              if (activeServer) nextParams.set("server", activeServer);
-              if (selectedProviderParam)
-                nextParams.set("provider", selectedProviderParam);
-              navigate(`/watch/${slug}?${nextParams.toString()}`);
-            }}
-            hasNextEpisode={Boolean(nextEpisode)}
-            nextEpisodeTitle={nextEpisode?.name}
-            onTimeUpdate={onTimeUpdate}
-            initialTime={initialTime}
-            theaterMode={isTheater}
-            onToggleTheater={() => setIsTheater(!isTheater)}
-            onPlaybackIssue={handlePlaybackIssue}
-          />
-        )}
-      </div>
-
-      {isTheater && (
-        <div
-          className="fixed inset-0 z-[55] bg-black/90 transition-opacity duration-500 cursor-pointer pointer-events-auto"
-          onClick={() => setIsTheater(false)}
+      {/* Row 1: Player & Information/Actors */}
+      <div className="grid gap-8 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px] items-stretch">
+        <PlayerSection 
+          playerRef={playerRef} movieOverride={movieOverride} activeSource={activeSource} movie={movie}
+          activeEpisode={activeEpisode} episodes={episodes} activeServer={activeServer} activeProviderLabel={activeProviderLabel}
+          onNextEpisode={nextEpisode ? () => navigate(`/watch/${slug}?episode=${nextEpisode.slug}&server=${activeServer}${selectedProviderParam ? `&provider=${selectedProviderParam}` : ""}`) : null}
+          onTimeUpdate={onTimeUpdate} initialTime={initialTime} isTheater={isTheater} onToggleTheater={() => setIsTheater(!isTheater)}
+          onPlaybackIssue={handlePlaybackIssue}
         />
-      )}
+        
+        <div className="hidden xl:flex flex-col gap-6 h-full min-h-0">
+          <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
+          <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
+        </div>
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[380px,1fr] xl:grid-cols-[420px,1fr]">
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-white/5 bg-slate-950/80 shadow-2xl px-6 py-8 lg:px-8 lg:py-9 space-y-6">
-            <div className="flex flex-col gap-6">
-              <div className="space-y-3">
-                <h1 className="text-3xl font-bold text-white leading-tight">
-                  {movie?.name}
-                </h1>
-                {movie?.origin_name && (
-                  <p className="text-slate-200/80 text-sm">
-                    Tên gốc: {movie.origin_name}
-                  </p>
-                )}
+      {/* Row 2: Grid/Comments & Related Movies */}
+      <div className="grid gap-8 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px] items-start">
+        <div className="space-y-8">
+          <WatchEpisodeGrid 
+            serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
+            episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
+            activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
+          />
 
-                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-200/90">
-                  {movie?.year && (
-                    <span className="rounded-full bg-white/10 px-3 py-1">
-                      {movie.year}
-                    </span>
-                  )}
-                  {statusLabel && (
-                    <span className="rounded-full bg-white/10 px-3 py-1">
-                      {statusLabel}
-                    </span>
-                  )}
-                  {movie?.quality && (
-                    <span className="rounded-full bg-white/10 px-3 py-1">
-                      {movie.quality}
-                    </span>
-                  )}
-                  {movie?.lang && (
-                    <span className="rounded-full bg-white/10 px-3 py-1">
-                      {movie.lang}
-                    </span>
-                  )}
-                  {movie?.time && (
-                    <span className="rounded-full bg-white/10 px-3 py-1">
-                      {movie.time}
-                    </span>
-                  )}
-                  {countryText && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
-                      <Globe2 className="h-4 w-4" />
-                      {countryText}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-2 pt-1 text-xs text-slate-200">
-                  {categoriesText && (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 border border-white/10">
-                      <Star className="h-4 w-4 text-amber-300" />
-                      {categoriesText}
-                    </span>
-                  )}
-                </div>
-                <Link
-                  to={`/movie/${movie?.slug || slug}`}
-                  className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-white/10"
-                >
-                  <Info className="h-4 w-4" />
-                  Xem chi tiết phim
-                </Link>
-              </div>
-            </div>
+          <div className="xl:hidden space-y-8">
+            <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
+            <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
           </div>
+
+          {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
         </div>
 
-        <div className="space-y-6 min-w-0">
-          {notifyText ? (
-            <div className="rounded-2xl border border-amber-300/40 bg-amber-500/15 px-4 py-3 flex items-center gap-3 shadow-lg shadow-amber-950/20 backdrop-blur-sm text-amber-100 font-semibold text-sm">
-              <Bell className="h-5 w-5 text-amber-400" />
-              <div>{notifyText}</div>
-            </div>
-          ) : null}
-
-          <div className="rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold text-white">
-                Danh sách tập
-              </h2>
-              <div className="flex flex-wrap items-center gap-3">
-                {(hasVietsub || hasThuyetMinh) && (
-                  <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
-                    <button
-                      type="button"
-                      onClick={() => handleServerChange("Vietsub")}
-                      disabled={!hasVietsub}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                        activeServer === "Vietsub"
-                          ? "bg-emerald-400 text-slate-950"
-                          : "text-slate-200 hover:bg-white/10"
-                      } ${!hasVietsub ? "opacity-60 cursor-not-allowed" : ""}`}
-                    >
-                      Vietsub
-                    </button>
-                    {hasThuyetMinh && (
-                      <button
-                        type="button"
-                        onClick={() => handleServerChange("Thuyết Minh")}
-                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                          activeServer === "Thuyết Minh"
-                            ? "bg-emerald-400 text-slate-950"
-                            : "text-slate-200 hover:bg-white/10"
-                        }`}
-                      >
-                        Thuyết Minh
-                      </button>
-                    )}
-                    {hasLongTieng && (
-                      <button
-                        type="button"
-                        onClick={() => handleServerChange("Lồng Tiếng")}
-                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                          activeServer === "Lồng Tiếng"
-                            ? "bg-emerald-400 text-slate-950"
-                            : "text-slate-200 hover:bg-white/10"
-                        }`}
-                      >
-                        Lồng Tiếng
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {availableProviders.length > 1 && (
-                  <div className="inline-flex rounded-full border border-white/10 bg-white/5 p-1">
-                    <button
-                      type="button"
-                      onClick={() => handleProviderChange("auto")}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                        !selectedProviderParam
-                          ? "bg-cyan-300 text-slate-950"
-                          : "text-slate-200 hover:bg-white/10"
-                      }`}
-                    >
-                      Tự động
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleProviderChange("kkphim")}
-                      disabled={!episodeProviders.kkphim?.link}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                        selectedProviderParam === "kkphim"
-                          ? "bg-cyan-300 text-slate-950"
-                          : "text-slate-200 hover:bg-white/10"
-                      } ${
-                        !episodeProviders.kkphim?.link
-                          ? "opacity-60 cursor-not-allowed"
-                          : ""
-                      }`}
-                    >
-                      Nguồn 1
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleProviderChange("ophim")}
-                      disabled={!episodeProviders.ophim?.link}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                        selectedProviderParam === "ophim"
-                          ? "bg-cyan-300 text-slate-950"
-                          : "text-slate-200 hover:bg-white/10"
-                      } ${
-                        !episodeProviders.ophim?.link
-                          ? "opacity-60 cursor-not-allowed"
-                          : ""
-                      }`}
-                    >
-                      Nguồn 2
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {episodesForServer.length ? (
-              <div className="max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {episodesForServer.map((ep, idx) => (
-                    <Link
-                      key={`${activeServer || ""}-${ep.slug || ep.name || idx}`}
-                      to={`/watch/${slug}?episode=${encodeURIComponent(
-                        ep.slug || ep.name || `ep-${idx + 1}`
-                      )}${
-                        activeServer
-                          ? `&server=${encodeURIComponent(activeServer)}`
-                          : ""
-                      }${
-                        selectedProviderParam
-                          ? `&provider=${encodeURIComponent(
-                              selectedProviderParam
-                            )}`
-                          : ""
-                      }`}
-                      className={`group flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition ${
-                        activeEpisode?.slug === ep.slug
-                          ? "border-emerald-500 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/30"
-                          : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/60 hover:bg-white/10"
-                      }`}
-                    >
-                      <Play
-                        className={`h-4 w-4 mr-2 ${
-                          activeEpisode?.slug === ep.slug
-                            ? "text-slate-950"
-                            : "text-emerald-300"
-                        }`}
-                      />
-                      {activeProvider === "ophim" &&
-                      ep.name &&
-                      !ep.name.toLowerCase().includes("tập")
-                        ? `Tập ${ep.name}`
-                        : ep.name || `Tập ${idx + 1}`}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-slate-400">Chưa có tập.</p>
-            )}
-          </div>
-
-          <div id="comments">
-            {movie && movie.slug && (
-              <Comments movieSlug={movie.slug} movieName={movie.name} />
-            )}
-          </div>
-
-          {actorsWithImages.length ? (
-            <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-4">
-              <div className="flex items-center gap-3">
-                <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
-                  Diễn viên
-                </p>
-                <span className="text-xs font-semibold text-slate-400">
-                  {actorsWithImages.length}
-                </span>
-              </div>
-              <div className="flex overflow-x-auto gap-4 md:gap-6 pb-2 snap-x custom-scrollbar">
-                {actorsWithImages.map((actor) => {
-                  return (
-                    <Link
-                      key={actor.name}
-                      to={`/actor/${actor.id || actor.name}`}
-                      className="flex flex-col items-center gap-2 min-w-[80px] sm:min-w-[96px] snap-start group/actor hover:-translate-y-1 transition-transform"
-                    >
-                      <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
-                        {actor.image ? (
-                          <img
-                            src={actor.image}
-                            alt={actor.name}
-                            className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <User className="w-1/2 h-1/2 text-slate-400 group-hover/actor:text-emerald-400/80 transition-colors" />
-                        )}
-                      </div>
-                      <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight group-hover/actor:text-emerald-400 transition-colors">
-                        {actor.name}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+        <div className="hidden xl:block">
+          <RelatedMovies movie={movie} variant="list" />
         </div>
       </div>
     </div>

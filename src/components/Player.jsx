@@ -385,7 +385,7 @@ const Player = ({
       fullscreenWeb: false,
       playbackRate: true,
       setting: true,
-      hotkey: true,
+      hotkey: false,
       theme: "#10b981",
       lang: "vi",
       muted: false,
@@ -394,6 +394,8 @@ const Player = ({
       lock: isMobile,
       fastForward: isMobile,
       autoPlayback: false,
+      autoCursor: true,
+      autoHide: 3000,
       airplay: true,
       playsInline: true,
       controls: [
@@ -635,24 +637,44 @@ const Player = ({
         const isPaused = art.video.paused;
         art.toggle();
         art.notice.show(isPaused ? "Đang phát" : "Đã tạm dừng");
-      } 
+      }
       // Handle F for Fullscreen
       else if (e.code === "KeyF" || e.key === "f" || e.key === "F") {
         e.preventDefault();
         art.fullscreen = !art.fullscreen;
         art.notice.show(art.fullscreen ? "Toàn màn hình" : "Thoát toàn màn hình");
-      } 
+      }
+      // Handle M for Mute
+      else if (e.code === "KeyM" || e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        art.muted = !art.muted;
+        art.notice.show(art.muted ? "Tắt tiếng" : "Bật tiếng");
+      }
       // Handle Seek Backward
       else if (e.code === "ArrowLeft" || e.key === "ArrowLeft") {
         e.preventDefault();
         art.backward = 10;
         art.notice.show("Lùi 10 giây");
-      } 
+      }
       // Handle Seek Forward
       else if (e.code === "ArrowRight" || e.key === "ArrowRight") {
         e.preventDefault();
         art.forward = 10;
         art.notice.show("Tiến 10 giây");
+      }
+      // Handle Volume Up
+      else if (e.code === "ArrowUp" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const newVol = Math.min(art.volume + 0.1, 1);
+        art.volume = newVol;
+        art.notice.show(`Âm lượng: ${Math.round(newVol * 100)}%`);
+      }
+      // Handle Volume Down
+      else if (e.code === "ArrowDown" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const newVol = Math.max(art.volume - 0.1, 0);
+        art.volume = newVol;
+        art.notice.show(`Âm lượng: ${Math.round(newVol * 100)}%`);
       }
     };
 
@@ -708,6 +730,24 @@ const Player = ({
           /* Darken poster */
           .art-poster {
             filter: brightness(0.4) contrast(1.1) !important;
+          }
+
+          /* Mouse cursor fixes: ensure cursor is visible when moving or controls are shown */
+          .art-video-player {
+            cursor: default !important;
+          }
+          .art-video-player .art-mask,
+          .art-video-player .art-video {
+            cursor: default !important;
+          }
+          /* Hide cursor only when ArtPlayer adds the hide class after inactivity */
+          .art-video-player.art-hide-cursor,
+          .art-video-player.art-hide-cursor * {
+            cursor: none !important;
+          }
+          /* Ensure controls still show the pointer */
+          .art-control, .art-control *, .art-setting, .art-setting * {
+            cursor: pointer !important;
           }
 
           /* Force font family on all player elements */

@@ -28,7 +28,11 @@ const Search = () => {
 
       </div>
 
-      {isFetching && <GridSkeleton count={8} />}
+      {isFetching && (
+        <div className="flex h-[40vh] w-full items-center justify-center">
+          <div className="loader-orbit loader-orbit-md"></div>
+        </div>
+      )}
 
       {!query && (
         <p className="text-slate-400">

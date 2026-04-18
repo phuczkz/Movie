@@ -93,10 +93,10 @@ const Dropdown = ({ label, options, isWide = false }) => {
 
   return (
     <div className="relative" onMouseEnter={openNow} onMouseLeave={closeLater}>
-      <button className="flex items-center gap-1 px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold text-white/90 hover:text-white transition-colors">
+      <button className="flex items-center gap-0.5 xl:gap-1 px-1 xl:px-3 py-2 text-[13px] xl:text-base font-semibold text-white/90 hover:text-white transition-colors">
         <span>{label}</span>
         <ChevronDown
-          className={`h-4 w-4 transition ${open ? "rotate-180" : "rotate-0"}`}
+          className={`h-3.5 w-3.5 xl:h-4 xl:w-4 transition ${open ? "rotate-180" : "rotate-0"}`}
         />
       </button>
       {open && (
@@ -306,7 +306,7 @@ const Header = () => {
               placeholder={
                 isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
               }
-              className="max-w-xs lg:max-w-sm xl:max-w-xl"
+              className="max-w-[180px] lg:max-w-[220px] xl:max-w-xl"
             />
           </div>
 
@@ -316,7 +316,7 @@ const Header = () => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `px-2 lg:px-2.5 xl:px-3 py-2 text-sm xl:text-base font-semibold rounded-lg transition ${isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
+                  `px-1.5 xl:px-3 py-2 text-[13px] xl:text-base font-semibold rounded-lg transition ${isActive ? "bg-white/10 text-white" : "hover:bg-white/10"
                   }`
                 }
               >

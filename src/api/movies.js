@@ -502,76 +502,12 @@ export const getDetail = (slug) =>
         }
       }
 
-      // Final enrichment: Always try to find the movie on TMDB in parallel to ensure a consistent,
-      // high-quality cast list with proper avatars and TMDB Person IDs.
+      // Enrichment (Optional & Non-blocking):
+      // We no longer block the main fetch for TMDB enrichment to ensure fast loading.
+      // Actors and other enhanced meta will be handled by asynchronous hooks in the UI.
       if (movie && !movie.slug?.startsWith("tmdb-")) {
-        const enrichmentTimeout = 5000; // 5s timeout for enrichment
-
-        const tryEnrich = async () => {
-          try {
-            // 1. Identify potential TMDB match
-            const tmdbMatch = await searchTmdbMovie(
-              movie.name || movie.origin_name,
-              movie.year
-            );
-            if (!tmdbMatch) return;
-
-            movie.tmdb = {
-              id: tmdbMatch.id,
-              mediaType: tmdbMatch.media_type,
-            };
-
-            // 2. Fetch credits
-            const tmdbActors = await getTmdbCredits(
-              tmdbMatch.id,
-              tmdbMatch.media_type
-            );
-            if (!tmdbActors || !tmdbActors.length) return;
-
-            // 3. Merge actors
-            if (!movie.actor || !movie.actor.length) {
-              movie.actor = tmdbActors;
-            } else {
-              // Merge logic: match by name and update image + id
-              const tmdbMap = new Map();
-              tmdbActors.forEach(ta => {
-                if (ta.name) tmdbMap.set(ta.name.toLowerCase(), ta);
-              });
-
-              movie.actor = movie.actor.map((original) => {
-                if (!original?.name) return original;
-                const match = tmdbMap.get(original.name.toLowerCase());
-                return match
-                  ? {
-                      ...original,
-                      image: match.image || original.image,
-                      id: match.id,
-                    }
-                  : original;
-              });
-
-              // Add top 8 actors from TMDB that weren't in the original list
-              const existingNames = new Set(
-                movie.actor.map((a) => a?.name?.toLowerCase()).filter(Boolean)
-              );
-              const tmdbExclusives = tmdbActors
-                .slice(0, 8)
-                .filter(
-                  (ta) =>
-                    ta?.name && !existingNames.has(ta.name.toLowerCase())
-                );
-              movie.actor = [...movie.actor, ...tmdbExclusives];
-            }
-          } catch (enrichError) {
-            console.warn("[getDetail] Enrichment background failed:", enrichError.message);
-          }
-        };
-
-        // We wrap the enrichment in a timeout race to ensure it doesn't hang the main fetch
-        await Promise.race([
-          tryEnrich(),
-          new Promise((resolve) => setTimeout(resolve, enrichmentTimeout)),
-        ]);
+        // You could fire enrichment here without await if mutation is acceptable,
+        // but it's cleaner to let the useActorsWithTmdbImages hook handle it.
       }
 
       return { movie, episodes };

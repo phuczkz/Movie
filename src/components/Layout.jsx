@@ -19,13 +19,12 @@ const Layout = ({ children }) => {
       />
       <Header />
       <main
-        className={`relative z-10 mx-auto w-full max-w-[1680px] px-4 pb-16 md:px-8 lg:px-10 ${
-          isHome ? "pt-0 md:pt-0 lg:pt-24" : "pt-20 md:pt-24"
-        }`}
+        className={`relative z-10 mx-auto w-full max-w-[1680px] px-4 pb-16 md:px-4 lg:px-6 ${isHome ? "pt-0 md:pt-0 lg:pt-24" : "pt-20 md:pt-24"
+          }`}
       >
         {children}
       </main>
-      {/* <Footer /> */}
+      <Footer />
     </div>
   );
 };

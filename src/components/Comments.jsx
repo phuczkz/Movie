@@ -546,8 +546,8 @@ export default function Comments({ movieSlug, movieName }) {
   };
 
   return (
-    <div className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-6">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-6">
+      <div className="flex items-center gap-3 shrink-0">
         <h2 className="text-xl font-semibold text-white">Bình luận</h2>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300">
           {topLevelCount}
@@ -557,7 +557,7 @@ export default function Comments({ movieSlug, movieName }) {
       {user ? (
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col sm:flex-row gap-4"
+          className="flex flex-col sm:flex-row gap-4 shrink-0"
         >
           <div className="hidden sm:block h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-inner">
             {currentUserAvatar ? (
@@ -591,7 +591,7 @@ export default function Comments({ movieSlug, movieName }) {
           </div>
         </form>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-slate-400">
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-6 text-center text-sm text-slate-400 shrink-0">
           Vui lòng{" "}
           <a
             href="/login"
@@ -603,7 +603,7 @@ export default function Comments({ movieSlug, movieName }) {
         </div>
       )}
 
-      <div className="space-y-5 pt-2">
+      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 pt-2">
         {topComments.map((comment) => (
           <CommentRow
             key={comment.id}

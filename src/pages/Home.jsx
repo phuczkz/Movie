@@ -218,7 +218,9 @@ const Home = () => {
           }
         >
           {loadingKKSeries ? (
-            <GridSkeleton count={4} baseClass="home-grid-movies" />
+            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
+              <div className="loader-orbit loader-orbit-md"></div>
+            </div>
           ) : (
             <Grid items={cap(kkSeries)} priorityCount={4} />
           )}
@@ -235,7 +237,9 @@ const Home = () => {
           }
         >
           {loadingKKSingle ? (
-            <GridSkeleton count={4} baseClass="home-grid-movies" />
+            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
+              <div className="loader-orbit loader-orbit-md"></div>
+            </div>
           ) : (
             <Grid items={cap(kkSingle)} priorityCount={4} />
           )}
@@ -252,7 +256,9 @@ const Home = () => {
           }
         >
           {loadingPopular ? (
-            <GridSkeleton count={4} baseClass="home-grid-movies" />
+            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
+              <div className="loader-orbit loader-orbit-md"></div>
+            </div>
           ) : (
             <Grid items={cap(popular)} priorityCount={4} />
           )}
@@ -269,12 +275,9 @@ const Home = () => {
           }
         >
           {loadingAnime ? (
-            <GridSkeleton
-              count={4}
-              variant="landscape"
-              className=""
-              baseClass="home-grid-movies-landscape"
-            />
+            <div className="flex h-[200px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
+              <div className="loader-orbit loader-orbit-md"></div>
+            </div>
           ) : (
             <Grid
               items={cap(anime)}
@@ -296,7 +299,9 @@ const Home = () => {
           }
         >
           {loadingSeries ? (
-            <GridSkeleton count={3} baseClass="home-grid-movies" />
+            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
+              <div className="loader-orbit loader-orbit-md"></div>
+            </div>
           ) : (
             <Grid items={cap(series)} priorityCount={3} />
           )}

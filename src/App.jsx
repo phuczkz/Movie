@@ -62,8 +62,14 @@ function App() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-          <div className="loader-orbit loader-orbit-sm" />
+        <div className="min-h-screen bg-[#0b0b15] flex flex-col items-center justify-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,176,155,0.05),transparent_50%)]" />
+          <div className="relative z-10 flex flex-col items-center gap-5">
+            <div className="loader-orbit loader-orbit-lg"></div>
+            <div className="animate-pulse flex flex-col items-center">
+              <span className="text-white/40 text-xs font-bold tracking-[0.2em] uppercase"></span>
+            </div>
+          </div>
         </div>
       }
     >
