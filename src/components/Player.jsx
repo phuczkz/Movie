@@ -36,6 +36,7 @@ const Player = ({
   const onPlaybackIssueRef = useRef(onPlaybackIssue);
   const onTimeUpdateRef = useRef(onTimeUpdate);
   const onNextEpisodeRef = useRef(onNextEpisode);
+  const onToggleTheaterRef = useRef(onToggleTheater);
   const playbackIssueReportedRef = useRef(false);
   const lastPositionRef = useRef(
     typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0
@@ -43,6 +44,7 @@ const Player = ({
   useEffect(() => { onPlaybackIssueRef.current = onPlaybackIssue; }, [onPlaybackIssue]);
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
   useEffect(() => { onNextEpisodeRef.current = onNextEpisode; }, [onNextEpisode]);
+  useEffect(() => { onToggleTheaterRef.current = onToggleTheater; }, [onToggleTheater]);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -127,9 +129,13 @@ const Player = ({
           if (originalUrl) originalOrigin = new URL(originalUrl).origin;
         } catch { /* ignore */ }
 
+        // Only proxy manifests and levels by default. 
+        // Fragments (TS) are bypassed to avoid buffering latency, unless direct fetch fails.
+        const isManifestOrLevel = context.type === "manifest" || context.type === "level";
         let activeProxy = null;
         const alreadyProxied = PROXY_CHAIN.some((p) => context.url.includes(p));
-        if (!alreadyProxied && context.url) {
+
+        if (!alreadyProxied && context.url && isManifestOrLevel) {
           activeProxy = getBestProxy(originalOrigin);
           if (activeProxy) {
             context.url = `${activeProxy}?url=${encodeURIComponent(context.url)}`;
@@ -163,6 +169,19 @@ const Player = ({
             if (onSuccess) onSuccess(nextResponse, stats, ctx, networkDetails);
           },
           onError: (error, ctx, networkDetails, stats) => {
+            // If direct fragment fetch failed, try fallback to proxy
+            if (!isManifestOrLevel && !activeProxy && !alreadyProxied && originalUrl) {
+              const fallbackProxy = getBestProxy(originalOrigin);
+              if (fallbackProxy) {
+                console.debug(`[HLS] Direct fragment failed, retrying via proxy fallback.`);
+                try { this.abort(); } catch { /* ignore */ }
+                const retryLoader = new (this.constructor)(config);
+                const retryContext = { ...context, url: `${fallbackProxy}?url=${encodeURIComponent(originalUrl)}` };
+                retryLoader.load(retryContext, config, wrappedCallbacks);
+                return;
+              }
+            }
+
             if (activeProxy && originalUrl) {
               markProxyFailed(originalOrigin, activeProxy);
               const nextProxy = getBestProxy(originalOrigin);
@@ -171,11 +190,8 @@ const Player = ({
                 console.debug(`[HLS] Primary proxy failed for ${originalOrigin}, trying secondary.`);
                 try { this.abort(); } catch { /* ignore */ }
                 const retryLoader = new (this.constructor)(config);
-                const retryContext = { ...context, url: originalUrl };
-                retryLoader.load(retryContext, config, {
-                  ...callbacks,
-                  onSuccess: wrappedCallbacks.onSuccess,
-                });
+                const retryContext = { ...context, url: `${nextProxy}?url=${encodeURIComponent(originalUrl)}` };
+                retryLoader.load(retryContext, config, wrappedCallbacks);
                 return;
               }
 
@@ -187,10 +203,7 @@ const Player = ({
                 try { this.abort(); } catch { /* ignore */ }
                 const directLoader = new (this.constructor)(config);
                 const directContext = { ...context, url: originalUrl };
-                directLoader.load(directContext, config, {
-                  ...callbacks,
-                  onSuccess: wrappedCallbacks.onSuccess,
-                });
+                directLoader.load(directContext, config, wrappedCallbacks);
                 return;
               }
             }
@@ -398,6 +411,7 @@ const Player = ({
       autoHide: 3000,
       airplay: true,
       playsInline: true,
+      clickPause: true,
       controls: [
         // Seek backward 10s (left side, after play button)
         {
@@ -427,7 +441,7 @@ const Player = ({
               index: 15,
               html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
               tooltip: theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim",
-              click: () => { if (onToggleTheater) onToggleTheater(); },
+              click: () => { if (onToggleTheaterRef.current) onToggleTheaterRef.current(); },
             },
           ]
           : []),
@@ -439,7 +453,7 @@ const Player = ({
               index: 20,
               html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
               tooltip: "Tập tiếp theo",
-              click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
+              click: (art) => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
             },
           ]
           : []),
@@ -590,6 +604,14 @@ const Player = ({
       }
     });
 
+    // Track video play/pause to show notices (sync with clicks and hotkeys)
+    art.on("video:play", () => {
+      art.emit("notice", "Đang phát");
+    });
+    art.on("video:pause", () => {
+      art.emit("notice", "Đã tạm dừng");
+    });
+
     // Error reporting
     art.on("video:error", () => reportPlaybackIssue("video-error"));
 
@@ -606,6 +628,15 @@ const Player = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, Hls, isHls, canUseIframe]);
+
+  // Handle Resize when theater mode toggles
+  useEffect(() => {
+    const art = artInstanceRef.current;
+    if (art && art.isReady) {
+      // Small timeout to ensure DOM layout has updated
+      setTimeout(() => art.resize(), 100);
+    }
+  }, [theaterMode]);
 
   // When source changes (e.g. episode switch), reset state
   // Note: mountedRef reset happens in the cleanup of the main useEffect
@@ -634,47 +665,45 @@ const Player = ({
       // Handle Space for Play/Pause
       if (e.code === "Space" || e.key === " ") {
         e.preventDefault();
-        const isPaused = art.video.paused;
         art.toggle();
-        art.notice.show(isPaused ? "Đang phát" : "Đã tạm dừng");
       }
       // Handle F for Fullscreen
       else if (e.code === "KeyF" || e.key === "f" || e.key === "F") {
         e.preventDefault();
         art.fullscreen = !art.fullscreen;
-        art.notice.show(art.fullscreen ? "Toàn màn hình" : "Thoát toàn màn hình");
+        art.emit('notice', art.fullscreen ? "Toàn màn hình" : "Thoát toàn màn hình");
       }
       // Handle M for Mute
       else if (e.code === "KeyM" || e.key === "m" || e.key === "M") {
         e.preventDefault();
         art.muted = !art.muted;
-        art.notice.show(art.muted ? "Tắt tiếng" : "Bật tiếng");
+        art.emit('notice', art.muted ? "Tắt tiếng" : "Bật tiếng");
       }
       // Handle Seek Backward
       else if (e.code === "ArrowLeft" || e.key === "ArrowLeft") {
         e.preventDefault();
         art.backward = 10;
-        art.notice.show("Lùi 10 giây");
+        art.emit('notice', "Lùi 10 giây");
       }
       // Handle Seek Forward
       else if (e.code === "ArrowRight" || e.key === "ArrowRight") {
         e.preventDefault();
         art.forward = 10;
-        art.notice.show("Tiến 10 giây");
+        art.emit('notice', "Tiến 10 giây");
       }
       // Handle Volume Up
       else if (e.code === "ArrowUp" || e.key === "ArrowUp") {
         e.preventDefault();
         const newVol = Math.min(art.volume + 0.1, 1);
         art.volume = newVol;
-        art.notice.show(`Âm lượng: ${Math.round(newVol * 100)}%`);
+        art.emit('notice', `Âm lượng: ${Math.round(newVol * 100)}%`);
       }
       // Handle Volume Down
       else if (e.code === "ArrowDown" || e.key === "ArrowDown") {
         e.preventDefault();
         const newVol = Math.max(art.volume - 0.1, 0);
         art.volume = newVol;
-        art.notice.show(`Âm lượng: ${Math.round(newVol * 100)}%`);
+        art.emit('notice', `Âm lượng: ${Math.round(newVol * 100)}%`);
       }
     };
 

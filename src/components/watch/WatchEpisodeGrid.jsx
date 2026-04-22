@@ -19,6 +19,17 @@ const WatchEpisodeGrid = memo(({
   handleProviderChange, 
   availableProviders 
 }) => {
+  const activeRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+    }
+  }, [activeEpisode?.slug]);
+
   return (
     <div className="space-y-6">
       {/* Server Selection */}
@@ -76,26 +87,30 @@ const WatchEpisodeGrid = memo(({
           <ListChecks className="h-4 w-4" />
           <span className="text-sm font-semibold uppercase tracking-wider">Danh sách tập</span>
         </div>
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-          {episodesForServer.map((ep) => {
-            const isActive = activeEpisode?.slug === ep.slug;
-            const epNum = parseEpisodeNumber(ep.name || ep.slug);
-            const label = episodesForServer.length === 1 && epNum === 1 ? "Full" : (ep.name || epNum || "??");
-            
-            return (
-              <Link
-                key={ep.slug}
-                to={`/watch/${slug}?episode=${ep.slug}&server=${encodeURIComponent(activeServer)}`}
-                className={`flex items-center justify-center rounded-lg border py-2.5 text-sm font-bold transition-all duration-300 ${
-                  isActive
-                    ? "border-emerald-500 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 scale-105 z-10"
-                    : "border-white/5 bg-white/5 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-400 hover:bg-emerald-500/5"
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
+        
+        <div className="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
+            {episodesForServer.map((ep) => {
+              const isActive = activeEpisode?.slug === ep.slug;
+              const epNum = parseEpisodeNumber(ep.name || ep.slug);
+              const label = episodesForServer.length === 1 && epNum === 1 ? "Full" : (ep.name || epNum || "??");
+              
+              return (
+                <Link
+                  key={ep.slug}
+                  ref={isActive ? activeRef : null}
+                  to={`/watch/${slug}?episode=${ep.slug}&server=${encodeURIComponent(activeServer)}`}
+                  className={`flex items-center justify-center rounded-lg border py-2.5 text-sm font-bold transition-all duration-300 ${
+                    isActive
+                      ? "border-emerald-500 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 scale-105 z-10"
+                      : "border-white/5 bg-white/5 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-400 hover:bg-emerald-500/5"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

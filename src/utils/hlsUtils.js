@@ -48,7 +48,38 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
 
   // 2. Split body into blocks by discontinuity
   const blocks = body.split(/(?:^|\n)#EXT-X-DISCONTINUITY\b/);
-  const blacklisted = ["adjump", "/v7/", "khomay", "proxys", "bitcdn", "ads"];
+  const blacklisted = [
+    "adjump",
+    "/v7/",
+    "khomay",
+    "proxys",
+    "bitcdn",
+    "ads",
+    "googleads",
+    "doubleclick",
+    "adnxs",
+    "vads",
+    "ccdn",
+    "p-cdn",
+    "media-ads",
+    "stream-ads",
+    "vid-ads",
+    "clouddn",
+    "phimads",
+    "vntrailer",
+    "mobads",
+    "yandex",
+    "mads",
+    "traffic",
+    "click",
+    "popunder",
+    "banner",
+    "delivery",
+    "segment_",
+    "v-segments",
+    "p-segments",
+    "cloud-segments",
+  ];
 
   const stripLines = (blockText) => {
     const lines = blockText.split(/\r?\n/);
@@ -99,18 +130,25 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
     }
 
     let isAd = false;
-    // Explicit blacklist check
+    // Explicit blacklist check (including new segment_ pattern)
     if (blacklisted.some((word) => block.includes(word))) {
       isAd = true;
     }
-    // Heuristic: very short blocks between discontinuities are usually ads
-    // (Keep this threshold low — 15s — to avoid stripping legitimate content)
-    else if (duration > 0 && duration < 15 && blocks.length > 2) {
-      isAd = true;
+    // Heuristic 1: blocks between discontinuities that are shorter than 65s are suspicious
+    // Most mid-roll ads are 15s, 30s, or 60s.
+    else if (duration > 0 && duration < 65 && blocks.length > 2) {
+      // Heuristic 2: Sequence Reset. If a block mid-movie starts with 0000 or 0001, it's an ad.
+      const hasResetPattern = /segment_000[01]\.ts|[^a-zA-Z0-9]000[01]\.ts\b|[^a-zA-Z0-9][01]\.ts\b/i.test(block);
+      if (hasResetPattern && i > 0) {
+        isAd = true;
+      }
     }
 
     if (!isAd) {
-      validBlocks.push(stripLines(block));
+      const stripped = stripLines(block);
+      if (stripped && stripped.trim().length > 0) {
+        validBlocks.push(stripped);
+      }
     }
   }
 

@@ -28,24 +28,24 @@ export const useHlsHandler = (source, isHls) => {
     const isTablet = !isMobile && window.innerWidth <= 1024;
 
     return {
-      maxBufferLength: isMobile ? 15 : 30,
-      maxMaxBufferLength: isMobile ? 30 : 60,
+      maxBufferLength: isMobile ? 30 : 60,
+      maxMaxBufferLength: isMobile ? 60 : 120,
       maxBufferSize: isMobile
-        ? 30 * 1000 * 1000
-        : isTablet
         ? 60 * 1000 * 1000
-        : 100 * 1000 * 1000,
-      maxBufferHole: 1.0,
-      backBufferLength: 10,
+        : isTablet
+        ? 120 * 1000 * 1000
+        : 200 * 1000 * 1000,
+      maxBufferHole: 0.5,
+      backBufferLength: 60,
       startLevel: -1, // Auto
       lowLatencyMode: false,
-      abrEwmaDefaultEstimate: 1_500_000,
-      abrBandWidthFactor: 0.7,
-      abrBandWidthUpFactor: 0.5,
-      fragLoadingRetryDelay: 1000,
-      fragLoadingMaxRetryTimeout: 16000,
-      fragLoadingMaxRetry: 10,
-      fragLoadingTimeOut: 60000,
+      abrEwmaDefaultEstimate: 2_000_000,
+      abrBandWidthFactor: 0.8,
+      abrBandWidthUpFactor: 0.6,
+      fragLoadingRetryDelay: 500,
+      fragLoadingMaxRetryTimeout: 32000,
+      fragLoadingMaxRetry: 15,
+      fragLoadingTimeOut: 30000,
       manifestLoadingMaxRetry: 6,
       manifestLoadingTimeOut: 30000,
       levelLoadingMaxRetry: 6,
