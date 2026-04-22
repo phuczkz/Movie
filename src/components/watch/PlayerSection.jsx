@@ -17,7 +17,10 @@ const PlayerSection = memo(({
   isTheater, 
   onToggleTheater, 
   onPlaybackIssue,
-  playerRef
+  playerRef,
+  currentSeason,
+  nextSeason,
+  isLastEpisodeOfSeason
 }) => {
   return (
     <div ref={playerRef} className="relative z-10">
@@ -51,12 +54,15 @@ const PlayerSection = memo(({
           subtitle={activeEpisode?.name ? `${episodes.length === 1 && parseEpisodeNumber(activeEpisode.name) === 1 ? "Full Movie" : activeEpisode.name} • ${activeServer || "Vietsub"} • ${activeProviderLabel}` : undefined}
           onNextEpisode={onNextEpisode}
           hasNextEpisode={!!onNextEpisode}
-          nextEpisodeTitle={onNextEpisode ? "Tập tiếp theo" : undefined}
+          nextEpisodeTitle={isLastEpisodeOfSeason && nextSeason ? `Chuyển sang Phần ${nextSeason.seasonNumber}` : "Tập tiếp theo"}
           onTimeUpdate={onTimeUpdate}
           initialTime={initialTime}
           theaterMode={isTheater}
           onToggleTheater={onToggleTheater}
           onPlaybackIssue={onPlaybackIssue}
+          currentSeason={currentSeason}
+          nextSeason={nextSeason}
+          isLastEpisodeOfSeason={isLastEpisodeOfSeason}
         />
       )}
     </div>

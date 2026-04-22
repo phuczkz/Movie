@@ -2,11 +2,6 @@ import React, { memo } from "react";
 import { ChevronDown } from "lucide-react";
 import Rating from "../Rating";
 
-const getHiRes = (url) => {
-  if (!url || typeof url !== "string") return url;
-  return url.replace(/\/w(92|154|185|300|342|500|780)\//, "/w1280/");
-};
-
 const getOptimizedImage = (url, w = 1280) => {
   if (!url) return url;
   try {

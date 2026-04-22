@@ -3,7 +3,6 @@ import { Info } from "lucide-react";
 import EpisodeList from "../EpisodeList";
 
 const EpisodeSection = memo(({ 
-  movie, 
   episodes, 
   selectedEpisodes, 
   serverGroups, 

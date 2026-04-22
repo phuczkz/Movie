@@ -1,8 +1,6 @@
 import client from "./client";
 import {
   getTmdbDetailBySlug,
-  searchTmdbMovie,
-  getTmdbCredits,
   getTmdbByGenre,
   searchTmdbPerson,
   getTmdbPersonCredits,

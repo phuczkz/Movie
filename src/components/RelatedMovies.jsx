@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { searchMovies } from "../api/movies";
 import { Play, Star } from "lucide-react";
@@ -10,25 +10,8 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
   const [hasLoaded, setHasLoaded] = useState(false);
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !hasLoaded) {
-          fetchRelated();
-          setHasLoaded(true);
-        }
-      },
-      { threshold: 0.1 }
-    );
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasLoaded, movie?.slug]);
-
-  const fetchRelated = async () => {
+  const fetchRelated = useCallback(async () => {
     if (!movie) return;
     setLoading(true);
     try {
@@ -65,7 +48,26 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [movie, variant]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasLoaded) {
+          fetchRelated();
+          setHasLoaded(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasLoaded, movie?.slug, fetchRelated]);
+
 
   if (variant === "grid") {
     return (

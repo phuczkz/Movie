@@ -210,11 +210,9 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
       return `${formatEp(latestFromList)}`;
     }
 
-    // Fallback for single movies or when episode list is empty
     const current = (movie?.episode_current || "").toLowerCase();
     if (current.includes("full") || current.includes("hoàn tất")) return "Full";
     
-    // If it's something like "Tập 1" or "1/1"
     const parsedCurrent = parseEpisodeNumber(current);
     if (parsedCurrent !== null && parsedCurrent > 0) {
         if (Number.isFinite(epTotal) && epTotal > 1) {
@@ -257,7 +255,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     }
 
     return badges;
-  }, [episodeList, episodeCurrentText, movieLang, movie?.status]);
+  }, [episodeList, episodeCurrentText, movieLang, movie.status]);
 
   useEffect(() => {
     if (!imgRef.current || shouldLoad) return undefined;
@@ -272,7 +270,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     );
     observer.observe(imgRef.current);
     return () => observer.disconnect();
-  }, [slug, shouldLoad]);
+  }, [shouldLoad, slug]);
 
   const basePoster = movie.poster_url || movie.thumb_url;
   const posterSrc =

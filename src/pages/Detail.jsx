@@ -31,6 +31,8 @@ import {
 } from "../utils/episodes.js";
 import { getTmdbEpisodes } from "../api/movies.js";
 import MovieCard from "../components/MovieCard.jsx";
+import SeasonSelector from "../components/SeasonSelector.jsx";
+import { useSeries } from "../hooks/useSeries.js";
 
 // Try to fetch reasonable resolution images for the banner to balance quality and speed
 const getHiRes = (url) => {
@@ -71,6 +73,7 @@ const Detail = () => {
   const { data, isLoading } = useMovieDetail(slug);
   const { user } = useAuth();
   const { loadProgress, clearProgress } = useWatchProgress();
+  const { groups, currentSeason } = useSeries(data?.movie);
 
   // Thừa hưởng dữ liệu cơ bản từ card (poster, name) nếu có, để tránh "Chưa có tên"
   const passedMovie = location.state?.movie;
@@ -110,7 +113,7 @@ const Detail = () => {
       }
     };
     fetchAll();
-  }, [canUseTmdbSchedule, tmdbScheduleId, tmdbScheduleSeasons]);
+  }, [canUseTmdbSchedule, tmdbScheduleId, tmdbScheduleSeasons, setTmdbFullEpisodes]);
 
   // Listen for admin movie override (trailer mode)
   useEffect(() => {
@@ -126,7 +129,7 @@ const Detail = () => {
       }
     );
     return unsub;
-  }, [slug]);
+  }, [slug, setMovieOverride]);
 
   // Load watch progress for the modal
   useEffect(() => {
@@ -142,7 +145,7 @@ const Detail = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, slug, loadProgress]);
+  }, [user, slug, loadProgress, setResumeData, setShowResumeModal]);
 
   const handleResume = useCallback(() => {
     if (!resumeData) return;
@@ -157,7 +160,7 @@ const Detail = () => {
   const handleStartFromBeginning = useCallback(() => {
     clearProgress(slug);
     setShowResumeModal(false);
-  }, [slug, clearProgress]);
+  }, [slug, clearProgress, setShowResumeModal]);
 
   // Only search for alternatives if this is a TMDB-primary movie AND we don't have enough episodes yet
   const needsAltSearch = isTmdb && (!baseEpisodes || baseEpisodes.length < 1);
@@ -273,7 +276,7 @@ const Detail = () => {
     };
 
     trackView();
-  }, [slug, db]); // Count every visit (request) to this page
+  }, [slug, movie]); // Count every visit (request) to this page
 
   const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], {
     enabled: deferLoad && !!categorySlugs[0],
@@ -440,14 +443,7 @@ const Detail = () => {
         <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[2px] z-0" />
         <div className="relative z-10 flex flex-col items-center gap-6">
           <div className="loader-orbit loader-orbit-lg"></div>
-          <div className="text-center space-y-1">
-            <p className="text-emerald-400 font-bold text-lg tracking-wide uppercase drop-shadow-sm">
-              Đang chuẩn bị phim
-            </p>
-            <p className="text-slate-400 text-sm font-medium opacity-80">
-              Vui lòng đợi trong giây lát...
-            </p>
-          </div>
+          {/* Loading text removed for minimalist feel */}
         </div>
       </div>
     );
@@ -947,6 +943,15 @@ const Detail = () => {
           {mobileSection === "episodes" ? (
             <div className="space-y-6">
               <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 space-y-5">
+                {/* Season Selector (Mobile) */}
+                {groups && (
+                  <SeasonSelector 
+                    groups={groups} 
+                    currentSeason={currentSeason} 
+                    currentSlug={movie?.slug}
+                  />
+                )}
+
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <h2 className="text-xl font-semibold text-white">
@@ -1157,6 +1162,15 @@ const Detail = () => {
           {/* Cột 2: Sidebar (Episodes, Actors, Related) */}
           <div className="hidden lg:block lg:col-start-2 lg:row-start-1 lg:row-span-2 space-y-6 min-w-0">
             <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
+              {/* Season Selector (Desktop) */}
+              {groups && (
+                <SeasonSelector 
+                  groups={groups} 
+                  currentSeason={currentSeason} 
+                  currentSlug={movie?.slug}
+                />
+              )}
+
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-semibold text-white">Tập phim</h2>

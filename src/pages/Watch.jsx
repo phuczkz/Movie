@@ -27,9 +27,9 @@ import { useActorsWithTmdbImages } from "../hooks/useActorsWithTmdbImages.js";
 import Comments from "../components/Comments.jsx";
 import RelatedMovies from "../components/RelatedMovies.jsx";
 import {
-  getEpisodeLabel,
   normalizeServerLabel,
   parseEpisodeNumber,
+  isLastEpisode,
 } from "../utils/episodes.js";
 
 // Sub-components
@@ -38,6 +38,8 @@ import PlayerSection from "../components/watch/PlayerSection.jsx";
 import WatchSidebar from "../components/watch/WatchSidebar.jsx";
 import WatchEpisodeGrid from "../components/watch/WatchEpisodeGrid.jsx";
 import ActorSection from "../components/detail/ActorSection.jsx";
+import SeasonSelector from "../components/SeasonSelector.jsx";
+import { useSeries } from "../hooks/useSeries.js";
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
@@ -125,6 +127,7 @@ const Watch = () => {
   const [autoProviderState, setAutoProviderState] = useState({ key: "", provider: null, notice: "" });
   const [useEmbedFallback, setUseEmbedFallback] = useState(false);
   const { data, isLoading } = useMovieDetail(slug);
+  const { groups, currentSeason, nextSeason, isSeries } = useSeries(data?.movie);
 
   const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
   const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
@@ -203,7 +206,7 @@ const Watch = () => {
       setAutoProviderState({ key: playbackScopeKey, provider: null, notice: "" });
     }
     setParams(nextParams, { replace: true });
-  }, [params, playbackScopeKey, setParams]);
+  }, [params, playbackScopeKey, setParams, setAutoProviderState]);
 
   const handlePlaybackIssue = useCallback((reason) => {
     if (selectedProviderParam || !activeProvider) return;
@@ -219,7 +222,7 @@ const Watch = () => {
       }
       return { key: playbackScopeKey, provider: prev.provider || null, notice: `${PROVIDER_LABELS[activeProvider] || activeProvider} đang chậm. Vui lòng thử chuyển sang nguồn khác.` };
     });
-  }, [selectedProviderParam, activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback]);
+  }, [selectedProviderParam, activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback]);
 
   const handleServerChange = useCallback((serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);
@@ -250,9 +253,10 @@ const Watch = () => {
       server: activeServer || null,
       currentTime, duration,
       movieName: movie?.name,
+      seasonNumber: currentSeason,
       posterUrl: movie?.poster_url || movie?.thumb_url || movie?.backdrop_url,
     });
-  }, [user, slug, activeEpisode, activeServer, saveProgress, movie]);
+  }, [user, slug, activeEpisode, activeServer, saveProgress, movie, currentSeason]);
 
   useEffect(() => {
     if (activeEpisode) {
@@ -294,7 +298,7 @@ const Watch = () => {
       views: increment(1),
       lastViewedAt: serverTimestamp(),
     }, { merge: true }).catch(err => console.warn("[ViewTracking] Error updating views:", err));
-  }, [slug, db, movie]);
+  }, [slug, movie]);
 
   const actors = useMemo(() => {
     const baseActors = baseMovie?.slug?.startsWith("tmdb-") ? baseMovie?.actor : null;
@@ -331,10 +335,7 @@ const Watch = () => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.03),transparent_50%)]" />
       <div className="relative z-10 flex flex-col items-center gap-6">
         <div className="loader-orbit loader-orbit-lg"></div>
-        <div className="text-center space-y-2">
-          <p className="text-emerald-400 font-bold text-lg tracking-wide uppercase">Đang kết nối...</p>
-          <p className="text-slate-400 text-sm font-medium animate-pulse">Phim sẽ tải xong trong giây lát...</p>
-        </div>
+        {/* Loading text removed for minimalist feel */}
       </div>
     </div>
   );
@@ -363,7 +364,6 @@ const Watch = () => {
       </div>
       <div className="space-y-3">
         <p className="text-white font-bold text-xl">{isTmdb ? "Dữ liệu nguồn phim đang gặp sự cố" : "Phim này chưa có nguồn phát"}</p>
-        <p className="text-slate-400 max-w-sm mx-auto">Chúng tôi không tìm thấy nguồn phát phù hợp cho phim này. Quý khách vui lòng chọn phim khác.</p>
         <div className="pt-4">
           <Link to={`/movie/${slug}`} className="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold group transition-all">
             <Info className="h-5 w-5 group-hover:scale-110 transition-transform" /> 
@@ -387,9 +387,17 @@ const Watch = () => {
           <PlayerSection 
             playerRef={playerRef} movieOverride={movieOverride} activeSource={activeSource} movie={movie}
             activeEpisode={activeEpisode} episodes={episodes} activeServer={activeServer} activeProviderLabel={activeProviderLabel}
-            onNextEpisode={nextEpisode ? () => navigate(`/watch/${slug}?episode=${nextEpisode.slug}&server=${activeServer}${selectedProviderParam ? `&provider=${selectedProviderParam}` : ""}`) : null}
+            onNextEpisode={
+              nextEpisode 
+                ? () => navigate(`/watch/${slug}?episode=${nextEpisode.slug}&server=${activeServer}${selectedProviderParam ? `&provider=${selectedProviderParam}` : ""}`) 
+                : (isLastEpisode(activeEpisode, movie) && nextSeason)
+                ? () => navigate(`/watch/${nextSeason.slug}?episode=1`)
+                : null
+            }
             onTimeUpdate={onTimeUpdate} initialTime={initialTime} isTheater={isTheater} onToggleTheater={() => setIsTheater(!isTheater)}
             onPlaybackIssue={handlePlaybackIssue}
+            nextSeason={nextSeason}
+            isLastEpisodeOfSeason={isLastEpisode(activeEpisode, movie)}
           />
         </div>
         
@@ -404,6 +412,16 @@ const Watch = () => {
       {/* Row 2: Grid/Comments & Related Movies */}
       <div className={`grid gap-8 items-start ${isTheater ? "grid-cols-1 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]" : "xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]"}`}>
         <div className="space-y-8">
+          {isSeries && (
+            <div className="pb-4">
+              <SeasonSelector 
+                groups={groups} 
+                currentSeason={currentSeason} 
+                currentSlug={slug}
+              />
+            </div>
+          )}
+
           <WatchEpisodeGrid 
             serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
             episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}

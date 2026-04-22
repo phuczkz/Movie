@@ -26,6 +26,9 @@ const Player = ({
   theaterMode = false,
   onToggleTheater,
   onPlaybackIssue,
+  currentSeason,
+  nextSeason,
+  isLastEpisodeOfSeason,
 }) => {
   const artRef = useRef(null);             // DOM mount point for ArtPlayer
   const artInstanceRef = useRef(null);     // ArtPlayer instance
@@ -37,7 +40,12 @@ const Player = ({
   const onTimeUpdateRef = useRef(onTimeUpdate);
   const onNextEpisodeRef = useRef(onNextEpisode);
   const onToggleTheaterRef = useRef(onToggleTheater);
+  const nextSeasonRef = useRef(nextSeason);
+  const isLastEpisodeOfSeasonRef = useRef(isLastEpisodeOfSeason);
   const playbackIssueReportedRef = useRef(false);
+
+  useEffect(() => { nextSeasonRef.current = nextSeason; }, [nextSeason]);
+  useEffect(() => { isLastEpisodeOfSeasonRef.current = isLastEpisodeOfSeason; }, [isLastEpisodeOfSeason]);
   const lastPositionRef = useRef(
     typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0
   );
@@ -446,14 +454,14 @@ const Player = ({
           ]
           : []),
         // Next Episode button (always visible in control bar if next exists)
-        ...(onNextEpisode && hasNextEpisode
+        ...(onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
           ? [
             {
               position: "right",
               index: 20,
               html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
-              tooltip: "Tập tiếp theo",
-              click: (art) => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
+              tooltip: isLastEpisodeOfSeason && nextSeason ? `Chuyển sang Phần ${nextSeason.seasonNumber}` : "Tập tiếp theo",
+              click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
             },
           ]
           : []),
@@ -473,7 +481,7 @@ const Player = ({
           },
         },
         // Floating Next Episode button (shows above control bar)
-        ...(onNextEpisode && hasNextEpisode
+        ...(onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
           ? [
             {
               name: "next-episode-overlay",
@@ -484,23 +492,30 @@ const Player = ({
                   bottom: 80px;
                   right: 24px;
                   background: rgba(255, 255, 255, 0.08);
-                  backdrop-filter: blur(16px);
-                  -webkit-backdrop-filter: blur(16px);
+                  backdrop-filter: blur(20px);
+                  -webkit-backdrop-filter: blur(20px);
                   border: 1px solid rgba(255, 255, 255, 0.15);
                   border-radius: 12px;
-                  padding: 12px 24px;
+                  padding: 14px 24px;
                   color: #ffffff;
                   font-size: 14px;
                   font-weight: 700;
                   cursor: pointer;
                   align-items: center;
-                  gap: 10px;
+                  gap: 12px;
                   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+                  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
                   pointer-events: auto;
                   user-select: none;
+                  max-width: 320px;
                 ">
-                  <span style="letter-spacing: 0.03em;">Tập tiếp theo</span>
+                  <span style="letter-spacing: 0.02em; line-height: 1.4;">
+                    ${isLastEpisodeOfSeason && nextSeason 
+                      ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""}</div>
+                         Bạn có muốn chuyển sang <b>Phần ${nextSeason.seasonNumber} (Tập 1)</b> không?`
+                      : 'Tập tiếp theo'
+                    }
+                  </span>
                 </div>`,
               click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
               style: {
@@ -551,7 +566,7 @@ const Player = ({
       }
 
       // Cache ref to the next-episode DOM button (injected via layer html)
-      if (onNextEpisode && hasNextEpisode) {
+      if (onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))) {
         nextEpBtnElRef.current =
           art.template?.$player?.querySelector?.("#art-next-ep-layer") || null;
 
@@ -587,7 +602,7 @@ const Player = ({
 
       // Show "Tập tiếp theo" button when the video is nearing its end
       const btn = nextEpBtnElRef.current;
-      if (btn && hasNextEpisode && d > 0) {
+      if (btn && (hasNextEpisode || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) && d > 0) {
         // Show if remaining time <= 3 minutes (190s) OR progress >= 90% (for short clips)
         const remainingTime = d - t;
         const shouldShow = remainingTime <= 190 || (t / d >= 0.9);
@@ -598,8 +613,8 @@ const Player = ({
     // Video ended → show button immediately + auto jump to next episode
     art.on("video:ended", () => {
       const btn = nextEpBtnElRef.current;
-      if (btn && hasNextEpisode) btn.style.display = "inline-flex";
-      if (hasNextEpisode && onNextEpisodeRef.current) {
+      if (btn && (hasNextEpisode || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))) btn.style.display = "inline-flex";
+      if ((hasNextEpisode || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) && onNextEpisodeRef.current) {
         onNextEpisodeRef.current();
       }
     });
