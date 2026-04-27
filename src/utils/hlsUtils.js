@@ -30,7 +30,7 @@ export const FALLBACK_PROXY = (import.meta.env.VITE_HLS_PROXY_BASE || "")
 /**
  * Check if a segment URL is an ad.
  */
-export const isAdSegment = (url) => {
+const isAdSegment = (url) => {
   if (!url) return false;
   // Pattern 1: convertv7/, convertv8/, convertv9/, etc.
   if (/convertv\d+\//i.test(url)) return true;

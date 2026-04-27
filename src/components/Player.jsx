@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import Artplayer from "artplayer";
 import { useHlsHandler } from "../hooks/useHlsHandler";
-import { isAdSegment } from "../utils/hlsUtils";
 import { usePlayerHotkeys } from "./Player/usePlayerHotkeys";
 import { getHeaderHtml } from "./Player/PlayerHeader";
 import PlayerStyle from "./Player/PlayerStyle";
@@ -253,19 +252,6 @@ const Player = ({
             }
           });
 
-          // ── Listen to FRAG_CHANGED to detect Ad Fragments ──
-          hls.on(Hls.Events.FRAG_CHANGED, (_, data) => {
-            const fragUrl = data.frag?.url || data.frag?.relurl;
-            const blurEl = artInstanceRef.current?.template?.$player?.querySelector?.("#ad-blur-element");
-            if (blurEl) {
-              if (isAdSegment(fragUrl)) {
-                blurEl.style.display = "block";
-              } else {
-                blurEl.style.display = "none";
-              }
-            }
-          });
-
           // ── A/V Desync Watchdog ──
           // Safety net: detect when video frames freeze (currentTime stops
           // advancing) while the video is not paused (audio still playing).
@@ -366,20 +352,6 @@ const Player = ({
       ],
       layers: [
         { name: "header", html: headerHtml, style: { position: "absolute", top: "0", left: "0", right: "0", pointerEvents: "none" } },
-        {
-          name: "ad-blur",
-          html: `<div id="ad-blur-element" style="display: none; width: 100%; height: 100%; backdrop-filter: blur(50px); -webkit-backdrop-filter: blur(50px); border-radius: 16px;"></div>`,
-          style: {
-            position: "absolute",
-            top: "8%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "76%",
-            height: "9%",
-            pointerEvents: "none",
-            zIndex: 10,
-          }
-        },
         ...(onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason)) ? [{
           name: "next-episode-overlay",
           html: `
