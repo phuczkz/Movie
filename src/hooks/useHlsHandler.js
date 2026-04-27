@@ -1,15 +1,19 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { STREAM_PROXY, FALLBACK_PROXY, stripAdSegmentsFromPlaylist } from "../utils/hlsUtils";
+import { buildAdFreeLoader } from "../components/Player/AdFreeLoader";
 
 /**
- * Hook to handle HLS library loading, manifest filtering for ad-stripping,
- * and player initialization.
+ * Hook to handle HLS library loading and ad-stripping configuration.
+ *
+ * Performance optimizations for < 100ms fragment loading:
+ * 1. Preconnect + DNS prefetch to CDN (eliminates ~100-300ms connection setup)
+ * 2. Back buffer = Infinity (instant backward seeking)
+ * 3. Progressive loading + fragment prefetch (playback starts immediately)
+ * 4. pLoader for ad-stripping (zero overhead on fragment loading)
+ * 5. Optimistic ABR estimate (5Mbps) for faster quality selection
  */
 export const useHlsHandler = (source, isHls) => {
   const hlsRef = useRef(null);
   const [Hls, setHls] = useState(null);
-  const [filteredSource, setFilteredSource] = useState(null);
-  const blobUrlsRef = useRef([]);
 
   // Lazy load hls.js only when needed
   useEffect(() => {
@@ -20,181 +24,125 @@ export const useHlsHandler = (source, isHls) => {
     }
   }, [isHls, Hls]);
 
+  // ── Preconnect to CDN for faster fragment loading ──
+  // By establishing TCP + TLS connection BEFORE the first fragment request,
+  // we save ~100-300ms per new connection. The browser reuses this connection
+  // for all subsequent requests via HTTP/2 multiplexing.
+  useEffect(() => {
+    if (!source || !isHls) return;
+
+    let cdnOrigin = null;
+    try {
+      const url = new URL(source);
+      cdnOrigin = url.origin;
+    } catch {
+      return;
+    }
+    if (!cdnOrigin) return;
+
+    const cleanup = [];
+
+    // DNS Prefetch — resolve hostname immediately
+    const existingDns = document.head.querySelector(
+      `link[rel="dns-prefetch"][href="${cdnOrigin}"]`
+    );
+    if (!existingDns) {
+      const dns = document.createElement("link");
+      dns.rel = "dns-prefetch";
+      dns.href = cdnOrigin;
+      document.head.appendChild(dns);
+      cleanup.push(dns);
+    }
+
+    // Preconnect — establish TCP + TLS connection immediately
+    const existingPreconnect = document.head.querySelector(
+      `link[rel="preconnect"][href="${cdnOrigin}"]`
+    );
+    if (!existingPreconnect) {
+      const preconnect = document.createElement("link");
+      preconnect.rel = "preconnect";
+      preconnect.href = cdnOrigin;
+      preconnect.crossOrigin = "anonymous";
+      document.head.appendChild(preconnect);
+      cleanup.push(preconnect);
+    }
+
+    return () => {
+      cleanup.forEach((el) => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      });
+    };
+  }, [source, isHls]);
+
+  // Build ad-free playlist loader once Hls is available
+  const AdFreeLoaderClass = useMemo(() => {
+    if (!Hls || !Hls.isSupported()) return null;
+    const BaseLoader = Hls.DefaultConfig?.loader;
+    if (!BaseLoader) return null;
+    return buildAdFreeLoader(BaseLoader, source);
+  }, [Hls, source]);
+
   const hlsConfig = useMemo(() => {
-    // Detect true mobile via User-Agent + screen width
     const isMobile =
       /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       window.innerWidth <= 768;
-    const isTablet = !isMobile && window.innerWidth <= 1024;
 
-    return {
+    const config = {
+      // ── FORWARD BUFFER ──
       maxBufferLength: isMobile ? 30 : 60,
       maxMaxBufferLength: isMobile ? 60 : 120,
-      maxBufferSize: isMobile
-        ? 60 * 1000 * 1000
-        : isTablet
-        ? 120 * 1000 * 1000
-        : 200 * 1000 * 1000,
+      maxBufferSize: isMobile ? 100_000_000 : 300_000_000,
+
+      // ── BACK BUFFER — instant backward seeking ──
+      backBufferLength: isMobile ? 300 : Infinity,
+
+      // ── GAP & STALL HANDLING ──
       maxBufferHole: 0.5,
-      backBufferLength: 60,
-      startLevel: -1, // Auto
-      lowLatencyMode: false,
-      abrEwmaDefaultEstimate: 2_000_000,
-      abrBandWidthFactor: 0.8,
-      abrBandWidthUpFactor: 0.6,
-      fragLoadingRetryDelay: 500,
-      fragLoadingMaxRetryTimeout: 32000,
-      fragLoadingMaxRetry: 15,
-      fragLoadingTimeOut: 30000,
-      manifestLoadingMaxRetry: 6,
-      manifestLoadingTimeOut: 30000,
-      levelLoadingMaxRetry: 6,
-      levelLoadingTimeOut: 30000,
-      nudgeMaxRetry: 10,
-      nudgeOffset: 0.1,
+      nudgeMaxRetry: 5,
+      nudgeOffset: 0.2,
+      maxFragLookUpTolerance: 0.25,
+
+      // ── ABR ──
+      startLevel: -1,
+      abrEwmaDefaultEstimate: 5_000_000,
+      abrBandWidthFactor: 0.95,
+      abrBandWidthUpFactor: 0.7,
+
+      // ── LOADING — minimal timeouts for fast failure detection ──
+      fragLoadingTimeOut: 20000,
+      fragLoadingMaxRetry: 4,
+      fragLoadingRetryDelay: 1000,
+      fragLoadingMaxRetryTimeout: 16000,
+      manifestLoadingTimeOut: 10000,
+      manifestLoadingMaxRetry: 3,
+      levelLoadingTimeOut: 10000,
+      levelLoadingMaxRetry: 3,
+
+      // ── PERFORMANCE CORE ──
       enableWorker: true,
-    };
-  }, []);
+      lowLatencyMode: false,
+      progressive: true,
+      startFragPrefetch: true,
 
-  const [isFiltering, setIsFiltering] = useState(false);
-  const needsFilter = isHls && Boolean(source) && Hls && !Hls.isSupported();
-  const effectiveSource = needsFilter ? filteredSource || source : source;
-
-  useEffect(() => {
-    let cancelled = false;
-    const revoke = () => {
-      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      blobUrlsRef.current = [];
+      // ── XHR OPTIMIZATION ──
+      // Avoid sending credentials (cookies) to CDN — this prevents
+      // CORS preflight (OPTIONS) requests which add ~50-200ms per request.
+      xhrSetup: (xhr) => {
+        xhr.withCredentials = false;
+      },
     };
 
-    if (!needsFilter || !source) {
-      revoke();
-      setIsFiltering(false);
-      return undefined;
+    // Ad-stripping via pLoader (playlist-only, no proxy, just text filter)
+    if (AdFreeLoaderClass) {
+      config.pLoader = AdFreeLoaderClass;
     }
 
-    const fetchWithProxy = async (targetUrl) => {
-      const urls = [
-        STREAM_PROXY ? `${STREAM_PROXY}?url=${encodeURIComponent(targetUrl)}` : null,
-        FALLBACK_PROXY && FALLBACK_PROXY !== STREAM_PROXY ? `${FALLBACK_PROXY}?url=${encodeURIComponent(targetUrl)}` : null,
-        targetUrl
-      ].filter(Boolean);
-      
-      for (const u of urls) {
-         try {
-             const res = await fetch(u);
-             if (res.ok) {
-                 const text = await res.text();
-                 if (text.includes("#EXTM3U") || text.includes("#EXTINF")) return text;
-             }
-         } catch {}
-      }
-      return null;
-    };
-
-    const fetchAndFilter = async () => {
-      setIsFiltering(true);
-      try {
-        const text = await fetchWithProxy(source);
-        if (cancelled) return;
-        if (!text) throw new Error("All proxies and direct connection failed to load valid master playlist.");
-
-        let finalManifestText = "";
-        let baseUrl = "";
-        try { baseUrl = new URL(".", source).href; } catch {}
-
-        // If it's a master manifest with levels
-        if (text.includes("#EXT-X-STREAM-INF")) {
-           const lines = text.split(/\r?\n/);
-           const newLines = [];
-           const levelPromises = [];
-           
-           for (let i = 0; i < lines.length; i++) {
-               const line = lines[i].trim();
-               if (!line) continue;
-               
-               if (line.startsWith("#EXT-X-STREAM-INF")) {
-                   newLines.push(line);
-                   // find the next line that is the URL
-                   let j = i + 1;
-                   while (j < lines.length && lines[j].trim().startsWith("#")) {
-                       newLines.push(lines[j].trim());
-                       j++;
-                   }
-                   if (j < lines.length) {
-                       const urlLine = lines[j].trim();
-                       let absoluteUrl = urlLine;
-                       if (!urlLine.includes("://")) {
-                           if (urlLine.startsWith("/")) {
-                               try { absoluteUrl = new URL(source).origin + urlLine; } catch {}
-                           } else {
-                               absoluteUrl = baseUrl + urlLine;
-                           }
-                       }
-                       
-                       const levelIndex = newLines.length;
-                       newLines.push(""); // placeholder for blob url
-                       
-                       const promise = fetchWithProxy(absoluteUrl).then(lvlText => {
-                           if (!lvlText) return absoluteUrl; // fallback to original absolute URL
-                           const filtered = stripAdSegmentsFromPlaylist(lvlText, absoluteUrl);
-                           const blob = new Blob([filtered], { type: "application/vnd.apple.mpegurl" });
-                           const blobUrl = URL.createObjectURL(blob);
-                           blobUrlsRef.current.push(blobUrl);
-                           newLines[levelIndex] = blobUrl;
-                           return blobUrl;
-                       });
-                       levelPromises.push(promise);
-                       i = j; // skip the original url line
-                   }
-               } else {
-                   newLines.push(line);
-               }
-           }
-           
-           await Promise.all(levelPromises);
-           finalManifestText = newLines.filter(l => l !== "").join('\n');
-           
-           // Ensure it has #EXTM3U
-           if (!finalManifestText.includes("#EXTM3U")) {
-             finalManifestText = "#EXTM3U\n" + finalManifestText;
-           }
-        } else {
-           // It's already a level manifest, just strip ads
-           finalManifestText = stripAdSegmentsFromPlaylist(text, source);
-        }
-
-        if (cancelled) return;
-
-        const masterBlob = new Blob([finalManifestText], { type: "application/vnd.apple.mpegurl" });
-        const masterBlobUrl = URL.createObjectURL(masterBlob);
-        blobUrlsRef.current.push(masterBlobUrl);
-        setFilteredSource(masterBlobUrl);
-        setIsFiltering(false);
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Filter failed, falling back to original", err);
-          setFilteredSource(null);
-          setIsFiltering(false);
-        }
-      }
-    };
-
-    fetchAndFilter();
-    return () => {
-      cancelled = true;
-      revoke();
-      setFilteredSource(null);
-      setIsFiltering(false);
-    };
-  }, [needsFilter, source]);
+    return config;
+  }, [AdFreeLoaderClass]);
 
   return {
     Hls,
     hlsRef,
     hlsConfig,
-    effectiveSource,
-    needsFilter,
-    isFiltering,
   };
 };

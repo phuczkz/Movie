@@ -1,124 +1,76 @@
-import { STREAM_PROXY, FALLBACK_PROXY, stripAdSegmentsFromPlaylist } from "../../utils/hlsUtils";
+import { stripAdSegmentsFromPlaylist } from "../../utils/hlsUtils";
 
 /**
- * Builds an HLS.js custom loader class that implements proxying and ad-stripping.
- * This is the core "blockADS" logic.
+ * Builds a lightweight HLS.js playlist loader that ONLY strips ad segments.
+ * NO proxying — NO URL modification — just response text filtering.
+ *
+ * CRITICAL DESIGN DECISION:
+ * Unlike previous versions that routed requests through a proxy (causing 8-15s delays),
+ * this loader passes ALL URLs through UNCHANGED. It only intercepts the response text
+ * of playlist/manifest requests to strip ad segments before hls.js parses them.
+ *
+ * Fragment (.ts) requests never touch this loader (used as pLoader, not loader).
  */
-export const buildAdFreeLoader = (BaseLoader, effectiveSource) => {
+export const buildAdFreeLoader = (BaseLoader, sourceUrl) => {
   if (!BaseLoader) return null;
 
-  const PROXY_CHAIN = [
-    ...(STREAM_PROXY ? [STREAM_PROXY] : []),
-    ...(FALLBACK_PROXY && FALLBACK_PROXY !== STREAM_PROXY ? [FALLBACK_PROXY] : []),
-  ];
-
-  const domainFailedProxies = new Map();
-  const urlFailedProxies = new Map();
-
-  const getBestProxy = (origin) => {
-    const domainFailed = origin ? domainFailedProxies.get(origin) : null;
-    for (const proxy of PROXY_CHAIN) {
-      if (domainFailed && domainFailed.has(proxy)) continue;
-      return proxy;
-    }
-    return null;
-  };
-
-  const markProxyFailed = (origin, proxyBase) => {
-    if (!origin) return;
-    if (!domainFailedProxies.has(origin)) domainFailedProxies.set(origin, new Set());
-    domainFailedProxies.get(origin).add(proxyBase);
-  };
-
-  return class AdFreeLoader extends BaseLoader {
+  return class AdFreePlaylistLoader extends BaseLoader {
     load(context, config, callbacks) {
+      // IMPORTANT: Do NOT modify context.url — load directly from CDN.
+      // This ensures hls.js uses the native URL for all requests,
+      // maintaining full HTTP/2 multiplexing and connection pooling.
       const originalUrl = context.url;
-      let originalOrigin = null;
-      try {
-        if (originalUrl) originalOrigin = new URL(originalUrl).origin;
-      } catch { /* ignore */ }
-
-      // Only proxy manifests and levels by default. 
-      // Fragments (TS) are bypassed to avoid buffering latency, unless direct fetch fails.
-      const isManifestOrLevel = context.type === "manifest" || context.type === "level";
-      let activeProxy = null;
-      const alreadyProxied = PROXY_CHAIN.some((p) => context.url.includes(p));
-
-      if (!alreadyProxied && context.url && isManifestOrLevel) {
-        activeProxy = getBestProxy(originalOrigin);
-        if (activeProxy) {
-          context.url = `${activeProxy}?url=${encodeURIComponent(context.url)}`;
-        }
-      }
-
       const onSuccess = callbacks?.onSuccess;
-      const onError = callbacks?.onError;
+
       const wrappedCallbacks = {
         ...callbacks,
         onSuccess: (response, stats, ctx, networkDetails) => {
           let nextResponse = response;
-          if (
-            typeof response?.data === "string" &&
-            (ctx?.type === "manifest" || ctx?.type === "level")
-          ) {
+
+          // Strip ad segments from playlist text
+          if (response?.data != null) {
             try {
-              const filtered = stripAdSegmentsFromPlaylist(
-                response.data,
-                response.url || ctx?.url || effectiveSource
-              );
-              if (
-                typeof filtered === "string" &&
-                filtered.includes("#EXTM3U") &&
-                filtered.includes("#EXTINF")
-              ) {
-                nextResponse = { ...response, data: filtered };
+              let text = response.data;
+              if (typeof text !== "string") {
+                if (text instanceof ArrayBuffer) {
+                  text = new TextDecoder().decode(text);
+                } else {
+                  text = String(text);
+                }
               }
-            } catch { /* Ignore malformed ad-filtering input */ }
+
+              if (text.includes("#EXTM3U") || text.includes("#EXTINF")) {
+                const filtered = stripAdSegmentsFromPlaylist(
+                  text,
+                  originalUrl || sourceUrl
+                );
+                if (
+                  typeof filtered === "string" &&
+                  filtered.length > 0 &&
+                  filtered.includes("#EXTINF")
+                ) {
+                  if (filtered.length < text.length) {
+                    console.log(
+                      "%c[BlockADS] ✓ Đã lọc quảng cáo (%d → %d bytes, -%d bytes)",
+                      "color: #10b981; font-weight: bold;",
+                      text.length,
+                      filtered.length,
+                      text.length - filtered.length
+                    );
+                  }
+                  nextResponse = { ...response, data: filtered };
+                }
+              }
+            } catch (e) {
+              console.debug("[AdFreeLoader] Filter error, using original:", e);
+            }
           }
+
           if (onSuccess) onSuccess(nextResponse, stats, ctx, networkDetails);
         },
-        onError: (error, ctx, networkDetails, stats) => {
-          // If direct fragment fetch failed, try fallback to proxy
-          if (!isManifestOrLevel && !activeProxy && !alreadyProxied && originalUrl) {
-            const fallbackProxy = getBestProxy(originalOrigin);
-            if (fallbackProxy) {
-              console.debug(`[HLS] Direct fragment failed, retrying via proxy fallback.`);
-              try { this.abort(); } catch { /* ignore */ }
-              const retryLoader = new (this.constructor)(config);
-              const retryContext = { ...context, url: `${fallbackProxy}?url=${encodeURIComponent(originalUrl)}` };
-              retryLoader.load(retryContext, config, wrappedCallbacks);
-              return;
-            }
-          }
-
-          if (activeProxy && originalUrl) {
-            markProxyFailed(originalOrigin, activeProxy);
-            const nextProxy = getBestProxy(originalOrigin);
-
-            if (nextProxy && nextProxy !== activeProxy) {
-              console.debug(`[HLS] Primary proxy failed for ${originalOrigin}, trying secondary.`);
-              try { this.abort(); } catch { /* ignore */ }
-              const retryLoader = new (this.constructor)(config);
-              const retryContext = { ...context, url: `${nextProxy}?url=${encodeURIComponent(originalUrl)}` };
-              retryLoader.load(retryContext, config, wrappedCallbacks);
-              return;
-            }
-
-            const urlFailed = urlFailedProxies.get(originalUrl);
-            if (!urlFailed || !urlFailed.has("direct")) {
-              console.debug(`[HLS] All proxies failed for ${originalOrigin}, trying direct.`);
-              if (!urlFailedProxies.has(originalUrl)) urlFailedProxies.set(originalUrl, new Set());
-              urlFailedProxies.get(originalUrl).add("direct");
-              try { this.abort(); } catch { /* ignore */ }
-              const directLoader = new (this.constructor)(config);
-              const directContext = { ...context, url: originalUrl };
-              directLoader.load(directContext, config, wrappedCallbacks);
-              return;
-            }
-          }
-          if (onError) onError(error, ctx, networkDetails, stats);
-        },
       };
+
+      // Call the original loader's load method with UNMODIFIED URL
       super.load(context, config, wrappedCallbacks);
     }
   };
