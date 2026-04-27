@@ -71,6 +71,14 @@ function CommentRow({
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
 
+  const getProxiedAvatar = (url) => {
+    if (!url) return null;
+    if (url.includes("dicebear.com") || url.startsWith("/")) return url;
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=100&h=100&fit=cover&output=webp&q=80`;
+  };
+
+  const finalAvatar = getProxiedAvatar(currentUserAvatar);
+
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [submittingReply, setSubmittingReply] = useState(false);
@@ -223,6 +231,8 @@ function CommentRow({
       ? userProfile?.displayName || user?.displayName || comment.displayName
       : comment.displayName;
 
+  const proxiedAvatarSrc = getProxiedAvatar(avatarSrc);
+
   return (
     <div className={`${isReply ? "ml-10 sm:ml-14" : ""}`}>
       <div className="flex gap-3 sm:gap-4">
@@ -232,12 +242,12 @@ function CommentRow({
             isReply ? "h-8 w-8" : "h-10 w-10"
           }`}
         >
-          {avatarSrc ? (
+          {proxiedAvatarSrc ? (
             <img
-              src={avatarSrc}
+              src={proxiedAvatarSrc}
               alt={displayName}
               className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
             />
           ) : (
             <UserCircle className="h-full w-full text-slate-500" />
@@ -347,12 +357,12 @@ function CommentRow({
               className="flex items-center gap-2 pt-1"
             >
               <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
-                {currentUserAvatar ? (
+                {finalAvatar ? (
                   <img
-                    src={currentUserAvatar}
+                    src={finalAvatar}
                     alt="You"
                     className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
                   />
                 ) : (
                   <UserCircle className="h-full w-full text-slate-500" />
@@ -360,6 +370,8 @@ function CommentRow({
               </div>
               <div className="relative flex-1">
                 <input
+                  id={`reply-input-${comment.id}`}
+                  name="reply"
                   type="text"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
@@ -432,6 +444,14 @@ export default function Comments({ movieSlug, movieName }) {
     (user?.uid
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
+
+  const getProxiedAvatar = (url) => {
+    if (!url) return null;
+    if (url.includes("dicebear.com") || url.startsWith("/")) return url;
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=100&h=100&fit=cover&output=webp&q=80`;
+  };
+
+  const finalAvatar = getProxiedAvatar(currentUserAvatar);
 
   // Lắng nghe tất cả docs trong items (cả comments lẫn replies)
   useEffect(() => {
@@ -560,12 +580,12 @@ export default function Comments({ movieSlug, movieName }) {
           className="flex flex-col sm:flex-row gap-4 shrink-0"
         >
           <div className="hidden sm:block h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-inner">
-            {currentUserAvatar ? (
+            {finalAvatar ? (
               <img
-                src={currentUserAvatar}
+                src={finalAvatar}
                 alt="Avatar"
                 className="h-full w-full object-cover"
-                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
               />
             ) : (
               <div className="h-full w-full flex items-center justify-center text-white font-bold text-sm uppercase">
@@ -575,6 +595,8 @@ export default function Comments({ movieSlug, movieName }) {
           </div>
           <div className="relative flex-1">
             <input
+              id="main-comment-input"
+              name="comment"
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}

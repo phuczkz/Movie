@@ -28,7 +28,7 @@ export const isAdultMovie = (movie) => {
   const name = (movie.name || "").toLowerCase();
   const slug = (movie.slug || "").toLowerCase();
   
-  if (forbiddenSlugs.some(f => slug.includes(f))) return true;
+  if (forbiddenSlugs.some(f => slug.includes(f)) || forbiddenCategories.some(f => name.includes(f.toLowerCase()))) return true;
 
   return false;
 };

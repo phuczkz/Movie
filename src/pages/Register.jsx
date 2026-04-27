@@ -83,6 +83,8 @@ const Register = () => {
         <div className="space-y-2">
           <label className="text-sm text-slate-200">Tên / Biệt danh</label>
           <input
+            id="displayName"
+            name="displayName"
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -94,6 +96,8 @@ const Register = () => {
         <div className="space-y-2">
           <label className="text-sm text-slate-200">Email</label>
           <input
+            id="email"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -105,6 +109,8 @@ const Register = () => {
         <div className="space-y-2">
           <label className="text-sm text-slate-200">Mật khẩu</label>
           <input
+            id="password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -116,6 +122,8 @@ const Register = () => {
         <div className="space-y-2">
           <label className="text-sm text-slate-200">Nhập lại mật khẩu</label>
           <input
+            id="confirmPassword"
+            name="confirmPassword"
             type="password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}

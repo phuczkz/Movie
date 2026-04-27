@@ -4,7 +4,7 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative z-10 mt-12 border-t border-white/5 bg-slate-950/40 backdrop-blur-2xl">
+    <footer className="relative z-10 mt-8 md:mt-12 border-t border-white/5 bg-slate-950/40 backdrop-blur-2xl">
       {/* SEO Structured Data */}
       <script type="application/ld+json">
         {JSON.stringify({
@@ -27,22 +27,22 @@ const Footer = () => {
           ]
         })}
       </script>
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 mb-10 md:mb-12">
           {/* Brand & Description */}
-          <div className="space-y-6">
+          <div className="space-y-5 md:space-y-6 sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2 group cursor-pointer w-fit">
               <div className="p-2 bg-primary/20 rounded-xl group-hover:bg-primary/30 transition-colors">
-                <Film className="w-6 h-6 text-primary" />
+                <Film className="w-5 h-5 md:w-6 md:h-6 text-primary" />
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-tight">
+              <span className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-tight">
                 Kho Phim
               </span>
             </div>
-            <p className="text-slate-400 leading-relaxed text-sm max-w-xs">
+            <p className="text-slate-400 leading-relaxed text-sm max-w-sm">
               Nền tảng xem phim trực tuyến chất lượng cao, mang đến trải nghiệm điện ảnh tuyệt vời nhất ngay tại nhà của bạn. Khám phá hàng ngàn bộ phim đa dạng thể loại.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3 md:gap-4">
               <a href="#" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
                 <Facebook size={18} />
               </a>
@@ -58,67 +58,70 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Quick Links */}
-          <div className="space-y-6">
-            <h3 className="text-white font-semibold text-lg">Khám Phá</h3>
-            <ul className="space-y-3">
-              <li>
-                <a href="/" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
-                  Trang chủ
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
-                  Phim Mới
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
-                  Phim Bộ
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group">
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
-                  Phim Lẻ
-                </a>
-              </li>
-            </ul>
-          </div>
+          {/* Links Container */}
+          <div className="grid grid-cols-2 gap-4 md:gap-8 sm:col-span-2 lg:col-span-2">
+            {/* Quick Links */}
+            <div className="space-y-4 md:space-y-6">
+              <h3 className="text-white font-semibold text-base md:text-lg">Khám Phá</h3>
+              <ul className="space-y-2 md:space-y-3">
+                <li>
+                  <a href="/" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                    Trang chủ
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                    Phim Mới
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                    Phim Bộ
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                    Phim Lẻ
+                  </a>
+                </li>
+              </ul>
+            </div>
 
-          {/* Policy Links */}
-          <div className="space-y-6">
-            <h3 className="text-white font-semibold text-lg">Thông Tin</h3>
-            <ul className="space-y-3">
-              <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors">Điều khoản dịch vụ</a></li>
-              <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors">Chính sách bảo mật</a></li>
-              <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors">Về chúng tôi</a></li>
-              <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors">Liên hệ bản quyền</a></li>
-            </ul>
+            {/* Policy Links */}
+            <div className="space-y-4 md:space-y-6">
+              <h3 className="text-white font-semibold text-base md:text-lg">Thông Tin</h3>
+              <ul className="space-y-2 md:space-y-3">
+                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Điều khoản dịch vụ</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Chính sách bảo mật</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Về chúng tôi</a></li>
+                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Liên hệ bản quyền</a></li>
+              </ul>
+            </div>
           </div>
 
           {/* Contact Info - SEO optimized with address tag */}
-          <div className="space-y-6">
-            <h3 className="text-white font-semibold text-lg">Liên Hệ Doanh Nghiệp</h3>
-            <address className="not-italic space-y-4">
+          <div className="space-y-4 md:space-y-6 sm:col-span-2 lg:col-span-1">
+            <h3 className="text-white font-semibold text-base md:text-lg">Liên Hệ Doanh Nghiệp</h3>
+            <address className="not-italic space-y-3 md:space-y-4">
               <div className="flex items-start gap-3">
-                <MapPin className="text-primary mt-1 shrink-0" size={18} />
-                <span className="text-slate-400 text-sm">
+                <MapPin className="text-primary mt-0.5 shrink-0" size={18} />
+                <span className="text-slate-400 text-sm leading-relaxed">
                   123 Đường Công Nghệ, Quận 1, TP. Hồ Chí Minh, Việt Nam
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="text-primary shrink-0" size={18} />
-                <a href="tel:+84123456789" className="text-slate-400 hover:text-white text-sm transition-colors">
+                <a href="tel:+84123456789" className="text-slate-400 hover:text-white text-sm transition-colors py-1 block">
                   +84 123 456 789
                 </a>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="text-primary shrink-0" size={18} />
-                <a href="mailto:contact@moviespace.com" className="text-slate-400 hover:text-white text-sm transition-colors">
+                <a href="mailto:contact@moviespace.com" className="text-slate-400 hover:text-white text-sm transition-colors py-1 block break-all">
                   contact@moviespace.com
                 </a>
               </div>
@@ -127,14 +130,14 @@ const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
-          <p>© {currentYear} MovieSpace. All rights reserved.</p>
-          <div className="flex items-center gap-6">
+        <div className="pt-6 md:pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 text-xs text-slate-500">
+          <p className="text-center md:text-left">© {currentYear} MovieSpace. All rights reserved.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
             <span className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500/50 animate-pulse"></span>
               Server Status: Online
             </span>
-            <p>Designed with ❤️ for Cinema Lovers</p>
+            <p className="text-center">Designed with ❤️ for Cinema Lovers</p>
           </div>
         </div>
       </div>

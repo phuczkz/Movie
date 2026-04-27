@@ -97,6 +97,8 @@ const Login = () => {
         <div className="space-y-2">
           <label className="text-sm text-slate-200">Email</label>
           <input
+            id="email"
+            name="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -108,6 +110,8 @@ const Login = () => {
         <div className="space-y-2">
           <label className="text-sm text-slate-200">Mật khẩu</label>
           <input
+            id="password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

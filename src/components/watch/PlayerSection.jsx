@@ -14,8 +14,6 @@ const PlayerSection = memo(({
   onNextEpisode, 
   onTimeUpdate, 
   initialTime, 
-  isTheater, 
-  onToggleTheater, 
   onPlaybackIssue,
   playerRef,
   currentSeason,
@@ -57,8 +55,6 @@ const PlayerSection = memo(({
           nextEpisodeTitle={isLastEpisodeOfSeason && nextSeason ? `Chuyển sang Phần ${nextSeason.seasonNumber}` : "Tập tiếp theo"}
           onTimeUpdate={onTimeUpdate}
           initialTime={initialTime}
-          theaterMode={isTheater}
-          onToggleTheater={onToggleTheater}
           onPlaybackIssue={onPlaybackIssue}
           currentSeason={currentSeason}
           nextSeason={nextSeason}
