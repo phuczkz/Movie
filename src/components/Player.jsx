@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import Artplayer from "artplayer";
 import { useHlsHandler } from "../hooks/useHlsHandler";
+import { isAdSegment } from "../utils/hlsUtils";
 import { usePlayerHotkeys } from "./Player/usePlayerHotkeys";
 import { getHeaderHtml } from "./Player/PlayerHeader";
 import PlayerStyle from "./Player/PlayerStyle";
@@ -121,6 +122,9 @@ const Player = ({
     if (isHls && Hls && Hls.isSupported()) {
       customType = {
         m3u8: (videoEl, url, artObj) => {
+          // ── Performance timing ──
+          const t0 = performance.now();
+
           const hls = new Hls({
             ...hlsConfig,
             capLevelToPlayerSize: false,
@@ -133,7 +137,28 @@ const Player = ({
           let networkRecoveryAttempts = 0;
           let mediaRecoveryAttempts = 0;
 
+          // Measure time to first frame
+          const onCanPlay = () => {
+            const elapsed = (performance.now() - t0).toFixed(0);
+            console.log(
+              `%c[Perf] ▶ Video ready in ${elapsed}ms`,
+              elapsed <= 200
+                ? "color: #10b981; font-weight: bold; font-size: 13px;"
+                : elapsed <= 500
+                  ? "color: #f59e0b; font-weight: bold; font-size: 13px;"
+                  : "color: #ef4444; font-weight: bold; font-size: 13px;"
+            );
+            videoEl.removeEventListener("canplay", onCanPlay);
+          };
+          videoEl.addEventListener("canplay", onCanPlay);
+
           hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+            const manifestTime = (performance.now() - t0).toFixed(0);
+            console.log(
+              `%c[Perf] 📋 Manifest parsed in ${manifestTime}ms (${data?.levels?.length || 0} levels)`,
+              "color: #8b5cf6; font-weight: bold;"
+            );
+
             const art = artObj || artInstanceRef.current;
 
             const levels = (data?.levels || [])
@@ -184,7 +209,19 @@ const Player = ({
           });
 
           hls.on(Hls.Events.ERROR, (_, data) => {
-            if (!data.fatal) return;
+            // ── Handle non-fatal errors that can cause A/V desync ──
+            if (!data.fatal) {
+              // Buffer stall or fragment parsing issue after ad-removal discontinuity
+              if (
+                data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR ||
+                data.details === Hls.ErrorDetails.FRAG_PARSING_ERROR
+              ) {
+                console.debug("[HLS] Non-fatal recovery:", data.details);
+                hls.startLoad();
+              }
+              return;
+            }
+
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 networkRecoveryAttempts += 1;
@@ -215,6 +252,62 @@ const Player = ({
                 hlsInstanceRef.current = null;
             }
           });
+
+          // ── Listen to FRAG_CHANGED to detect Ad Fragments ──
+          hls.on(Hls.Events.FRAG_CHANGED, (_, data) => {
+            const fragUrl = data.frag?.url || data.frag?.relurl;
+            const blurEl = artInstanceRef.current?.template?.$player?.querySelector?.("#ad-blur-element");
+            if (blurEl) {
+              if (isAdSegment(fragUrl)) {
+                blurEl.style.display = "block";
+              } else {
+                blurEl.style.display = "none";
+              }
+            }
+          });
+
+          // ── A/V Desync Watchdog ──
+          // Safety net: detect when video frames freeze (currentTime stops
+          // advancing) while the video is not paused (audio still playing).
+          // This can happen at discontinuity boundaries after ad removal.
+          // When detected, nudge playback forward to force buffer resync.
+          let lastWatchdogTime = 0;
+          let stallStartTime = 0;
+          const STALL_THRESHOLD_MS = 3000; // 3s of frozen frames = trigger recovery
+
+          const desyncWatchdog = setInterval(() => {
+            if (!videoEl || videoEl.paused || videoEl.ended || videoEl.seeking) {
+              stallStartTime = 0;
+              return;
+            }
+
+            const now = performance.now();
+            const currentTime = videoEl.currentTime;
+
+            if (lastWatchdogTime > 0 && Math.abs(currentTime - lastWatchdogTime) < 0.05) {
+              // Video time hasn't moved — possible frame freeze
+              if (stallStartTime === 0) {
+                stallStartTime = now;
+              } else if (now - stallStartTime > STALL_THRESHOLD_MS) {
+                // Confirmed stall for 3+ seconds — recover
+                console.warn("[Player] A/V desync detected at", currentTime.toFixed(1), "s — auto-recovering");
+                videoEl.currentTime = currentTime + 0.5;
+                stallStartTime = 0;
+
+                // Also trigger hls recovery
+                if (hlsInstanceRef.current) {
+                  hlsInstanceRef.current.startLoad();
+                }
+              }
+            } else {
+              stallStartTime = 0;
+            }
+
+            lastWatchdogTime = currentTime;
+          }, 2000);
+
+          // Store cleanup ref for the watchdog
+          videoEl._desyncWatchdog = desyncWatchdog;
         },
       };
     }
@@ -273,6 +366,20 @@ const Player = ({
       ],
       layers: [
         { name: "header", html: headerHtml, style: { position: "absolute", top: "0", left: "0", right: "0", pointerEvents: "none" } },
+        {
+          name: "ad-blur",
+          html: `<div id="ad-blur-element" style="display: none; width: 100%; height: 100%; backdrop-filter: blur(50px); -webkit-backdrop-filter: blur(50px); border-radius: 16px;"></div>`,
+          style: {
+            position: "absolute",
+            top: "8%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "76%",
+            height: "9%",
+            pointerEvents: "none",
+            zIndex: 10,
+          }
+        },
         ...(onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason)) ? [{
           name: "next-episode-overlay",
           html: `
@@ -340,6 +447,9 @@ const Player = ({
 
     return () => {
       mountedRef.current = false;
+      // Clear A/V desync watchdog
+      const videoEl = artInstanceRef.current?.video;
+      if (videoEl?._desyncWatchdog) { clearInterval(videoEl._desyncWatchdog); videoEl._desyncWatchdog = null; }
       if (hlsInstanceRef.current) { hlsInstanceRef.current.destroy(); hlsInstanceRef.current = null; }
       if (artInstanceRef.current) { artInstanceRef.current.destroy(false); artInstanceRef.current = null; }
     };
