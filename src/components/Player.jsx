@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import Artplayer from "artplayer";
 import { useHlsHandler } from "../hooks/useHlsHandler";
-import { buildAdFreeLoader } from "./Player/AdFreeLoader";
 import { usePlayerHotkeys } from "./Player/usePlayerHotkeys";
 import { getHeaderHtml } from "./Player/PlayerHeader";
 import PlayerStyle from "./Player/PlayerStyle";
@@ -45,7 +44,7 @@ const Player = ({
 
   useEffect(() => { nextSeasonRef.current = nextSeason; }, [nextSeason]);
   useEffect(() => { isLastEpisodeOfSeasonRef.current = isLastEpisodeOfSeason; }, [isLastEpisodeOfSeason]);
-  
+
   const lastPositionRef = useRef(
     typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0
   );
@@ -122,13 +121,9 @@ const Player = ({
     if (isHls && Hls && Hls.isSupported()) {
       customType = {
         m3u8: (videoEl, url, artObj) => {
-          const BaseLoader = Hls.DefaultConfig?.loader;
-          const AdFreeLoader = buildAdFreeLoader(BaseLoader, url);
-
           const hls = new Hls({
             ...hlsConfig,
             capLevelToPlayerSize: false,
-            ...(AdFreeLoader ? { loader: AdFreeLoader } : {}),
           });
 
           hlsInstanceRef.current = hls;
@@ -231,7 +226,7 @@ const Player = ({
       url: source || "",
       type: isHls ? "m3u8" : undefined,
       poster: posterUrl || undefined,
-      volume: 0.8,
+      volume: 1,
       autoplay: false,
       pip: true,
       fullscreen: true,
@@ -259,14 +254,14 @@ const Player = ({
           index: 11,
           html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path style="fill:transparent!important;" d="M3 3v5h5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
           tooltip: "Lùi 10 giây",
-          click: (art) => { art.backward = 10; },
+          click() { this.backward = 10; },
         },
         {
           position: "left",
           index: 12,
           html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path style="fill:transparent!important;" d="M21 3v5h-5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
           tooltip: "Tiến 10 giây",
-          click: (art) => { art.forward = 10; },
+          click() { this.forward = 10; },
         },
         ...(onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason)) ? [{
           position: "right",
