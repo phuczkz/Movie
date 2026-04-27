@@ -1,4 +1,5 @@
 import axios from "axios";
+import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 
 // Using the Proxy URL to keep the API Key secret on the server
 const baseURL = "https://stream.khophim.io.vn/tmdb/";
@@ -89,7 +90,7 @@ export const getPopular = async (page = 1) => {
   const { data } = await tmdb.get("movie/popular", {
     params: { page },
   });
-  return data?.results?.map(normalizeTmdbMovie) || [];
+  return filterAdultMovies(data?.results?.map(normalizeTmdbMovie) || []);
 };
 
 export const getTmdbDetailBySlug = async (slug) => {
@@ -125,6 +126,11 @@ export const getTmdbDetailBySlug = async (slug) => {
   if (!detail) return { movie: null, episodes: [] };
 
   const movie = normalizeTmdbMovie(detail, mediaType);
+
+  if (isAdultMovie(movie)) {
+    return { movie: null, episodes: [] };
+  }
+
   const cast = detail?.credits?.cast || [];
   const actors = cast.slice(0, 20).map((c) => ({
     id: c.id,
@@ -186,7 +192,11 @@ export const getTmdbByGenre = async (genreId, page = 1) => {
       "vote_count.gte": 50, // Ensure some level of quality/popularity
     },
   });
-  return data?.results?.map((r) => normalizeTmdbMovie(r, "movie")) || [];
+  return (
+    filterAdultMovies(
+      data?.results?.map((r) => normalizeTmdbMovie(r, "movie"))
+    ) || []
+  );
 };
 export const searchTmdbPerson = async (query) => {
   if (!query) return null;
@@ -213,9 +223,11 @@ export const getTmdbPersonCredits = async (personId) => {
       .slice(0, 40)
       .map((c) => normalizeTmdbMovie(c, c.media_type));
 
+    const filtered = filterAdultMovies(normalized);
+
     // Deduplicate by slug
     const seen = new Set();
-    return normalized.filter((m) => {
+    return filtered.filter((m) => {
       if (seen.has(m.slug)) return false;
       seen.add(m.slug);
       return true;

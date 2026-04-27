@@ -8,6 +8,7 @@ import {
 } from "./tmdb";
 
 import { getKKphimDetail } from "./kkphim";
+import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 
 const fallbackPortrait =
   "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
@@ -287,7 +288,7 @@ const unwrapItems = (data) =>
   [];
 
 const mapOrFallback = (items = [], fallback = []) =>
-  items && items.length ? items.map(normalizeMovie) : fallback;
+  items && items.length ? filterAdultMovies(items.map(normalizeMovie)) : fallback;
 
 const uniqueBySlug = (items = []) => {
   const seen = new Set();
@@ -477,6 +478,10 @@ export const getDetail = (slug) =>
         : ophimMovie?.name
         ? ophimMovie
         : null;
+
+      if (isAdultMovie(movie)) {
+        return { movie: null, episodes: [] };
+      }
 
       // Smart enrichment: complement KKPhim data with additional details from Ophim (like actors)
       if (movie && movie === kkMovie && ophimMovie) {
