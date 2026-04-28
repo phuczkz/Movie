@@ -131,23 +131,12 @@ const Hero = ({ movie, movies = [] }) => {
         <div className="max-w-3xl space-y-5 md:space-y-6">
 
           <div className="space-y-1.5 md:space-y-2">
-            {activeMovie.origin_name ? (
-              <p className="text-[13px] md:text-sm font-semibold text-[rgb(16,185,129)] uppercase tracking-[0.12em] drop-shadow">
-                {activeMovie.origin_name}
-              </p>
-            ) : null}
             <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
               {activeMovie.name}
             </h1>
           </div>
 
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[13px] font-semibold text-white/90">
-            {rating ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgb(16,185,129)] px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-slate-950 shadow-[0_10px_24px_rgba(16,185,129,0.45)]">
-                IMDb
-                <span className="text-xs sm:text-sm font-black">{rating}</span>
-              </span>
-            ) : null}
             {activeMovie.year ? (
               <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 sm:px-3.5 sm:py-1.5 shadow-lg shadow-black/20">
                 {activeMovie.year}

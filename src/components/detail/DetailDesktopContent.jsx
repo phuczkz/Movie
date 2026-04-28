@@ -12,7 +12,7 @@ const DetailDesktopContent = ({
   currentSeason, hasVietsub, hasLongTieng, hasThuyetMinh,
 }) => {
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid gap-x-6 gap-y-6 lg:grid-cols-[1fr,380px] xl:grid-cols-[1fr,420px] lg:grid-rows-[auto_1fr] items-start">
+    <div className="relative z-10 w-full max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 grid gap-x-6 gap-y-6 lg:grid-cols-[1fr,380px] xl:grid-cols-[1fr,420px] lg:grid-rows-[auto_1fr] items-start">
       {/* Cột 1: Giới thiệu (Vị trí 1 trên mọi thiết bị) */}
       <div className="hidden lg:block lg:col-start-1 lg:row-start-1 space-y-6 lg:mb-0">
         <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 lg:p-8 space-y-3 shadow-xl h-full">

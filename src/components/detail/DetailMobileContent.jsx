@@ -12,7 +12,7 @@ const DetailMobileContent = ({
   groups, currentSeason, hasVietsub, hasLongTieng, hasThuyetMinh,
 }) => {
   return (
-    <div className="lg:hidden w-full max-w-7xl mx-auto px-4 sm:px-6">
+    <div className="lg:hidden relative z-10 w-full max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6">
       {mobileSection === "episodes" ? (
         <div className="space-y-6">
           <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 space-y-5">
