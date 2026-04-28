@@ -1,22 +1,4 @@
-/**
- * HLS Manifest Ad-Stripping Utility
- *
- * Strips two known ad patterns from kkphim HLS playlists:
- *
- * Pattern 1 — convertv{N}/ segments (double-discontinuity wrapped):
- *   #EXT-X-DISCONTINUITY
- *   #EXTINF:4.0,
- *   convertv8/K9wnQHms.ts
- *   #EXT-X-DISCONTINUITY
- *
- * Pattern 2 — /v{N}/hexhash/segment_XXXX.ts (with METHOD=NONE key):
- *   #EXT-X-DISCONTINUITY
- *   #EXT-X-KEY:METHOD=NONE
- *   #EXTINF:3.6,
- *   /v8/18d007379882ef14b73445b93bf6168d/segment_0001.ts
- *   ...
- *   #EXT-X-DISCONTINUITY
- */
+
 
 // Stream proxy (optional)
 export const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || "")
@@ -36,6 +18,8 @@ const isAdSegment = (url) => {
   if (/convertv\d+\//i.test(url)) return true;
   // Pattern 2: /v7/hexhash/segment_XXXX.ts, /v8/..., etc.
   if (/\/v\d+\/[a-f0-9]{16,}\/segment_\d+\.ts/i.test(url)) return true;
+  // Pattern 3: new adjump format (/adjump/YYYYMMDD/HEX/00000X.ts)
+  if (/\/adjump\//i.test(url)) return true;
   return false;
 };
 
