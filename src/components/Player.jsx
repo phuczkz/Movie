@@ -28,6 +28,8 @@ const Player = ({
   currentSeason,
   nextSeason,
   isLastEpisodeOfSeason,
+  onToggleTheater,
+  theaterMode,
 }) => {
   const artRef = useRef(null);             // DOM mount point for ArtPlayer
   const artInstanceRef = useRef(null);     // ArtPlayer instance
@@ -38,6 +40,7 @@ const Player = ({
   const onPlaybackIssueRef = useRef(onPlaybackIssue);
   const onTimeUpdateRef = useRef(onTimeUpdate);
   const onNextEpisodeRef = useRef(onNextEpisode);
+  const onToggleTheaterRef = useRef(onToggleTheater);
   const nextSeasonRef = useRef(nextSeason);
   const isLastEpisodeOfSeasonRef = useRef(isLastEpisodeOfSeason);
   const playbackIssueReportedRef = useRef(false);
@@ -52,6 +55,7 @@ const Player = ({
   useEffect(() => { onPlaybackIssueRef.current = onPlaybackIssue; }, [onPlaybackIssue]);
   useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
   useEffect(() => { onNextEpisodeRef.current = onNextEpisode; }, [onNextEpisode]);
+  useEffect(() => { onToggleTheaterRef.current = onToggleTheater; }, [onToggleTheater]);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -116,6 +120,8 @@ const Player = ({
     const isMobile =
       /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       window.innerWidth <= 768;
+
+    const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     // ── Build HLS customType ──
     let customType;
