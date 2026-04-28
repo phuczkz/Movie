@@ -242,6 +242,11 @@ const Player = ({
       /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       window.innerWidth <= 768;
 
+    // Detect iOS specifically for PIP (iOS does NOT support standard Web PIP API)
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const iosHasPip = isIos && typeof HTMLVideoElement?.prototype?.webkitSetPresentationMode === 'function';
+
     // ── Build HLS customType ──
     let customType;
     if (isHls && Hls && Hls.isSupported()) {
@@ -401,7 +406,7 @@ const Player = ({
       poster: posterUrl || undefined,
       volume: 0.8,
       autoplay: false,
-      pip: true,
+      pip: !isIos, // Disable ArtPlayer built-in PIP on iOS; we add a custom native PIP button instead
       fullscreen: true,
       fullscreenWeb: false,
       playbackRate: true,
@@ -441,13 +446,34 @@ const Player = ({
             art.forward = 10;
           },
         },
+        // iOS PIP button – uses webkitSetPresentationMode directly (only shown on iOS devices that support it)
+        ...(iosHasPip
+          ? [
+            {
+              position: "right",
+              index: 14,
+              html: `<div class="ios-pip-ctrl" title="Picture in Picture"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><rect width="7" height="5" x="12" y="11" rx="1" fill="currentColor" stroke="none"/></svg></div>`,
+              tooltip: "PIP",
+              click: (artObj) => {
+                const vid = artObj?.video;
+                if (!vid || typeof vid.webkitSetPresentationMode !== 'function') return;
+                const isPip = vid.webkitPresentationMode === 'picture-in-picture';
+                try {
+                  vid.webkitSetPresentationMode(isPip ? 'inline' : 'picture-in-picture');
+                } catch (e) {
+                  console.warn('[Player] iOS PIP error:', e);
+                }
+              },
+            },
+          ]
+          : []),
         // Theater mode button (desktop only)
         ...(onToggleTheater && !isMobile
           ? [
             {
               position: "right",
               index: 15,
-              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
+              html: `<div class="theater-mode-ctrl"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg></div>`,
               tooltip: theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim",
               click: () => { if (onToggleTheaterRef.current) onToggleTheaterRef.current(); },
             },
@@ -510,11 +536,11 @@ const Player = ({
                   max-width: 320px;
                 ">
                   <span style="letter-spacing: 0.02em; line-height: 1.4;">
-                    ${isLastEpisodeOfSeason && nextSeason 
-                      ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""}</div>
+                    ${isLastEpisodeOfSeason && nextSeason
+                  ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""}</div>
                          Bạn có muốn chuyển sang <b>Phần ${nextSeason.seasonNumber} (Tập 1)</b> không?`
-                      : 'Tập tiếp theo'
-                    }
+                  : 'Tập tiếp theo'
+                }
                   </span>
                 </div>`,
               click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
@@ -808,26 +834,33 @@ const Player = ({
 
           /* Tablet and Mobile Adjustments (Desktop remains default) */
           @media (max-width: 768px) {
-            /* Overall adjustments to prevent pushing out of frame */
+            /* Hide theater mode on mobile (CSS fallback in case isMobile was false at init) */
+            .art-control:has(.theater-mode-ctrl) {
+              display: none !important;
+            }
             .art-bottom {
               white-space: nowrap !important;
               width: 100% !important;
               box-sizing: border-box !important;
               overflow: hidden !important;
-              padding-right: 4px !important;
-              padding-left: 4px !important;
+            }
+            .art-controls {
+              padding: 0 12px !important;
+              display: flex !important;
+              justify-content: space-between !important;
             }
             .art-controls-left, .art-controls-right {
               display: flex !important;
               align-items: center !important;
-              flex-shrink: 1 !important;
-              min-width: 0 !important;
+              gap: 12px !important;
             }
-            /* Force all controls to not have fixed large widths/margins naturally */
             .art-bottom .art-control {
               min-width: 0 !important;
               margin: 0 !important;
-              padding: 0 4px !important;
+              padding: 0 !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
             }
             .art-bottom .art-control svg {
               width: 18px !important;
@@ -841,15 +874,19 @@ const Player = ({
               font-size: 8px !important;
             }
             .art-bottom .art-control-time {
-              font-size: 10px !important;
-              padding: 0 4px !important;
+              font-size: 11px !important;
+              padding: 0 !important;
+              letter-spacing: 0px !important;
             }
           }
 
           /* Mobile L */
           @media (max-width: 480px) {
-            .art-bottom .art-control {
-              padding: 0 2px !important;
+            .art-controls {
+              padding: 0 8px !important;
+            }
+            .art-controls-left, .art-controls-right {
+              gap: 8px !important;
             }
             .art-bottom .art-control svg {
               width: 16px !important;
@@ -863,36 +900,35 @@ const Player = ({
               font-size: 7.5px !important;
             }
             .art-bottom .art-control-time {
-              font-size: 9px !important;
-              padding: 0 2px !important;
-              letter-spacing: -0.5px !important;
-            }
-            .art-bottom {
-              padding-right: 2px !important;
-              padding-left: 2px !important;
+              font-size: 10px !important;
             }
           }
 
-          /* Mobile S */
-          @media (max-width: 360px) {
-            .art-bottom .art-control {
-              padding: 0 1px !important;
+          /* Mobile S (<378px) */
+          @media (max-width: 378px) {
+            .art-controls {
+              padding: 0 4px !important;
+            }
+            .art-controls-left, .art-controls-right {
+              gap: 6px !important;
             }
             .art-bottom .art-control svg {
-              width: 14px !important;
-              height: 14px !important;
+              width: 14.5px !important;
+              height: 14.5px !important;
             }
             .art-bottom .custom-10s-btn svg {
-              width: 14px !important;
-              height: 14px !important;
+              width: 14.5px !important;
+              height: 14.5px !important;
             }
             .art-bottom .custom-10s-btn span {
-              font-size: 6px !important;
+              font-size: 6.5px !important;
             }
             .art-bottom .art-control-time {
-              font-size: 8px !important;
-              letter-spacing: -1px !important;
-              padding: 0 1px !important;
+              font-size: 9px !important;
+              letter-spacing: -0.5px !important;
+            }
+            .art-bottom .art-control-volume {
+              display: none !important;
             }
           }
 

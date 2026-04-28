@@ -419,7 +419,7 @@ const Header = () => {
 
         {/* Sidebar Container */}
         <div
-          className={`absolute inset-y-0 left-0 w-[300px] sm:w-[350px] bg-[#0b0b15] border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ease-out flex flex-col h-screen ${menuOpen ? "translate-x-0" : "-translate-x-full"
+          className={`absolute inset-y-0 left-0 w-[300px] sm:w-[350px] bg-[#0b0b15] border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ease-out flex flex-col h-[100dvh] ${menuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
         >
           {/* Sidebar Header (Profile Section) */}
@@ -495,7 +495,10 @@ const Header = () => {
           </div>
 
           {/* Sidebar Content */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8">
+          <div
+            className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}
+          >
             {/* Primary Navigation Section */}
             <div>
               <h3 className="px-2 mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Danh mục</h3>

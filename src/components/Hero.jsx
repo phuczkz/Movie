@@ -127,7 +127,7 @@ const Hero = ({ movie, movies = [] }) => {
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
       </div>
 
-      <div className="relative z-10 flex h-full flex-col justify-center md:justify-center lg:justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-10 pt-16 md:px-10 md:pb-12 lg:px-16 lg:pb-8">
+      <div className="relative z-10 flex h-full flex-col justify-end md:justify-center lg:justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-28 pt-16 sm:pb-32 md:px-10 md:pb-12 lg:px-16 lg:pb-8">
         <div className="max-w-3xl space-y-5 md:space-y-6">
 
           <div className="space-y-1.5 md:space-y-2">
