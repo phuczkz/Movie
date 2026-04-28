@@ -1,4 +1,5 @@
 import axios from "axios";
+import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 
 const apiBase = import.meta.env.VITE_KKPHIM_API;
 const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
@@ -77,7 +78,7 @@ const uniqueBySlug = (items = []) => {
 const fetchList = async (path, page = 1) => {
   const { data } = await kkphim.get(path, { params: { page } });
   const items = data?.data?.items || data?.items || [];
-  return uniqueBySlug(items).map(normalizeKKphimMovie);
+  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
 export const getKKphimLatest = (page = 1) =>
@@ -93,6 +94,11 @@ export const getKKphimDetail = async (slug, options = {}) => {
   });
   const movieData = data?.data?.item || data?.item || data?.movie || data;
   const movie = normalizeKKphimMovie(movieData);
+
+  if (isAdultMovie(movie)) {
+    return { movie: null, episodes: [] };
+  }
+
   const episodesData = movieData?.episodes || [];
   const episodes = Array.isArray(episodesData)
     ? episodesData.flatMap((server) => {
@@ -126,7 +132,7 @@ export const searchKKphim = async (keyword, page = 1) => {
     params: { keyword, page },
   });
   const items = data?.data?.items || data?.items || [];
-  return items.map(normalizeKKphimMovie);
+  return filterAdultMovies(items.map(normalizeKKphimMovie));
 };
 
 export const getKKphimByYear = async (year, page = 1) => {
@@ -142,19 +148,19 @@ export const getKKphimByYear = async (year, page = 1) => {
     ...(le?.data?.data?.items || le?.data?.items || []),
     ...(bo?.data?.data?.items || bo?.data?.items || []),
   ];
-  return uniqueBySlug(items).map(normalizeKKphimMovie);
+  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
 export const getKKphimByCategory = async (slug, page = 1) => {
   const { data } = await kkphim.get(`/the-loai/${slug}`, { params: { page } });
   const items = data?.data?.items || data?.items || [];
-  return uniqueBySlug(items).map(normalizeKKphimMovie);
+  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
 export const getKKphimByCountry = async (slug, page = 1) => {
   const { data } = await kkphim.get(`/quoc-gia/${slug}`, { params: { page } });
   const items = data?.data?.items || data?.items || [];
-  return uniqueBySlug(items).map(normalizeKKphimMovie);
+  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
 export default kkphim;

@@ -53,11 +53,14 @@ const Profile = () => {
   }, [userProfile, user]);
 
   const avatarUrl = useMemo(() => {
-    if (userProfile?.photoURL) return userProfile.photoURL;
-    if (user?.photoURL) return user.photoURL;
-    if (user?.uid)
-      return `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`;
-    return null;
+    let rawUrl = null;
+    if (userProfile?.photoURL) rawUrl = userProfile.photoURL;
+    else if (user?.photoURL) rawUrl = user.photoURL;
+    else if (user?.uid) rawUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`;
+    
+    if (!rawUrl) return null;
+    if (rawUrl.includes("dicebear.com") || rawUrl.startsWith("/")) return rawUrl;
+    return `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=200&h=200&fit=cover&output=webp&q=80`;
   }, [user, userProfile]);
 
   if (loading) {
@@ -101,7 +104,8 @@ const Profile = () => {
                 alt="avatar"
                 className="h-full w-full object-cover"
                 loading="lazy"
-                referrerPolicy="no-referrer"
+
+                crossOrigin="anonymous"
               />
             ) : (
               <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-3xl">
@@ -178,6 +182,8 @@ const Profile = () => {
                 Email
               </label>
               <input
+                id="email"
+                name="email"
                 type="email"
                 value={user?.email || ""}
                 disabled
@@ -189,6 +195,8 @@ const Profile = () => {
                 Họ tên / Biệt danh
               </label>
               <input
+                id="displayName"
+                name="displayName"
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
@@ -204,6 +212,8 @@ const Profile = () => {
                 Ngày sinh
               </label>
               <input
+                id="birthday"
+                name="birthday"
                 type="date"
                 value={birthday || ""}
                 max={new Date().toISOString().slice(0, 10)}
@@ -221,6 +231,8 @@ const Profile = () => {
                 Số điện thoại
               </label>
               <input
+                id="phoneNumber"
+                name="phoneNumber"
                 type="tel"
                 inputMode="numeric"
                 maxLength={10}

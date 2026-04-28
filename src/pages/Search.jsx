@@ -1,7 +1,5 @@
 import MovieCard from "../components/MovieCard.jsx";
 import ComicCard from "../components/comics/ComicCard.jsx";
-import SearchBar from "../components/SearchBar.jsx";
-import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useSearchParams } from "react-router-dom";
 import { useAppMode } from "../context/AppModeContext.jsx";

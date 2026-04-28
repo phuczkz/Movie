@@ -7,6 +7,7 @@ import {
   getKKphimByYear,
 } from "../api/kkphim";
 import { comicApi } from "../api/comicApi";
+import { filterAdultMovies } from "../utils/filter";
 
 const slugify = (text = "") =>
   text
@@ -48,7 +49,8 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
       if (appMode === "comic") {
         const res = await safe(() => comicApi.search(q));
         // otruyenapi structure: { data: { items: [...] } }
-        return res?.data?.items || [];
+        const items = res?.data?.items || [];
+        return filterAdultMovies(items);
       }
 
       // Default: Movie search
@@ -71,7 +73,7 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
 
       const results = await Promise.all(requests);
 
-      return dedupeBySlug(results.flat());
+      return filterAdultMovies(dedupeBySlug(results.flat()));
     },
     enabled: Boolean(query?.trim()),
     staleTime: 10 * 60 * 1000,

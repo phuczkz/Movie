@@ -5,12 +5,9 @@ import { useAuth } from "../context/AuthContext.jsx";
 const PRESET_AVATARS = [
   { id: "sjv", name: "Sung Jin-woo", url: "/avatars/sung_jin_woo.png" },
   { id: "cha", name: "Cha Hae-In", url: "/avatars/cha_hae_in.png" },
-  { id: "beru", name: "Beru", url: "/avatars/beru.png" },
-  { id: "igris", name: "Igris", url: "/avatars/igris.png" },
 
   { id: "luffy", name: "Luffy", url: "/avatars/luffy.png" },
-  { id: "zoro", name: "Zoro", url: "/avatars/zoro.png" },
-  { id: "sanji", name: "Sanji", url: "/avatars/sanji.png" },
+
   { id: "isagi", name: "Isagi", url: "/avatars/isagi.png" },
   { id: "nagi", name: "Nagi", url: "/avatars/nagi.png" },
   { id: "bachira", name: "Bachira", url: "/avatars/bachira.png" },
@@ -18,9 +15,8 @@ const PRESET_AVATARS = [
   { id: "barou", name: "Barou", url: "/avatars/barou.png" },
   { id: "chigiri", name: "Chigiri", url: "/avatars/chigiri.png" },
   { id: "gojo", name: "Gojo", url: "/avatars/gojo.png" },
-  { id: "sukuna", name: "Sukuna", url: "/avatars/sukuna.png" },
-  { id: "megumi", name: "Megumi", url: "/avatars/megumi.png" },
-  { id: "itadori", name: "Itadori", url: "/avatars/itadori.png" },
+
+
 
   { id: "c-luffy", name: "Chibi Luffy", url: "/avatars/chibi_luffy.png" },
   { id: "c-zoro", name: "Chibi Zoro", url: "/avatars/chibi_zoro.png" },
@@ -110,18 +106,16 @@ export default function AvatarModal({
                     key={avatar.id}
                     onClick={() => handleSelectPreset(avatar.url)}
                     disabled={uploading}
-                    className={`relative group aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border-4 transition-all ${
-                      currentAvatarUrl === avatar.url
+                    className={`relative group aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border-4 transition-all ${currentAvatarUrl === avatar.url
                         ? "border-emerald-500 scale-95 shadow-lg shadow-emerald-500/20"
                         : "border-transparent hover:border-white/20 hover:scale-105"
-                    }`}
+                      }`}
                   >
                     <img
                       src={avatar.url}
                       alt={avatar.name}
-                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 ${
-                        uploading ? "opacity-30" : ""
-                      }`}
+                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-110 ${uploading ? "opacity-30" : ""
+                        }`}
                     />
                     {currentAvatarUrl === avatar.url ? (
                       <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">

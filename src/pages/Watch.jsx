@@ -3,19 +3,12 @@ import {
   Link,
   useParams,
   useSearchParams,
-  Navigate,
   useNavigate,
   useLocation,
 } from "react-router-dom";
 import {
-  Bell,
   Globe2,
   Info,
-  ListChecks,
-  Play,
-  Star,
-  Timer,
-  User,
 } from "lucide-react";
 import { onSnapshot, doc, increment, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config.js";
@@ -107,7 +100,6 @@ const Watch = () => {
 
   const metaRef = useRef({ slug: null, name: null, episodeNumber: null, server: null, movieName: null, posterUrl: null });
   const [movieOverride, setMovieOverride] = useState(null);
-  const [isTheater, setIsTheater] = useState(false);
 
   useEffect(() => {
     if (!db || !slug) return;
@@ -382,7 +374,7 @@ const Watch = () => {
       <WatchHeader movie={movie} activeEpisode={activeEpisode} episodes={episodes} autoProviderNotice={autoProviderNotice} />
 
       {/* Row 1: Player & Information/Actors */}
-      <div className={`grid gap-8 items-stretch transition-all duration-500 ${isTheater ? "grid-cols-1" : "xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]"}`}>
+      <div className="grid gap-8 items-stretch transition-all duration-500 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
         <div className="w-full">
           <PlayerSection 
             playerRef={playerRef} movieOverride={movieOverride} activeSource={activeSource} movie={movie}
@@ -394,23 +386,21 @@ const Watch = () => {
                 ? () => navigate(`/watch/${nextSeason.slug}?episode=1`)
                 : null
             }
-            onTimeUpdate={onTimeUpdate} initialTime={initialTime} isTheater={isTheater} onToggleTheater={() => setIsTheater(!isTheater)}
+            onTimeUpdate={onTimeUpdate} initialTime={initialTime}
             onPlaybackIssue={handlePlaybackIssue}
             nextSeason={nextSeason}
             isLastEpisodeOfSeason={isLastEpisode(activeEpisode, movie)}
           />
         </div>
         
-        {!isTheater && (
-          <div className="hidden xl:flex flex-col gap-6 h-full min-h-0">
-            <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
-            <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
-          </div>
-        )}
+        <div className="hidden xl:flex flex-col gap-6 h-full min-h-0">
+          <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
+          <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
+        </div>
       </div>
 
       {/* Row 2: Grid/Comments & Related Movies */}
-      <div className={`grid gap-8 items-start ${isTheater ? "grid-cols-1 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]" : "xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]"}`}>
+      <div className="grid gap-8 items-start xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
         <div className="space-y-8">
           {isSeries && (
             <div className="pb-4">
@@ -428,13 +418,6 @@ const Watch = () => {
             activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
           />
 
-          {isTheater && (
-            <div className="hidden xl:block space-y-8">
-              <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
-              <ActorSection actorsWithImages={actorsWithImages} />
-            </div>
-          )}
-
           <div className="xl:hidden space-y-8">
             <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
             <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
@@ -443,7 +426,7 @@ const Watch = () => {
           {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
         </div>
 
-        <div className={isTheater ? "" : "hidden xl:block"}>
+        <div>
           <RelatedMovies movie={movie} variant="list" />
         </div>
       </div>
