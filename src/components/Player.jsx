@@ -30,6 +30,7 @@ const Player = ({
   isLastEpisodeOfSeason,
   onToggleTheater,
   theaterMode,
+  movieSlug,
 }) => {
   const artRef = useRef(null);             // DOM mount point for ArtPlayer
   const artInstanceRef = useRef(null);     // ArtPlayer instance
@@ -330,7 +331,7 @@ const Player = ({
       autoPlayback: false,
       autoCursor: true,
       autoHide: 3000,
-      airplay: true,
+      airplay: false,
       playsInline: true,
       clickPause: true,
       settings: [],
@@ -340,15 +341,19 @@ const Player = ({
           index: 11,
           html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path style="fill:transparent!important;" d="M3 3v5h5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
           tooltip: "Lùi 10 giây",
-          click() { this.backward = 10; },
+          click() {
+            this.backward = 10;
+            this.emit("notice", "Lùi 10 giây");
+          },
         },
         {
           position: "left",
           index: 12,
           html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path style="fill:transparent!important;" d="M21 3v5h-5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
           tooltip: "Tiến 10 giây",
-          click: (art) => {
-            art.forward = 10;
+          click() {
+            this.forward = 10;
+            this.emit("notice", "Tiến 10 giây");
           },
         },
         // Theater mode button (desktop only)
@@ -386,8 +391,6 @@ const Player = ({
             left: "0",
             right: "0",
             pointerEvents: "none",
-            opacity: "0",
-            transition: "opacity 0.3s ease",
           },
         },
         // Floating Next Episode button (shows above control bar)
@@ -600,6 +603,9 @@ const Player = ({
               margin: 0 !important;
               padding: 0 4px !important;
             }
+            .art-bottom .custom-10s-btn {
+              margin: 0 6px !important;
+            }
             .art-bottom .art-control svg {
               width: 18px !important;
               height: 18px !important;
@@ -621,6 +627,9 @@ const Player = ({
           @media (max-width: 480px) {
             .art-bottom .art-control {
               padding: 0 2px !important;
+            }
+            .art-bottom .custom-10s-btn {
+              margin: 0 4px !important;
             }
             .art-bottom .art-control svg {
               width: 16px !important;
@@ -649,6 +658,9 @@ const Player = ({
             .art-bottom .art-control {
               padding: 0 1px !important;
             }
+            .art-bottom .custom-10s-btn {
+              margin: 0 2px !important;
+            }
             .art-bottom .art-control svg {
               width: 14px !important;
               height: 14px !important;
@@ -665,6 +677,19 @@ const Player = ({
               letter-spacing: -1px !important;
               padding: 0 1px !important;
             }
+          }
+
+          /* Header Layer show/hide logic */
+          .art-layer-header {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transform: translateY(-10px) !important;
+          }
+          .art-video-player.art-control-show .art-layer-header {
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translateY(0) !important;
           }
 
           /* Hover effect for floating button */

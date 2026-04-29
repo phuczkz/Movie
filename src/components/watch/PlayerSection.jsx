@@ -59,6 +59,7 @@ const PlayerSection = memo(({
           currentSeason={currentSeason}
           nextSeason={nextSeason}
           isLastEpisodeOfSeason={isLastEpisodeOfSeason}
+          movieSlug={movie?.slug}
         />
       )}
     </div>
