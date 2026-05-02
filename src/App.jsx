@@ -5,8 +5,11 @@ import {
   useLocation,
   useNavigationType,
 } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "./components/PageTransition.jsx";
 import Layout from "./components/Layout.jsx";
 import ComicLayout from "./components/comics/ComicLayout.jsx";
+import BottomNav from "./components/BottomNav.jsx";
 import { useAppMode } from "./context/AppModeContext";
 
 const Home = lazy(() => import("./pages/Home.jsx"));
@@ -72,9 +75,10 @@ function App() {
         </div>
       }
     >
-      <Routes>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname.split('/')[1] || 'root'}>
         {/* Admin — own full-screen layout */}
-        <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/admin" element={<PageTransition><AdminPanel /></PageTransition>} />
 
         {/* Comic site layout - Đưa LÊN TRƯỚC để trình duyệt không nhận nhầm trang Phim */}
         <Route
@@ -127,6 +131,8 @@ function App() {
           }
         />
       </Routes>
+      </AnimatePresence>
+      <BottomNav />
     </Suspense>
   );
 }

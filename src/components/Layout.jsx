@@ -2,6 +2,9 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header.jsx";
 import Footer from "./Footer.jsx";
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "./PageTransition.jsx";
+import { useStandalone } from "../hooks/useStandalone";
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -11,6 +14,8 @@ const Layout = ({ children }) => {
     window.scrollTo(0, 0);
   }, [location.pathname, location.search]);
 
+  const isStandalone = useStandalone();
+
   return (
     <div className="bg-background text-slate-100 min-h-screen overflow-x-hidden">
       <div
@@ -19,10 +24,14 @@ const Layout = ({ children }) => {
       />
       <Header />
       <main
-        className={`relative z-10 mx-auto w-full max-w-[1680px] px-4 pb-16 md:px-4 lg:px-6 ${isHome ? "pt-0 md:pt-0 lg:pt-24" : "pt-20 md:pt-24"
-          }`}
+        className={`relative z-10 mx-auto w-full max-w-[1680px] px-4 md:px-4 lg:px-6 ${isHome ? "pt-0 md:pt-0 lg:pt-24" : "pt-20 md:pt-24"
+          } ${isStandalone ? "pb-28" : "pb-16"}`}
       >
-        {children}
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            {children}
+          </PageTransition>
+        </AnimatePresence>
       </main>
       <Footer />
     </div>

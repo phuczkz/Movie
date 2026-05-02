@@ -1,7 +1,11 @@
 import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Twitter, Film } from "lucide-react";
+import { useStandalone } from "../hooks/useStandalone";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const isStandalone = useStandalone();
+
+  if (isStandalone) return null;
 
   return (
     <footer className="relative z-10 mt-8 md:mt-12 border-t border-white/5 bg-slate-950/40 backdrop-blur-2xl">

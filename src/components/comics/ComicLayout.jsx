@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "../Header.jsx";
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "../PageTransition.jsx";
+import { useStandalone } from "../../hooks/useStandalone";
 
 const ComicLayout = ({ children }) => {
   const location = useLocation();
@@ -10,6 +13,8 @@ const ComicLayout = ({ children }) => {
     window.scrollTo(0, 0);
   }, [location.pathname, location.search]);
 
+  const isStandalone = useStandalone();
+
   return (
     <div className="bg-slate-950 text-slate-100 min-h-screen overflow-x-hidden font-sans">
       <div
@@ -18,11 +23,15 @@ const ComicLayout = ({ children }) => {
       />
       <Header />
       <main
-        className={`relative z-10 mx-auto w-full max-w-[1440px] px-4 pb-16 md:px-6 lg:px-8 ${
+        className={`relative z-10 mx-auto w-full max-w-[1440px] px-4 md:px-6 lg:px-8 ${
           isHome ? "pt-20 lg:pt-24" : "pt-20 md:pt-24"
-        }`}
+        } ${isStandalone ? "pb-28" : "pb-16"}`}
       >
-        {children}
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            {children}
+          </PageTransition>
+        </AnimatePresence>
       </main>
     </div>
   );

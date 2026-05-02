@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useAppMode } from "../context/AppModeContext";
 import { comicApi } from "../api/comicApi";
 import SearchBar from "./SearchBar.jsx";
+import { useStandalone } from "../hooks/useStandalone";
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 const moviePrimaryNav = [
@@ -176,6 +177,7 @@ const Header = () => {
     (user?.uid
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
+  const isStandalone = useStandalone();
 
   useEffect(() => {
     const fetchGenres = async () => {
@@ -252,16 +254,29 @@ const Header = () => {
       >
         {/* Mobile top bar */}
         <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
-          <button
-            aria-label="Toggle menu"
-            onClick={() => {
-              setMenuOpen((v) => !v);
-              setSearchOpen(false);
-            }}
-            className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
-          >
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          {!isStandalone && (
+            <button
+              aria-label="Toggle menu"
+              onClick={() => {
+                setMenuOpen((v) => !v);
+                setSearchOpen(false);
+              }}
+              className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+            >
+              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          )}
+
+          {isStandalone && (
+            <Link to={isComicMode ? "/comics" : "/"} className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-slate-800/80 border border-white/10 flex items-center justify-center">
+                {isComicMode ? <BookOpen className="h-4 w-4 text-purple-400" /> : <Film className="h-4 w-4 text-blue-400" />}
+              </div>
+              <span className="text-lg font-bold text-white tracking-tight">
+                {isComicMode ? "MangaHub" : "KhoPhim"}
+              </span>
+            </Link>
+          )}
 
           <div className="flex items-center gap-2">
             <button
@@ -280,22 +295,24 @@ const Header = () => {
             </button>
 
             {/* Mobile Toggle Button */}
-            <button
-              onClick={() => {
-                setAppMode(appMode === "movie" ? "comic" : "movie");
-                if (appMode === "movie") navigate("/comics");
-                else navigate("/");
-              }}
-              className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
-              title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"
-                }`}
-            >
-              {appMode === "movie" ? (
-                <BookOpen className="h-5 w-5 text-purple-400" />
-              ) : (
-                <Film className="h-5 w-5 text-blue-400" />
-              )}
-            </button>
+            {!isStandalone && (
+              <button
+                onClick={() => {
+                  setAppMode(appMode === "movie" ? "comic" : "movie");
+                  if (appMode === "movie") navigate("/comics");
+                  else navigate("/");
+                }}
+                className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
+                title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"
+                  }`}
+              >
+                {appMode === "movie" ? (
+                  <BookOpen className="h-5 w-5 text-purple-400" />
+                ) : (
+                  <Film className="h-5 w-5 text-blue-400" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 
