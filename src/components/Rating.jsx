@@ -33,6 +33,11 @@ export default function Rating({ movieSlug, apiRating }) {
     return () => unsub();
   }, [movieSlug, user]);
 
+  const [isHoverDevice, setIsHoverDevice] = useState(false);
+  useEffect(() => {
+    setIsHoverDevice(window.matchMedia("(hover: hover)").matches);
+  }, []);
+
   const handleRate = async (value) => {
     if (!user) {
       alert("Vui lòng đăng nhập để đánh giá phim.");
@@ -62,8 +67,8 @@ export default function Rating({ movieSlug, apiRating }) {
             type="button"
             key={star}
             disabled={submitting}
-            onMouseEnter={() => setHovered(star)}
-            onMouseLeave={() => setHovered(0)}
+            onMouseEnter={() => isHoverDevice && setHovered(star)}
+            onMouseLeave={() => isHoverDevice && setHovered(0)}
             onClick={() => handleRate(star)}
             className="p-1 transition-transform hover:scale-110 disabled:opacity-50"
           >

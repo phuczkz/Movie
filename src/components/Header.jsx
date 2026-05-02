@@ -81,20 +81,49 @@ const comicGenreOptions = [
 const Dropdown = ({ label, options, isWide = false }) => {
   const [open, setOpen] = useState(false);
   const timerRef = useRef(null);
+  const [isHoverDevice, setIsHoverDevice] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: hover)");
+    setIsHoverDevice(mq.matches);
+  }, []);
 
   const openNow = () => {
+    if (!isHoverDevice) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     setOpen(true);
   };
 
   const closeLater = () => {
+    if (!isHoverDevice) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setOpen(false), 100);
   };
 
+  const handleButtonClick = (e) => {
+    if (isHoverDevice) return;
+    setOpen(!open);
+  };
+
+  // Close when clicking outside on mobile
+  useEffect(() => {
+    if (isHoverDevice || !open) return;
+    const handleClickOutside = () => setOpen(false);
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [open, isHoverDevice]);
+
   return (
-    <div className="relative" onMouseEnter={openNow} onMouseLeave={closeLater}>
-      <button className="flex items-center gap-0.5 xl:gap-1 px-1 xl:px-3 py-2 text-[13px] xl:text-base font-semibold text-white/90 hover:text-white transition-colors">
+    <div
+      className="relative"
+      onMouseEnter={openNow}
+      onMouseLeave={closeLater}
+      onClick={(e) => !isHoverDevice && e.stopPropagation()}
+    >
+      <button
+        onClick={handleButtonClick}
+        className="flex items-center gap-0.5 xl:gap-1 px-1 xl:px-3 py-2 text-[13px] xl:text-base font-semibold text-white/90 hover:text-white transition-colors"
+      >
         <span>{label}</span>
         <ChevronDown
           className={`h-3.5 w-3.5 xl:h-4 xl:w-4 transition ${open ? "rotate-180" : "rotate-0"}`}

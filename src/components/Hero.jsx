@@ -60,6 +60,16 @@ const Hero = ({ movie, movies = [] }) => {
   const slideCount = slides.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isHoverDevice, setIsHoverDevice] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(hover: hover)");
+    setIsHoverDevice(mediaQuery.matches);
+    const handler = (e) => setIsHoverDevice(e.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
   const safeIndex = slideCount ? Math.min(activeIndex, slideCount - 1) : 0;
   const activeMovie = slides[safeIndex] || slides[0];
   const episodeLabel = useEpisodeLabel(activeMovie);
@@ -105,8 +115,8 @@ const Hero = ({ movie, movies = [] }) => {
   return (
     <section
       className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[58vh] sm:h-[65vh] md:h-[62vh] lg:h-[120vh] min-h-[380px] md:min-h-[460px] lg:min-h-[420px] max-h-[620px] sm:max-h-[680px] md:max-h-[680px] lg:max-h-[720px]"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      onMouseEnter={() => isHoverDevice && setIsPaused(true)}
+      onMouseLeave={() => isHoverDevice && setIsPaused(false)}
     >
       <div className="absolute inset-0">
         {/* Backdrop chính – dùng <img> để kiểm soát object-position trên mobile */}

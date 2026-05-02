@@ -269,6 +269,10 @@ const Player = ({
           let stallStartTime = 0;
           const STALL_THRESHOLD_MS = 3000; // 3s of frozen frames = trigger recovery
 
+          if (videoEl && videoEl._desyncWatchdog) {
+            clearInterval(videoEl._desyncWatchdog);
+          }
+
           const desyncWatchdog = setInterval(() => {
             if (!videoEl || videoEl.paused || videoEl.ended || videoEl.seeking) {
               stallStartTime = 0;
@@ -462,12 +466,15 @@ const Player = ({
       if (onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))) {
         nextEpBtnElRef.current = artInstanceRef.current.template?.$player?.querySelector?.("#art-next-ep-layer") || null;
         if (nextEpBtnElRef.current) {
-          nextEpBtnElRef.current.onmouseenter = () => {
-            Object.assign(nextEpBtnElRef.current.style, { background: "rgba(255, 255, 255, 0.18)", borderColor: "rgba(255, 255, 255, 0.3)", transform: "translateY(-4px)", boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)" });
-          };
-          nextEpBtnElRef.current.onmouseleave = () => {
-            Object.assign(nextEpBtnElRef.current.style, { background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.15)", transform: "translateY(0)", boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)" });
-          };
+          const isHoverDevice = window.matchMedia("(hover: hover)").matches;
+          if (isHoverDevice) {
+            nextEpBtnElRef.current.onmouseenter = () => {
+              Object.assign(nextEpBtnElRef.current.style, { background: "rgba(255, 255, 255, 0.18)", borderColor: "rgba(255, 255, 255, 0.3)", transform: "translateY(-4px)", boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)" });
+            };
+            nextEpBtnElRef.current.onmouseleave = () => {
+              Object.assign(nextEpBtnElRef.current.style, { background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.15)", transform: "translateY(0)", boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)" });
+            };
+          }
         }
       }
     });

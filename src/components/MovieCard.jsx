@@ -163,8 +163,19 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const episodeCurrentText = movie?.episode_current;
   const movieLang = movie?.lang;
 
+  const [isHoverDevice, setIsHoverDevice] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(hover: hover)");
+    setIsHoverDevice(mediaQuery.matches);
+
+    const handler = (e) => setIsHoverDevice(e.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
   const handleMouseEnter = (e) => {
-    if (suppressHover) return;
+    if (suppressHover || !isHoverDevice) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
@@ -194,8 +205,9 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     staleTime: 1000 * 60 * 30,
   });
 
-  const episodeText = (() => {
-    const latestFromList = episodeList.reduce((max, ep) => {
+  // Helper to compute episode text for a given list of episodes
+  const computeEpisodeText = (eps) => {
+    const latestFromList = eps.reduce((max, ep) => {
       const n = parseEpisodeNumber(ep?.name || ep?.slug);
       return Number.isFinite(n) ? Math.max(max, n) : max;
     }, -1);
@@ -222,36 +234,47 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     }
     
     return null;
-  })();
+  };
 
   const audioBadges = useMemo(() => {
     const badges = [];
-    const serverMap = new Map();
+    // Group episodes by normalized server label
+    const serverEpisodesMap = new Map();
     episodeList.forEach((ep) => {
       const label = normalizeServerLabel(ep.server_name);
-      if (label) serverMap.set(label, true);
+      if (label) {
+        if (!serverEpisodesMap.has(label)) serverEpisodesMap.set(label, []);
+        serverEpisodesMap.get(label).push(ep);
+      }
     });
 
-    if (serverMap.has("Vietsub"))
-      badges.push({ key: "vietsub", code: "PĐ", label: "Phụ đề" });
-    if (serverMap.has("Thuyết Minh"))
-      badges.push({ key: "thuyetminh", code: "TM", label: "Thuyết minh" });
-    if (serverMap.has("Lồng Tiếng"))
-      badges.push({ key: "longtieng", code: "LT", label: "Lồng tiếng" });
+    const makeEpText = (serverLabel) => {
+      const eps = serverEpisodesMap.get(serverLabel);
+      return eps ? computeEpisodeText(eps) : null;
+    };
+
+    if (serverEpisodesMap.has("Vietsub"))
+      badges.push({ key: "vietsub", code: "PĐ", label: "Phụ đề", episodeText: makeEpText("Vietsub") });
+    if (serverEpisodesMap.has("Thuyết Minh"))
+      badges.push({ key: "thuyetminh", code: "TM", label: "Thuyết minh", episodeText: makeEpText("Thuyết Minh") });
+    if (serverEpisodesMap.has("Lồng Tiếng"))
+      badges.push({ key: "longtieng", code: "LT", label: "Lồng tiếng", episodeText: makeEpText("Lồng Tiếng") });
 
     if (badges.length === 0) {
+      // Fallback: no episode data per server, use global fallback
+      const fallbackEpText = computeEpisodeText([]);
       const text = (episodeCurrentText || movieLang || "").toLowerCase();
       if (text.includes("vietsub") || text.includes("phụ đề"))
-        badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề" });
+        badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
       if (text.includes("thuyết minh"))
-        badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh" });
+        badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh", episodeText: fallbackEpText });
       if (text.includes("lồng tiếng"))
-        badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng" });
+        badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng", episodeText: fallbackEpText });
     }
 
     const statusText = (episodeCurrentText || movie?.status || "").toLowerCase();
     if (statusText.includes("trailer")) {
-      badges.push({ key: "trailer", code: "Trailer", label: "Trailer" });
+      badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
     }
 
     return badges;
@@ -335,7 +358,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
                     }`}
                 >
                   <span>
-                    {badge.code}{badge.code !== "Trailer" && episodeText ? `.${episodeText}` : ""}
+                    {badge.code}{badge.code !== "Trailer" && badge.episodeText ? `.${badge.episodeText}` : ""}
                   </span>
                 </div>
               ))}
@@ -360,7 +383,6 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
         <HoverCard
           movie={movie}
           thumbSrc={thumbSrc}
-          episodeText={episodeText}
           audioBadges={audioBadges}
           alignment={alignment}
         />

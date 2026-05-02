@@ -30,6 +30,7 @@ import WatchHeader from "../components/watch/WatchHeader.jsx";
 import PlayerSection from "../components/watch/PlayerSection.jsx";
 import WatchSidebar from "../components/watch/WatchSidebar.jsx";
 import WatchEpisodeGrid from "../components/watch/WatchEpisodeGrid.jsx";
+import WatchMobileTabs from "../components/watch/WatchMobileTabs.jsx";
 import ActorSection from "../components/detail/ActorSection.jsx";
 import SeasonSelector from "../components/SeasonSelector.jsx";
 import { useSeries } from "../hooks/useSeries.js";
@@ -92,6 +93,7 @@ const Watch = () => {
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const lastSaveRef = useRef(0);
   const [deferLoad, setDeferLoad] = useState(false);
+  const [mobileTab, setMobileTab] = useState("episodes");
 
   useEffect(() => {
     const timer = setTimeout(() => setDeferLoad(true), 1000);
@@ -161,6 +163,7 @@ const Watch = () => {
   }, [episodes]);
 
   const preferredServer = serverGroups.Vietsub?.length ? "Vietsub" : serverGroups["Thuyết Minh"]?.length ? "Thuyết Minh" : serverGroups["Lồng Tiếng"]?.length ? "Lồng Tiếng" : Object.keys(serverGroups)[0];
+  const displayEpisodes = useMemo(() => serverGroups[preferredServer] || episodes, [serverGroups, preferredServer, episodes]);
   const requestedServer = normalizeServerLabel(selectedServerParam);
   const activeServer = requestedServer && serverGroups[requestedServer]?.length ? requestedServer : preferredServer;
   const episodesForServer = sortEpisodes(serverGroups[activeServer] || []);
@@ -371,14 +374,14 @@ const Watch = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      <WatchHeader movie={movie} activeEpisode={activeEpisode} episodes={episodes} autoProviderNotice={autoProviderNotice} />
+      <WatchHeader movie={movie} activeEpisode={activeEpisode} episodes={displayEpisodes} autoProviderNotice={autoProviderNotice} />
 
       {/* Row 1: Player & Information/Actors */}
       <div className="grid gap-8 items-stretch transition-all duration-500 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
         <div className="w-full">
           <PlayerSection 
             playerRef={playerRef} movieOverride={movieOverride} activeSource={activeSource} movie={movie}
-            activeEpisode={activeEpisode} episodes={episodes} activeServer={activeServer} activeProviderLabel={activeProviderLabel}
+            activeEpisode={activeEpisode} episodes={displayEpisodes} activeServer={activeServer} activeProviderLabel={activeProviderLabel}
             onNextEpisode={
               nextEpisode 
                 ? () => navigate(`/watch/${slug}?episode=${nextEpisode.slug}&server=${activeServer}${selectedProviderParam ? `&provider=${selectedProviderParam}` : ""}`) 
@@ -394,39 +397,71 @@ const Watch = () => {
         </div>
         
         <div className="hidden xl:flex flex-col gap-6 h-full min-h-0">
-          <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
+          <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
           <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
         </div>
       </div>
 
+      {/* Mobile/Tablet Tabs */}
+      <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} />
+
       {/* Row 2: Grid/Comments & Related Movies */}
       <div className="grid gap-8 items-start xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
         <div className="space-y-8">
-          {isSeries && (
-            <div className="pb-4">
-              <SeasonSelector 
-                groups={groups} 
-                currentSeason={currentSeason} 
-                currentSlug={slug}
-              />
-            </div>
-          )}
-
-          <WatchEpisodeGrid 
-            serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
-            episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
-            activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
-          />
-
-          <div className="xl:hidden space-y-8">
-            <WatchSidebar movie={movie} episodes={episodes} countryText={countryText} categoriesText={categoriesText} />
-            <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
+          {/* Desktop: always show all sections */}
+          <div className="hidden xl:block space-y-8">
+            {isSeries && (
+              <div className="pb-4">
+                <SeasonSelector 
+                  groups={groups} 
+                  currentSeason={currentSeason} 
+                  currentSlug={slug}
+                />
+              </div>
+            )}
+            <WatchEpisodeGrid 
+              serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
+              episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
+              activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
+            />
+            {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
           </div>
 
-          {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
+          {/* Mobile/Tablet: tab-based content */}
+          <div className="xl:hidden space-y-8">
+            {mobileTab === "episodes" && (
+              <>
+                {isSeries && (
+                  <div className="pb-4">
+                    <SeasonSelector 
+                      groups={groups} 
+                      currentSeason={currentSeason} 
+                      currentSlug={slug}
+                    />
+                  </div>
+                )}
+                <WatchEpisodeGrid 
+                  serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
+                  episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
+                  activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
+                />
+                <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+                {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
+              </>
+            )}
+
+            {mobileTab === "actors" && (
+              <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
+            )}
+
+            {mobileTab === "related" && (
+              <RelatedMovies movie={movie} variant="grid" />
+            )}
+          </div>
         </div>
 
-        <div>
+        {/* Desktop sidebar: Related Movies */}
+        <div className="hidden xl:block">
           <RelatedMovies movie={movie} variant="list" />
         </div>
       </div>

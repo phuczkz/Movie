@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Clock, BookOpen, Heart, Info, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -33,7 +33,20 @@ const ComicCard = ({ comic }) => {
 
   const [alignment, setAlignment] = useState("center");
 
+  const [isHoverDevice, setIsHoverDevice] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(hover: hover)");
+    setIsHoverDevice(mediaQuery.matches);
+
+    const handler = (e) => setIsHoverDevice(e.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
   const handleMouseEnter = (e) => {
+    if (!isHoverDevice) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
     const threshold = 160;

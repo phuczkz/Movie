@@ -141,7 +141,6 @@ const Footer = () => {
               <span className="w-1.5 h-1.5 rounded-full bg-green-500/50 animate-pulse"></span>
               Server Status: Online
             </span>
-            <p className="text-center">Designed with ❤️ for Cinema Lovers</p>
           </div>
         </div>
       </div>
