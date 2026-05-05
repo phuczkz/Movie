@@ -12,10 +12,13 @@ import {
   AlertCircle,
   History,
   Search,
+  Play,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmModal from "../../components/ConfirmModal";
 import WatchHistory from "../../components/WatchHistory";
+import ComicHistory from "../../components/comics/ComicHistory";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -29,6 +32,7 @@ export default function AdminUsers() {
     isOpen: false,
     userId: null,
     userName: "",
+    activeTab: "movie", // 'movie' or 'comic'
   });
 
   const {
@@ -380,6 +384,7 @@ export default function AdminUsers() {
                                   isOpen: true,
                                   userId: u.id,
                                   userName: u.displayName || u.email,
+                                  activeTab: "movie",
                                 })
                               }
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-500/15 hover:text-emerald-300 transition-colors"
@@ -448,6 +453,7 @@ export default function AdminUsers() {
                               isOpen: true,
                               userId: u.id,
                               userName: u.displayName || u.email,
+                              activeTab: "movie",
                             })
                           }
                           className="p-2 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
@@ -506,15 +512,15 @@ export default function AdminUsers() {
               <div>
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                   <History className="h-5 w-5 text-emerald-500" />
-                  Lịch sử xem: {historyModal.userName}
+                  Lịch sử của: {historyModal.userName}
                 </h3>
                 <p className="text-slate-400 text-xs mt-1">
-                  Lịch sử được sắp xếp theo thời gian mới nhất
+                  Xem hoạt động xem phim và đọc truyện
                 </p>
               </div>
               <button
                 onClick={() =>
-                  setHistoryModal({ isOpen: false, userId: null, userName: "" })
+                  setHistoryModal({ isOpen: false, userId: null, userName: "", activeTab: "movie" })
                 }
                 className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors"
               >
@@ -522,14 +528,43 @@ export default function AdminUsers() {
               </button>
             </div>
 
+            <div className="px-6 border-b border-white/5 flex gap-6">
+              <button
+                onClick={() => setHistoryModal(prev => ({ ...prev, activeTab: 'movie' }))}
+                className={`flex items-center gap-2 py-4 px-1 border-b-2 transition-all font-semibold text-sm ${
+                  historyModal.activeTab === 'movie'
+                    ? "border-emerald-500 text-emerald-400"
+                    : "border-transparent text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                <Play className="h-4 w-4" fill="currentColor" />
+                Lịch sử xem phim
+              </button>
+              <button
+                onClick={() => setHistoryModal(prev => ({ ...prev, activeTab: 'comic' }))}
+                className={`flex items-center gap-2 py-4 px-1 border-b-2 transition-all font-semibold text-sm ${
+                  historyModal.activeTab === 'comic'
+                    ? "border-purple-500 text-purple-400"
+                    : "border-transparent text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                <BookOpen className="h-4 w-4" />
+                Lịch sử đọc truyện
+              </button>
+            </div>
+
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
-              <WatchHistory userId={historyModal.userId} adminView={true} />
+              {historyModal.activeTab === 'movie' ? (
+                <WatchHistory userId={historyModal.userId} adminView={true} />
+              ) : (
+                <ComicHistory userId={historyModal.userId} adminView={true} />
+              )}
             </div>
 
             <div className="p-4 border-t border-white/5 flex justify-end">
               <button
                 onClick={() =>
-                  setHistoryModal({ isOpen: false, userId: null, userName: "" })
+                  setHistoryModal({ isOpen: false, userId: null, userName: "", activeTab: "movie" })
                 }
                 className="px-6 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 font-semibold transition-all"
               >

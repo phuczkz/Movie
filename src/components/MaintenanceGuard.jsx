@@ -23,7 +23,6 @@ export default function MaintenanceGuard({ children }) {
   const isLoginPath = location.pathname === "/login";
 
   const isActive =
-    appMode === "movie" &&
     maintenance?.enabled &&
     !isAdmin &&
     !isWhitelisted &&

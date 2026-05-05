@@ -9,7 +9,7 @@ import { comicApi } from "../../api/comicApi";
 
 const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
 
-function ComicHistoryCard({ item, handleDelete, uid }) {
+function ComicHistoryCard({ item, handleDelete, uid, adminView = false }) {
   const isMissingInfo = !item.posterUrl || !item.comicName;
   const { data: detailData } = useQuery({
     queryKey: ["comicDetail", item.slug],
@@ -37,10 +37,16 @@ function ComicHistoryCard({ item, handleDelete, uid }) {
 
   return (
     <div
-      className="group relative flex flex-row sm:flex-col h-28 sm:h-auto sm:aspect-[3/4] overflow-hidden rounded-xl border border-white/10 bg-slate-800/50 transition-all hover:scale-[1.01] hover:border-purple-500/50 hover:shadow-lg sm:bg-slate-900 sm:hover:shadow-2xl"
+      className={`group relative flex overflow-hidden rounded-xl border border-white/10 bg-slate-800/50 transition-all hover:scale-[1.01] hover:border-purple-500/50 hover:shadow-lg ${
+        adminView 
+          ? "flex-row h-24 sm:h-24" 
+          : "flex-row sm:flex-col h-28 sm:h-auto sm:aspect-[3/4] sm:bg-slate-900 sm:hover:shadow-2xl"
+      }`}
     >
       {/* Image Section */}
-      <div className="w-20 min-w-[5rem] sm:w-full sm:absolute sm:inset-0 sm:z-0 flex-shrink-0 relative overflow-hidden bg-slate-900">
+      <div className={`${
+        adminView ? "w-16 min-w-[4rem]" : "w-20 min-w-[5rem] sm:w-full sm:absolute sm:inset-0 sm:z-0"
+      } flex-shrink-0 relative overflow-hidden bg-slate-900`}>
         {posterUrl ? (
           <img 
             src={posterUrl} 
@@ -56,7 +62,7 @@ function ComicHistoryCard({ item, handleDelete, uid }) {
             <span className="font-bold text-[10px] sm:text-xs text-slate-300 uppercase tracking-widest break-words overflow-hidden line-clamp-2">{comicName}</span>
           </div>
         )}
-        <div className="hidden sm:block absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent" />
+        {!adminView && <div className="hidden sm:block absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent" />}
       </div>
 
       {/* Delete Button (top right) */}
@@ -71,44 +77,56 @@ function ComicHistoryCard({ item, handleDelete, uid }) {
       </div>
 
       {/* Content Section */}
-      <div className="relative z-10 flex flex-1 flex-col justify-center overflow-hidden p-3 sm:p-5 sm:justify-end">
-        <h3 className="font-bold text-white tracking-tight line-clamp-1 pr-6 text-sm sm:text-lg sm:mb-1 sm:line-clamp-2 sm:pr-0 sm:drop-shadow-lg">
+      <div className={`relative z-10 flex flex-1 flex-col justify-center overflow-hidden ${
+        adminView ? "p-3" : "p-3 sm:p-5 sm:justify-end"
+      }`}>
+        <h3 className={`font-bold text-white tracking-tight line-clamp-1 pr-6 ${
+          adminView ? "text-xs sm:text-sm mb-0.5" : "text-sm sm:text-lg sm:mb-1 sm:line-clamp-2 sm:pr-0 sm:drop-shadow-lg"
+        }`}>
           {comicName}
         </h3>
         
-        <p className="font-medium text-purple-400 mb-0.5 text-[11px] sm:text-sm sm:text-purple-300 sm:drop-shadow-md">
+        <p className={`font-medium text-purple-400 mb-0.5 ${
+          adminView ? "text-[10px]" : "text-[11px] sm:text-sm sm:text-purple-300 sm:drop-shadow-md"
+        }`}>
           Chương {item.chapterName}
         </p>
         
-        <div className="flex items-center justify-between mt-2 sm:mt-0">
-          <p className="text-slate-400 text-[10px] sm:text-xs sm:text-slate-300/90 sm:drop-shadow-md sm:mb-4">
+        <div className={`flex items-center justify-between ${adminView ? "mt-0.5" : "mt-2 sm:mt-0"}`}>
+          <p className={`text-slate-400 ${
+            adminView ? "text-[9px]" : "text-[10px] sm:text-xs sm:text-slate-300/90 sm:drop-shadow-md sm:mb-4"
+          }`}>
             Đang đọc
           </p>
 
-          <Link
-            to={`/comics/chapter/${encodeURIComponent(item.chapterApiUrl)}`}
-            state={{ slug: item.slug, thumb_url: item.posterUrl }}
-            className="sm:hidden flex items-center gap-1 rounded-lg bg-purple-500/20 px-2 py-1 text-[10px] font-semibold text-purple-400 transition hover:bg-purple-500 hover:text-white"
-          >
-            <BookOpen className="h-3 w-3" /> Tiếp
-          </Link>
+          {!adminView && (
+            <Link
+              to={`/comics/chapter/${encodeURIComponent(item.chapterApiUrl)}`}
+              state={{ slug: item.slug, thumb_url: item.posterUrl }}
+              className="sm:hidden flex items-center gap-1 rounded-lg bg-purple-500/20 px-2 py-1 text-[10px] font-semibold text-purple-400 transition hover:bg-purple-500 hover:text-white"
+            >
+              <BookOpen className="h-3 w-3" /> Tiếp
+            </Link>
+          )}
         </div>
 
         {/* Desktop-only full-width button */}
-        <Link
-          to={`/comics/chapter/${encodeURIComponent(item.chapterApiUrl)}`}
-          state={{ slug: item.slug, thumb_url: item.posterUrl }}
-          className="hidden sm:flex group/btn items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-purple-900/30 transition hover:-translate-y-[2px] hover:bg-purple-500 active:scale-[0.98] w-full mt-auto"
-        >
-          <BookOpen className="h-4 w-4 transition-transform group-hover/btn:scale-110" /> 
-          Tiếp tục đọc
-        </Link>
+        {!adminView && (
+          <Link
+            to={`/comics/chapter/${encodeURIComponent(item.chapterApiUrl)}`}
+            state={{ slug: item.slug, thumb_url: item.posterUrl }}
+            className="hidden sm:flex group/btn items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-purple-900/30 transition hover:-translate-y-[2px] hover:bg-purple-500 active:scale-[0.98] w-full mt-auto"
+          >
+            <BookOpen className="h-4 w-4 transition-transform group-hover/btn:scale-110" /> 
+            Tiếp tục đọc
+          </Link>
+        )}
       </div>
     </div>
   );
 }
 
-export default function ComicHistory({ userId }) {
+export default function ComicHistory({ userId, adminView = false }) {
   const { user: currentUser } = useAuth();
   const uid = userId || currentUser?.uid;
   
@@ -151,29 +169,32 @@ export default function ComicHistory({ userId }) {
   if (!uid) return null;
 
   return (
-    <div className="mt-10 space-y-6">
-      <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-        <h2 className="text-2xl font-bold text-white">Lịch sử đọc truyện</h2>
-        <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">
-          {history.length}
-        </span>
-      </div>
+    <div className={`${adminView ? "mt-0" : "mt-10"} space-y-6`}>
+      {!adminView && (
+        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+          <h2 className="text-2xl font-bold text-white">Lịch sử đọc truyện</h2>
+          <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">
+            {history.length}
+          </span>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-slate-400 text-sm">Đang tải lịch sử...</div>
       ) : history.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-slate-400 text-sm">
-          Bạn chưa đọc truyện nào.
+          {adminView ? "Người dùng này chưa đọc truyện nào." : "Bạn chưa đọc truyện nào."}
         </div>
       ) : (
-        <div className="max-h-[85vh] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
-          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`${adminView ? "max-h-none" : "max-h-[85vh] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar"}`}>
+          <div className={`grid gap-3 sm:gap-4 ${adminView ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
             {history.map((item) => (
               <ComicHistoryCard 
                 key={item.id} 
                 item={item} 
                 handleDelete={handleDeleteClick} 
                 uid={uid} 
+                adminView={adminView}
               />
             ))}
           </div>
