@@ -103,6 +103,8 @@ const Hero = ({ movie, movies = [] }) => {
   const background640 = toWsrv(background, 640);
   const background1280 = toWsrv(background, 1280);
   const background1920 = toWsrv(background, 1920);
+  const background2560 = toWsrv(background, 2560);
+  const background3840 = toWsrv(background, 3840);
   const ratingValue =
     typeof activeMovie.rating === "number"
       ? activeMovie.rating
@@ -114,22 +116,23 @@ const Hero = ({ movie, movies = [] }) => {
 
   return (
     <section
-      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[58vh] sm:h-[65vh] md:h-[62vh] lg:h-[120vh] min-h-[380px] md:min-h-[460px] lg:min-h-[420px] max-h-[620px] sm:max-h-[680px] md:max-h-[680px] lg:max-h-[720px]"
+      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px]"
       onMouseEnter={() => isHoverDevice && setIsPaused(true)}
       onMouseLeave={() => isHoverDevice && setIsPaused(false)}
     >
       <div className="absolute inset-0">
         {/* Backdrop chính – dùng <img> để kiểm soát object-position trên mobile */}
+        {/* Backdrop chính – dùng <img> với srcSet để tự động tối ưu độ phân giải và CSS để tránh zoom */}
         <img
-          src={background640}
-          srcSet={`${background640} 640w, ${background1280} 1280w, ${background1920} 1920w`}
+          src={background1280}
+          srcSet={`${background640} 640w, ${background1280} 1280w, ${background1920} 1920w, ${background2560} 2560w, ${background3840} 3840w`}
           sizes="100vw"
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-[center_20%] sm:object-[center_15%] md:object-center brightness-105 contrast-[1.08] transition-[src] duration-700 ease-out"
+          className="absolute inset-0 h-full w-full object-cover object-top brightness-105 contrast-[1.08] transition-opacity duration-700 ease-out"
           loading="eager"
           decoding="async"
           fetchPriority="high"
-          aria-hidden
+          aria-hidden="true"
         />
         {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin */}
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/65 via-slate-950/35 to-slate-950/10 pointer-events-none" />
@@ -137,11 +140,11 @@ const Hero = ({ movie, movies = [] }) => {
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
       </div>
 
-      <div className="relative z-10 flex h-full flex-col justify-end md:justify-center lg:justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-28 pt-16 sm:pb-32 md:px-10 md:pb-12 lg:px-16 lg:pb-8">
+      <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-16 pt-12 sm:pb-20 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
         <div className="max-w-3xl space-y-5 md:space-y-6">
 
           <div className="space-y-1.5 md:space-y-2">
-            <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl min-[2000px]:text-9xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
               {activeMovie.name}
             </h1>
           </div>
@@ -202,7 +205,7 @@ const Hero = ({ movie, movies = [] }) => {
         </div>
 
         {slides.length > 1 ? (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex gap-1.5 md:gap-2 rounded-2xl px-2 py-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex items-center gap-1.5 md:gap-2 rounded-2xl px-2 py-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
             {slides.slice(0, 6).map((item, idx) => {
               const isActive = idx === safeIndex;
               const thumbSource =
@@ -223,25 +226,27 @@ const Hero = ({ movie, movies = [] }) => {
                   key={item.slug}
                   type="button"
                   onClick={() => setActiveIndex(idx)}
-                  className={`group relative aspect-video w-20 sm:w-24 md:w-28 lg:w-32 overflow-hidden rounded-2xl md:rounded-full lg:rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${isActive
-                    ? "border-[rgb(16,185,129)]/80 shadow-[0_10px_26px_-12px_rgba(16,185,129,0.65)] lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
-                    : "border-white/15 hover:border-white/25"
-                    }`}
+                  className={`group relative transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${isActive
+                    ? "w-4 h-1.5 bg-[rgb(16,185,129)] lg:w-32 lg:h-auto lg:aspect-video lg:bg-transparent lg:border-[rgb(16,185,129)]/80 lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
+                    : "w-1.5 h-1.5 bg-white/25 hover:bg-white/40 lg:w-32 lg:h-auto lg:aspect-video lg:bg-transparent lg:border-white/15 lg:hover:border-white/25"
+                    } rounded-full lg:rounded-lg lg:border overflow-hidden`}
                   aria-label={`Chọn ${item.name}`}
                 >
-                  <img
-                    src={withWidthParam(thumbSource, 320) || thumbSource}
-                    alt={item.name}
-                    className={`h-full w-full ${fitClass} transition duration-500 group-hover:scale-105`}
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-                  {isActive ? (
-                    <span
-                      className="absolute inset-0 ring-2 ring-[rgb(16,185,129)]/90"
-                      aria-hidden="true"
+                  <div className="hidden lg:block absolute inset-0">
+                    <img
+                      src={withWidthParam(thumbSource, 320) || thumbSource}
+                      alt={item.name}
+                      className={`h-full w-full ${fitClass} transition duration-500 group-hover:scale-105`}
+                      loading="lazy"
                     />
-                  ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                    {isActive ? (
+                      <span
+                        className="absolute inset-0 ring-2 ring-[rgb(16,185,129)]/90"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                  </div>
                 </button>
               );
             })}
