@@ -1,5 +1,6 @@
 import axios from "axios";
 import { filterAdultMovies, isAdultMovie } from "../utils/filter";
+import { parseSeasonInfo } from "../utils/episodes";
 
 // Using the Proxy URL to keep the API Key secret on the server
 const baseURL = "https://stream.khophim.io.vn/tmdb/";
@@ -289,6 +290,61 @@ export const getTmdbFullEpisodes = async (
   } catch (error) {
     console.warn("[tmdb] full episodes failed", error.message);
     return [];
+  }
+};
+
+/**
+ * Search TMDB for a movie/TV by name (and optional year) and return its logo image URL.
+ * Tries `name` first, then `originName` if no result.
+ * Prefers Vietnamese → English → any language.
+ * Returns null if no logo is found.
+ */
+export const getTmdbLogo = async (name, originName, year) => {
+  if (!name && !originName) return null;
+
+  // Clean the name (e.g. "Movie Name (Phần 2)" -> "Movie Name")
+  const { baseName: cleanName } = parseSeasonInfo(name || "");
+  const { baseName: cleanOrigin } = parseSeasonInfo(originName || "");
+
+  try {
+    // Try primary name first, then fall back to origin_name
+    let match = cleanName ? await searchTmdbMovie(cleanName, year) : null;
+
+    // If search with year failed, try without year
+    if (!match && cleanName) {
+      match = await searchTmdbMovie(cleanName);
+    }
+
+    if (!match && cleanOrigin && cleanOrigin !== cleanName) {
+      match = await searchTmdbMovie(cleanOrigin, year);
+      if (!match) match = await searchTmdbMovie(cleanOrigin);
+    }
+    if (!match) return null;
+
+    const mediaType = match.media_type || "movie";
+    const id = match.id;
+
+    const { data } = await tmdb.get(`${mediaType}/${id}/images`, {
+      params: { include_image_language: "vi,en,null" },
+    });
+
+    const logos = data?.logos || [];
+    if (!logos.length) return null;
+
+    // Priority: vi → en → no-language (null/"") → any (zh, ja, etc.)
+    const pick =
+      logos.find((l) => l.iso_639_1 === "vi") ||
+      logos.find((l) => l.iso_639_1 === "en") ||
+      logos.find((l) => !l.iso_639_1) ||
+      logos[0];
+
+    if (!pick?.file_path) return null;
+
+    // Use original for maximum sharpness on all devices
+    return `https://image.tmdb.org/t/p/original${pick.file_path}`;
+  } catch (error) {
+    console.warn("[tmdb] logo fetch failed", error.message);
+    return null;
   }
 };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Film, Tv } from 'lucide-react';
+import { Layers, Film } from 'lucide-react';
 
 /**
  * Corporate Season Selector component.
@@ -10,9 +10,9 @@ import { Layers, Film, Tv } from 'lucide-react';
  */
 const SeasonSelector = ({ groups, currentSeason, currentSlug }) => {
   if (!groups) return null;
-  const { seasons = [], movies = [], series = [] } = groups;
+  const { seasons = [], movies = [] } = groups;
 
-  const hasAny = seasons.length > 0 || movies.length > 0 || series.length > 0;
+  const hasAny = seasons.length > 0 || movies.length > 0;
   if (!hasAny) return null;
 
   const renderSection = (title, items, icon, isSeason = false) => {
@@ -55,7 +55,6 @@ const SeasonSelector = ({ groups, currentSeason, currentSlug }) => {
     <div className="space-y-8 p-1">
       {renderSection("Mùa phim", seasons, <Layers className="h-4 w-4" />, true)}
       {renderSection("Bản điện ảnh", movies, <Film className="h-4 w-4" />)}
-      {renderSection("Series liên quan", series, <Tv className="h-4 w-4" />)}
     </div>
   );
 };

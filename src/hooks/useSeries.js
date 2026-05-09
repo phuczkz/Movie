@@ -50,10 +50,20 @@ export const useSeries = (currentMovie) => {
       .filter((m) => m.type === "season")
       .sort((a, b) => a.season - b.season);
     
+    // Deduplicate seasons by season number (keep the first one encountered)
+    const uniqueSeasons = [];
+    const seenSeasonNums = new Set();
+    seasons.forEach(s => {
+      if (!seenSeasonNums.has(s.season)) {
+        seenSeasonNums.add(s.season);
+        uniqueSeasons.push(s);
+      }
+    });
+    
     const movies = unique.filter((m) => m.type === "movie");
     const series = unique.filter((m) => m.type === "series" && m.slug !== currentMovie?.slug);
 
-    return { seasons, movies, series };
+    return { seasons: uniqueSeasons, movies, series };
   }, [baseName, searchResults, currentMovie?.slug]);
 
   const nextSeason = useMemo(() => {

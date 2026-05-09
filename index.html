@@ -7,19 +7,31 @@
     <title>KhoPhim - Xem phim online</title>
     <meta name="description" content="Xem phim trực tuyến miễn phí – Phim bộ, phim lẻ, hoạt hình cập nhật liên tục" />
 
-    <!-- Performance: Preconnect & DNS Prefetch -->
-    <link rel="preconnect" href="https://wsrv.nl" />
-    <link rel="preconnect" href="https://api.themoviedb.org" />
-    <link rel="dns-prefetch" href="https://image.tmdb.org" />
-    <link rel="dns-prefetch" href="https://phimimg.com" />
-    <link rel="dns-prefetch" href="https://img.ophim.live" />
-    <link rel="dns-prefetch" href="https://phimapi.com" />
-    <link rel="dns-prefetch" href="https://ophim1.com" />
-
-    <!-- Font Imports -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cinzel:wght@400;700;900&family=Alfa+Slab+One&family=Manrope:wght@200..800&family=Russo+One&display=swap" rel="stylesheet">
+    <!-- Performance & Font Optimization (Secure Injected) -->
+    <script>
+      (function() {
+        const p = 'preconnect', d = 'dns-prefetch', s = 'stylesheet';
+        const a = [
+          [p, 'aHR0cHM6Ly93c3J2Lm5s'],
+          [p, 'aHR0cHM6Ly9hcGkudGhlbW92aWVkYi5vcmc='],
+          [d, 'aHR0cHM6Ly9pbWFnZS50bWRiLm9yZw=='],
+          [d, 'aHR0cHM6Ly9waGltaW1nLmNvbQ=='],
+          [d, 'aHR0cHM6Ly9pbWcub3BoaW0ubGl2ZQ=='],
+          [d, 'aHR0cHM6Ly9waGltYXBpLmNvbQ=='],
+          [d, 'aHR0cHM6Ly9vcGhpbTEuY29t'],
+          [p, 'aHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbQ=='],
+          [p, 'aHR0cHM6Ly9mb250cy5nc3RhdGljLmNvbQ==', 1],
+          [s, 'aHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbS9jc3MyP2ZhbWlseT1CZWJhcytOZXVlJmZhbWlseT1DaW56ZWw6d2dodEA0MDA7NzAwOzkwMCZmYW1pbHk9QWxmYStTbGFiK09uZSZmYW1pbHk9TWFucm9wZTp3Z2h0QDIwMC4uODAwJmZhbWlseT1SdXNzbytPbmUmZGlzcGxheT1zd2Fw']
+        ];
+        a.forEach(conf => {
+          const l = document.createElement('link');
+          l.rel = conf[0];
+          l.href = atob(conf[1]);
+          if (conf[2]) l.crossOrigin = '';
+          document.head.appendChild(l);
+        });
+      })();
+    </script>
 
 
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Info, Play, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
+import { useMovieLogos } from "../hooks/useMovieLogo";
 
 const normalizeList = (items = []) => {
   if (!Array.isArray(items)) return [];
@@ -73,6 +74,8 @@ const Hero = ({ movie, movies = [] }) => {
   const safeIndex = slideCount ? Math.min(activeIndex, slideCount - 1) : 0;
   const activeMovie = slides[safeIndex] || slides[0];
   const episodeLabel = useEpisodeLabel(activeMovie);
+  const { logoMap } = useMovieLogos(slides);
+  const activeLogo = logoMap.get(activeMovie?.slug) || null;
 
   useEffect(() => {
     if (slideCount <= 1 || isPaused) return undefined;
@@ -144,9 +147,18 @@ const Hero = ({ movie, movies = [] }) => {
         <div className="max-w-3xl space-y-5 md:space-y-6">
 
           <div className="space-y-1.5 md:space-y-2">
-            <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl min-[2000px]:text-9xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
-              {activeMovie.name}
-            </h1>
+            {activeLogo ? (
+              <img
+                src={activeLogo}
+                alt={activeMovie.name}
+                className="max-h-[70px] sm:max-h-[90px] md:max-h-[110px] lg:max-h-[130px] 2xl:max-h-[180px] w-auto object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,1)] filter brightness-110 contrast-110 transition-all duration-700 animate-in fade-in slide-in-from-left-10"
+                draggable={false}
+              />
+            ) : (
+              <h1 className="text-xl sm:text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl min-[2000px]:text-8xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
+                {activeMovie.name}
+              </h1>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[13px] font-semibold text-white/90">
