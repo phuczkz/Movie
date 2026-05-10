@@ -74,7 +74,7 @@ const Hero = ({ movie, movies = [] }) => {
   const safeIndex = slideCount ? Math.min(activeIndex, slideCount - 1) : 0;
   const activeMovie = slides[safeIndex] || slides[0];
   const episodeLabel = useEpisodeLabel(activeMovie);
-  const { logoMap } = useMovieLogos(slides);
+  const { logoMap, isLoading: isLoadingLogos } = useMovieLogos(slides);
   const activeLogo = logoMap.get(activeMovie?.slug) || null;
 
   useEffect(() => {
@@ -149,8 +149,10 @@ const Hero = ({ movie, movies = [] }) => {
       <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-14 pt-12 sm:pb-16 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
         <div className="max-w-3xl space-y-3 md:space-y-6">
 
-          <div className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full">
-            {activeLogo ? (
+          <div className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[80px]">
+            {isLoadingLogos ? (
+              <div className="h-[40px] sm:h-[50px] md:h-[60px] lg:h-[80px] 2xl:h-[100px] w-full" />
+            ) : activeLogo ? (
               <img
                 src={activeLogo}
                 alt={activeMovie.name}
@@ -158,7 +160,7 @@ const Hero = ({ movie, movies = [] }) => {
                 draggable={false}
               />
             ) : (
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)] animate-in fade-in duration-700">
                 {activeMovie.name}
               </h1>
             )}
