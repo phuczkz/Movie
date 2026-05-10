@@ -117,6 +117,9 @@ const Hero = ({ movie, movies = [] }) => {
   const rating =
     typeof ratingValue === "number" ? ratingValue.toFixed(1) : undefined;
 
+  const partMatch = activeMovie?.name?.match(/(Phần\s+\d+|Part\s+\d+|Mùa\s+\d+|Season\s+\d+)/i);
+  const partString = partMatch ? partMatch[0] : null;
+
   return (
     <section
       className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px]"
@@ -143,62 +146,57 @@ const Hero = ({ movie, movies = [] }) => {
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
       </div>
 
-      <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-16 pt-12 sm:pb-20 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
-        <div className="max-w-3xl space-y-5 md:space-y-6">
+      <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-14 pt-12 sm:pb-16 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
+        <div className="max-w-3xl space-y-3 md:space-y-6">
 
-          <div className="space-y-1.5 md:space-y-2">
+          <div className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full">
             {activeLogo ? (
               <img
                 src={activeLogo}
                 alt={activeMovie.name}
-                className="max-h-[70px] sm:max-h-[90px] md:max-h-[110px] lg:max-h-[130px] 2xl:max-h-[180px] w-auto object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,1)] filter brightness-110 contrast-110 transition-all duration-700 animate-in fade-in slide-in-from-left-10"
+                className="mx-auto md:mx-0 max-h-[90px] sm:max-h-[100px] md:max-h-[120px] lg:max-h-[140px] 2xl:max-h-[180px] w-auto object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,1)] filter brightness-110 contrast-110 transition-all duration-700 animate-in fade-in slide-in-from-left-10"
                 draggable={false}
               />
             ) : (
-              <h1 className="text-xl sm:text-2xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl min-[2000px]:text-8xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)]">
                 {activeMovie.name}
               </h1>
             )}
+            {activeMovie.origin_name && (
+              <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left">
+                {activeMovie.origin_name}
+              </h2>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[13px] font-semibold text-white/90">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[14px] font-medium text-white">
             {activeMovie.year ? (
-              <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 sm:px-3.5 sm:py-1.5 shadow-lg shadow-black/20">
+              <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
                 {activeMovie.year}
               </span>
             ) : null}
+            {partString ? (
+              <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
+                {partString}
+              </span>
+            ) : null}
             {episodeLabel ? (
-              <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 sm:px-3.5 sm:py-1.5 shadow-lg shadow-black/20">
+              <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
                 {episodeLabel}
               </span>
             ) : null}
             {activeMovie.time ? (
-              <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 sm:px-3.5 sm:py-1.5 shadow-lg shadow-black/20">
+              <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
                 {activeMovie.time}
               </span>
             ) : null}
           </div>
 
 
-          <div className="hidden sm:flex flex-wrap gap-3 text-sm text-slate-200">
-            {countries.length ? (
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 shadow-black/25 shadow-lg">
-                Quốc gia
-                <span className="text-white/80">{countries.join(", ")}</span>
-              </span>
-            ) : null}
-            {categories.length ? (
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 shadow-black/25 shadow-lg">
-                Thể loại
-                <span className="text-white/80">{categories.join(", ")}</span>
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 pt-1">
+          <div className="hidden md:flex flex-wrap items-center justify-center md:justify-start gap-3 pt-1">
             <Link
               to={secondaryLink}
-              className="group inline-flex items-center gap-2.5 sm:gap-3 rounded-full bg-[rgb(16,185,129)] px-4 sm:px-5 md:px-6 py-2 md:py-3 text-[12px] sm:text-[13px] md:text-sm font-semibold text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
+              className="group hidden md:inline-flex items-center gap-2.5 sm:gap-3 rounded-full bg-[rgb(16,185,129)] px-4 sm:px-5 md:px-6 py-2 md:py-3 text-[12px] sm:text-[13px] md:text-sm font-semibold text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
             >
               <span className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
                 <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" fill="currentColor" />
@@ -216,8 +214,15 @@ const Hero = ({ movie, movies = [] }) => {
           </div>
         </div>
 
+        {/* Lớp phủ click cho mobile */}
+        <Link
+          to={primaryLink}
+          className="absolute inset-0 z-[5] md:hidden"
+          aria-label={`Xem chi tiết ${activeMovie.name}`}
+        />
+
         {slides.length > 1 ? (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex items-center gap-1.5 md:gap-2 rounded-2xl px-2 py-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
+          <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex items-center gap-1.5 md:gap-2 rounded-2xl px-2 py-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
             {slides.slice(0, 6).map((item, idx) => {
               const isActive = idx === safeIndex;
               const thumbSource =

@@ -13,6 +13,12 @@ import TrendingSection from "../components/TrendingSection.jsx";
 
 const quickFocusCards = [
   {
+    title: "Việt Nam",
+    subtitle: "Đặc Sắc",
+    to: "/country/viet-nam",
+    gradient: "from-[#8f75b2] to-[#b57887]",
+  },
+  {
     title: "Hàn Quốc",
     subtitle: "Phim Bộ",
     to: "/country/han-quoc",
@@ -31,15 +37,9 @@ const quickFocusCards = [
     gradient: "from-[#6887d0] to-[#9d5f8e]",
   },
   {
-    title: "Sitcom",
-    subtitle: "Game Shows",
-    to: "/search?q=sitcom",
-    gradient: "from-[#5f9f8e] to-[#9d7f72]",
-  },
-  {
     title: "Chiếu Rạp",
     subtitle: "Mới Nhất",
-    to: "/search?q=chieu-rap",
+    to: "/category/phim-chieu-rap",
     gradient: "from-[#8f75b2] to-[#b57887]",
   },
   {
@@ -51,13 +51,13 @@ const quickFocusCards = [
   {
     title: "Cổ Trang",
     subtitle: "Huyền Huyễn",
-    to: "/search?q=co-trang",
+    to: "/category/co-trang",
     gradient: "from-[#b56168] to-[#a94b59]",
   },
   {
     title: "Thuyết Minh",
-    subtitle: "VietDub",
-    to: "/search?q=thuyet-minh",
+    subtitle: "Thuyết Minh",
+    to: "/category/phim-thuyet-minh",
     gradient: "from-[#6f7d94] to-[#4f5f78]",
   },
 ];
@@ -166,7 +166,7 @@ const Home = () => {
 
       <Hero movies={heroMovies} />
 
-      <section className="rounded-3xl border border-white/5 bg-slate-950/80 p-0 overflow-hidden relative">
+      <section className="!mt-0 rounded-3xl p-0 overflow-hidden relative">
         <div className="mb-4 flex items-center gap-3 pt-6 px-4 sm:px-6 sm:mb-5">
           <span className="h-7 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
@@ -188,7 +188,7 @@ const Home = () => {
               />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
               <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl transition-all duration-500 group-hover:bg-white/20" />
-              
+
               <div className="relative z-10 flex h-full flex-col justify-between">
                 <h3 className="text-2xl font-black text-white leading-none tracking-tight drop-shadow-md">
                   {item.title}
@@ -246,7 +246,7 @@ const Home = () => {
         </Section>
       </div>
 
-      <div ref={refPopular}>
+      {/* <div ref={refPopular}>
         <Section
           title="Phim thịnh hành (Poster)"
           action={
@@ -263,7 +263,7 @@ const Home = () => {
             <Grid items={cap(popular)} priorityCount={4} />
           )}
         </Section>
-      </div>
+      </div> */}
 
       <div ref={refAnime}>
         <Section
@@ -308,22 +308,6 @@ const Home = () => {
         </Section>
       </div>
 
-      {/* <div ref={refSingle}>
-        <Section
-          title="Phim lẻ (2)"
-          action={
-            <Link className="text-sm text-emerald-300" to="/category/phim-le">
-              Xem thêm
-            </Link>
-          }
-        >
-          {loadingSingle ? (
-            <GridSkeleton count={3} />
-          ) : (
-            <Grid items={cap(single)} priorityCount={3} />
-          )}
-        </Section>
-      </div> */}
     </div>
   );
 };

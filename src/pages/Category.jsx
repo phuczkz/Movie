@@ -10,6 +10,7 @@ import {
   useKKphimMovies,
 } from "../hooks/useKKphimMovies.js";
 import { searchKKphim } from "../api/kkphim";
+import { useChieuRapMerged } from "../hooks/useChieuRapMerged.js";
 
 const categoryLabels = {
   "hoat-hinh": "Hoạt hình",
@@ -19,6 +20,7 @@ const categoryLabels = {
   "kinh-di": "Kinh dị",
   "tam-ly": "Tâm lý",
   "phieu-luu": "Phiêu lưu",
+  "phim-thuyet-minh": "Thuyết minh",
 };
 
 const Category = () => {
@@ -37,7 +39,8 @@ const Category = () => {
   const isSingle = category === "phim-le";
   const isLatest = category === "phim-moi";
   const isAnimation = category === "hoat-hinh";
-  const isCategory = !isSeries && !isSingle && !isLatest;
+  const isChieuRap = category === "phim-chieu-rap";
+  const isCategory = !isSeries && !isSingle && !isLatest && !isChieuRap;
 
   const { data: seriesOphim = [], isLoading: loadingSeriesOphim } =
     useMoviesList("series", undefined, { enabled: isSeries, page });
@@ -60,6 +63,11 @@ const Category = () => {
     { enabled: isLatest, page }
   );
 
+  const { data: mergedChieuRap = [], isLoading: loadingChieuRap } = useChieuRapMerged(
+    page,
+    { enabled: isChieuRap }
+  );
+
   const { data: byCategory = [], isLoading: loadingCategory } = useMoviesList(
     "category",
     category,
@@ -79,8 +87,9 @@ const Category = () => {
     if (isSeries) return "Phim bộ";
     if (isSingle) return "Phim lẻ";
     if (isLatest) return "Phim mới";
+    if (isChieuRap) return "Phim chiếu rạp";
     return categoryLabels[category] || category;
-  }, [isSeries, isSingle, isLatest, category]);
+  }, [isSeries, isSingle, isLatest, isChieuRap, category]);
 
   const mergedData = useMemo(() => {
     const mergeUnique = (...lists) => {
@@ -95,6 +104,7 @@ const Category = () => {
     if (isSeries) return mergeUnique(seriesKK, seriesOphim);
     if (isSingle) return mergeUnique(singleKK, singleOphim);
     if (isLatest) return mergeUnique(latestKK, latestOphim);
+    if (isChieuRap) return mergedChieuRap;
 
     const mergedCategory = mergeUnique(
       isAnimation ? kkAnimation : kkCategory,
@@ -111,6 +121,8 @@ const Category = () => {
     isLatest,
     latestKK,
     latestOphim,
+    isChieuRap,
+    mergedChieuRap,
     byCategory,
     kkCategory,
     kkAnimation,
@@ -121,6 +133,7 @@ const Category = () => {
     if (isSeries) return loadingSeriesOphim || loadingSeriesKK;
     if (isSingle) return loadingSingleOphim || loadingSingleKK;
     if (isLatest) return loadingLatestOphim || loadingLatestKK;
+    if (isChieuRap) return loadingChieuRap;
     return (
       loadingCategory ||
       loadingKKCategory ||
@@ -136,6 +149,8 @@ const Category = () => {
     isLatest,
     loadingLatestOphim,
     loadingLatestKK,
+    isChieuRap,
+    loadingChieuRap,
     loadingCategory,
     loadingKKCategory,
     loadingKKAnimation,

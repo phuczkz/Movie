@@ -18,16 +18,67 @@ const slugify = (text = "") =>
     .trim()
     .replace(/\s+/g, "-");
 
-const dedupeBySlug = (items = []) => {
-  const seen = new Set();
-  const out = [];
+const parseEpisodeCount = (str) => {
+  if (!str) return 0;
+  // Match the first number found (e.g., "Tập 12" -> 12, "12/12" -> 12)
+  const match = String(str).match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+};
+
+const smartDedupe = (items = []) => {
+  const map = new Map();
+  const results = [];
+
   for (const it of items) {
-    const key = it?.slug || it?._id || it?.id;
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(it);
+    if (!it) continue;
+
+    const slug = it.slug || it._id || it.id;
+    const name = (it.name || "").toLowerCase().trim();
+    const originName = (it.origin_name || "").toLowerCase().trim();
+    const year = it.year;
+
+    // Build a set of potential identity keys
+    const identityKeys = new Set();
+    if (slug) identityKeys.add(`slug:${slug}`);
+    
+    // We only use Name/OriginName as keys if they are substantial
+    if (year) {
+      if (originName && originName.length > 2) identityKeys.add(`origin:${originName}|${year}`);
+      if (name && name.length > 2) identityKeys.add(`name:${name}|${year}`);
+    }
+
+    // Check if any key already exists in our map
+    let existing = null;
+    for (const key of identityKeys) {
+      if (map.has(key)) {
+        existing = map.get(key);
+        break;
+      }
+    }
+
+    if (existing) {
+      const currentEpisodes = parseEpisodeCount(it.episode_current);
+      const existingEpisodes = parseEpisodeCount(existing.episode_current);
+
+      // If the new one has more episodes, we replace the existing one
+      if (currentEpisodes > existingEpisodes) {
+        // Update all associated keys to point to the new item
+        for (const key of identityKeys) {
+          map.set(key, it);
+        }
+        // Also ensure the old item's slug points to the new one in case it was different
+        if (existing.slug) map.set(`slug:${existing.slug}`, it);
+      }
+    } else {
+      // New item: map all its identity keys to it
+      for (const key of identityKeys) {
+        map.set(key, it);
+      }
+    }
   }
-  return out;
+
+  // Use a Set to get unique movie objects from the map values
+  return Array.from(new Set(map.values()));
 };
 
 export const useSearchMovies = (query, appMode = "movie", page = 1) =>
@@ -73,7 +124,7 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
 
       const results = await Promise.all(requests);
 
-      return filterAdultMovies(dedupeBySlug(results.flat()));
+      return filterAdultMovies(smartDedupe(results.flat().filter(Boolean)));
     },
     enabled: Boolean(query?.trim()),
     staleTime: 10 * 60 * 1000,

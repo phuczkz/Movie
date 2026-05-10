@@ -343,11 +343,25 @@ export const getSingle = (page = 1) =>
     return mapOrFallback(unwrapItems(data));
   }, []);
 
+export const getOphimChieuRap = (page = 1) =>
+  withFallback(async () => {
+    const { data } = await client.get("/danh-sach/phim-chieu-rap", {
+      params: { page },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
+
 export const getCategory = (category, page = 1) =>
   withFallback(async () => {
     // TMDB Animation category integration
     if (category === "hoat-hinh") {
       return getTmdbByGenre(16, page);
+    }
+    if (category === "phim-thuyet-minh") {
+      const { data } = await client.get("/danh-sach/phim-thuyet-minh", {
+        params: { page },
+      });
+      return mapOrFallback(uniqueBySlug(unwrapItems(data)));
     }
 
     const { data } = await client.get(`/the-loai/${category}`, {

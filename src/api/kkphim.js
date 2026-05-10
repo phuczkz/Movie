@@ -87,6 +87,8 @@ export const getKKphimSeries = (page = 1) =>
   fetchList("/danh-sach/phim-bo", page);
 export const getKKphimSingle = (page = 1) =>
   fetchList("/danh-sach/phim-le", page);
+export const getKKphimChieuRap = (page = 1) =>
+  fetchList("/danh-sach/phim-chieu-rap", page);
 
 export const getKKphimDetail = async (slug, options = {}) => {
   const { data } = await kkphim.get(`/phim/${slug}`, {
