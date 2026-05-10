@@ -95,6 +95,7 @@ export const AuthProvider = ({ children }) => {
     title: "",
     message: "",
     statusText: "",
+    isLoaded: false,
   });
 
   const firebaseStartedRef = useRef(false);
@@ -113,6 +114,7 @@ export const AuthProvider = ({ children }) => {
       const { config, authMod, firestoreMod } = await loadFirebaseSdk();
 
       if (!config.isFirebaseConfigured || !config.auth) {
+        setMaintenance((prev) => ({ ...prev, isLoaded: true }));
         setLoading(false);
         return;
       }
@@ -126,7 +128,10 @@ export const AuthProvider = ({ children }) => {
         cleanup.maintenanceUnsubscribe = firestoreMod.onSnapshot(
           maintenanceRef,
           (snap) => {
-            if (!snap.exists()) return;
+            if (!snap.exists()) {
+              setMaintenance((prev) => ({ ...prev, isLoaded: true }));
+              return;
+            }
             const data = snap.data();
             setMaintenance({
               enabled: data.enabled === true,
@@ -135,6 +140,7 @@ export const AuthProvider = ({ children }) => {
                 data.message ||
                 "Admin đang nghèo, ủng hộ Admin để duy trì website",
               statusText: data.statusText || "ĐANG NÂNG CẤP HỆ THỐNG",
+              isLoaded: true,
             });
           }
         );
@@ -219,6 +225,7 @@ export const AuthProvider = ({ children }) => {
       );
     } catch (err) {
       console.error("Firebase auth init failed:", err);
+      setMaintenance((prev) => ({ ...prev, isLoaded: true }));
       setLoading(false);
     }
   }, [cleanup]);

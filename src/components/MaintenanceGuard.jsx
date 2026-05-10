@@ -12,7 +12,7 @@ const MaintenanceIllustration = lazy(() =>
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 export default function MaintenanceGuard({ children }) {
-  const { user, logout, userProfile, maintenance } = useAuth();
+  const { user, logout, userProfile, maintenance, loading } = useAuth();
   const { appMode, setAppMode } = useAppMode();
   const location = useLocation();
   const navigate = useNavigate();
@@ -62,28 +62,23 @@ export default function MaintenanceGuard({ children }) {
     };
   }, [isActive]);
 
-  if (!appMode && !isLoginPath) {
-    return <SelectionScreen />;
+  if (loading || !maintenance.isLoaded) {
+    return (
+      <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center z-[99999]">
+        <div className="relative flex flex-col items-center gap-5">
+          <div className="w-12 h-12 border-4 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <>
-      {children}
-      {isActive && (
-        <div
-          style={{ zIndex: 99999 }}
-          className="fixed inset-0 grid grid-rows-[1fr_auto] bg-white select-none text-slate-800 overflow-hidden"
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <button
-            onClick={() => {
-              setAppMode(null);
-              navigate("/", { replace: true });
-            }}
-            className="absolute top-4 right-4 z-20 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-xl hover:shadow-slate-200 active:scale-95 text-xs sm:text-sm font-bold"
-          >
-            Quay lại chọn mục
-          </button>
+  if (isActive) {
+    return (
+      <div
+        style={{ zIndex: 99999 }}
+        className="fixed inset-0 grid grid-rows-[1fr_auto] bg-white select-none text-slate-800 overflow-hidden"
+        onContextMenu={(e) => e.preventDefault()}
+      >
 
           {/* Main Content Container */}
           <div className="w-full flex items-center justify-center px-6 py-6">
@@ -125,26 +120,16 @@ export default function MaintenanceGuard({ children }) {
                     Đăng xuất tài khoản
                   </button>
                 )}
-
-                <button
-                  onClick={() => {
-                    setAppMode(null);
-                    navigate("/", { replace: true });
-                  }}
-                  className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition-all shadow-xl hover:shadow-slate-200 active:scale-95 text-sm font-bold"
-                >
-                  Quay lại chọn mục giải trí
-                </button>
               </div>
             </div>
           </div>
-
-          {/* Copyright/Footer */}
-          <div className="w-full py-8 text-center text-slate-400 text-xs font-medium tracking-widest uppercase mt-auto bg-slate-50/50 border-t border-slate-100">
-            © 2026 Movie Streaming — All Rights Reserved
-          </div>
         </div>
-      )}
-    </>
-  );
+    );
+  }
+
+  if (!appMode && !isLoginPath) {
+    return <SelectionScreen />;
+  }
+
+  return <>{children}</>;
 }

@@ -7,7 +7,7 @@ Khám phá, xem và lưu phim/series với trải nghiệm mượt mà trên web
 </div>
 
 ### Giới thiệu
-Ứng dụng React + Vite giúp người dùng duyệt, tìm kiếm và xem phim/series. Dữ liệu lấy từ nhiều nguồn (KKphim, TMDB), hỗ trợ đăng nhập qua Firebase, lưu danh sách yêu thích và xem trực tiếp qua HLS.
+Ứng dụng React + Vite giúp người dùng duyệt, tìm kiếm và xem phim/series. Dữ liệu lấy từ nhiều nguồn TMDB, hỗ trợ đăng nhập qua Firebase, lưu danh sách yêu thích và xem trực tiếp qua HLS.
 
 ### Yêu cầu
 - Node.js >= 18
