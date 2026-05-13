@@ -9,12 +9,21 @@ const MaintenanceNew = () => {
             setMousePos({ x: e.clientX, y: e.clientY });
         };
 
+        // Force hide system cursor on body
+        document.body.style.cursor = 'none';
+        document.documentElement.style.cursor = 'none';
+
         window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            // Restore cursor
+            document.body.style.cursor = 'auto';
+            document.documentElement.style.cursor = 'auto';
+        };
     }, []);
 
     return (
-        <div className="relative w-full h-screen bg-white overflow-hidden font-['Outfit',sans-serif] select-none cursor-none">
+        <div className="maintenance-page relative w-full h-screen bg-white overflow-hidden font-['Outfit',sans-serif] select-none cursor-none">
             {/* Custom Sword Mouse Cursor */}
             <div
                 className={`fixed pointer-events-none z-[9999] transition-transform duration-100 ease-out`}
@@ -26,7 +35,7 @@ const MaintenanceNew = () => {
                 }}
             >
                 <img
-                    src="https://minecraft.wiki/images/Diamond_Sword_JE2_BE2.png"
+                    src="/icons/sword-cursor.png"
                     alt="Sword Cursor"
                     className="w-12 h-12 object-contain"
                 />
@@ -93,6 +102,11 @@ const MaintenanceNew = () => {
                 .animate-fade-in { animation: fadeIn 1.2s ease-out forwards; }
                 .delay-100 { animation-delay: 0.15s; }
                 .delay-200 { animation-delay: 0.3s; }
+                
+                /* Completely hide system cursor for EVERYTHING in this page */
+                .maintenance-page, .maintenance-page * {
+                    cursor: none !important;
+                }
             `}} />
         </div>
     );
