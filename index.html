@@ -1,64 +1,67 @@
 <!doctype html>
 <html lang="vi">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>KhoPhim - Xem phim online</title>
-    <meta name="description" content="Xem phim trực tuyến miễn phí – Phim bộ, phim lẻ, hoạt hình cập nhật liên tục" />
 
-    <!-- Performance & Font Optimization (Secure Injected) -->
-    <script>
-      (function() {
-        const p = 'preconnect', d = 'dns-prefetch', s = 'stylesheet';
-        const a = [
-          [p, 'aHR0cHM6Ly93c3J2Lm5s'],
-          [p, 'aHR0cHM6Ly9hcGkudGhlbW92aWVkYi5vcmc='],
-          [d, 'aHR0cHM6Ly9pbWFnZS50bWRiLm9yZw=='],
-          [d, 'aHR0cHM6Ly9waGltaW1nLmNvbQ=='],
-          [d, 'aHR0cHM6Ly9pbWcub3BoaW0ubGl2ZQ=='],
-          [d, 'aHR0cHM6Ly9waGltYXBpLmNvbQ=='],
-          [d, 'aHR0cHM6Ly9vcGhpbTEuY29t'],
-          [p, 'aHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbQ=='],
-          [p, 'aHR0cHM6Ly9mb250cy5nc3RhdGljLmNvbQ==', 1],
-          [s, 'aHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbS9jc3MyP2ZhbWlseT1CZWJhcytOZXVlJmZhbWlseT1DaW56ZWw6d2dodEA0MDA7NzAwOzkwMCZmYW1pbHk9QWxmYStTbGFiK09uZSZmYW1pbHk9TWFucm9wZTp3Z2h0QDIwMC4uODAwJmZhbWlseT1SdXNzbytPbmUmZGlzcGxheT1zd2Fw']
-        ];
-        a.forEach(conf => {
-          const l = document.createElement('link');
-          l.rel = conf[0];
-          l.href = atob(conf[1]);
-          if (conf[2]) l.crossOrigin = '';
-          document.head.appendChild(l);
-        });
-      })();
-    </script>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>KhoPhim</title>
+  <meta name="description" content="Xem phim trực tuyến miễn phí – Phim bộ, phim lẻ, hoạt hình cập nhật liên tục" />
 
-
-
+  <!-- Performance & Font Optimization (Secure Injected) -->
+  <script>
+    (function () {
+      const p = 'preconnect', d = 'dns-prefetch', s = 'stylesheet';
+      const a = [
+        [p, 'aHR0cHM6Ly93c3J2Lm5s'],
+        [p, 'aHR0cHM6Ly9hcGkudGhlbW92aWVkYi5vcmc='],
+        [d, 'aHR0cHM6Ly9pbWFnZS50bWRiLm9yZw=='],
+        [d, 'aHR0cHM6Ly9waGltaW1nLmNvbQ=='],
+        [d, 'aHR0cHM6Ly9pbWcub3BoaW0ubGl2ZQ=='],
+        [d, 'aHR0cHM6Ly9waGltYXBpLmNvbQ=='],
+        [d, 'aHR0cHM6Ly9vcGhpbTEuY29t'],
+        [p, 'aHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbQ=='],
+        [p, 'aHR0cHM6Ly9mb250cy5nc3RhdGljLmNvbQ==', 1],
+        [s, 'aHR0cHM6Ly9mb250cy5nb29nbGVhcGlzLmNvbS9jc3MyP2ZhbWlseT1CZWJhcytOZXVlJmZhbWlseT1DaW56ZWw6d2dodEA0MDA7NzAwOzkwMCZmYW1pbHk9QWxmYStTbGFiK09uZSZmYW1pbHk9TWFucm9wZTp3Z2h0QDIwMC4uODAwJmZhbWlseT1SdXNzbytPbmUmZGlzcGxheT1zd2Fw']
+      ];
+      a.forEach(conf => {
+        const l = document.createElement('link');
+        l.rel = conf[0];
+        l.href = atob(conf[1]);
+        if (conf[2]) l.crossOrigin = '';
+        document.head.appendChild(l);
+      });
+    })();
+  </script>
 
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#0b0b15" />
 
-    <!-- iOS PWA – standalone mode -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="KhoPhim" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <!-- iOS Splash Screens -->
-    <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
 
-    <!-- Android Chrome themeColor -->
-    <meta name="mobile-web-app-capable" content="yes" />
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0b0b15" />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
+  <!-- iOS PWA – standalone mode -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="KhoPhim" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+  <!-- iOS Splash Screens -->
+  <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
+
+  <!-- Android Chrome themeColor -->
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
+
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

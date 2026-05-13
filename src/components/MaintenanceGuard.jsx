@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { useAppMode } from "../context/AppModeContext";
 import SelectionScreen from "./SelectionScreen.jsx";
+import MaintenanceNew from "./MaintenanceNew.jsx";
 
 const MaintenanceIllustration = lazy(() =>
   import("./MaintenanceIllustration.jsx")
@@ -73,22 +74,19 @@ export default function MaintenanceGuard({ children }) {
   }
 
   if (isActive) {
+    /* 
+    // Old Maintenance UI (Kept as requested)
     return (
       <div
         style={{ zIndex: 99999 }}
         className="fixed inset-0 grid grid-rows-[1fr_auto] bg-white select-none text-slate-800 overflow-hidden"
         onContextMenu={(e) => e.preventDefault()}
       >
-
-          {/* Main Content Container */}
           <div className="w-full flex items-center justify-center px-6 py-6">
             <div className="max-w-4xl w-full flex flex-col items-center text-center space-y-6 animate-in fade-in zoom-in duration-500">
-              {/* Illustration */}
               <Suspense fallback={<div className="h-40 w-full" />}>
                 <MaintenanceIllustration />
               </Suspense>
-
-              {/* Typography */}
               <div className="space-y-4">
                 <h1 className="text-4xl md:text-6xl font-black text-[#1e4e8c] tracking-tight uppercase">
                   {maintenance?.title || "BẢO TRÌ HỆ THỐNG"}
@@ -98,8 +96,6 @@ export default function MaintenanceGuard({ children }) {
                     "Admin đang nghèo, ủng hộ Admin để duy trì website"}
                 </p>
               </div>
-
-              {/* Sub-notice / Status indicator */}
               <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-blue-50 border border-blue-100/50">
                 <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
@@ -109,7 +105,6 @@ export default function MaintenanceGuard({ children }) {
                   {maintenance?.statusText || "ĐANG NÂNG CẤP HỆ THỐNG"}
                 </span>
               </div>
-
               <div className="pt-4 flex flex-col sm:flex-row gap-4 items-center justify-center">
                 {user && (
                   <button
@@ -125,6 +120,8 @@ export default function MaintenanceGuard({ children }) {
           </div>
         </div>
     );
+    */
+    return <MaintenanceNew />;
   }
 
   if (!appMode && !isLoginPath) {
