@@ -65,6 +65,39 @@ export const usePlayerHotkeys = (artInstanceRef) => {
     };
 
     document.addEventListener("keydown", handleGlobalKeyDown);
-    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+
+    // Integrate with Media Session API for PIP mode and OS media controls
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+          const art = artInstanceRef.current;
+          if (art && art.isReady) {
+            const skipTime = details.seekOffset || 10;
+            art.backward = skipTime;
+            art.emit('notice', `Lùi ${skipTime} giây`);
+          }
+        });
+        navigator.mediaSession.setActionHandler("seekforward", (details) => {
+          const art = artInstanceRef.current;
+          if (art && art.isReady) {
+            const skipTime = details.seekOffset || 10;
+            art.forward = skipTime;
+            art.emit('notice', `Tiến ${skipTime} giây`);
+          }
+        });
+      } catch (error) {
+        console.warn("Media Session API seek handlers not supported", error);
+      }
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleGlobalKeyDown);
+      if ("mediaSession" in navigator) {
+        try {
+          navigator.mediaSession.setActionHandler("seekbackward", null);
+          navigator.mediaSession.setActionHandler("seekforward", null);
+        } catch (e) {}
+      }
+    };
   }, [artInstanceRef]);
 };

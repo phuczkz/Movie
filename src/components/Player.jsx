@@ -132,6 +132,11 @@ const Player = ({
           // ── Performance timing ──
           const t0 = performance.now();
 
+          if (hlsInstanceRef.current) {
+            hlsInstanceRef.current.destroy();
+            hlsInstanceRef.current = null;
+          }
+
           const hls = new Hls({
             ...hlsConfig,
             capLevelToPlayerSize: false,
@@ -365,6 +370,7 @@ const Player = ({
           ? [
             {
               position: "right",
+              name: "theater-mode",
               index: 15,
               html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
               tooltip: theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim",
@@ -377,6 +383,7 @@ const Player = ({
           ? [
             {
               position: "right",
+              name: "next-episode",
               index: 20,
               html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
               tooltip: isLastEpisodeOfSeason && nextSeason ? `Chuyển sang Phần ${nextSeason.seasonNumber}` : "Tập tiếp theo",
@@ -512,7 +519,7 @@ const Player = ({
       if (artInstanceRef.current) { artInstanceRef.current.destroy(false); artInstanceRef.current = null; }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, Hls, isHls, canUseIframe]);
+  }, [Hls, isHls, canUseIframe]);
 
 
 
@@ -520,6 +527,58 @@ const Player = ({
     playbackIssueReportedRef.current = false;
     lastPositionRef.current = typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0;
   }, [source, initialTime]);
+
+  // Seamless source/poster switching
+  useEffect(() => {
+    if (artInstanceRef.current && source && !canUseIframe) {
+      // Avoid redundant switches if the URL is the same
+      if (artInstanceRef.current.url === source) return;
+
+      console.log("[Player] Seamlessly switching to next episode:", source);
+      artInstanceRef.current.switchUrl(source, posterUrl);
+    }
+  }, [source, posterUrl, canUseIframe]);
+
+  // Update dynamic UI elements (header, next episode overlay, tooltips)
+  useEffect(() => {
+    const art = artInstanceRef.current;
+    if (!art) return;
+
+    // 1. Update Header
+    const headerEl = art.template?.$player?.querySelector("#art-header-layer");
+    if (headerEl) {
+      headerEl.outerHTML = getHeaderHtml(title, subtitle);
+    }
+
+    // 2. Update Next Episode Overlay Text
+    if (nextEpBtnElRef.current) {
+      const span = nextEpBtnElRef.current.querySelector("span");
+      if (span) {
+        span.innerHTML = `
+          ${isLastEpisodeOfSeason && nextSeason
+            ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""}</div>
+               Bạn có muốn chuyển sang <b>Phần ${nextSeason.seasonNumber} (Tập 1)</b> không?`
+            : 'Tập tiếp theo'
+          }
+        `;
+      }
+    }
+
+    // 3. Update Control Tooltips
+    if (art.controls["next-episode"]) {
+      art.controls.update({
+        name: "next-episode",
+        tooltip: isLastEpisodeOfSeason && nextSeason ? `Chuyển sang Phần ${nextSeason.seasonNumber}` : "Tập tiếp theo",
+      });
+    }
+
+    if (art.controls["theater-mode"]) {
+      art.controls.update({
+        name: "theater-mode",
+        tooltip: theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim",
+      });
+    }
+  }, [title, subtitle, isLastEpisodeOfSeason, nextSeason, currentSeason, theaterMode]);
 
   const containerClass = `relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 z-10 rounded-2xl border border-white/10`;
 
