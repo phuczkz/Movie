@@ -52,8 +52,8 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
 
     // ── Skip #EXT-X-KEY:METHOD=NONE (injected before ad blocks) ──
     if (line === "#EXT-X-KEY:METHOD=NONE") {
-      // Only remove if we are past 13 minutes (to cover the 14m ad)
-      if (accumulatedTime >= 13 * 60) {
+      // Allow cutting if before 2 mins (early ads) or after 13 mins (late ads)
+      if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
         i++;
         continue;
       }
@@ -69,7 +69,9 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
         // User requested: only cut video ads from minute 14 onwards.
         // The segment around 2m57s contains movie footage with an ad title overlay,
         // so we keep it to avoid skipping movie content.
-        if (accumulatedTime >= 13 * 60) {
+        // UPDATE: The user reported gambling ads at the very beginning (e.g. 28s).
+        // So we now cut ads if they are in the first 2 minutes OR after 13 minutes.
+        if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
           // Skip both the #EXTINF and the ad segment URL
           adsRemoved++;
           i += 2;
@@ -82,7 +84,7 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
 
     // ── Skip bare ad segment URLs (safety net) ──
     if (line && !line.startsWith("#") && isAdSegment(line)) {
-      if (accumulatedTime >= 13 * 60) {
+      if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
         adsRemoved++;
         i++;
         continue;
