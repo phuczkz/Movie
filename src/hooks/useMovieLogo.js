@@ -76,7 +76,11 @@ export const useMovieLogos = (movies = []) => {
     queryKey: ["movie-logos", listKey],
     queryFn: async () => {
       const results = await Promise.allSettled(
-        list.map(async (m) => {
+        list.map(async (m, index) => {
+          if (index > 0) {
+            // Delay fetching logos for subsequent slides to prioritize the first slide's assets
+            await new Promise((resolve) => setTimeout(resolve, 2000 + index * 500));
+          }
           const name = m.name || "";
           const originName = m.origin_name || "";
           const year = m.year;

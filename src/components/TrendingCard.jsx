@@ -29,6 +29,8 @@ const TrendingCard = ({ movie, index }) => {
   const imgRef = useRef(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [apiReady, setApiReady] = useState(false);
+  const hoverTimerRef = useRef(null);
 
   useEffect(() => {
     if (!imgRef.current || shouldLoad) return undefined;
@@ -45,11 +47,11 @@ const TrendingCard = ({ movie, index }) => {
     return () => observer.disconnect();
   }, [shouldLoad]);
 
-  // Fetch episodes to accurately detect languages (PD, TM, LT)
-  const { data: episodeList = [] } = useQuery({
+  // Fetch episodes only on hover
+  const { data: episodeList = [], isFetched } = useQuery({
     queryKey: ["card-episodes", movie?.slug],
     queryFn: () => getEpisodes(movie.slug),
-    enabled: shouldLoad && Boolean(movie?.slug),
+    enabled: apiReady && Boolean(movie?.slug),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
@@ -135,9 +137,24 @@ const TrendingCard = ({ movie, index }) => {
       .join(", ")})`,
   };
 
+  const handleMouseEnter = () => {
+    hoverTimerRef.current = setTimeout(() => {
+      setApiReady(true);
+    }, 200);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+  };
+
   return (
     <Link
       to={`/movie/${movie.slug}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className="group relative flex flex-col min-w-[200px] sm:min-w-[240px] max-w-[240px] transition-all duration-300 hover:z-30 snap-start"
     >
       {/* Slanted Poster Container using EXACT custom polygon for all edges and rounded corners */}

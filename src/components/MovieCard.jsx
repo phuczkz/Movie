@@ -174,12 +174,20 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
+  const hoverTimerRef = useRef(null);
+
   const handleMouseEnter = (e) => {
     if (suppressHover || !isHoverDevice) return;
 
+    // Trigger API fetch only if user stays on the card for 250ms
+    hoverTimerRef.current = setTimeout(() => {
+      setApiReady(true);
+      setHovered(true);
+    }, 250);
+
     const rect = e.currentTarget.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
-    const threshold = 160; // Half of popup width + padding
+    const threshold = 160;
 
     if (center < threshold) {
       setAlignment("left");
@@ -188,16 +196,15 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     } else {
       setAlignment("center");
     }
-    setHovered(true);
   };
 
-  useEffect(() => {
-    if (shouldLoad || priority) {
-      const delay = priority ? 0 : 300 + Math.random() * 800; // Spread requests over 1s
-      const timer = setTimeout(() => setApiReady(true), delay);
-      return () => clearTimeout(timer);
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
     }
-  }, [shouldLoad, priority]);
+    setHovered(false);
+  };
 
   const { data: episodeList = [], isFetched } = useQuery({
     queryKey: ["movie_episodes_v2", slug],
@@ -240,48 +247,54 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const audioBadges = useMemo(() => {
     const badges = [];
 
-    if (isFetched && episodeList.length === 0) {
-      badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
-      return badges;
+    // Use actual episode data if fetched
+    if (isFetched && episodeList.length > 0) {
+      const serverEpisodesMap = new Map();
+      episodeList.forEach((ep) => {
+        const label = normalizeServerLabel(ep.server_name);
+        if (label) {
+          if (!serverEpisodesMap.has(label)) serverEpisodesMap.set(label, []);
+          serverEpisodesMap.get(label).push(ep);
+        }
+      });
+
+      const makeEpText = (serverLabel) => {
+        const eps = serverEpisodesMap.get(serverLabel);
+        return eps ? computeEpisodeText(eps) : null;
+      };
+
+      if (serverEpisodesMap.has("Vietsub"))
+        badges.push({ key: "vietsub", code: "PĐ", label: "Phụ đề", episodeText: makeEpText("Vietsub") });
+      if (serverEpisodesMap.has("Thuyết Minh"))
+        badges.push({ key: "thuyetminh", code: "TM", label: "Thuyết minh", episodeText: makeEpText("Thuyết Minh") });
+      if (serverEpisodesMap.has("Lồng Tiếng"))
+        badges.push({ key: "longtieng", code: "LT", label: "Lồng tiếng", episodeText: makeEpText("Lồng Tiếng") });
     }
 
-    // Group episodes by normalized server label
-    const serverEpisodesMap = new Map();
-    episodeList.forEach((ep) => {
-      const label = normalizeServerLabel(ep.server_name);
-      if (label) {
-        if (!serverEpisodesMap.has(label)) serverEpisodesMap.set(label, []);
-        serverEpisodesMap.get(label).push(ep);
-      }
-    });
-
-    const makeEpText = (serverLabel) => {
-      const eps = serverEpisodesMap.get(serverLabel);
-      return eps ? computeEpisodeText(eps) : null;
-    };
-
-    if (serverEpisodesMap.has("Vietsub"))
-      badges.push({ key: "vietsub", code: "PĐ", label: "Phụ đề", episodeText: makeEpText("Vietsub") });
-    if (serverEpisodesMap.has("Thuyết Minh"))
-      badges.push({ key: "thuyetminh", code: "TM", label: "Thuyết minh", episodeText: makeEpText("Thuyết Minh") });
-    if (serverEpisodesMap.has("Lồng Tiếng"))
-      badges.push({ key: "longtieng", code: "LT", label: "Lồng tiếng", episodeText: makeEpText("Lồng Tiếng") });
-
+    // Fallback/Initial logic: use metadata from the movie object
     if (badges.length === 0) {
-      // Fallback: no episode data per server, use global fallback
       const fallbackEpText = computeEpisodeText([]);
-      const text = `${episodeCurrentText || ""} ${movieLang || ""}`.toLowerCase();
-      if (text.includes("vietsub") || text.includes("phụ đề"))
-        badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
-      if (text.includes("thuyết minh"))
-        badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh", episodeText: fallbackEpText });
-      if (text.includes("lồng tiếng"))
-        badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng", episodeText: fallbackEpText });
-    }
+      const text = `${episodeCurrentText || ""} ${movieLang || ""} ${movie?.status || ""}`.toLowerCase();
+      
+      const hasVietsub = text.includes("vietsub") || text.includes("phụ đề") || text.includes("phu de");
+      const hasThuyetMinh = text.includes("thuyết minh") || text.includes("thuy minh") || text.includes("tm");
+      const hasLongTieng = text.includes("lồng tiếng") || text.includes("long tieng") || text.includes("lt");
 
-    const statusText = (episodeCurrentText || movie?.status || "").toLowerCase();
-    if (statusText.includes("trailer") && badges.length === 0) {
-      badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
+      if (hasVietsub)
+        badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
+      if (hasThuyetMinh)
+        badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh", episodeText: fallbackEpText });
+      if (hasLongTieng)
+        badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng", episodeText: fallbackEpText });
+
+      if (badges.length === 0) {
+        if (text.includes("trailer")) {
+          badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
+        } else {
+          // Default to PĐ if we have no info yet
+          badges.push({ key: "default-pd", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
+        }
+      }
     }
 
     return badges;
@@ -317,7 +330,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
       ref={cardRef}
       className="mc-wrapper group relative flex flex-col"
       onMouseEnter={handleMouseEnter}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={handleMouseLeave}
     >
       <Link
         to={`/movie/${movie.slug}`}

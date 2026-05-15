@@ -25,9 +25,12 @@ const LoginBanner = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
       <div className="relative flex flex-col justify-end w-full max-w-2xl min-h-[480px] overflow-hidden bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in duration-300">
         {/* Background Image Container covering the entire modal */}
-        <div
-          className="absolute inset-0 w-full h-full bg-cover bg-center opacity-60"
-          style={{ backgroundImage: `url(${UNSPLASH_BG_OPTIMIZED})` }}
+        <img
+          src={UNSPLASH_BG_OPTIMIZED}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-60"
+          fetchPriority="high"
+          decoding="async"
           aria-hidden="true"
         />
         {/* Lớp phủ toàn bộ ảnh */}
