@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
 import GridSkeleton from "../components/GridSkeleton.jsx";
@@ -37,7 +36,6 @@ const Category = () => {
   const isSeries = category === "phim-bo";
   const isSingle = category === "phim-le";
   const isLatest = category === "phim-moi";
-  const isAnimation = category === "hoat-hinh";
   const isChieuRap = category === "phim-chieu-rap";
   const isCategory = !isSeries && !isSingle && !isLatest && !isChieuRap;
 

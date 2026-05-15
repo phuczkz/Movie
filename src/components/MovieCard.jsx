@@ -163,12 +163,12 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const episodeCurrentText = movie?.episode_current;
   const movieLang = movie?.lang;
 
-  const [isHoverDevice, setIsHoverDevice] = useState(false);
+  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+    typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(hover: hover)");
-    setIsHoverDevice(mediaQuery.matches);
-
     const handler = (e) => setIsHoverDevice(e.matches);
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
@@ -213,38 +213,38 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     staleTime: 1000 * 60 * 15, // 15 mins
   });
 
-  // Helper to compute episode text for a given list of episodes
-  const computeEpisodeText = (eps) => {
-    const latestFromList = eps.reduce((max, ep) => {
-      const n = parseEpisodeNumber(ep?.name || ep?.slug);
-      return Number.isFinite(n) ? Math.max(max, n) : max;
-    }, -1);
-
-    const epTotal = parseEpisodeNumber(movie?.episode_total);
-    const formatEp = (num) => (num < 10 && num > 0 ? `${num}` : num);
-
-    if (latestFromList >= 0) {
-      if (Number.isFinite(epTotal) && epTotal > 0) {
-        return `${formatEp(Math.min(latestFromList, epTotal))}/${epTotal}`;
-      }
-      return `${formatEp(latestFromList)}`;
-    }
-
-    const current = (movie?.episode_current || "").toLowerCase();
-    if (current.includes("full") || current.includes("hoàn tất")) return "Full";
-    
-    const parsedCurrent = parseEpisodeNumber(current);
-    if (parsedCurrent !== null && parsedCurrent > 0) {
-        if (Number.isFinite(epTotal) && epTotal > 1) {
-            return `${formatEp(parsedCurrent)}/${epTotal}`;
-        }
-        return formatEp(parsedCurrent);
-    }
-    
-    return null;
-  };
-
   const audioBadges = useMemo(() => {
+    // Helper to compute episode text for a given list of episodes
+    const computeEpisodeText = (eps) => {
+      const latestFromList = eps.reduce((max, ep) => {
+        const n = parseEpisodeNumber(ep?.name || ep?.slug);
+        return Number.isFinite(n) ? Math.max(max, n) : max;
+      }, -1);
+
+      const epTotalNum = parseEpisodeNumber(movie?.episode_total);
+      const formatEp = (num) => (num < 10 && num > 0 ? `${num}` : num);
+
+      if (latestFromList >= 0) {
+        if (Number.isFinite(epTotalNum) && epTotalNum > 0) {
+          return `${formatEp(Math.min(latestFromList, epTotalNum))}/${epTotalNum}`;
+        }
+        return `${formatEp(latestFromList)}`;
+      }
+
+      const current = (movie?.episode_current || "").toLowerCase();
+      if (current.includes("full") || current.includes("hoàn tất")) return "Full";
+      
+      const parsedCurrent = parseEpisodeNumber(current);
+      if (parsedCurrent !== null && parsedCurrent > 0) {
+          if (Number.isFinite(epTotalNum) && epTotalNum > 1) {
+              return `${formatEp(parsedCurrent)}/${epTotalNum}`;
+          }
+          return formatEp(parsedCurrent);
+      }
+      
+      return null;
+    };
+
     const badges = [];
 
     // Use actual episode data if fetched
@@ -298,7 +298,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     }
 
     return badges;
-  }, [episodeList, episodeCurrentText, movieLang, movie.status, isFetched]);
+  }, [episodeList, episodeCurrentText, movieLang, movie.status, movie.episode_total, movie.episode_current, isFetched]);
 
   useEffect(() => {
     if (!imgRef.current || shouldLoad) return undefined;

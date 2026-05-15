@@ -33,12 +33,12 @@ const ComicCard = ({ comic }) => {
 
   const [alignment, setAlignment] = useState("center");
 
-  const [isHoverDevice, setIsHoverDevice] = useState(false);
+  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+    typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(hover: hover)");
-    setIsHoverDevice(mediaQuery.matches);
-
     const handler = (e) => setIsHoverDevice(e.matches);
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);

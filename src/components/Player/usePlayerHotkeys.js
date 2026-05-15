@@ -96,7 +96,9 @@ export const usePlayerHotkeys = (artInstanceRef) => {
         try {
           navigator.mediaSession.setActionHandler("seekbackward", null);
           navigator.mediaSession.setActionHandler("seekforward", null);
-        } catch (e) {}
+        } catch {
+          // Media session handlers might not be supported on all browsers
+        }
       }
     };
   }, [artInstanceRef]);

@@ -5,7 +5,7 @@ import {
   Film,
 } from "lucide-react";
 import Rating from "../Rating.jsx";
-import { getOptimizedImage, getHiRes } from "./detailUtils.js";
+import { getOptimizedImage } from "./detailUtils.js";
 
 const DetailHero = ({
   movie,

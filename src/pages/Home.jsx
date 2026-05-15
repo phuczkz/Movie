@@ -119,7 +119,7 @@ const Home = () => {
   const [refSeries, showSeries] = useSectionVisibility();
   // const [refSingle, showSingle] = useSectionVisibility();
   const [refAnime, showAnime] = useSectionVisibility();
-  const [refPopular, showPopular] = useSectionVisibility();
+  const [, showPopular] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
 
@@ -142,7 +142,7 @@ const Home = () => {
   //   undefined,
   //   { enabled: showSingle, ...commonQueryOpts }
   // );
-  const { data: popular = [], isLoading: loadingPopular } = useTmdbPopular(1, {
+  const { data: popular = [] } = useTmdbPopular(1, {
     enabled: showPopular,
     ...commonQueryOpts,
   });

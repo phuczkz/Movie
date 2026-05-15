@@ -81,11 +81,15 @@ const comicGenreOptions = [
 const Dropdown = ({ label, options, isWide = false }) => {
   const [open, setOpen] = useState(false);
   const timerRef = useRef(null);
-  const [isHoverDevice, setIsHoverDevice] = useState(false);
+  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+    typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
+  );
 
   useEffect(() => {
     const mq = window.matchMedia("(hover: hover)");
-    setIsHoverDevice(mq.matches);
+    const handler = (e) => setIsHoverDevice(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
   const openNow = () => {
@@ -100,7 +104,7 @@ const Dropdown = ({ label, options, isWide = false }) => {
     timerRef.current = setTimeout(() => setOpen(false), 100);
   };
 
-  const handleButtonClick = (e) => {
+  const handleButtonClick = () => {
     if (isHoverDevice) return;
     setOpen(!open);
   };

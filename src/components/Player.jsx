@@ -30,7 +30,6 @@ const Player = ({
   isLastEpisodeOfSeason,
   onToggleTheater,
   theaterMode,
-  movieSlug,
 }) => {
   const artRef = useRef(null);             // DOM mount point for ArtPlayer
   const artInstanceRef = useRef(null);     // ArtPlayer instance

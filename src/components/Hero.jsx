@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { Info, Play, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
 import { useMovieLogos } from "../hooks/useMovieLogo";
 
-const normalizeList = (items = []) => {
+/* const normalizeList = (items = []) => {
   if (!Array.isArray(items)) return [];
   return items
     .map((item) => (typeof item === "string" ? item : item?.name))
     .filter(Boolean);
-};
+}; */
 
 const normalizeTmdbImageSize = (url, size = "w780") => {
   if (!url || typeof url !== "string") return url;
@@ -62,11 +62,12 @@ const Hero = ({ movie, movies = [] }) => {
   const slideCount = slides.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [isHoverDevice, setIsHoverDevice] = useState(false);
+  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+    typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(hover: hover)");
-    setIsHoverDevice(mediaQuery.matches);
     const handler = (e) => setIsHoverDevice(e.matches);
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
@@ -107,8 +108,8 @@ const Hero = ({ movie, movies = [] }) => {
   const secondaryLink = `/watch/${activeMovie.slug}`;
   const primaryLabel = "Xem Ngay";
 
-  const categories = normalizeList(activeMovie.category);
-  const countries = normalizeList(activeMovie.country);
+  // const categories = normalizeList(activeMovie.category);
+  // const countries = normalizeList(activeMovie.country);
   const rawBackground =
     activeMovie.backdrop_url ||
     activeMovie.thumb_url ||
@@ -128,14 +129,14 @@ const Hero = ({ movie, movies = [] }) => {
   const background1920 = isTmdb ? normalizeTmdbImageSize(background, "original") : toWsrv(background, 1920);
   const background2560 = background1920;
   const background3840 = background1920;
-  const ratingValue =
-    typeof activeMovie.rating === "number"
-      ? activeMovie.rating
-      : typeof activeMovie.vote_average === "number"
-        ? activeMovie.vote_average
-        : undefined;
-  const rating =
-    typeof ratingValue === "number" ? ratingValue.toFixed(1) : undefined;
+  // const ratingValue =
+  //   typeof activeMovie.rating === "number"
+  //     ? activeMovie.rating
+  //     : typeof activeMovie.vote_average === "number"
+  //       ? activeMovie.vote_average
+  //       : undefined;
+  // const rating =
+  //   typeof ratingValue === "number" ? ratingValue.toFixed(1) : undefined;
 
   const partMatch = activeMovie?.name?.match(/(Phần\s+\d+|Part\s+\d+|Mùa\s+\d+|Season\s+\d+)/i);
   const partString = partMatch ? partMatch[0] : null;
@@ -148,7 +149,7 @@ const Hero = ({ movie, movies = [] }) => {
     >
       <div className="absolute inset-0">
         <AnimatePresence mode="popLayout">
-          <motion.img
+          <Motion.img
             key={activeMovie?.slug}
             initial={{ opacity: 0, scale: 1.05 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -174,7 +175,7 @@ const Hero = ({ movie, movies = [] }) => {
       <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-14 pt-12 sm:pb-16 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
         <div className="max-w-3xl space-y-3 md:space-y-6">
           <AnimatePresence mode="wait">
-            <motion.div
+            <Motion.div
               key={activeMovie?.slug}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -228,7 +229,7 @@ const Hero = ({ movie, movies = [] }) => {
                   </span>
                 ) : null}
               </div>
-            </motion.div>
+            </Motion.div>
           </AnimatePresence>
 
               <div className="hidden md:flex flex-wrap items-center justify-center md:justify-start gap-3 pt-1">

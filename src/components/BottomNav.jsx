@@ -11,7 +11,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppMode } from "../context/AppModeContext";
 import { useStandalone } from "../hooks/useStandalone";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 
 /* ── static data ───────────────────────────────────────────────────────────── */
 
@@ -53,7 +53,7 @@ const TABS = [
 /* ── helpers ───────────────────────────────────────────────────────────────── */
 
 /** Map current pathname to a tab index (0-4). */
-const resolveTab = (pathname, isComic) => {
+const resolveTab = (pathname) => {
   // Home
   if (pathname === "/" || pathname === "/comics" || pathname === "/comics/") return 0;
   // Categories
@@ -87,8 +87,8 @@ const BottomNav = () => {
   const isComic = appMode === "comic";
 
   const routeTab = useMemo(
-    () => resolveTab(location.pathname, isComic),
-    [location.pathname, isComic]
+    () => resolveTab(location.pathname),
+    [location.pathname]
   );
 
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -153,7 +153,7 @@ const BottomNav = () => {
       {/* ── Backdrop ────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {(showCategoryMenu || showModeMenu) && (
-          <motion.div
+          <Motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -167,7 +167,7 @@ const BottomNav = () => {
       {/* ── Category overlay ────────────────────────────────────────────── */}
       <AnimatePresence>
         {showCategoryMenu && (
-          <motion.div
+          <Motion.div
             key="category"
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
@@ -194,14 +194,14 @@ const BottomNav = () => {
                 </a>
               ))}
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 
       {/* ── Mode picker ─────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showModeMenu && (
-          <motion.div
+          <Motion.div
             key="mode"
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -229,7 +229,7 @@ const BottomNav = () => {
               <BookOpen size={20} />
               <span>Comic</span>
             </button>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 

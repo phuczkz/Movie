@@ -48,7 +48,7 @@ const TrendingCard = ({ movie, index }) => {
   }, [shouldLoad]);
 
   // Fetch episodes only on hover
-  const { data: episodeList = [], isFetched } = useQuery({
+  const { data: episodeList = [] } = useQuery({
     queryKey: ["card-episodes", movie?.slug],
     queryFn: () => getEpisodes(movie.slug),
     enabled: apiReady && Boolean(movie?.slug),

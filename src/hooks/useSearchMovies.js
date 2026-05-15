@@ -27,7 +27,6 @@ const parseEpisodeCount = (str) => {
 
 const smartDedupe = (items = []) => {
   const map = new Map();
-  const results = [];
 
   for (const it of items) {
     if (!it) continue;

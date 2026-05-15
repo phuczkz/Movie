@@ -13,8 +13,8 @@ const MaintenanceIllustration = lazy(() =>
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 export default function MaintenanceGuard({ children }) {
-  const { user, logout, userProfile, maintenance, loading } = useAuth();
-  const { appMode, setAppMode } = useAppMode();
+  const { userProfile, maintenance, loading } = useAuth();
+  const { appMode } = useAppMode();
   const location = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();

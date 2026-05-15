@@ -1,8 +1,8 @@
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 
 const PageTransition = ({ children }) => {
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 10, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 1.01 }}
@@ -13,7 +13,7 @@ const PageTransition = ({ children }) => {
       className="w-full h-full"
     >
       {children}
-    </motion.div>
+    </Motion.div>
   );
 };
 
