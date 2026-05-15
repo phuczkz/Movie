@@ -9,7 +9,6 @@ import {
   useKKphimByCategory,
   useKKphimMovies,
 } from "../hooks/useKKphimMovies.js";
-import { searchKKphim } from "../api/kkphim";
 import { useChieuRapMerged } from "../hooks/useChieuRapMerged.js";
 
 const categoryLabels = {
@@ -75,13 +74,6 @@ const Category = () => {
   );
   const { data: kkCategory = [], isLoading: loadingKKCategory } =
     useKKphimByCategory(category, { enabled: isCategory, page });
-  // KKphim không có slug "hoat-hinh", dùng search để lấy dữ liệu
-  const { data: kkAnimation = [], isLoading: loadingKKAnimation } = useQuery({
-    queryKey: ["kkphim", "search", "hoat-hinh", page],
-    queryFn: () => searchKKphim("hoat hinh", page),
-    enabled: isAnimation,
-    staleTime: 5 * 60 * 1000,
-  });
 
   const heading = useMemo(() => {
     if (isSeries) return "Phim bộ";
@@ -107,7 +99,7 @@ const Category = () => {
     if (isChieuRap) return mergedChieuRap;
 
     const mergedCategory = mergeUnique(
-      isAnimation ? kkAnimation : kkCategory,
+      kkCategory,
       byCategory
     );
     return mergedCategory;
@@ -125,8 +117,6 @@ const Category = () => {
     mergedChieuRap,
     byCategory,
     kkCategory,
-    kkAnimation,
-    isAnimation,
   ]);
 
   const isLoading = useMemo(() => {
@@ -136,8 +126,7 @@ const Category = () => {
     if (isChieuRap) return loadingChieuRap;
     return (
       loadingCategory ||
-      loadingKKCategory ||
-      (isAnimation ? loadingKKAnimation : false)
+      loadingKKCategory
     );
   }, [
     isSeries,
@@ -153,8 +142,6 @@ const Category = () => {
     loadingChieuRap,
     loadingCategory,
     loadingKKCategory,
-    loadingKKAnimation,
-    isAnimation,
   ]);
 
   const pagedData = useMemo(() => {

@@ -43,6 +43,17 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
   const year = raw.release_date || raw.first_air_date || "";
   const runtime = raw.runtime || (raw.episode_run_time?.[0] ?? null);
 
+  let status = raw.status || "";
+  let isTrailer = false;
+  if (["Planned", "Upcoming", "In Production", "Rumored"].includes(raw.status)) {
+    status = "Trailer";
+    isTrailer = true;
+  } else if (status === "Released" || status === "Ended") {
+    status = "Full";
+  } else if (status === "Returning Series") {
+    status = "Tập mới";
+  }
+
   return {
     slug,
     name: raw.title || raw.name || null,
@@ -50,11 +61,11 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
     thumb_url,
     backdrop_url: thumb_url,
     year: year ? year.slice(0, 4) : undefined,
-    episode_current: raw.status || "",
+    episode_current: status,
     episode_total:
-      raw.number_of_episodes || (raw.status === "Released" ? "1" : ""),
-    quality: raw.original_language?.toUpperCase(),
-    lang: raw.original_language?.toUpperCase(),
+      raw.number_of_episodes || (isTrailer ? "?" : (raw.status === "Released" ? "1" : "")),
+    quality: isTrailer ? "Trailer" : "HD",
+    lang: isTrailer ? "Trailer" : "",
     time: runtime ? `${runtime} phút` : undefined,
     category: raw.genres?.map((g) => g.name) || raw.genre_ids || [],
     content: raw.overview,

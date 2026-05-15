@@ -198,7 +198,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     }
   }, [shouldLoad, priority]);
 
-  const { data: episodeList = [] } = useQuery({
+  const { data: episodeList = [], isFetched } = useQuery({
     queryKey: ["episodes", slug],
     queryFn: () => getEpisodes(slug),
     enabled: apiReady && !!slug,
@@ -238,6 +238,12 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
 
   const audioBadges = useMemo(() => {
     const badges = [];
+
+    if (isFetched && episodeList.length === 0) {
+      badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
+      return badges;
+    }
+
     // Group episodes by normalized server label
     const serverEpisodesMap = new Map();
     episodeList.forEach((ep) => {
@@ -263,7 +269,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     if (badges.length === 0) {
       // Fallback: no episode data per server, use global fallback
       const fallbackEpText = computeEpisodeText([]);
-      const text = (episodeCurrentText || movieLang || "").toLowerCase();
+      const text = `${episodeCurrentText || ""} ${movieLang || ""}`.toLowerCase();
       if (text.includes("vietsub") || text.includes("phụ đề"))
         badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
       if (text.includes("thuyết minh"))
@@ -273,12 +279,12 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     }
 
     const statusText = (episodeCurrentText || movie?.status || "").toLowerCase();
-    if (statusText.includes("trailer")) {
+    if (statusText.includes("trailer") && badges.length === 0) {
       badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
     }
 
     return badges;
-  }, [episodeList, episodeCurrentText, movieLang, movie.status]);
+  }, [episodeList, episodeCurrentText, movieLang, movie.status, isFetched]);
 
   useEffect(() => {
     if (!imgRef.current || shouldLoad) return undefined;

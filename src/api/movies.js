@@ -382,7 +382,50 @@ export const getDetail = (slug) =>
   withFallback(
     async () => {
       if (slug?.startsWith("tmdb-")) {
-        return getTmdbDetailBySlug(slug);
+        const tmdbData = await getTmdbDetailBySlug(slug);
+        if (!tmdbData.movie) return tmdbData;
+
+        try {
+           const q = tmdbData.movie.name;
+           if (q) {
+             const res = await client.get("/tim-kiem", { params: { keyword: q } }).catch(()=>null);
+             const rawItems = res?.data?.data?.items || res?.data?.items || res?.data?.movie || res?.data?.result || [];
+             const items = Array.isArray(rawItems) ? rawItems : [];
+             
+             const normalized = (text) => (text || "").toLowerCase().trim();
+             const namesToMatch = [tmdbData.movie.name, tmdbData.movie.origin_name]
+               .map(normalized)
+               .filter(Boolean);
+             const targetYear = tmdbData.movie.year;
+
+             const bestMatch = items.find((m) => {
+               const mYear = m.year || m.publishYear || m.released;
+               const nameHit =
+                 namesToMatch.includes(normalized(m.name)) ||
+                 namesToMatch.includes(normalized(m.origin_name));
+               const yearHit =
+                 targetYear && mYear ? String(mYear) === String(targetYear) : true;
+               return nameHit && yearHit;
+             });
+
+             if (bestMatch && bestMatch.slug && bestMatch.slug !== slug) {
+               const altDetail = await getDetail(bestMatch.slug);
+               if (altDetail && altDetail.episodes?.length) {
+                 tmdbData.episodes = altDetail.episodes;
+               }
+             }
+           }
+        } catch(e) {
+           console.warn("[getDetail] Error resolving alt tmdb episodes", e);
+        }
+
+        if (!tmdbData.episodes || tmdbData.episodes.length === 0) {
+            tmdbData.movie.episode_current = "Trailer";
+            tmdbData.movie.quality = "Trailer";
+            tmdbData.movie.lang = "Trailer";
+        }
+
+        return tmdbData;
       }
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 8000); // 8 seconds global timeout for detail
