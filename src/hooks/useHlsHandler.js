@@ -129,7 +129,9 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── ABR ──
       startLevel: -1,
-      abrEwmaDefaultEstimate: 5_000_000,
+      // For mobile, start with a conservative 500Kbps estimate (~360p-480p) so video plays immediately,
+      // instead of attempting to fetch 1080p chunks over cellular/weak wifi.
+      abrEwmaDefaultEstimate: isMobile ? 500_000 : 5_000_000,
       abrBandWidthFactor: 0.95,
       abrBandWidthUpFactor: 0.7,
 
@@ -146,7 +148,7 @@ export const useHlsHandler = (source, isHls) => {
       // ── PERFORMANCE CORE ──
       enableWorker: true,
       lowLatencyMode: false,
-      progressive: false,
+      progressive: true, // Enable progressive stream processing for faster Time-To-First-Frame
       startFragPrefetch: true,
       stretchShortVideoTrack: true,
 

@@ -10,7 +10,7 @@ import {
   Globe2,
   Info,
 } from "lucide-react";
-import { onSnapshot, doc, increment, setDoc, serverTimestamp } from "firebase/firestore";
+import { onSnapshot, doc, increment, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { db } from "../firebase.config.js";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
@@ -94,6 +94,15 @@ const Watch = () => {
   const lastSaveRef = useRef(0);
   const [deferLoad, setDeferLoad] = useState(false);
   const [mobileTab, setMobileTab] = useState("episodes");
+
+  // Prevent duplicate rendering on mobile by tracking desktop state
+  const [isDesktop, setIsDesktop] = useState(typeof window !== "undefined" ? window.innerWidth >= 1280 : true);
+  
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1280);
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setDeferLoad(true), 1000);
@@ -286,14 +295,21 @@ const Watch = () => {
 
   useEffect(() => {
     if (!slug || !db) return;
-    setDoc(doc(db, "movieViews", slug), {
+    const updateData = {
       slug,
       name: movie?.name || movie?.title || slug,
       poster: movie?.poster_url || movie?.thumb_url || "",
       views: increment(1),
       lastViewedAt: serverTimestamp(),
-    }, { merge: true }).catch(err => console.warn("[ViewTracking] Error updating views:", err));
-  }, [slug, movie]);
+    };
+
+    if (user?.uid) {
+      updateData.userIds = arrayUnion(user.uid);
+    }
+
+    setDoc(doc(db, "movieViews", slug), updateData, { merge: true })
+      .catch(err => console.warn("[ViewTracking] Error updating views:", err));
+  }, [slug, movie, user]);
 
   const actors = useMemo(() => {
     const baseActors = baseMovie?.slug?.startsWith("tmdb-") ? baseMovie?.actor : null;
@@ -396,74 +412,84 @@ const Watch = () => {
           />
         </div>
         
-        <div className="hidden xl:flex flex-col gap-6 h-full min-h-0">
-          <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
-          <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
-        </div>
+        {isDesktop && (
+          <div className="hidden xl:flex flex-col gap-6 h-full min-h-0">
+            <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+            <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
+          </div>
+        )}
       </div>
 
       {/* Mobile/Tablet Tabs */}
-      <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} />
+      {!isDesktop && (
+        <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} />
+      )}
 
       {/* Row 2: Grid/Comments & Related Movies */}
       <div className="grid gap-8 items-start xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
         <div className="space-y-8">
           {/* Desktop: always show all sections */}
-          <div className="hidden xl:block space-y-8">
-            {isSeries && (
-              <div className="pb-4">
-                <SeasonSelector 
-                  groups={groups} 
-                  currentSeason={currentSeason} 
-                  currentSlug={slug}
-                />
-              </div>
-            )}
-            <WatchEpisodeGrid 
-              serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
-              episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
-              activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
-            />
-            {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
-          </div>
+          {isDesktop && (
+            <div className="hidden xl:block space-y-8">
+              {isSeries && (
+                <div className="pb-4">
+                  <SeasonSelector 
+                    groups={groups} 
+                    currentSeason={currentSeason} 
+                    currentSlug={slug}
+                  />
+                </div>
+              )}
+              <WatchEpisodeGrid 
+                serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
+                episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
+                activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
+              />
+              {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
+            </div>
+          )}
 
           {/* Mobile/Tablet: tab-based content */}
-          <div className="xl:hidden space-y-8">
-            {mobileTab === "episodes" && (
-              <>
-                {isSeries && (
-                  <div className="pb-4">
-                    <SeasonSelector 
-                      groups={groups} 
-                      currentSeason={currentSeason} 
-                      currentSlug={slug}
-                    />
-                  </div>
-                )}
-                <WatchEpisodeGrid 
-                  serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
-                  episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
-                  activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
-                />
-                <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
-                {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
-              </>
-            )}
+          {!isDesktop && (
+            <div className="xl:hidden space-y-8">
+              {mobileTab === "episodes" && (
+                <>
+                  {isSeries && (
+                    <div className="pb-4">
+                      <SeasonSelector 
+                        groups={groups} 
+                        currentSeason={currentSeason} 
+                        currentSlug={slug}
+                      />
+                    </div>
+                  )}
+                  <WatchEpisodeGrid 
+                    serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
+                    episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
+                    activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
+                  />
+                  <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+                  {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
+                </>
+              )}
 
-            {mobileTab === "actors" && (
-              <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
-            )}
+              {mobileTab === "actors" && (
+                <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
+              )}
 
-            {mobileTab === "related" && (
-              <RelatedMovies movie={movie} variant="grid" />
-            )}
-          </div>
+              {mobileTab === "related" && (
+                <RelatedMovies movie={movie} variant="grid" />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Desktop sidebar: Related Movies */}
-        <div className="hidden xl:block">
-          <RelatedMovies movie={movie} variant="list" />
-        </div>
+        {isDesktop && (
+          <div className="hidden xl:block">
+            <RelatedMovies movie={movie} variant="list" />
+          </div>
+        )}
       </div>
     </div>
   );

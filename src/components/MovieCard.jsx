@@ -193,16 +193,17 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
 
   useEffect(() => {
     if (shouldLoad || priority) {
-      const timer = setTimeout(() => setApiReady(true), 500);
+      const delay = priority ? 0 : 300 + Math.random() * 800; // Spread requests over 1s
+      const timer = setTimeout(() => setApiReady(true), delay);
       return () => clearTimeout(timer);
     }
   }, [shouldLoad, priority]);
 
   const { data: episodeList = [], isFetched } = useQuery({
-    queryKey: ["episodes", slug],
+    queryKey: ["movie_episodes_v2", slug],
     queryFn: () => getEpisodes(slug),
     enabled: apiReady && !!slug,
-    staleTime: 1000 * 60 * 30,
+    staleTime: 1000 * 60 * 15, // 15 mins
   });
 
   // Helper to compute episode text for a given list of episodes

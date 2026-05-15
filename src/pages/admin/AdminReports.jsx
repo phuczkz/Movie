@@ -26,16 +26,28 @@ export default function AdminReports() {
   useEffect(() => {
     if (!db) return;
     
-    // Listen for top 5 movies by views
+    // Fetch top 50 movies to sort locally by unique users
     const q = query(
       collection(db, "movieViews"),
       orderBy("views", "desc"),
-      limit(5)
+      limit(50)
     );
 
     const unsub = onSnapshot(q, (snap) => {
       const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setTopMovies(docs);
+      
+      // Sort by unique users count
+      docs.sort((a, b) => {
+        const aCount = a.userIds ? a.userIds.length : 0;
+        const bCount = b.userIds ? b.userIds.length : 0;
+        
+        if (bCount === aCount) {
+           return (b.views || 0) - (a.views || 0);
+        }
+        return bCount - aCount;
+      });
+
+      setTopMovies(docs.slice(0, 5));
       setError(null);
       setLoading(false);
     }, (err) => {
@@ -55,7 +67,7 @@ export default function AdminReports() {
           Báo cáo thống kê
         </h2>
         <p className="text-slate-400 text-sm">
-          Theo dõi hiệu suất và lượt yêu cầu (requests) trên hệ thống
+          Theo dõi hiệu suất và lượng người dùng yêu cầu trên hệ thống
         </p>
       </div>
 
@@ -81,7 +93,7 @@ export default function AdminReports() {
           <div className="flex items-center justify-between px-2">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <TrendingUp className="text-amber-500 h-5 w-5" />
-              Top 5 phim xem nhiều nhất
+              Top 5 phim được yêu cầu nhiều nhất
             </h3>
             <div className="flex items-center gap-2 text-xs text-slate-500 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
               <Calendar className="h-3 w-3" />
@@ -161,11 +173,11 @@ export default function AdminReports() {
                     {/* Stats */}
                     <div className="flex flex-col items-end gap-1">
                       <div className="flex items-center gap-2 text-emerald-400 font-black text-xl tabular-nums">
-                         {movie.views?.toLocaleString()}
+                         {movie.userIds ? movie.userIds.length.toLocaleString() : "0"}
                          <TrendingUp className="h-4 w-4" />
                       </div>
                       <span className="text-[10px] text-slate-600 font-medium uppercase tracking-tighter">
-                        Lượt yêu cầu (Requests)
+                        Số User yêu cầu
                       </span>
                     </div>
                   </div>

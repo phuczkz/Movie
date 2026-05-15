@@ -1,7 +1,7 @@
 import {
   Calendar,
 } from "lucide-react";
-import { doc, onSnapshot, increment, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, increment, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -219,24 +219,26 @@ const Detail = () => {
     const trackView = async () => {
       try {
         const viewRef = doc(db, "movieViews", slug);
-        await setDoc(
-          viewRef,
-          {
-            slug,
-            name: movie?.name || movie?.title || slug,
-            poster: movie?.poster_url || movie?.thumb_url || "",
-            views: increment(1),
-            lastViewedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        const updateData = {
+          slug,
+          name: movie?.name || movie?.title || slug,
+          poster: movie?.poster_url || movie?.thumb_url || "",
+          views: increment(1),
+          lastViewedAt: serverTimestamp(),
+        };
+
+        if (user?.uid) {
+          updateData.userIds = arrayUnion(user.uid);
+        }
+
+        await setDoc(viewRef, updateData, { merge: true });
       } catch (err) {
         console.warn("[ViewTracking] Error updating views:", err);
       }
     };
 
     trackView();
-  }, [slug, movie]); // Count every visit (request) to this page
+  }, [slug, movie, user]); // Count every visit (request) to this page
 
   const { data: cat1Pool = [] } = useMoviesList("latest", categorySlugs[0], {
     enabled: deferLoad && !!categorySlugs[0],
