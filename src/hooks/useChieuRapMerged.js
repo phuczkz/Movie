@@ -47,13 +47,17 @@ const mergeChieuRap = (kkList = [], ophimList = []) => {
   return Array.from(map.values()).map((item) => item.movie);
 };
 
-export const useChieuRapMerged = (page = 1, options = {}) => {
+export const useChieuRapMerged = (
+  page = 1,
+  { country = "", ...options } = {}
+) => {
+  const extraParams = country ? { country } : {};
   return useQuery({
-    queryKey: ["merged", "chieu-rap", page],
+    queryKey: ["merged", "chieu-rap", page, country],
     queryFn: async () => {
       const [kk, op] = await Promise.all([
-        getKKphimChieuRap(page).catch(() => []),
-        getOphimChieuRap(page).catch(() => []),
+        getKKphimChieuRap(page, extraParams).catch(() => []),
+        getOphimChieuRap(page, extraParams).catch(() => []),
       ]);
       return mergeChieuRap(kk, op);
     },

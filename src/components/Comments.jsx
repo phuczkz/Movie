@@ -74,7 +74,9 @@ function CommentRow({
   const getProxiedAvatar = (url) => {
     if (!url) return null;
     if (url.includes("dicebear.com") || url.startsWith("/")) return url;
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=100&h=100&fit=cover&output=webp&q=80`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&w=100&h=100&fit=cover&output=webp&q=80`;
   };
 
   const finalAvatar = getProxiedAvatar(currentUserAvatar);
@@ -448,7 +450,9 @@ export default function Comments({ movieSlug, movieName }) {
   const getProxiedAvatar = (url) => {
     if (!url) return null;
     if (url.includes("dicebear.com") || url.startsWith("/")) return url;
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=100&h=100&fit=cover&output=webp&q=80`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&w=100&h=100&fit=cover&output=webp&q=80`;
   };
 
   const finalAvatar = getProxiedAvatar(currentUserAvatar);
@@ -566,7 +570,7 @@ export default function Comments({ movieSlug, movieName }) {
   };
 
   return (
-    <div className="flex flex-col h-full rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-6">
+    <div className="flex flex-col h-full space-y-6">
       <div className="flex items-center gap-3 shrink-0">
         <h2 className="text-xl font-semibold text-white">Bình luận</h2>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300">

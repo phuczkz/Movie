@@ -10,7 +10,6 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
   const [hasLoaded, setHasLoaded] = useState(false);
   const containerRef = useRef(null);
 
-
   const fetchRelated = useCallback(async () => {
     if (!movie) return;
     setLoading(true);
@@ -24,20 +23,25 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
 
       // 1. Try search by partial name for sequels/seasons
       const nameForSearch = movie.name || "";
-      const baseName = nameForSearch.split(/ phần | season | ss\d+ | p\d+ /i)[0].trim();
+      const baseName = nameForSearch
+        .split(/ phần | season | ss\d+ | p\d+ /i)[0]
+        .trim();
 
-      if (baseName && (baseName !== nameForSearch || nameForSearch.match(/ \d+$/))) {
+      if (
+        baseName &&
+        (baseName !== nameForSearch || nameForSearch.match(/ \d+$/))
+      ) {
         const searchRes = await searchMovies(baseName);
-        results = searchRes.filter(m => m.slug !== movie.slug);
+        results = searchRes.filter((m) => m.slug !== movie.slug);
       }
 
       // 2. Fetch by country if not enough results
       if (results.length < 12 && countrySlug) {
         const { getCountry } = await import("../api/movies");
         const countryRes = await getCountry(countrySlug);
-        const filteredCountry = countryRes.filter(m =>
-          m.slug !== movie.slug &&
-          !results.find(r => r.slug === m.slug)
+        const filteredCountry = countryRes.filter(
+          (m) =>
+            m.slug !== movie.slug && !results.find((r) => r.slug === m.slug)
         );
         results = [...results, ...filteredCountry];
       }
@@ -68,19 +72,23 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
     return () => observer.disconnect();
   }, [hasLoaded, movie?.slug, fetchRelated]);
 
-
   if (variant === "grid") {
     return (
       <div ref={containerRef} className="space-y-6">
         <div className="flex items-center gap-3">
           <div className="h-8 w-1 bg-emerald-500 rounded-full" />
-          <h2 className="text-2xl font-bold text-white tracking-tight">Có thể bạn cũng thích</h2>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            Có thể bạn cũng thích
+          </h2>
         </div>
 
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="aspect-[2/3] rounded-2xl bg-white/5 animate-pulse" />
+              <div
+                key={i}
+                className="aspect-[2/3] rounded-2xl bg-white/5 animate-pulse"
+              />
             ))}
           </div>
         ) : related.length ? (
@@ -142,7 +150,7 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
 
   if (variant === "scroll") {
     return (
-      <div ref={containerRef} className="rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 space-y-5">
+      <div ref={containerRef} className="space-y-5">
         <div className="flex items-center gap-3">
           <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
             Phim liên quan
@@ -150,8 +158,11 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
         </div>
         <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar custom-scrollbar">
           {loading ? (
-            [1, 2, 3, 4].map(i => (
-              <div key={i} className="min-w-[170px] sm:min-w-[200px] aspect-[2/3] bg-white/5 animate-pulse rounded-2xl" />
+            [1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="min-w-[170px] sm:min-w-[200px] aspect-[2/3] bg-white/5 animate-pulse rounded-2xl"
+              />
             ))
           ) : related.length ? (
             related.map((m) => (
@@ -163,7 +174,9 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
               </div>
             ))
           ) : hasLoaded ? (
-            <div className="text-slate-500 text-sm italic">Không tìm thấy phim liên quan</div>
+            <div className="text-slate-500 text-sm italic">
+              Không tìm thấy phim liên quan
+            </div>
           ) : null}
         </div>
       </div>
@@ -172,16 +185,21 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
 
   // Default "list" variant
   return (
-    <div ref={containerRef} className="flex flex-col h-[580px] rounded-3xl border border-white/5 bg-slate-900/60 shadow-xl p-6 lg:p-8 group/related-section">
+    <div
+      ref={containerRef}
+      className="flex flex-col h-[580px] group/related-section"
+    >
       <div className="flex items-center justify-between mb-6 shrink-0">
-        <h2 className="text-xl font-semibold text-white tracking-wide">Phim liên quan</h2>
+        <h2 className="text-xl font-semibold text-white tracking-wide">
+          Phim liên quan
+        </h2>
       </div>
 
       <div className="relative flex-1 min-h-0">
         <div className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-3">
           {loading ? (
             <div className="flex flex-col gap-4">
-              {[1, 2, 3, 4, 5].map(i => (
+              {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="flex gap-3 animate-pulse">
                   <div className="w-16 h-24 bg-white/5 rounded-lg" />
                   <div className="flex-1 space-y-2 py-1">
@@ -218,7 +236,9 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
                       <Star className="w-3 h-3 fill-current" />
                       {m.year || "N/A"}
                     </span>
-                    <span className="truncate opacity-80">{m.episode_current || "Full"}</span>
+                    <span className="truncate opacity-80">
+                      {m.episode_current || "Full"}
+                    </span>
                   </div>
                 </div>
               </Link>

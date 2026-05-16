@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
 import GridSkeleton from "../components/GridSkeleton.jsx";
+import CountryFilter from "../components/CountryFilter.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import Pagination from "../components/Pagination.jsx";
 import {
@@ -23,6 +24,8 @@ const categoryLabels = {
 
 const Category = () => {
   const { category, page: pageParam } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const countryParam = searchParams.get("country") || "";
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
   const page = pageFromUrl;
@@ -30,7 +33,10 @@ const Category = () => {
 
   const goToPage = (nextPage) => {
     const safePage = Math.max(1, nextPage);
-    navigate(`/category/${category}${safePage > 1 ? `/${safePage}` : ""}`);
+    const query = countryParam ? `?country=${countryParam}` : "";
+    navigate(
+      `/category/${category}${safePage > 1 ? `/${safePage}` : ""}${query}`
+    );
   };
 
   const isSeries = category === "phim-bo";
@@ -40,38 +46,52 @@ const Category = () => {
   const isCategory = !isSeries && !isSingle && !isLatest && !isChieuRap;
 
   const { data: seriesOphim = [], isLoading: loadingSeriesOphim } =
-    useMoviesList("series", undefined, { enabled: isSeries, page });
+    useMoviesList("series", undefined, {
+      enabled: isSeries,
+      page,
+      country: countryParam,
+    });
   const { data: seriesKK = [], isLoading: loadingSeriesKK } = useKKphimMovies(
     "series",
-    { enabled: isSeries, page }
+    { enabled: isSeries, page, country: countryParam }
   );
 
   const { data: singleOphim = [], isLoading: loadingSingleOphim } =
-    useMoviesList("single", undefined, { enabled: isSingle, page });
+    useMoviesList("single", undefined, {
+      enabled: isSingle,
+      page,
+      country: countryParam,
+    });
   const { data: singleKK = [], isLoading: loadingSingleKK } = useKKphimMovies(
     "single",
-    { enabled: isSingle, page }
+    { enabled: isSingle, page, country: countryParam }
   );
 
   const { data: latestOphim = [], isLoading: loadingLatestOphim } =
-    useMoviesList("latest", undefined, { enabled: isLatest, page });
+    useMoviesList("latest", undefined, {
+      enabled: isLatest,
+      page,
+      country: countryParam,
+    });
   const { data: latestKK = [], isLoading: loadingLatestKK } = useKKphimMovies(
     "latest",
-    { enabled: isLatest, page }
+    { enabled: isLatest, page, country: countryParam }
   );
 
-  const { data: mergedChieuRap = [], isLoading: loadingChieuRap } = useChieuRapMerged(
-    page,
-    { enabled: isChieuRap }
-  );
+  const { data: mergedChieuRap = [], isLoading: loadingChieuRap } =
+    useChieuRapMerged(page, { enabled: isChieuRap, country: countryParam });
 
   const { data: byCategory = [], isLoading: loadingCategory } = useMoviesList(
     "category",
     category,
-    { enabled: isCategory, page }
+    { enabled: isCategory, page, country: countryParam }
   );
   const { data: kkCategory = [], isLoading: loadingKKCategory } =
-    useKKphimByCategory(category, { enabled: isCategory, page });
+    useKKphimByCategory(category, {
+      enabled: isCategory,
+      page,
+      country: countryParam,
+    });
 
   const heading = useMemo(() => {
     if (isSeries) return "Phim bộ";
@@ -91,16 +111,26 @@ const Category = () => {
       return Array.from(map.values());
     };
 
-    if (isSeries) return mergeUnique(seriesKK, seriesOphim);
-    if (isSingle) return mergeUnique(singleKK, singleOphim);
-    if (isLatest) return mergeUnique(latestKK, latestOphim);
-    if (isChieuRap) return mergedChieuRap;
+    let result = [];
+    if (isSeries) result = mergeUnique(seriesKK, seriesOphim);
+    else if (isSingle) result = mergeUnique(singleKK, singleOphim);
+    else if (isLatest) result = mergeUnique(latestKK, latestOphim);
+    else if (isChieuRap) result = mergedChieuRap;
+    else result = mergeUnique(kkCategory, byCategory);
 
-    const mergedCategory = mergeUnique(
-      kkCategory,
-      byCategory
-    );
-    return mergedCategory;
+    if (countryParam) {
+      result = result.filter((m) => {
+        if (!m.country) return false;
+        if (Array.isArray(m.country)) {
+          return m.country.some(
+            (c) => (typeof c === "string" ? c : c.slug) === countryParam
+          );
+        }
+        return false;
+      });
+    }
+
+    return result;
   }, [
     isSeries,
     seriesKK,
@@ -115,6 +145,7 @@ const Category = () => {
     mergedChieuRap,
     byCategory,
     kkCategory,
+    countryParam,
   ]);
 
   const isLoading = useMemo(() => {
@@ -122,10 +153,7 @@ const Category = () => {
     if (isSingle) return loadingSingleOphim || loadingSingleKK;
     if (isLatest) return loadingLatestOphim || loadingLatestKK;
     if (isChieuRap) return loadingChieuRap;
-    return (
-      loadingCategory ||
-      loadingKKCategory
-    );
+    return loadingCategory || loadingKKCategory;
   }, [
     isSeries,
     loadingSeriesOphim,
@@ -148,6 +176,14 @@ const Category = () => {
     return { items: limited, hasNext };
   }, [mergedData, pageSize]);
 
+  const handleCountryChange = (value) => {
+    if (value) {
+      setSearchParams({ country: value });
+    } else {
+      searchParams.delete("country");
+      setSearchParams(searchParams);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -158,6 +194,9 @@ const Category = () => {
           </p>
           <h1 className="text-2xl font-bold text-white">{heading}</h1>
         </div>
+        {category !== "hoat-hinh" && (
+          <CountryFilter value={countryParam} onChange={handleCountryChange} />
+        )}
       </div>
 
       {isLoading ? (

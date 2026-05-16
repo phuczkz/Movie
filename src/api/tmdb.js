@@ -45,7 +45,9 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
 
   let status = raw.status || "";
   let isTrailer = false;
-  if (["Planned", "Upcoming", "In Production", "Rumored"].includes(raw.status)) {
+  if (
+    ["Planned", "Upcoming", "In Production", "Rumored"].includes(raw.status)
+  ) {
     status = "Trailer";
     isTrailer = true;
   } else if (status === "Released" || status === "Ended") {
@@ -63,7 +65,8 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
     year: year ? year.slice(0, 4) : undefined,
     episode_current: status,
     episode_total:
-      raw.number_of_episodes || (isTrailer ? "?" : (raw.status === "Released" ? "1" : "")),
+      raw.number_of_episodes ||
+      (isTrailer ? "?" : raw.status === "Released" ? "1" : ""),
     quality: isTrailer ? "Trailer" : "HD",
     lang: isTrailer ? "Trailer" : "",
     time: runtime ? `${runtime} phút` : undefined,
@@ -195,15 +198,31 @@ export const getTmdbCredits = async (id, mediaType = "movie") => {
     return [];
   }
 };
-export const getTmdbByGenre = async (genreId, page = 1) => {
-  const { data } = await tmdb.get("discover/movie", {
-    params: {
-      with_genres: genreId,
-      page,
-      sort_by: "popularity.desc",
-      "vote_count.gte": 50, // Ensure some level of quality/popularity
-    },
-  });
+export const getTmdbByGenre = async (genreId, page = 1, extraParams = {}) => {
+  const params = {
+    with_genres: genreId,
+    page,
+    sort_by: "popularity.desc",
+    "vote_count.gte": 50, // Ensure some level of quality/popularity
+  };
+
+  if (extraParams.country) {
+    const tmdbCountry = {
+      "viet-nam": "VN",
+      "han-quoc": "KR",
+      "nhat-ban": "JP",
+      "trung-quoc": "CN",
+      my: "US",
+      anh: "GB",
+      "thai-lan": "TH",
+    }[extraParams.country];
+
+    if (tmdbCountry) {
+      params.with_origin_country = tmdbCountry;
+    }
+  }
+
+  const { data } = await tmdb.get("discover/movie", { params });
   return (
     filterAdultMovies(
       data?.results?.map((r) => normalizeTmdbMovie(r, "movie"))
@@ -358,4 +377,3 @@ export const getTmdbLogo = async (name, originName, year) => {
     return null;
   }
 };
-

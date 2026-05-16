@@ -15,10 +15,11 @@ const apiMap = {
 
 export const useKKphimMovies = (
   type = "latest",
-  { page = 1, ...options } = {}
+  { page = 1, country = "", ...options } = {}
 ) => {
-  const queryKey = ["kkphim", type, page];
-  const queryFn = () => (apiMap[type] || getKKphimLatest)(page);
+  const queryKey = ["kkphim", type, page, country].filter(Boolean);
+  const extraParams = country ? { country } : {};
+  const queryFn = () => (apiMap[type] || getKKphimLatest)(page, extraParams);
   return useQuery({
     queryKey,
     queryFn,
@@ -29,9 +30,13 @@ export const useKKphimMovies = (
   });
 };
 
-export const useKKphimByCategory = (slug, { page = 1, ...options } = {}) => {
-  const queryKey = ["kkphim", "category", slug, page];
-  const queryFn = () => getKKphimByCategory(slug, page);
+export const useKKphimByCategory = (
+  slug,
+  { page = 1, country = "", ...options } = {}
+) => {
+  const queryKey = ["kkphim", "category", slug, page, country].filter(Boolean);
+  const extraParams = country ? { country } : {};
+  const queryFn = () => getKKphimByCategory(slug, page, extraParams);
   return useQuery({
     queryKey,
     queryFn,

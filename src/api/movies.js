@@ -225,11 +225,11 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
 
       const currentHasLink = Boolean(
         Object.values(nextSources).some((item) => item?.link) ||
-        current?.ep?.link_m3u8 ||
-        current?.ep?.m3u8 ||
-        current?.ep?.linkplay ||
-        current?.ep?.link ||
-        current?.ep?.embed
+          current?.ep?.link_m3u8 ||
+          current?.ep?.m3u8 ||
+          current?.ep?.linkplay ||
+          current?.ep?.link ||
+          current?.ep?.embed
       );
 
       if (prefers || (!currentHasLink && hasLink)) {
@@ -288,7 +288,9 @@ const unwrapItems = (data) =>
   [];
 
 const mapOrFallback = (items = [], fallback = []) =>
-  items && items.length ? filterAdultMovies(items.map(normalizeMovie)) : fallback;
+  items && items.length
+    ? filterAdultMovies(items.map(normalizeMovie))
+    : fallback;
 
 const uniqueBySlug = (items = []) => {
   const seen = new Set();
@@ -319,53 +321,53 @@ const withFallback = async (fn, fallback = null) => {
   }
 };
 
-export const getLatest = (page = 1) =>
+export const getLatest = (page = 1, extraParams = {}) =>
   withFallback(async () => {
     const { data } = await client.get("/danh-sach/phim-moi", {
-      params: { page },
+      params: { page, ...extraParams },
     });
     return mapOrFallback(unwrapItems(data));
   }, []);
 
-export const getSeries = (page = 1) =>
+export const getSeries = (page = 1, extraParams = {}) =>
   withFallback(async () => {
     const { data } = await client.get("/danh-sach/phim-bo", {
-      params: { page },
+      params: { page, ...extraParams },
     });
     return mapOrFallback(unwrapItems(data));
   }, []);
 
-export const getSingle = (page = 1) =>
+export const getSingle = (page = 1, extraParams = {}) =>
   withFallback(async () => {
     const { data } = await client.get("/danh-sach/phim-le", {
-      params: { page },
+      params: { page, ...extraParams },
     });
     return mapOrFallback(unwrapItems(data));
   }, []);
 
-export const getOphimChieuRap = (page = 1) =>
+export const getOphimChieuRap = (page = 1, extraParams = {}) =>
   withFallback(async () => {
     const { data } = await client.get("/danh-sach/phim-chieu-rap", {
-      params: { page },
+      params: { page, ...extraParams },
     });
     return mapOrFallback(unwrapItems(data));
   }, []);
 
-export const getCategory = (category, page = 1) =>
+export const getCategory = (category, page = 1, extraParams = {}) =>
   withFallback(async () => {
     // TMDB Animation category integration
     if (category === "hoat-hinh") {
-      return getTmdbByGenre(16, page);
+      return getTmdbByGenre(16, page, extraParams);
     }
     if (category === "phim-thuyet-minh") {
       const { data } = await client.get("/danh-sach/phim-thuyet-minh", {
-        params: { page },
+        params: { page, ...extraParams },
       });
       return mapOrFallback(uniqueBySlug(unwrapItems(data)));
     }
 
     const { data } = await client.get(`/the-loai/${category}`, {
-      params: { page },
+      params: { page, ...extraParams },
     });
     return mapOrFallback(uniqueBySlug(unwrapItems(data)));
   }, []);
@@ -388,12 +390,22 @@ export const getDetail = (slug) =>
         try {
           const q = tmdbData.movie.name;
           if (q) {
-            const res = await client.get("/tim-kiem", { params: { keyword: q } }).catch(() => null);
-            const rawItems = res?.data?.data?.items || res?.data?.items || res?.data?.movie || res?.data?.result || [];
+            const res = await client
+              .get("/tim-kiem", { params: { keyword: q } })
+              .catch(() => null);
+            const rawItems =
+              res?.data?.data?.items ||
+              res?.data?.items ||
+              res?.data?.movie ||
+              res?.data?.result ||
+              [];
             const items = Array.isArray(rawItems) ? rawItems : [];
 
             const normalized = (text) => (text || "").toLowerCase().trim();
-            const namesToMatch = [tmdbData.movie.name, tmdbData.movie.origin_name]
+            const namesToMatch = [
+              tmdbData.movie.name,
+              tmdbData.movie.origin_name,
+            ]
               .map(normalized)
               .filter(Boolean);
             const targetYear = tmdbData.movie.year;
@@ -404,7 +416,9 @@ export const getDetail = (slug) =>
                 namesToMatch.includes(normalized(m.name)) ||
                 namesToMatch.includes(normalized(m.origin_name));
               const yearHit =
-                targetYear && mYear ? String(mYear) === String(targetYear) : true;
+                targetYear && mYear
+                  ? String(mYear) === String(targetYear)
+                  : true;
               return nameHit && yearHit;
             });
 
@@ -481,10 +495,10 @@ export const getDetail = (slug) =>
         ophimMovie = normalizeMovie(payload);
         const ophimActors = normalizePeople(
           payload?.peoples ||
-          payload?.people ||
-          payload?.actor ||
-          payload?.cast ||
-          payload?.actors
+            payload?.people ||
+            payload?.actor ||
+            payload?.cast ||
+            payload?.actors
         );
         if (ophimMovie && ophimActors.length) {
           ophimMovie.actor = ophimActors;
@@ -494,19 +508,19 @@ export const getDetail = (slug) =>
           payload?.episodes || data?.data?.episodes || data?.episodes || [];
         ophimEpisodes = Array.isArray(rawEpisodes)
           ? rawEpisodes.flatMap((server, serverIdx) => {
-            const serverName =
-              server?.server_name || server?.name || server?.server || "";
-            const list = server?.server_data || server || [];
-            return Array.isArray(list)
-              ? list.map((ep, idx) => ({
-                ...ep,
-                server_name: serverName,
-                _serverIndex: serverIdx,
-                _epIndex: idx,
-                _provider: "ophim",
-              }))
-              : [];
-          })
+              const serverName =
+                server?.server_name || server?.name || server?.server || "";
+              const list = server?.server_data || server || [];
+              return Array.isArray(list)
+                ? list.map((ep, idx) => ({
+                    ...ep,
+                    server_name: serverName,
+                    _serverIndex: serverIdx,
+                    _epIndex: idx,
+                    _provider: "ophim",
+                  }))
+                : [];
+            })
           : [];
       } else {
         const error = ophimResultSettled.reason;
@@ -533,8 +547,8 @@ export const getDetail = (slug) =>
       const movie = kkMovie?.name
         ? kkMovie
         : ophimMovie?.name
-          ? ophimMovie
-          : null;
+        ? ophimMovie
+        : null;
 
       if (isAdultMovie(movie)) {
         return { movie: null, episodes: [] };

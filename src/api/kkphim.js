@@ -75,20 +75,20 @@ const uniqueBySlug = (items = []) => {
   return result;
 };
 
-const fetchList = async (path, page = 1) => {
-  const { data } = await kkphim.get(path, { params: { page } });
+const fetchList = async (path, page = 1, extraParams = {}) => {
+  const { data } = await kkphim.get(path, { params: { page, ...extraParams } });
   const items = data?.data?.items || data?.items || [];
   return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
-export const getKKphimLatest = (page = 1) =>
-  fetchList("/danh-sach/phim-moi-cap-nhat", page);
-export const getKKphimSeries = (page = 1) =>
-  fetchList("/danh-sach/phim-bo", page);
-export const getKKphimSingle = (page = 1) =>
-  fetchList("/danh-sach/phim-le", page);
-export const getKKphimChieuRap = (page = 1) =>
-  fetchList("/danh-sach/phim-chieu-rap", page);
+export const getKKphimLatest = (page = 1, extraParams = {}) =>
+  fetchList("/danh-sach/phim-moi-cap-nhat", page, extraParams);
+export const getKKphimSeries = (page = 1, extraParams = {}) =>
+  fetchList("/danh-sach/phim-bo", page, extraParams);
+export const getKKphimSingle = (page = 1, extraParams = {}) =>
+  fetchList("/danh-sach/phim-le", page, extraParams);
+export const getKKphimChieuRap = (page = 1, extraParams = {}) =>
+  fetchList("/danh-sach/phim-chieu-rap", page, extraParams);
 
 export const getKKphimDetail = async (slug, options = {}) => {
   const { data } = await kkphim.get(`/phim/${slug}`, {
@@ -153,14 +153,18 @@ export const getKKphimByYear = async (year, page = 1) => {
   return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
-export const getKKphimByCategory = async (slug, page = 1) => {
-  const { data } = await kkphim.get(`/the-loai/${slug}`, { params: { page } });
+export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
+  const { data } = await kkphim.get(`/the-loai/${slug}`, {
+    params: { page, ...extraParams },
+  });
   const items = data?.data?.items || data?.items || [];
   return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
-export const getKKphimByCountry = async (slug, page = 1) => {
-  const { data } = await kkphim.get(`/quoc-gia/${slug}`, { params: { page } });
+export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
+  const { data } = await kkphim.get(`/quoc-gia/${slug}`, {
+    params: { page, ...extraParams },
+  });
   const items = data?.data?.items || data?.items || [];
   return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };

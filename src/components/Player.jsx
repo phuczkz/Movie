@@ -31,11 +31,11 @@ const Player = ({
   onToggleTheater,
   theaterMode,
 }) => {
-  const artRef = useRef(null);             // DOM mount point for ArtPlayer
-  const artInstanceRef = useRef(null);     // ArtPlayer instance
-  const hlsInstanceRef = useRef(null);     // hls.js instance
-  const mountedRef = useRef(false);        // Guard against StrictMode double-mount
-  const nextEpBtnElRef = useRef(null);     // DOM ref for next-episode control button
+  const artRef = useRef(null); // DOM mount point for ArtPlayer
+  const artInstanceRef = useRef(null); // ArtPlayer instance
+  const hlsInstanceRef = useRef(null); // hls.js instance
+  const mountedRef = useRef(false); // Guard against StrictMode double-mount
+  const nextEpBtnElRef = useRef(null); // DOM ref for next-episode control button
 
   const onPlaybackIssueRef = useRef(onPlaybackIssue);
   const onTimeUpdateRef = useRef(onTimeUpdate);
@@ -45,17 +45,31 @@ const Player = ({
   const isLastEpisodeOfSeasonRef = useRef(isLastEpisodeOfSeason);
   const playbackIssueReportedRef = useRef(false);
 
-  useEffect(() => { nextSeasonRef.current = nextSeason; }, [nextSeason]);
-  useEffect(() => { isLastEpisodeOfSeasonRef.current = isLastEpisodeOfSeason; }, [isLastEpisodeOfSeason]);
+  useEffect(() => {
+    nextSeasonRef.current = nextSeason;
+  }, [nextSeason]);
+  useEffect(() => {
+    isLastEpisodeOfSeasonRef.current = isLastEpisodeOfSeason;
+  }, [isLastEpisodeOfSeason]);
 
   const lastPositionRef = useRef(
-    typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0
+    typeof initialTime === "number" && Number.isFinite(initialTime)
+      ? initialTime
+      : 0
   );
 
-  useEffect(() => { onPlaybackIssueRef.current = onPlaybackIssue; }, [onPlaybackIssue]);
-  useEffect(() => { onTimeUpdateRef.current = onTimeUpdate; }, [onTimeUpdate]);
-  useEffect(() => { onNextEpisodeRef.current = onNextEpisode; }, [onNextEpisode]);
-  useEffect(() => { onToggleTheaterRef.current = onToggleTheater; }, [onToggleTheater]);
+  useEffect(() => {
+    onPlaybackIssueRef.current = onPlaybackIssue;
+  }, [onPlaybackIssue]);
+  useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate;
+  }, [onTimeUpdate]);
+  useEffect(() => {
+    onNextEpisodeRef.current = onNextEpisode;
+  }, [onNextEpisode]);
+  useEffect(() => {
+    onToggleTheaterRef.current = onToggleTheater;
+  }, [onToggleTheater]);
 
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
@@ -78,7 +92,9 @@ const Player = ({
   const posterUrl = useMemo(() => {
     if (!poster) return null;
     if (!poster.startsWith("http")) return poster;
-    return `https://wsrv.nl/?url=${encodeURIComponent(poster)}&w=800&output=webp&q=75`;
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      poster
+    )}&w=800&output=webp&q=75`;
   }, [poster]);
 
   // LCP Optimization: preload poster image
@@ -95,7 +111,9 @@ const Player = ({
     link.setAttribute("fetchpriority", "high");
     link.dataset.copilot = "lcp-poster";
     document.head.appendChild(link);
-    return () => { if (link.parentNode) link.parentNode.removeChild(link); };
+    return () => {
+      if (link.parentNode) link.parentNode.removeChild(link);
+    };
   }, [posterUrl]);
 
   // Report playback issue (at most once per source)
@@ -156,8 +174,8 @@ const Player = ({
               elapsed <= 200
                 ? "color: #10b981; font-weight: bold; font-size: 13px;"
                 : elapsed <= 500
-                  ? "color: #f59e0b; font-weight: bold; font-size: 13px;"
-                  : "color: #ef4444; font-weight: bold; font-size: 13px;"
+                ? "color: #f59e0b; font-weight: bold; font-size: 13px;"
+                : "color: #ef4444; font-weight: bold; font-size: 13px;"
             );
             videoEl.removeEventListener("canplay", onCanPlay);
           };
@@ -166,7 +184,9 @@ const Player = ({
           hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
             const manifestTime = (performance.now() - t0).toFixed(0);
             console.log(
-              `%c[Perf] 📋 Manifest parsed in ${manifestTime}ms (${data?.levels?.length || 0} levels)`,
+              `%c[Perf] 📋 Manifest parsed in ${manifestTime}ms (${
+                data?.levels?.length || 0
+              } levels)`,
               "color: #8b5cf6; font-weight: bold;"
             );
 
@@ -176,14 +196,22 @@ const Player = ({
               .map((lvl, idx) => ({
                 height: lvl.height,
                 level: idx,
-                bitrate: lvl.bitrate
+                bitrate: lvl.bitrate,
               }))
-              .sort((a, b) => (b.height || 0) - (a.height || 0) || (b.bitrate || 0) - (a.bitrate || 0));
+              .sort(
+                (a, b) =>
+                  (b.height || 0) - (a.height || 0) ||
+                  (b.bitrate || 0) - (a.bitrate || 0)
+              );
 
             const unique = [];
             const seen = new Set();
             for (const lvl of levels) {
-              let label = lvl.height ? `${lvl.height}p` : (lvl.bitrate ? `${Math.round(lvl.bitrate / 1000)}k` : `SD ${lvl.level + 1}`);
+              let label = lvl.height
+                ? `${lvl.height}p`
+                : lvl.bitrate
+                ? `${Math.round(lvl.bitrate / 1000)}k`
+                : `SD ${lvl.level + 1}`;
               if (!seen.has(label)) {
                 seen.add(label);
                 unique.push({ html: label, level: lvl.level });
@@ -197,7 +225,10 @@ const Player = ({
                 html: "Chất lượng",
                 icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
                 tooltip: "Chất lượng",
-                selector: [{ default: true, html: "Tự động", level: -1 }, ...unique],
+                selector: [
+                  { default: true, html: "Tự động", level: -1 },
+                  ...unique,
+                ],
                 onSelect(item) {
                   hls.currentLevel = item.level;
                   return item.html;
@@ -206,7 +237,9 @@ const Player = ({
 
               const addQuality = () => {
                 if (!art.setting) return;
-                const existing = art.setting.settings?.find(s => s.name === "quality");
+                const existing = art.setting.settings?.find(
+                  (s) => s.name === "quality"
+                );
                 if (existing) art.setting.update(qualityConfig);
                 else art.setting.add(qualityConfig);
               };
@@ -236,12 +269,18 @@ const Player = ({
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 networkRecoveryAttempts += 1;
-                if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT || data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR) {
+                if (
+                  data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
+                  data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
+                  data.details === Hls.ErrorDetails.MANIFEST_PARSING_ERROR
+                ) {
                   reportPlaybackIssue("manifest-error");
                   break;
                 }
                 if (networkRecoveryAttempts <= 5) {
-                  setTimeout(() => { if (hlsInstanceRef.current) hls.startLoad(); }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
+                  setTimeout(() => {
+                    if (hlsInstanceRef.current) hls.startLoad();
+                  }, Math.min(500 * Math.pow(2, networkRecoveryAttempts - 1), 8000));
                 } else {
                   reportPlaybackIssue("network-timeout");
                   networkRecoveryAttempts = 0;
@@ -278,7 +317,12 @@ const Player = ({
           }
 
           const desyncWatchdog = setInterval(() => {
-            if (!videoEl || videoEl.paused || videoEl.ended || videoEl.seeking) {
+            if (
+              !videoEl ||
+              videoEl.paused ||
+              videoEl.ended ||
+              videoEl.seeking
+            ) {
               stallStartTime = 0;
               return;
             }
@@ -286,13 +330,20 @@ const Player = ({
             const now = performance.now();
             const currentTime = videoEl.currentTime;
 
-            if (lastWatchdogTime > 0 && Math.abs(currentTime - lastWatchdogTime) < 0.05) {
+            if (
+              lastWatchdogTime > 0 &&
+              Math.abs(currentTime - lastWatchdogTime) < 0.05
+            ) {
               // Video time hasn't moved — possible frame freeze
               if (stallStartTime === 0) {
                 stallStartTime = now;
               } else if (now - stallStartTime > STALL_THRESHOLD_MS) {
                 // Confirmed stall for 3+ seconds — recover
-                console.warn("[Player] A/V desync detected at", currentTime.toFixed(1), "s — auto-recovering");
+                console.warn(
+                  "[Player] A/V desync detected at",
+                  currentTime.toFixed(1),
+                  "s — auto-recovering"
+                );
                 videoEl.currentTime = currentTime + 0.5;
                 stallStartTime = 0;
 
@@ -367,28 +418,38 @@ const Player = ({
         // Theater mode button (desktop only)
         ...(onToggleTheater && !isMobile
           ? [
-            {
-              position: "right",
-              name: "theater-mode",
-              index: 15,
-              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
-              tooltip: theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim",
-              click: () => { if (onToggleTheaterRef.current) onToggleTheaterRef.current(); },
-            },
-          ]
+              {
+                position: "right",
+                name: "theater-mode",
+                index: 15,
+                html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
+                tooltip: theaterMode
+                  ? "Thoát chế độ rạp phim"
+                  : "Chế độ rạp phim",
+                click: () => {
+                  if (onToggleTheaterRef.current) onToggleTheaterRef.current();
+                },
+              },
+            ]
           : []),
         // Next Episode button (always visible in control bar if next exists)
-        ...(onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
+        ...(onNextEpisode &&
+        (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
           ? [
-            {
-              position: "right",
-              name: "next-episode",
-              index: 20,
-              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
-              tooltip: isLastEpisodeOfSeason && nextSeason ? `Chuyển sang Phần ${nextSeason.seasonNumber}` : "Tập tiếp theo",
-              click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
-            },
-          ]
+              {
+                position: "right",
+                name: "next-episode",
+                index: 20,
+                html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
+                tooltip:
+                  isLastEpisodeOfSeason && nextSeason
+                    ? `Chuyển sang Phần ${nextSeason.seasonNumber}`
+                    : "Tập tiếp theo",
+                click: () => {
+                  if (onNextEpisodeRef.current) onNextEpisodeRef.current();
+                },
+              },
+            ]
           : []),
       ],
       layers: [
@@ -404,11 +465,12 @@ const Player = ({
           },
         },
         // Floating Next Episode button (shows above control bar)
-        ...(onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
+        ...(onNextEpisode &&
+        (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
           ? [
-            {
-              name: "next-episode-overlay",
-              html: `
+              {
+                name: "next-episode-overlay",
+                html: `
                 <div id="art-next-ep-layer" style="
                   display: none;
                   position: absolute;
@@ -433,24 +495,31 @@ const Player = ({
                   max-width: 320px;
                 ">
                   <span style="letter-spacing: 0.02em; line-height: 1.4;">
-                    ${isLastEpisodeOfSeason && nextSeason
-                  ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""}</div>
-                         Bạn có muốn chuyển sang <b>Phần ${nextSeason.seasonNumber} (Tập 1)</b> không?`
-                  : 'Tập tiếp theo'
-                }
+                    ${
+                      isLastEpisodeOfSeason && nextSeason
+                        ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${
+                            currentSeason || ""
+                          }</div>
+                         Bạn có muốn chuyển sang <b>Phần ${
+                           nextSeason.seasonNumber
+                         } (Tập 1)</b> không?`
+                        : "Tập tiếp theo"
+                    }
                   </span>
                 </div>`,
-              click: () => { if (onNextEpisodeRef.current) onNextEpisodeRef.current(); },
-              style: {
-                position: "absolute",
-                top: "0",
-                left: "0",
-                right: "0",
-                bottom: "0",
-                pointerEvents: "none",
+                click: () => {
+                  if (onNextEpisodeRef.current) onNextEpisodeRef.current();
+                },
+                style: {
+                  position: "absolute",
+                  top: "0",
+                  left: "0",
+                  right: "0",
+                  bottom: "0",
+                  pointerEvents: "none",
+                },
               },
-            },
-          ]
+            ]
           : []),
       ],
       customType: customType || undefined,
@@ -469,16 +538,32 @@ const Player = ({
     }
 
     artInstanceRef.current.on("ready", () => {
-      if (onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))) {
-        nextEpBtnElRef.current = artInstanceRef.current.template?.$player?.querySelector?.("#art-next-ep-layer") || null;
+      if (
+        onNextEpisode &&
+        (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
+      ) {
+        nextEpBtnElRef.current =
+          artInstanceRef.current.template?.$player?.querySelector?.(
+            "#art-next-ep-layer"
+          ) || null;
         if (nextEpBtnElRef.current) {
           const isHoverDevice = window.matchMedia("(hover: hover)").matches;
           if (isHoverDevice) {
             nextEpBtnElRef.current.onmouseenter = () => {
-              Object.assign(nextEpBtnElRef.current.style, { background: "rgba(255, 255, 255, 0.18)", borderColor: "rgba(255, 255, 255, 0.3)", transform: "translateY(-4px)", boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)" });
+              Object.assign(nextEpBtnElRef.current.style, {
+                background: "rgba(255, 255, 255, 0.18)",
+                borderColor: "rgba(255, 255, 255, 0.3)",
+                transform: "translateY(-4px)",
+                boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)",
+              });
             };
             nextEpBtnElRef.current.onmouseleave = () => {
-              Object.assign(nextEpBtnElRef.current.style, { background: "rgba(255, 255, 255, 0.08)", borderColor: "rgba(255, 255, 255, 0.15)", transform: "translateY(0)", boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)" });
+              Object.assign(nextEpBtnElRef.current.style, {
+                background: "rgba(255, 255, 255, 0.08)",
+                borderColor: "rgba(255, 255, 255, 0.15)",
+                transform: "translateY(0)",
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+              });
             };
           }
         }
@@ -493,38 +578,69 @@ const Player = ({
       lastPositionRef.current = t;
       if (onTimeUpdateRef.current) onTimeUpdateRef.current(t, d);
       const btn = nextEpBtnElRef.current;
-      if (btn && (hasNextEpisode || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) && d > 0) {
+      if (
+        btn &&
+        (hasNextEpisode ||
+          (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) &&
+        d > 0
+      ) {
         const remainingTime = d - t;
-        const shouldShow = remainingTime <= 190 || (t / d >= 0.9);
+        const shouldShow = remainingTime <= 190 || t / d >= 0.9;
         btn.style.display = shouldShow ? "inline-flex" : "none";
       }
     });
 
     artInstanceRef.current.on("video:ended", () => {
-      if (nextEpBtnElRef.current && (hasNextEpisode || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))) nextEpBtnElRef.current.style.display = "inline-flex";
-      if ((hasNextEpisode || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) && onNextEpisodeRef.current) onNextEpisodeRef.current();
+      if (
+        nextEpBtnElRef.current &&
+        (hasNextEpisode ||
+          (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))
+      )
+        nextEpBtnElRef.current.style.display = "inline-flex";
+      if (
+        (hasNextEpisode ||
+          (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) &&
+        onNextEpisodeRef.current
+      )
+        onNextEpisodeRef.current();
     });
 
-    artInstanceRef.current.on("video:play", () => artInstanceRef.current.emit("notice", "Đang phát"));
-    artInstanceRef.current.on("video:pause", () => artInstanceRef.current.emit("notice", "Đã tạm dừng"));
-    artInstanceRef.current.on("video:error", () => reportPlaybackIssue("video-error"));
+    artInstanceRef.current.on("video:play", () =>
+      artInstanceRef.current.emit("notice", "Đang phát")
+    );
+    artInstanceRef.current.on("video:pause", () =>
+      artInstanceRef.current.emit("notice", "Đã tạm dừng")
+    );
+    artInstanceRef.current.on("video:error", () =>
+      reportPlaybackIssue("video-error")
+    );
 
     return () => {
       mountedRef.current = false;
       // Clear A/V desync watchdog
       const videoEl = artInstanceRef.current?.video;
-      if (videoEl?._desyncWatchdog) { clearInterval(videoEl._desyncWatchdog); videoEl._desyncWatchdog = null; }
-      if (hlsInstanceRef.current) { hlsInstanceRef.current.destroy(); hlsInstanceRef.current = null; }
-      if (artInstanceRef.current) { artInstanceRef.current.destroy(false); artInstanceRef.current = null; }
+      if (videoEl?._desyncWatchdog) {
+        clearInterval(videoEl._desyncWatchdog);
+        videoEl._desyncWatchdog = null;
+      }
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
+        hlsInstanceRef.current = null;
+      }
+      if (artInstanceRef.current) {
+        artInstanceRef.current.destroy(false);
+        artInstanceRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Hls, isHls, canUseIframe]);
 
-
-
   useEffect(() => {
     playbackIssueReportedRef.current = false;
-    lastPositionRef.current = typeof initialTime === "number" && Number.isFinite(initialTime) ? initialTime : 0;
+    lastPositionRef.current =
+      typeof initialTime === "number" && Number.isFinite(initialTime)
+        ? initialTime
+        : 0;
   }, [source, initialTime]);
 
   // Seamless source/poster switching
@@ -554,10 +670,15 @@ const Player = ({
       const span = nextEpBtnElRef.current.querySelector("span");
       if (span) {
         span.innerHTML = `
-          ${isLastEpisodeOfSeason && nextSeason
-            ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""}</div>
-               Bạn có muốn chuyển sang <b>Phần ${nextSeason.seasonNumber} (Tập 1)</b> không?`
-            : 'Tập tiếp theo'
+          ${
+            isLastEpisodeOfSeason && nextSeason
+              ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${
+                  currentSeason || ""
+                }</div>
+               Bạn có muốn chuyển sang <b>Phần ${
+                 nextSeason.seasonNumber
+               } (Tập 1)</b> không?`
+              : "Tập tiếp theo"
           }
         `;
       }
@@ -567,7 +688,10 @@ const Player = ({
     if (art.controls["next-episode"]) {
       art.controls.update({
         name: "next-episode",
-        tooltip: isLastEpisodeOfSeason && nextSeason ? `Chuyển sang Phần ${nextSeason.seasonNumber}` : "Tập tiếp theo",
+        tooltip:
+          isLastEpisodeOfSeason && nextSeason
+            ? `Chuyển sang Phần ${nextSeason.seasonNumber}`
+            : "Tập tiếp theo",
       });
     }
 
@@ -577,23 +701,32 @@ const Player = ({
         tooltip: theaterMode ? "Thoát chế độ rạp phim" : "Chế độ rạp phim",
       });
     }
-  }, [title, subtitle, isLastEpisodeOfSeason, nextSeason, currentSeason, theaterMode]);
+  }, [
+    title,
+    subtitle,
+    isLastEpisodeOfSeason,
+    nextSeason,
+    currentSeason,
+    theaterMode,
+  ]);
 
   const containerClass = `relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 z-10 rounded-2xl border border-white/10`;
 
   if (canUseIframe) {
     return (
       <div className={containerClass} style={{ aspectRatio: "16 / 9" }}>
-        <iframe title="player" src={source} className="h-full w-full" allowFullScreen />
+        <iframe
+          title="player"
+          src={source}
+          className="h-full w-full"
+          allowFullScreen
+        />
       </div>
     );
   }
 
   return (
-    <div
-      className={containerClass}
-      style={{ aspectRatio: "16 / 9" }}
-    >
+    <div className={containerClass} style={{ aspectRatio: "16 / 9" }}>
       {/* ArtPlayer mount target — must have explicit height */}
       <div
         ref={artRef}
@@ -602,7 +735,10 @@ const Player = ({
 
       {/* Action slot (e.g. admin buttons) */}
       {actionSlot && (
-        <div className="absolute top-3 right-3 z-40 pointer-events-auto" data-control>
+        <div
+          className="absolute top-3 right-3 z-40 pointer-events-auto"
+          data-control
+        >
           {actionSlot}
         </div>
       )}
