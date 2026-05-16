@@ -209,7 +209,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const { data: episodeList = [], isFetched } = useQuery({
     queryKey: ["movie_episodes_v2", slug],
     queryFn: () => getEpisodes(slug),
-    enabled: apiReady && !!slug,
+    enabled: (apiReady || shouldLoad || priority) && !!slug,
     staleTime: 1000 * 60 * 15, // 15 mins
   });
 
@@ -275,24 +275,24 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     if (badges.length === 0) {
       const fallbackEpText = computeEpisodeText([]);
       const text = `${episodeCurrentText || ""} ${movieLang || ""} ${movie?.status || ""}`.toLowerCase();
+      const hasEpisodeSignal = Boolean(fallbackEpText);
       
       const hasVietsub = text.includes("vietsub") || text.includes("phụ đề") || text.includes("phu de");
       const hasThuyetMinh = text.includes("thuyết minh") || text.includes("thuy minh") || text.includes("tm");
       const hasLongTieng = text.includes("lồng tiếng") || text.includes("long tieng") || text.includes("lt");
 
-      if (hasVietsub)
+      if (hasEpisodeSignal && hasVietsub)
         badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
-      if (hasThuyetMinh)
+      if (hasEpisodeSignal && hasThuyetMinh)
         badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh", episodeText: fallbackEpText });
-      if (hasLongTieng)
+      if (hasEpisodeSignal && hasLongTieng)
         badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng", episodeText: fallbackEpText });
 
       if (badges.length === 0) {
-        if (text.includes("trailer")) {
-          badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
+        if (hasEpisodeSignal) {
+          badges.push({ key: "vietsub-fallback", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
         } else {
-          // Default to PĐ if we have no info yet
-          badges.push({ key: "default-pd", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
+          badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
         }
       }
     }
@@ -363,22 +363,24 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
           />
 
           {audioBadges.length ? (
-            <div className="absolute inset-x-3 bottom-3 flex flex-wrap gap-2 justify-center z-10">
+            <div className="absolute inset-x-3 bottom-3 flex flex-nowrap items-center justify-center gap-1 overflow-hidden z-10">
               {audioBadges.map((badge) => (
                 <div
                   key={badge.key}
                   title={badge.label}
-                  className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
+                    className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] leading-none font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
                       ? "bg-slate-600/90 text-white backdrop-blur-md"
                       : badge.code === "TM"
                         ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
-                        : badge.code === "Trailer"
-                          ? "bg-rose-500/90 text-white backdrop-blur-md"
-                          : "bg-sky-500/90 text-white backdrop-blur-md"
+                        : badge.code === "NCT"
+                          ? "bg-slate-500/90 text-white backdrop-blur-md"
+                          : badge.code === "Trailer"
+                            ? "bg-rose-500/90 text-white backdrop-blur-md"
+                            : "bg-sky-500/90 text-white backdrop-blur-md"
                     }`}
                 >
                   <span>
-                    {badge.code}{badge.code !== "Trailer" && badge.episodeText ? `.${badge.episodeText}` : ""}
+                    {badge.code}{badge.code !== "Trailer" && badge.code !== "NCT" && badge.episodeText ? `.${badge.episodeText}` : ""}
                   </span>
                 </div>
               ))}

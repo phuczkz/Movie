@@ -17,6 +17,7 @@ const persistLogos = (items) => {
     const cache = getPersistedLogos();
     let changed = false;
     items.forEach(({ slug, logo }) => {
+      if (!slug || typeof logo !== "string" || !logo) return;
       if (cache[slug] !== logo) {
         cache[slug] = logo;
         changed = true;
@@ -45,7 +46,9 @@ export const useMovieLogo = (movie) => {
     queryKey: ["movie-logo", name, originName, year],
     queryFn: async () => {
       const url = await getTmdbLogo(name, originName, year);
-      if (slug) persistLogos([{ slug, logo: url }]);
+      if (slug && typeof url === "string" && url) {
+        persistLogos([{ slug, logo: url }]);
+      }
       return url;
     },
     enabled: !!(name || originName),
@@ -53,11 +56,12 @@ export const useMovieLogo = (movie) => {
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    retry: false,
+    retry: 1,
     initialData: () => {
       if (!slug) return undefined;
       const cache = getPersistedLogos();
-      return cache[slug] || undefined;
+      const cachedLogo = cache[slug];
+      return typeof cachedLogo === "string" && cachedLogo ? cachedLogo : undefined;
     },
   });
 
@@ -94,7 +98,9 @@ export const useMovieLogos = (movies = []) => {
       results.forEach((r) => {
         if (r.status === "fulfilled" && r.value) {
           map.set(r.value.slug, r.value.logo);
-          toPersist.push(r.value);
+          if (typeof r.value.logo === "string" && r.value.logo) {
+            toPersist.push(r.value);
+          }
         }
       });
       persistLogos(toPersist);
@@ -105,15 +111,16 @@ export const useMovieLogos = (movies = []) => {
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    retry: false,
+    retry: 1,
     initialData: () => {
       if (!list.length) return undefined;
       const cache = getPersistedLogos();
       const map = new Map();
       let hasAny = false;
       list.forEach((m) => {
-        if (cache[m.slug] !== undefined) {
-          map.set(m.slug, cache[m.slug]);
+        const cachedLogo = cache[m.slug];
+        if (typeof cachedLogo === "string" && cachedLogo) {
+          map.set(m.slug, cachedLogo);
           hasAny = true;
         }
       });

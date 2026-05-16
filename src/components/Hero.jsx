@@ -76,7 +76,7 @@ const Hero = ({ movie, movies = [] }) => {
   const safeIndex = slideCount ? Math.min(activeIndex, slideCount - 1) : 0;
   const activeMovie = slides[safeIndex] || slides[0];
   const episodeLabel = useEpisodeLabel(activeMovie);
-  const { logoMap, isLoading: isLoadingLogos } = useMovieLogos(slides);
+  const { logoMap } = useMovieLogos(slides);
   const activeLogo = logoMap.get(activeMovie?.slug) || null;
 
   useEffect(() => {
@@ -184,9 +184,7 @@ const Hero = ({ movie, movies = [] }) => {
               className="space-y-3 md:space-y-6"
             >
               <div className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[80px]">
-                {isLoadingLogos ? (
-                  <div className="h-[40px] sm:h-[50px] md:h-[60px] lg:h-[80px] 2xl:h-[100px] w-full" />
-                ) : activeLogo ? (
+                {activeLogo ? (
                   <img
                     src={activeLogo}
                     alt={activeMovie.name}
