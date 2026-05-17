@@ -443,7 +443,7 @@ const Player = ({
                 html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
                 tooltip:
                   isLastEpisodeOfSeason && nextSeason
-                    ? `Chuyển sang Phần ${nextSeason.seasonNumber}`
+                    ? `Chuyển sang Phần ${nextSeason.season}`
                     : "Tập tiếp theo",
                 click: () => {
                   if (onNextEpisodeRef.current) onNextEpisodeRef.current();
@@ -500,9 +500,7 @@ const Player = ({
                         ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${
                             currentSeason || ""
                           }</div>
-                         Bạn có muốn chuyển sang <b>Phần ${
-                           nextSeason.seasonNumber
-                         } (Tập 1)</b> không?`
+                         Chuyển sang <b>Phần ${nextSeason.season} (Tập 1)</b>`
                         : "Tập tiếp theo"
                     }
                   </span>
@@ -675,9 +673,7 @@ const Player = ({
               ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${
                   currentSeason || ""
                 }</div>
-               Bạn có muốn chuyển sang <b>Phần ${
-                 nextSeason.seasonNumber
-               } (Tập 1)</b> không?`
+               Chuyển sang <b>Phần ${nextSeason.season} (Tập 1)</b>`
               : "Tập tiếp theo"
           }
         `;
@@ -690,7 +686,7 @@ const Player = ({
         name: "next-episode",
         tooltip:
           isLastEpisodeOfSeason && nextSeason
-            ? `Chuyển sang Phần ${nextSeason.seasonNumber}`
+            ? `Chuyển sang Phần ${nextSeason.season}`
             : "Tập tiếp theo",
       });
     }
