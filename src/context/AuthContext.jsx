@@ -1,7 +1,7 @@
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -415,11 +415,11 @@ export const AuthProvider = ({ children }) => {
         }
       },
       saveMovie: async (movie) => {
+        if (!movie || !movie.slug)
+          throw new Error("Thiếu thông tin phim để lưu.");
         const { config, firestoreMod } = await loadFirebaseSdk();
         if (!config.db || !config.auth) return rejectIfMissing();
         const currentUser = await ensureCurrentUser();
-        if (!movie || !movie.slug)
-          throw new Error("Thiếu thông tin phim để lưu.");
 
         const ref = firestoreMod.doc(
           config.db,
@@ -444,10 +444,10 @@ export const AuthProvider = ({ children }) => {
         return true;
       },
       removeSavedMovie: async (slug) => {
+        if (!slug) throw new Error("Thiếu slug phim cần xoá.");
         const { config, firestoreMod } = await loadFirebaseSdk();
         if (!config.db || !config.auth) return rejectIfMissing();
         const currentUser = await ensureCurrentUser();
-        if (!slug) throw new Error("Thiếu slug phim cần xoá.");
         const ref = firestoreMod.doc(
           config.db,
           "users",
@@ -459,11 +459,11 @@ export const AuthProvider = ({ children }) => {
         return true;
       },
       saveComic: async (comic) => {
+        if (!comic || !comic.slug)
+          throw new Error("Thiếu thông tin truyện để lưu.");
         const { config, firestoreMod } = await loadFirebaseSdk();
         if (!config.db || !config.auth) return rejectIfMissing();
         const currentUser = await ensureCurrentUser();
-        if (!comic || !comic.slug)
-          throw new Error("Thiếu thông tin truyện để lưu.");
 
         const ref = firestoreMod.doc(
           config.db,
@@ -494,10 +494,10 @@ export const AuthProvider = ({ children }) => {
         return true;
       },
       removeSavedComic: async (slug) => {
+        if (!slug) throw new Error("Thiếu slug truyện cần xoá.");
         const { config, firestoreMod } = await loadFirebaseSdk();
         if (!config.db || !config.auth) return rejectIfMissing();
         const currentUser = await ensureCurrentUser();
-        if (!slug) throw new Error("Thiếu slug truyện cần xoá.");
         const ref = firestoreMod.doc(
           config.db,
           "users",
@@ -509,10 +509,12 @@ export const AuthProvider = ({ children }) => {
         return true;
       },
       createAccountByAdmin: async (email, password, displayName) => {
-        const { config, authMod, firestoreMod } = await loadFirebaseSdk();
+        const [{ config, authMod, firestoreMod }, { initializeApp, getAuth }] = await Promise.all([
+          loadFirebaseSdk(),
+          import("firebase/app")
+        ]);
         
         // Initialize AdminApp on demand to save initial bundle size
-        const { initializeApp, getAuth } = await import("firebase/app");
         const adminApp = initializeApp(config.firebaseConfig, "AdminApp_" + Date.now());
         const adminAuth = getAuth(adminApp);
 
@@ -576,4 +578,4 @@ export const AuthProvider = ({ children }) => {
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => use(AuthContext);

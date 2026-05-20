@@ -10,8 +10,10 @@ const ComicLayout = ({ children }) => {
   const isHome = location.pathname === "/comics" || location.pathname === "/comics/";
 
   useEffect(() => {
+    const { pathname, search } = location;
+    void pathname; void search;
     window.scrollTo(0, 0);
-  }, [location.pathname, location.search]);
+  }, [location]);
 
   const isStandalone = useStandalone();
 

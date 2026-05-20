@@ -62,7 +62,7 @@ export default function AdminPanel() {
         </p>
         <button
           onClick={() => navigate("/")}
-          className="rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 transition-colors"
+          className="rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-colors"
         >
           Về trang chủ
         </button>
@@ -99,13 +99,13 @@ export default function AdminPanel() {
             <p className="text-xs uppercase tracking-widest text-emerald-500 font-black mb-0.5">
               Admin
             </p>
-            <h1 className="text-lg font-black text-white">Bảng điều khiển</h1>
+            <h1 className="text-lg font-semibold text-white">Bảng điều khiển</h1>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden text-slate-500 hover:text-white p-1"
           >
-            <X className="h-5 w-5" />
+            <X className="size-5" />
           </button>
         </div>
 
@@ -121,10 +121,10 @@ export default function AdminPanel() {
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               }`}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
+              <item.icon className="size-4 shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
               {item.id === "maintenance" && maintenance?.enabled && (
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />
+                <span className="flex size-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />
               )}
             </button>
           ))}
@@ -136,7 +136,7 @@ export default function AdminPanel() {
             onClick={() => navigate("/")}
             className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 hover:text-white hover:bg-white/5 transition-all"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="size-4" />
             Về trang xem phim
           </button>
         </div>
@@ -150,7 +150,7 @@ export default function AdminPanel() {
             onClick={() => setSidebarOpen(true)}
             className="text-slate-400 hover:text-white p-2 -ml-1"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="size-5" />
           </button>
           <span className="font-semibold text-white">
             {NAV_ITEMS.find((n) => n.id === section)?.label}

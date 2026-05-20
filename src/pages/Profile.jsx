@@ -36,6 +36,9 @@ const Profile = () => {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Compute today's date string once to avoid hydration mismatch
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   useEffect(() => {
@@ -97,7 +100,7 @@ const Profile = () => {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-white/5">
         <div className="relative group shrink-0">
-          <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-full border-4 border-white/10 bg-white/5 overflow-hidden shadow-2xl transition-transform hover:scale-105 duration-300">
+          <div className="size-28 sm:h-32 sm:w-32 rounded-full border-4 border-white/10 bg-white/5 overflow-hidden shadow-2xl transition-transform hover:scale-105 duration-300">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
@@ -108,14 +111,14 @@ const Profile = () => {
                 crossOrigin="anonymous"
               />
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-3xl">
+              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-emerald-950 font-bold text-3xl">
                 {(user?.email || "").charAt(0).toUpperCase()}
               </div>
             )}
           </div>
           <button
             onClick={() => setShowAvatarModal(true)}
-            className="absolute right-0 bottom-0 p-2.5 rounded-full bg-emerald-500 text-slate-950 shadow-xl border-4 border-slate-950 transition-all hover:scale-110 active:scale-95 z-20"
+            className="absolute right-0 bottom-0 p-2.5 rounded-full bg-emerald-500 text-emerald-950 shadow-xl border-4 border-slate-950 transition-all hover:scale-110 active:scale-95 z-20"
             title="Đổi ảnh đại diện"
           >
             <Camera size={20} />
@@ -127,7 +130,7 @@ const Profile = () => {
             <p className={`text-[10px] sm:text-xs uppercase tracking-[0.2em] font-black mb-1 ${appMode === 'comic' ? 'text-purple-500' : 'text-emerald-500'}`}>
               Thành viên {appMode === 'comic' ? 'MangaHub' : 'Movie'}
             </p>
-            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight break-words">
+            <h1 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight break-words">
               {displayName || "Người dùng"}
             </h1>
           </div>
@@ -178,7 +181,7 @@ const Profile = () => {
         <form onSubmit={onSubmit} className="space-y-6 order-2 lg:order-1">
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+              <label htmlFor="email" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
                 Email
               </label>
               <input
@@ -186,12 +189,13 @@ const Profile = () => {
                 name="email"
                 type="email"
                 value={user?.email || ""}
+                readOnly
                 disabled
                 className="w-full rounded-2xl bg-white/[0.03] border border-white/10 px-4 py-3 text-slate-400 cursor-not-allowed"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+              <label htmlFor="displayName" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
                 Họ tên / Biệt danh
               </label>
               <input
@@ -208,7 +212,7 @@ const Profile = () => {
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+              <label htmlFor="birthday" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
                 Ngày sinh
               </label>
               <input
@@ -216,18 +220,17 @@ const Profile = () => {
                 name="birthday"
                 type="date"
                 value={birthday || ""}
-                max={new Date().toISOString().slice(0, 10)}
+                max={todayStr}
                 onChange={(e) => {
                   const value = e.target.value;
-                  const today = new Date().toISOString().slice(0, 10);
-                  const clamped = value && value > today ? today : value;
+                  const clamped = value && value > todayStr ? todayStr : value;
                   setBirthday(clamped);
                 }}
                 className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+              <label htmlFor="phoneNumber" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
                 Số điện thoại
               </label>
               <input
@@ -249,7 +252,7 @@ const Profile = () => {
 
           {error && (
             <div className="rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+              <span className="size-1.5 rounded-full bg-red-500" />
               {error}
             </div>
           )}
@@ -263,9 +266,9 @@ const Profile = () => {
           <button
             type="submit"
             disabled={saving || profileLoading}
-            className="w-full sm:w-auto rounded-full bg-emerald-500 px-8 py-3.5 text-slate-950 font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 active:scale-95"
+            className="w-full sm:w-auto rounded-full bg-emerald-500 px-8 py-3.5 text-emerald-950 font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 active:scale-95"
           >
-            {saving ? "Đang xử lý..." : "Lưu thay đổi"}
+            {saving ? "Đang xử lý…" : "Lưu thay đổi"}
           </button>
         </form>
       </div>

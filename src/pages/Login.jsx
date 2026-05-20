@@ -80,7 +80,7 @@ const Login = () => {
         <p className="text-sm uppercase tracking-[0.16em] text-slate-400">
           Tài khoản
         </p>
-        <h1 className="text-3xl font-bold text-white">Đăng nhập</h1>
+        <h1 className="text-3xl font-semibold text-white">Đăng nhập</h1>
         <p className="text-slate-400 mt-2">
           Đăng nhập để lưu phim và xem hồ sơ của bạn.
         </p>
@@ -95,7 +95,7 @@ const Login = () => {
 
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm text-slate-200">Email</label>
+          <label htmlFor="email" className="text-sm text-slate-200">Email</label>
           <input
             id="email"
             name="email"
@@ -108,7 +108,7 @@ const Login = () => {
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm text-slate-200">Mật khẩu</label>
+          <label htmlFor="password" className="text-sm text-slate-200">Mật khẩu</label>
           <input
             id="password"
             name="password"
@@ -130,7 +130,7 @@ const Login = () => {
         <button
           type="submit"
           disabled={submitting || loading}
-          className="w-full rounded-full bg-emerald-500 px-4 py-3 text-slate-900 font-semibold shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
+          className="w-full rounded-full bg-emerald-500 px-4 py-3 text-emerald-950 font-semibold shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
         >
           {submitting ? "Đang xử lý..." : "Đăng nhập"}
         </button>

@@ -31,8 +31,8 @@ export default function ConfirmModal({
   const colorClasses = {
     danger: "bg-rose-500 text-white hover:bg-rose-600 shadow-rose-500/20",
     warning:
-      "bg-amber-500 text-slate-950 hover:bg-amber-400 shadow-amber-500/20",
-    info: "bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-emerald-500/20",
+      "bg-amber-500 text-amber-950 hover:bg-amber-400 shadow-amber-500/20",
+    info: "bg-emerald-500 text-emerald-950 hover:bg-emerald-400 shadow-emerald-500/20",
   };
 
   const iconClasses = {
@@ -48,6 +48,7 @@ export default function ConfirmModal({
       <div
         className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-[32px] p-6 shadow-2xl scale-in-center animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-start mb-2">
           <div className={`p-3 rounded-2xl ${iconClasses[type]}`}>
@@ -62,7 +63,7 @@ export default function ConfirmModal({
         </div>
 
         <div className="space-y-2 mb-8">
-          <h3 className="text-xl font-bold text-white">{title}</h3>
+          <h3 className="text-xl font-semibold text-white">{title}</h3>
           <p className="text-sm text-slate-400 leading-relaxed">{message}</p>
         </div>
 

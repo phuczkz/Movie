@@ -37,7 +37,7 @@ const MaintenanceNew = () => {
                 <img
                     src="/icons/sword-cursor.png"
                     alt="Sword Cursor"
-                    className="w-12 h-12 object-contain"
+                    className="size-12 object-contain"
                 />
             </div>
 
@@ -51,20 +51,20 @@ const MaintenanceNew = () => {
                     onMouseEnter={() => setIsHovering(true)}
                     onMouseLeave={() => setIsHovering(false)}
                 >
-                    <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-black text-2xl group-hover:rotate-12 transition-transform shadow-lg">k</div>
+                    <div className="size-10 bg-black rounded-xl flex items-center justify-center text-white font-black text-2xl group-hover:rotate-12 transition-transform shadow-lg">k</div>
                     <span className="text-2xl font-black tracking-tight text-gray-900">khophim</span>
                 </div>
                 <nav className="hidden lg:flex items-center gap-10">
                     {['Phim Lẻ', 'Phim Bộ', 'Thể Loại', 'Quốc Gia'].map((item) => (
-                        <a
+                        <button
                             key={item}
-                            href="#"
-                            className="text-sm font-bold text-gray-400 hover:text-black transition-colors tracking-wide uppercase cursor-none"
+                            type="button"
+                            className="text-sm font-bold text-gray-400 hover:text-black transition-colors tracking-wide uppercase cursor-none bg-transparent border-none"
                             onMouseEnter={() => setIsHovering(true)}
                             onMouseLeave={() => setIsHovering(false)}
                         >
                             {item}
-                        </a>
+                        </button>
                     ))}
                 </nav>
 
@@ -73,12 +73,12 @@ const MaintenanceNew = () => {
             {/* Content Section */}
             <main className="relative z-10 flex flex-col items-center justify-center h-full px-6 text-center">
                 <div className="flex items-center gap-3 mb-10 animate-fade-in py-2 px-5 bg-gray-50 rounded-full border border-gray-100">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                    <div className="size-2 bg-blue-500 rounded-full animate-pulse" />
                     <span className="text-xs font-bold text-gray-500 tracking-widest uppercase">Nền tảng điện ảnh 4.0</span>
                 </div>
 
                 <h1
-                    className="text-7xl md:text-9xl font-black text-gray-900 leading-[1] tracking-tighter mb-10 max-w-6xl animate-slide-up cursor-none"
+                    className="text-7xl md:text-9xl font-semibold text-gray-900 leading-[1] tracking-tighter mb-10 max-w-6xl animate-slide-up cursor-none"
                     onMouseEnter={() => setIsHovering(true)}
                     onMouseLeave={() => setIsHovering(false)}
                 >
@@ -93,6 +93,7 @@ const MaintenanceNew = () => {
 
             </main>
 
+            {/* oxc-disable-next-line react/no-danger */}
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');

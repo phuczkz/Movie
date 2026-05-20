@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { searchMovies } from "../api/movies";
 import { Play, Star } from "lucide-react";
@@ -84,9 +84,9 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
 
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
+            {["sk-1", "sk-2", "sk-3", "sk-4", "sk-5", "sk-6"].map((key) => (
               <div
-                key={i}
+                key={key}
                 className="aspect-[2/3] rounded-2xl bg-white/5 animate-pulse"
               />
             ))}
@@ -107,8 +107,8 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
 
                     {/* Hover Overlay */}
                     <div className="absolute inset-0 bg-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
-                      <div className="h-12 w-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-500">
-                        <Play className="w-6 h-6 fill-current" />
+                      <div className="size-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-500">
+                        <Play className="size-6 fill-current" />
                       </div>
                     </div>
 
@@ -158,9 +158,9 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
         </div>
         <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar custom-scrollbar">
           {loading ? (
-            [1, 2, 3, 4].map((i) => (
+            ["sk-1", "sk-2", "sk-3", "sk-4"].map((key) => (
               <div
-                key={i}
+                key={key}
                 className="min-w-[170px] sm:min-w-[200px] aspect-[2/3] bg-white/5 animate-pulse rounded-2xl"
               />
             ))
@@ -199,8 +199,8 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
         <div className="h-full overflow-y-auto pr-2 custom-scrollbar space-y-3">
           {loading ? (
             <div className="flex flex-col gap-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex gap-3 animate-pulse">
+              {["sk-1", "sk-2", "sk-3", "sk-4", "sk-5"].map((key) => (
+                <div key={key} className="flex gap-3 animate-pulse">
                   <div className="w-16 h-24 bg-white/5 rounded-lg" />
                   <div className="flex-1 space-y-2 py-1">
                     <div className="h-4 bg-white/5 rounded w-3/4" />
@@ -224,7 +224,7 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center">
-                    <Play className="w-6 h-6 text-white fill-white" />
+                    <Play className="size-6 text-white fill-white" />
                   </div>
                 </div>
                 <div className="flex flex-col justify-center gap-1 min-w-0">
@@ -233,7 +233,7 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
                   </h3>
                   <div className="flex items-center gap-2 text-[10px] text-slate-400">
                     <span className="flex items-center gap-0.5 text-amber-400 font-bold">
-                      <Star className="w-3 h-3 fill-current" />
+                      <Star className="size-3 fill-current" />
                       {m.year || "N/A"}
                     </span>
                     <span className="truncate opacity-80">

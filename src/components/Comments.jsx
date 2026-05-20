@@ -39,20 +39,27 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString("vi-VN");
 };
 
-const renderContent = (content) =>
-  getProfanitySegments(content).map((segment, idx) =>
+const EMPTY_REPLIES = [];
+
+const CommentContent = ({ content }) => {
+  const segments = getProfanitySegments(content).map((segment, idx) => ({
+    ...segment,
+    keyId: `segment-${idx}-${segment.isProfane}`
+  }));
+  return segments.map((segment) =>
     segment.isProfane ? (
       <span
-        key={idx}
+        key={segment.keyId}
         className="text-slate-400/80 font-mono tracking-wider"
         title="Nội dung đã bị ẩn do chứa từ ngữ không phù hợp"
       >
         {segment.text}
       </span>
     ) : (
-      <span key={idx}>{segment.text}</span>
+      <span key={segment.keyId}>{segment.text}</span>
     )
   );
+};
 
 /* ───── Single Comment / Reply Row ───── */
 function CommentRow({
@@ -60,7 +67,7 @@ function CommentRow({
   movieSlug,
   movieName, // Add movieName
   isReply = false,
-  replies = [],
+  replies = EMPTY_REPLIES,
   onReplySubmitted,
 }) {
   const { user, userProfile } = useAuth();
@@ -241,7 +248,7 @@ function CommentRow({
         {/* Avatar */}
         <div
           className={`shrink-0 overflow-hidden rounded-full border border-white/5 bg-white/5 ${
-            isReply ? "h-8 w-8" : "h-10 w-10"
+            isReply ? "size-8" : "size-10"
           }`}
         >
           {proxiedAvatarSrc ? (
@@ -269,7 +276,7 @@ function CommentRow({
               </span>
             </div>
             <p className="text-[14px] text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
-              {renderContent(comment.content)}
+              <CommentContent content={comment.content} />
             </p>
           </div>
 
@@ -285,7 +292,7 @@ function CommentRow({
                   : "text-slate-400 hover:text-emerald-400 hover:bg-white/5"
               }`}
             >
-              <ThumbsUp className="h-3.5 w-3.5" />
+              <ThumbsUp className="size-3.5" />
               {likeCount > 0 && (
                 <span className="font-semibold">{likeCount}</span>
               )}
@@ -301,7 +308,7 @@ function CommentRow({
                   : "text-slate-400 hover:text-rose-400 hover:bg-white/5"
               }`}
             >
-              <ThumbsDown className="h-3.5 w-3.5" />
+              <ThumbsDown className="size-3.5" />
               {dislikeCount > 0 && (
                 <span className="font-semibold">{dislikeCount}</span>
               )}
@@ -317,7 +324,7 @@ function CommentRow({
                 }}
                 className="flex items-center gap-1 rounded-lg px-2 py-1 text-slate-400 hover:text-sky-400 hover:bg-white/5 transition-colors"
               >
-                <MessageCircle className="h-3.5 w-3.5" />
+                <MessageCircle className="size-3.5" />
                 <span className="font-semibold">Trả lời</span>
               </button>
             )}
@@ -330,7 +337,7 @@ function CommentRow({
                 className="flex items-center gap-1 rounded-lg px-2 py-1 text-slate-400 hover:text-rose-400 hover:bg-white/5 transition-colors"
                 title="Xóa bình luận"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="size-3.5" />
               </button>
             )}
           </div>
@@ -358,7 +365,7 @@ function CommentRow({
               onSubmit={handleSubmitReply}
               className="flex items-center gap-2 pt-1"
             >
-              <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
+              <div className="size-7 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
                 {finalAvatar ? (
                   <img
                     src={finalAvatar}
@@ -378,7 +385,7 @@ function CommentRow({
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Viết phản hồi..."
-                  autoFocus
+                  ref={(input) => input && input.focus()}
                   className="w-full rounded-full border border-white/10 bg-white/5 pl-3.5 pr-10 py-2 text-[13px] text-white placeholder-slate-400 focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 />
                 <button
@@ -386,7 +393,7 @@ function CommentRow({
                   disabled={submittingReply || !replyText.trim()}
                   className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 transition-colors"
                 >
-                  <Send className="h-3.5 w-3.5" />
+                  <Send className="size-3.5" />
                 </button>
               </div>
             </form>
@@ -401,12 +408,12 @@ function CommentRow({
             >
               {showReplies ? (
                 <>
-                  <ChevronUp className="h-3.5 w-3.5" />
+                  <ChevronUp className="size-3.5" />
                   Ẩn phản hồi
                 </>
               ) : (
                 <>
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown className="size-3.5" />
                   Xem {replies.length} phản hồi
                 </>
               )}
@@ -570,7 +577,7 @@ export default function Comments({ movieSlug, movieName }) {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full gap-6">
       <div className="flex items-center gap-3 shrink-0">
         <h2 className="text-xl font-semibold text-white">Bình luận</h2>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300">
@@ -583,7 +590,7 @@ export default function Comments({ movieSlug, movieName }) {
           onSubmit={handleSubmit}
           className="flex flex-col sm:flex-row gap-4 shrink-0"
         >
-          <div className="hidden sm:block h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-inner">
+          <div className="hidden sm:block size-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-inner">
             {finalAvatar ? (
               <img
                 src={finalAvatar}
@@ -612,7 +619,7 @@ export default function Comments({ movieSlug, movieName }) {
               disabled={submitting || !newComment.trim()}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl p-2 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
             >
-              <Send className="h-[18px] w-[18px]" />
+              <Send className="size-[18px]" />
             </button>
           </div>
         </form>

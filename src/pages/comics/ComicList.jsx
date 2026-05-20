@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { comicApi } from "../../api/comicApi";
@@ -122,13 +122,13 @@ export default function ComicList() {
         <div className="flex items-center gap-3">
           <div className="p-3 bg-purple-500/10 rounded-2xl border border-purple-500/20">
             {isCategory ? (
-              <LayoutGrid className="w-6 h-6 text-purple-500" />
+              <LayoutGrid className="size-6 text-purple-500" />
             ) : (
-              <ListIcon className="w-6 h-6 text-purple-500" />
+              <ListIcon className="size-6 text-purple-500" />
             )}
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-semibold text-white uppercase tracking-tight">
               {heading}
             </h1>
             <p className="text-slate-400 text-sm mt-1">

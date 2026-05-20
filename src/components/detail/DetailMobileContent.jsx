@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { User, Info } from "lucide-react";
 import EpisodeList from "../EpisodeList.jsx";
 import Comments from "../Comments.jsx";
@@ -51,7 +51,7 @@ const DetailMobileContent = ({
 
             {movieOverride?.mode === "trailer" ? (
               <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
-                <div className="flex justify-center"><Info className="h-6 w-6 text-amber-400" /></div>
+                <div className="flex justify-center"><Info className="size-6 text-amber-400" /></div>
                 <p className="text-sm font-semibold text-amber-200">Phim hiện đang chưa có nguồn</p>
                 <p className="text-xs text-slate-400 leading-relaxed">Bộ phim này hiện tại chỉ có Trailer. Bạn có thể xem bản giới hạn bằng nút "Xem Trailer" ở trên.</p>
               </div>
@@ -78,7 +78,7 @@ const DetailMobileContent = ({
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                 {actorsWithImages.map((actor) => (
                   <Link key={actor.name} to={`/actor/${actor.id || actor.name}`} className="flex flex-col items-center gap-2 group/actor">
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
+                    <div className="size-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
                       {actor.image ? (<img src={actor.image} alt={actor.name} className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500" loading="lazy" />) : (<User className="w-1/2 h-1/2 text-slate-400 group-hover/actor:text-emerald-400/80 transition-colors" />)}
                     </div>
                     <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight group-hover/actor:text-emerald-400 transition-colors">{actor.name}</span>

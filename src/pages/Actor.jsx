@@ -10,10 +10,10 @@ const Actor = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
         <div className="loader-orbit loader-orbit-md"></div>
         <div className="text-slate-400 font-medium animate-pulse">
-          Đang tải thông tin diễn viên...
+          Đang tải thông tin diễn viên…
         </div>
       </div>
     );
@@ -63,7 +63,7 @@ const Actor = () => {
 
         <div className="flex-1 space-y-8">
           <div className="space-y-4">
-            <h1 className="text-4xl lg:text-5xl xl:text-6xl font-black text-white leading-tight tracking-tight">
+            <h1 className="text-4xl lg:text-5xl xl:text-6xl font-semibold text-white leading-tight tracking-tight">
               {person.name}
             </h1>
             {person.place_of_birth && (
@@ -74,14 +74,14 @@ const Actor = () => {
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+            <h2 className="text-2xl font-semibold text-white flex items-center gap-3">
               Tiểu sử
               <span className="h-px flex-1 bg-gradient-to-r from-white/10 to-transparent"></span>
             </h2>
             <div className="max-h-[16rem] overflow-y-auto pr-6 custom-scrollbar scroll-smooth">
               <p className="text-slate-300 leading-relaxed max-w-4xl text-lg whitespace-pre-wrap font-medium">
                 {person.biography ||
-                  `Chúng tôi chưa có thông tin tiểu sử chi tiết cho ${person.name}.`}
+                  `Chúng tôi chưa có thông tin tiểu sử chi tiết cho ${person.name}…`}
               </p>
             </div>
           </div>
@@ -90,7 +90,7 @@ const Actor = () => {
 
       <div className="space-y-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-white tracking-tight">
+          <h2 className="text-3xl font-semibold text-white tracking-tight">
             Phim đã tham gia
           </h2>
           <span className="text-slate-500 font-bold bg-white/5 px-4 py-1.5 rounded-full border border-white/5">

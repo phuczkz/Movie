@@ -115,26 +115,24 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   // After removing ads, we may have consecutive #EXT-X-DISCONTINUITY lines
   // or discontinuity at the very start/end. Clean those up.
   const cleaned = [];
-  for (let j = 0; j < out.length; j++) {
-    const curr = out[j].trim();
-
-    // Skip empty lines
-    if (!curr) continue;
+  const trimmedOut = out.map(l => l.trim()).filter(Boolean);
+  for (let j = 0; j < trimmedOut.length; j++) {
+    const curr = trimmedOut[j];
 
     if (curr === "#EXT-X-DISCONTINUITY") {
       // Skip if it's the first content line (nothing before to be discontinuous from)
       if (cleaned.length === 0) continue;
 
       // Skip if previous line is also a discontinuity (double-discontinuity from ad removal)
-      const prev = cleaned[cleaned.length - 1]?.trim();
+      const prev = cleaned[cleaned.length - 1];
       if (prev === "#EXT-X-DISCONTINUITY") continue;
 
       // Skip if it's right before #EXT-X-ENDLIST (trailing discontinuity)
-      const nextNonEmpty = out.slice(j + 1).find((l) => l.trim());
-      if (!nextNonEmpty || nextNonEmpty.trim() === "#EXT-X-ENDLIST") continue;
+      const nextNonEmpty = trimmedOut[j + 1];
+      if (!nextNonEmpty || nextNonEmpty === "#EXT-X-ENDLIST") continue;
 
       // Skip if it's right after the header (before first #EXTINF)
-      const hasExtinfBefore = cleaned.some((l) => l.trim().startsWith("#EXTINF"));
+      const hasExtinfBefore = cleaned.some((l) => l.startsWith("#EXTINF"));
       if (!hasExtinfBefore) continue;
     }
 

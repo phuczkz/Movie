@@ -38,7 +38,7 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
         <button
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-slate-400 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group"
+          className="flex size-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-slate-400 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group"
           title="Trang đầu"
         >
           <ChevronsLeft
@@ -64,7 +64,7 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
         <div className="flex items-center gap-1.5 sm:gap-2 px-1">
           {pages[0] > 1 && (
             <span className="text-slate-600 font-bold px-1 hidden sm:inline">
-              ...
+              …
             </span>
           )}
 
@@ -72,9 +72,9 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
             <button
               key={p}
               onClick={() => onPageChange(p)}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-bold transition-all duration-500 transform active:scale-95 ${
+              className={`flex size-10 items-center justify-center rounded-xl border text-sm font-bold transition-all duration-500 transform active:scale-95 ${
                 p === currentPage
-                  ? "border-emerald-500 bg-emerald-500 text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.4)] rotate-0 scale-105"
+                  ? "border-emerald-500 bg-emerald-500 text-emerald-950 shadow-[0_0_25px_rgba(16,185,129,0.4)] rotate-0 scale-105"
                   : "border-white/5 bg-white/5 text-slate-400 hover:border-white/20 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -84,7 +84,7 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
 
           {hasNext && (
             <span className="text-slate-600 font-bold px-1 hidden sm:inline">
-              ...
+              …
             </span>
           )}
         </div>

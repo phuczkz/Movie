@@ -133,15 +133,15 @@ export default function WatchTogetherModal({
           onClick={onClose}
           className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-white/5 hover:text-white transition-colors"
         >
-          <X className="h-5 w-5" />
+          <X className="size-5" />
         </button>
 
-        <div className="flex flex-col items-center text-center space-y-4">
+        <div className="flex flex-col items-center text-center gap-4">
           <div className="rounded-2xl bg-emerald-500/10 p-3.5 border border-emerald-500/20">
-            <Users className="h-8 w-8 text-emerald-400" />
+            <Users className="size-8 text-emerald-400" />
           </div>
 
-          <h2 className="text-xl font-bold text-white tracking-tight">
+          <h2 className="text-xl font-semibold text-white tracking-tight">
             Xem Phim Chung (Watch Together)
           </h2>
           <p className="text-slate-400 text-sm max-w-xs">
@@ -172,11 +172,12 @@ export default function WatchTogetherModal({
 
               {/* Copy Invite Link */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left block pl-1">
+                <label htmlFor="invite-link" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider text-left block pl-1">
                   Đường dẫn mời tham gia
                 </label>
                 <div className="relative flex items-center">
                   <input
+                    id="invite-link"
                     type="text"
                     readOnly
                     value={getInviteLink()}
@@ -187,7 +188,7 @@ export default function WatchTogetherModal({
                     onClick={handleCopyLink}
                     className="absolute right-1 top-1/2 -translate-y-1/2 rounded-xl p-2 text-emerald-400 hover:bg-emerald-400/10 transition-colors"
                   >
-                    {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                    {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
                   </button>
                 </div>
               </div>
@@ -200,7 +201,7 @@ export default function WatchTogetherModal({
                   disabled={loading}
                   className="w-full inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-400 hover:bg-rose-500/20 transition-all disabled:opacity-50"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="size-4" />
                   {isHost ? "Giải tán phòng" : "Rời phòng"}
                 </button>
               </div>
@@ -212,13 +213,13 @@ export default function WatchTogetherModal({
                 type="button"
                 onClick={handleCreateRoom}
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2.5 rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2.5 rounded-2xl bg-emerald-500 py-3 text-sm font-bold text-emerald-950 shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 transition-all disabled:opacity-50"
               >
                 {loading && !inputCode ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                  <div className="size-5 animate-spin rounded-full border-2 border-emerald-950 border-t-transparent" />
                 ) : (
                   <>
-                    <Tv className="h-4 w-4" />
+                    <Tv className="size-4" />
                     Tạo phòng xem chung
                   </>
                 )}
@@ -234,11 +235,12 @@ export default function WatchTogetherModal({
               </div>
 
               <div className="space-y-2 text-left">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">
+                <label htmlFor="room-code-input" className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">
                   Nhập mã phòng đã có
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="room-code-input"
                     type="text"
                     placeholder="MÃ PHÒNG (VD: AB34EF)"
                     value={inputCode}

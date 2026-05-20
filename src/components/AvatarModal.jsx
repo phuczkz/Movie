@@ -81,7 +81,7 @@ export default function AvatarModal({
       <div className="relative w-full max-w-xl bg-slate-900 border-t sm:border border-white/10 rounded-t-[2.5rem] sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-500 sm:duration-300 max-h-[90vh] flex flex-col">
         <div className="p-6 sm:p-8 border-b border-white/5 flex items-center justify-between shrink-0">
           <div>
-            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            <h3 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
               Chọn ảnh đại diện
             </h3>
             <p className="text-slate-400 text-sm sm:text-base mt-1">
@@ -120,7 +120,7 @@ export default function AvatarModal({
                     {currentAvatarUrl === avatar.url ? (
                       <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
                         <div className="bg-emerald-500 rounded-full p-1.5 shadow-lg">
-                          <Check className="text-slate-950" size={20} />
+                          <Check className="text-emerald-950" size={20} />
                         </div>
                       </div>
                     ) : (
@@ -156,7 +156,7 @@ export default function AvatarModal({
               disabled={uploading}
               className="w-full flex flex-col items-center justify-center gap-4 p-8 sm:p-10 rounded-3xl border-2 border-dashed border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-emerald-500/50 transition-all group disabled:opacity-50"
             >
-              <div className="p-5 rounded-3xl bg-slate-800 text-slate-400 group-hover:bg-emerald-500 group-hover:text-slate-950 group-hover:scale-110 transition-all duration-300 shadow-xl">
+              <div className="p-5 rounded-3xl bg-slate-800 text-slate-400 group-hover:bg-emerald-500 group-hover:text-emerald-950 group-hover:scale-110 transition-all duration-300 shadow-xl">
                 {uploading ? (
                   <div className="loader-orbit loader-orbit-sm" />
                 ) : (
@@ -164,7 +164,7 @@ export default function AvatarModal({
                 )}
               </div>
               <div className="text-center">
-                <p className="text-white text-lg font-bold">
+                <p className="text-white text-lg font-semibold">
                   Thêm ảnh từ thiết bị
                 </p>
                 <p className="text-slate-400 text-sm mt-1 max-w-[240px]">
@@ -180,9 +180,9 @@ export default function AvatarModal({
             <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-xs animate-in zoom-in-95 duration-300">
               <div className="loader-orbit loader-orbit-md" />
               <div>
-                <h4 className="text-white font-bold text-lg">Đang xử lý ảnh</h4>
+                <h4 className="text-white font-semibold text-lg">Đang xử lý ảnh</h4>
                 <p className="text-slate-400 text-sm mt-1">
-                  Vui lòng chờ trong giây lát...
+                  Vui lòng chờ trong giây lát…
                 </p>
               </div>
             </div>

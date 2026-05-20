@@ -6,9 +6,9 @@ const TrendingSection = ({ movies = [], loading = false }) => {
     return (
       <Section title="Top 10 phim bộ hôm nay">
         <div className="flex gap-4 overflow-x-hidden pt-4 pb-8">
-          {[...Array(5)].map((_, i) => (
+          {["sk-1", "sk-2", "sk-3", "sk-4", "sk-5"].map((key) => (
             <div
-              key={i}
+              key={key}
               className="min-w-[180px] sm:min-w-[220px] aspect-[2/3] rounded-3xl bg-slate-800 animate-pulse"
             />
           ))}

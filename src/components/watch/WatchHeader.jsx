@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+﻿import React, { memo } from "react";
 import { Users } from "lucide-react";
 
 const WatchHeader = memo(({ movie, autoProviderNotice, onOpenWatchTogether, hasActiveRoom }) => {
@@ -24,7 +24,7 @@ const WatchHeader = memo(({ movie, autoProviderNotice, onOpenWatchTogether, hasA
             : "bg-white/10 text-white border border-white/10 hover:bg-white/15"
         }`}
       >
-        <Users className="h-4 w-4" />
+        <Users className="size-4" />
         {hasActiveRoom ? "Xem chung: Đang hoạt động" : "Xem cùng bạn bè"}
       </button>
     </div>

@@ -41,7 +41,7 @@ const WatchEpisodeGrid = memo(({
               onClick={() => handleServerChange(serverLabel)}
               className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
                 activeServer === serverLabel
-                  ? "border-emerald-500 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20"
+                  ? "border-emerald-500 bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/20"
                   : "border-white/10 bg-white/5 text-slate-300 hover:border-emerald-500/50 hover:text-emerald-400"
               }`}
             >
@@ -84,7 +84,7 @@ const WatchEpisodeGrid = memo(({
       {/* Episode Grid */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-white/60">
-          <ListChecks className="h-4 w-4" />
+          <ListChecks className="size-4" />
           <span className="text-sm font-semibold uppercase tracking-wider">Danh sách tập</span>
         </div>
         
@@ -102,7 +102,7 @@ const WatchEpisodeGrid = memo(({
                   to={`/watch/${slug}?episode=${ep.slug}&server=${encodeURIComponent(activeServer)}`}
                   className={`flex items-center justify-center rounded-lg border py-2.5 text-sm font-bold transition-all duration-300 ${
                     isActive
-                      ? "border-emerald-500 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/25 scale-105 z-10"
+                      ? "border-emerald-500 bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/25 scale-105 z-10"
                       : "border-white/5 bg-white/5 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-400 hover:bg-emerald-500/5"
                   }`}
                 >

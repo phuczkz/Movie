@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef } from "react";
 import { Send, UserCircle, Users } from "lucide-react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase.config";
@@ -115,7 +115,7 @@ export default function WatchChat({ roomId, roomHostId }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
           <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
             Trò chuyện phòng
           </h4>
@@ -132,7 +132,7 @@ export default function WatchChat({ roomId, roomHostId }) {
                 : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
             }`}
           >
-            <Users className="h-3 w-3" />
+            <Users className="size-3" />
             <span>{activeMembers.length} người</span>
           </button>
         </div>
@@ -153,13 +153,13 @@ export default function WatchChat({ roomId, roomHostId }) {
           <div className="flex-1 overflow-y-auto space-y-2.5 custom-scrollbar">
             {activeMembers.map((m) => (
               <div key={m.userId} className="flex items-center gap-2.5 py-1">
-                <div className="h-7 w-7 rounded-full overflow-hidden bg-white/5 border border-white/5 relative shrink-0">
+                <div className="size-7 rounded-full overflow-hidden bg-white/5 border border-white/5 relative shrink-0">
                   {m.userAvatar ? (
                     <img src={getProxiedAvatar(m.userAvatar)} alt={m.userName} className="h-full w-full object-cover" crossOrigin="anonymous" />
                   ) : (
                     <UserCircle className="h-full w-full text-slate-500" />
                   )}
-                  <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border border-slate-950" />
+                  <span className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-500 border border-slate-950" />
                 </div>
                 <span className="text-xs text-slate-200 font-medium truncate max-w-[150px]">{m.userName}</span>
                 {m.userId === roomHostId && (
@@ -188,7 +188,7 @@ export default function WatchChat({ roomId, roomHostId }) {
             >
               {/* Avatar */}
               {!isMe && (
-                <div className="h-7 w-7 shrink-0 rounded-full overflow-hidden bg-white/5 border border-white/5">
+                <div className="size-7 shrink-0 rounded-full overflow-hidden bg-white/5 border border-white/5">
                   {avatar ? (
                     <img
                       src={avatar}
@@ -250,7 +250,7 @@ export default function WatchChat({ roomId, roomHostId }) {
               disabled={submitting || !text.trim()}
               className="absolute right-1 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 transition-colors"
             >
-              <Send className="h-4 w-4" />
+              <Send className="size-4" />
             </button>
           </div>
         </form>

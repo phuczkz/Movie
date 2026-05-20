@@ -118,8 +118,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <LayoutDashboard className="text-indigo-500 h-6 w-6" />
+        <h2 className="text-2xl font-semibold text-white flex items-center gap-2">
+          <LayoutDashboard className="text-indigo-500 size-6" />
           Tổng quan Dashboard
         </h2>
         <p className="text-slate-400 text-sm">
@@ -128,15 +128,15 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((card, idx) => (
+        {statCards.map((card) => (
           <div
-            key={idx}
+            key={card.title}
             className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 flex flex-col gap-4 relative overflow-hidden group"
           >
-            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${card.bg} blur-2xl group-hover:blur-3xl transition-all duration-500`} />
+            <div className={`absolute -right-6 -top-6 size-24 rounded-full ${card.bg} blur-2xl group-hover:blur-3xl transition-all duration-500`} />
             
-            <div className={`h-12 w-12 rounded-2xl ${card.bg} ${card.border} border flex items-center justify-center shrink-0`}>
-              <card.icon className={`h-6 w-6 ${card.color}`} />
+            <div className={`size-12 rounded-2xl ${card.bg} ${card.border} border flex items-center justify-center shrink-0`}>
+              <card.icon className={`size-6 ${card.color}`} />
             </div>
             
             <div className="space-y-1">
@@ -151,8 +151,8 @@ export default function AdminDashboard() {
       
       {/* Biểu đồ Top 5 phim (User Request) */}
       <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-6 lg:p-8 mt-8">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-6">
-          <Film className="h-5 w-5 text-emerald-500" />
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-6">
+          <Film className="size-5 text-emerald-500" />
           Biểu đồ Top 5 phim được nhiều User xem nhất
         </h3>
         
@@ -190,11 +190,11 @@ export default function AdminDashboard() {
       
       <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-8 mt-8">
         <div className="flex items-center gap-4 mb-6">
-          <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-            <TrendingUp className="h-6 w-6 text-indigo-500" />
+          <div className="size-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+            <TrendingUp className="size-6 text-indigo-500" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Chào mừng tới trang quản trị</h3>
+            <h3 className="text-lg font-semibold text-white">Chào mừng tới trang quản trị</h3>
             <p className="text-slate-400 text-sm">Quản lý và theo dõi toàn bộ hệ thống từ đây.</p>
           </div>
         </div>

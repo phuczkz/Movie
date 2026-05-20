@@ -10,7 +10,7 @@ const Saved = () => {
   if (!user) {
     return (
       <div className="max-w-5xl mx-auto space-y-4 text-center">
-        <h1 className="text-3xl font-bold text-white">Phim yêu thích</h1>
+        <h1 className="text-3xl font-semibold text-white">Phim yêu thích</h1>
         <p className="text-slate-300">
           Vui lòng <Link className="text-emerald-400 underline" to="/login">đăng nhập</Link> để xem danh sách phim yêu thích.
         </p>
@@ -21,9 +21,9 @@ const Saved = () => {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-white">Phim yêu thích</h1>
+        <h1 className="text-3xl font-semibold text-white">Phim yêu thích</h1>
         <p className="text-slate-300 text-sm">
-          {loading ? "Đang tải danh sách..." : `Tổng cộng ${movies.length} phim.`}
+          {loading ? "Đang tải danh sách…" : `Tổng cộng ${movies.length} phim.`}
         </p>
         {error ? (
           <p className="text-sm text-amber-200 font-semibold">
@@ -33,7 +33,7 @@ const Saved = () => {
       </div>
 
       {loading && !movies.length ? (
-        <p className="text-slate-400">Đang tải...</p>
+        <p className="text-slate-400">Đang tải…</p>
       ) : movies.length ? (
         <div className="grid-movies">
           {movies.map((movie) => (

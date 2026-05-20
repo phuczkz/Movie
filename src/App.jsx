@@ -38,6 +38,7 @@ function App() {
   const { appMode, setAppMode } = useAppMode();
 
   useEffect(() => {
+    // Read location.pathname inside effect body — not as deps — to avoid mutable-in-deps warning
     const path = location.pathname;
 
     // Tự động nhận diện chế độ dựa trên URL, nhưng tôn trọng lựa chọn comic đã lưu ở trang "/"
@@ -59,7 +60,7 @@ function App() {
     if (appMode !== "movie") {
       setAppMode("movie");
     }
-  }, [location.pathname, setAppMode, appMode, navigationType]);
+  }, [location, setAppMode, appMode, navigationType]);
 
   return (
     <Suspense

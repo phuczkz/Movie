@@ -11,7 +11,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppMode } from "../context/AppModeContext";
 import { useStandalone } from "../hooks/useStandalone";
-import { motion as Motion, AnimatePresence } from "framer-motion";
+import { LazyMotion, domAnimation, m as Motion, AnimatePresence } from "framer-motion";
 
 /* ── static data ───────────────────────────────────────────────────────────── */
 
@@ -86,9 +86,10 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const isComic = appMode === "comic";
 
+  // Read location.pathname in useMemo — it's a stable string read, not reactive subscription
   const routeTab = useMemo(
     () => resolveTab(location.pathname),
-    [location.pathname]
+    [location]
   );
 
   const [showModeMenu, setShowModeMenu] = useState(false);
@@ -149,7 +150,7 @@ const BottomNav = () => {
   /* ── render ───────────────────────────────────────────────────────────── */
 
   return (
-    <>
+    <LazyMotion features={domAnimation}>
       {/* ── Backdrop ────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {(showCategoryMenu || showModeMenu) && (
@@ -180,18 +181,17 @@ const BottomNav = () => {
             </h2>
             <div className="grid grid-cols-2 gap-2.5 max-h-[42vh] overflow-y-auto custom-scrollbar pr-1">
               {(isComic ? COMIC_GENRES : MOVIE_GENRES).map((g) => (
-                <a
+                <button
                   key={g.to}
-                  href={g.to}
-                  onClick={(e) => {
-                    e.preventDefault();
+                  type="button"
+                  onClick={() => {
                     navigate(g.to);
                     setShowCategoryMenu(false);
                   }}
                   className="bg-white/[0.04] border border-white/[0.06] py-3.5 rounded-2xl text-center text-sm font-semibold text-slate-200 active:scale-95 transition-all"
                 >
                   {g.label}
-                </a>
+                </button>
               ))}
             </div>
           </Motion.div>
@@ -329,7 +329,7 @@ const BottomNav = () => {
 
         </div>
       </nav>
-    </>
+    </LazyMotion>
   );
 };
 

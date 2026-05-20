@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+﻿import React, { memo } from "react";
 import { Link } from "react-router-dom";
 import { User } from "lucide-react";
 
@@ -34,7 +34,7 @@ const ActorSection = memo(
                     to={`/actor/${actor.id || actor.name}`}
                     className="flex flex-col items-center gap-2 group/actor"
                   >
-                    <div className="h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800 shadow-lg group-hover/actor:border-emerald-500/50 transition-all flex items-center justify-center">
+                    <div className="size-14 overflow-hidden rounded-full border border-white/10 bg-slate-800 shadow-lg group-hover/actor:border-emerald-500/50 transition-all flex items-center justify-center">
                       {actor.image ? (
                         <img
                           src={actor.image}
@@ -81,7 +81,7 @@ const ActorSection = memo(
                   to={`/actor/${actor.id || actor.name}`}
                   className="flex items-center gap-3 p-2 rounded-2xl hover:bg-white/5 transition-all group/actor"
                 >
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-slate-800 group-hover/actor:border-emerald-500/50 shadow-sm transition-all flex items-center justify-center">
+                  <div className="size-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-slate-800 group-hover/actor:border-emerald-500/50 shadow-sm transition-all flex items-center justify-center">
                     {actor.image ? (
                       <img
                         src={actor.image}
@@ -129,7 +129,7 @@ const ActorSection = memo(
               to={`/actor/${actor.id || actor.name}`}
               className="flex flex-col items-center gap-2 min-w-[80px] sm:min-w-[96px] snap-start group/actor hover:-translate-y-1 transition-transform"
             >
-              <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-slate-800 shadow-lg group-hover/actor:border-emerald-500/50 transition-all flex items-center justify-center">
+              <div className="size-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-slate-800 shadow-lg group-hover/actor:border-emerald-500/50 transition-all flex items-center justify-center">
                 {actor.image ? (
                   <img
                     src={actor.image}

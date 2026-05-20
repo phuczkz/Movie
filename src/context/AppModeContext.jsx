@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, use, useState } from "react";
 
 const APP_MODE_STORAGE_KEY = "app-mode";
 
@@ -38,4 +38,4 @@ export const AppModeProvider = ({ children }) => {
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useAppMode = () => useContext(AppModeContext);
+export const useAppMode = () => use(AppModeContext);

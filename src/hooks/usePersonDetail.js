@@ -17,8 +17,10 @@ export const usePersonDetail = (idOrName) =>
         }
       }
 
-      const detail = await getTmdbPersonDetail(personId);
-      const credits = await getTmdbPersonCredits(personId);
+      const [detail, credits] = await Promise.all([
+        getTmdbPersonDetail(personId),
+        getTmdbPersonCredits(personId),
+      ]);
       return { ...detail, credits };
     },
     enabled: Boolean(idOrName),

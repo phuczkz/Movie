@@ -40,8 +40,10 @@ const HoverCard = ({ movie, thumbSrc, audioBadges, alignment }) => {
     if (!Array.isArray(cats)) return [];
     return cats
       .slice(0, 3)
-      .map((c) => (typeof c === "string" ? c : c?.name || c?.slug || ""))
-      .filter(Boolean);
+      .flatMap((c) => {
+        const name = typeof c === "string" ? c : c?.name || c?.slug || "";
+        return name ? [name] : [];
+      });
   }, [movie]);
 
   const qualityLabel = movie?.quality?.toUpperCase() || "HD";
@@ -163,13 +165,13 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const episodeCurrentText = movie?.episode_current;
   const movieLang = movie?.lang;
 
-  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+  const isHoverDevice = useRef(
     typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
   );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(hover: hover)");
-    const handler = (e) => setIsHoverDevice(e.matches);
+    const handler = (e) => { isHoverDevice.current = e.matches; };
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
@@ -177,7 +179,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const hoverTimerRef = useRef(null);
 
   const handleMouseEnter = (e) => {
-    if (suppressHover || !isHoverDevice) return;
+    if (suppressHover || !isHoverDevice.current) return;
 
     // Trigger API fetch only if user stays on the card for 250ms
     hoverTimerRef.current = setTimeout(() => {

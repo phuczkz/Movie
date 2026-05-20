@@ -137,6 +137,10 @@ const Watch = () => {
   }, [params, setParams]);
 
   const [roomData, setRoomData] = useState(null);
+  const roomDataRef = useRef(null);
+  useEffect(() => {
+    roomDataRef.current = roomData;
+  }, [roomData]);
   const [isWatchTogetherModalOpen, setIsWatchTogetherModalOpen] = useState(false);
   const [player, setPlayer] = useState(null);
   const isSyncing = useRef(false);
@@ -151,7 +155,7 @@ const Watch = () => {
     if (roomId && mobileTab === "episodes") {
       setMobileTab("chat");
     }
-  }, [roomId]);
+  }, [roomId, mobileTab, setMobileTab]);
 
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
@@ -171,7 +175,7 @@ const Watch = () => {
   const bestAltMatch = useMemo(() => {
     if (!isTmdb || loadingAlts) return null;
     const normalized = (text) => (text || "").toLowerCase().trim();
-    const namesToMatch = [baseMovie?.name, baseMovie?.origin_name].map(normalized).filter(Boolean);
+    const namesToMatch = [baseMovie?.name, baseMovie?.origin_name].flatMap(n => n ? [normalized(n)] : []);
     const targetYear = baseMovie?.year;
     return altResults.find((m) => {
       const nameHit = namesToMatch.includes(normalized(m.name)) || namesToMatch.includes(normalized(m.origin_name));
@@ -299,10 +303,13 @@ const Watch = () => {
 
   // 1b. Member: Check Host Heartbeat (Online Status)
   useEffect(() => {
-    if (!roomId || isHost || !roomData?.playerState?.updatedAt) return;
+    if (!roomId || isHost) return;
 
     const interval = setInterval(() => {
-      const updatedAt = roomData.playerState.updatedAt;
+      const currentData = roomDataRef.current;
+      if (!currentData?.playerState?.updatedAt) return;
+
+      const updatedAt = currentData.playerState.updatedAt;
       const updateMs = updatedAt.toMillis ? updatedAt.toMillis() : Date.now();
       const diffSeconds = (Date.now() - updateMs) / 1000;
 
@@ -314,7 +321,7 @@ const Watch = () => {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [roomId, isHost, roomData, setRoomId]);
+  }, [roomId, isHost, setRoomId]);
 
 
   // 1d. Host: Heartbeat timer to keep room alive (runs even when video is paused)
@@ -483,7 +490,7 @@ const Watch = () => {
   useEffect(() => {
     if (!player || !roomData || isHost || !roomData.playerState) return;
 
-    const { isPlaying, currentTime, updatedAt } = roomData.playerState;
+    const { isPlaying, currentTime } = roomData.playerState;
 
     isSyncing.current = true;
 
@@ -496,15 +503,19 @@ const Watch = () => {
 
     // Sync Time with fixed latency estimation (avoids client-clock desync)
     const hostTimeAdjusted = currentTime + (isPlaying ? 0.2 : 0);
-    const timeDiff = Math.abs(player.video.currentTime - hostTimeAdjusted);
+    const videoEl = player.video;
+    const timeDiff = Math.abs(videoEl.currentTime - hostTimeAdjusted);
 
     if (timeDiff > 1.5) {
-      player.video.currentTime = hostTimeAdjusted;
+      // eslint-disable-next-line react-hooks/immutability
+      videoEl.currentTime = hostTimeAdjusted;
     }
 
-    setTimeout(() => {
+    // Return cleanup to prevent isSyncing leak on fast re-renders
+    const timer = setTimeout(() => {
       isSyncing.current = false;
     }, 600);
+    return () => clearTimeout(timer);
   }, [player, roomData, isHost]);
 
   const onTimeUpdate = useCallback((currentTime, duration) => {
@@ -617,8 +628,8 @@ const Watch = () => {
   // 2. Not Found State
   if (isNoMovie || (!movie && !isReallyLoading)) return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center gap-6 text-center px-6">
-      <div className="h-20 w-20 rounded-3xl bg-slate-900 border border-white/5 flex items-center justify-center shadow-2xl">
-        <Globe2 className="h-10 w-10 text-slate-500" />
+      <div className="size-20 rounded-3xl bg-slate-900 border border-white/5 flex items-center justify-center shadow-2xl">
+        <Globe2 className="size-10 text-slate-500" />
       </div>
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-white">Không tìm thấy phim</h2>
@@ -633,14 +644,14 @@ const Watch = () => {
   // 3. No Sources State (After all fallbacks failed)
   if (!episodes.length && !isReallyLoading) return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center gap-6 text-center px-6">
-      <div className="h-20 w-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-2xl">
-        <Info className="h-10 w-10 text-amber-500" />
+      <div className="size-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-2xl">
+        <Info className="size-10 text-amber-500" />
       </div>
       <div className="space-y-3">
         <p className="text-white font-bold text-xl">{isTmdb ? "Dữ liệu nguồn phim đang gặp sự cố" : "Phim này chưa có nguồn phát"}</p>
         <div className="pt-4">
           <Link to={`/movie/${slug}`} className="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold group transition-all">
-            <Info className="h-5 w-5 group-hover:scale-110 transition-transform" /> 
+            <Info className="size-5 group-hover:scale-110 transition-transform" /> 
             Quay lại trang chi tiết
           </Link>
         </div>

@@ -19,6 +19,7 @@ const DetailDesktopContent = ({
           <div className="flex items-center gap-3">
             <p className="text-sm uppercase tracking-[0.14em] text-slate-300">Giới thiệu</p>
           </div>
+          {/* oxc-disable-next-line react/no-danger */}
           <div className="text-slate-300 leading-relaxed text-[15px]" dangerouslySetInnerHTML={{ __html: movie.content || "Chưa có mô tả." }} />
         </div>
       </div>
@@ -46,9 +47,9 @@ const DetailDesktopContent = ({
 
           {Object.keys(serverGroups).length > 1 && !isMovie ? (
             <div className="flex flex-wrap items-center gap-2">
-              {hasVietsub ? (<button type="button" onClick={() => setUserSelectedServer("Vietsub")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Vietsub" ? "border-emerald-400/70 bg-emerald-400 text-slate-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Vietsub</button>) : null}
-              {hasLongTieng ? (<button type="button" onClick={() => setUserSelectedServer("Lồng Tiếng")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Lồng Tiếng" ? "border-emerald-400/70 bg-emerald-400 text-slate-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Lồng Tiếng</button>) : null}
-              {hasThuyetMinh ? (<button type="button" onClick={() => setUserSelectedServer("Thuyết Minh")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Thuyết Minh" ? "border-emerald-400/70 bg-emerald-400 text-slate-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Thuyết Minh</button>) : null}
+              {hasVietsub ? (<button type="button" onClick={() => setUserSelectedServer("Vietsub")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Vietsub" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Vietsub</button>) : null}
+              {hasLongTieng ? (<button type="button" onClick={() => setUserSelectedServer("Lồng Tiếng")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Lồng Tiếng" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Lồng Tiếng</button>) : null}
+              {hasThuyetMinh ? (<button type="button" onClick={() => setUserSelectedServer("Thuyết Minh")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Thuyết Minh" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Thuyết Minh</button>) : null}
             </div>
           ) : null}
 
@@ -61,7 +62,7 @@ const DetailDesktopContent = ({
 
           {movieOverride?.mode === "trailer" ? (
             <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
-              <div className="flex justify-center"><Info className="h-6 w-6 text-amber-400" /></div>
+              <div className="flex justify-center"><Info className="size-6 text-amber-400" /></div>
               <p className="text-sm font-semibold text-amber-200">Phim hiện đang chưa có nguồn</p>
               <p className="text-xs text-slate-400 leading-relaxed">Bộ phim này hiện tại chỉ có Trailer. Bạn có thể xem bản giới hạn bằng nút "Xem Trailer" ở trên.</p>
             </div>
@@ -83,8 +84,8 @@ const DetailDesktopContent = ({
             <div className="flex overflow-x-auto gap-4 md:gap-6 pb-2 snap-x custom-scrollbar">
               {actorsWithImages.map((actor) => (
                 <Link key={actor.name} to={`/actor/${actor.id || actor.name}`} className="flex flex-col items-center gap-2 min-w-[80px] sm:min-w-[96px] snap-start group/actor hover:-translate-y-1 transition-transform">
-                  <div className="h-14 w-14 sm:h-16 sm:w-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
-                    {actor.image ? (<img src={actor.image} alt={actor.name} className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500" loading="lazy" />) : (<User className="w-1/2 h-1/2 text-slate-400 group-hover/actor:text-emerald-400/80 transition-colors" />)}
+                  <div className="size-14 sm:size-16 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-lg group-hover/actor:border-emerald-500/50 group-hover/actor:shadow-emerald-500/20 transition-all flex items-center justify-center">
+                    {actor.image ? (<img src={actor.image} alt={actor.name} className="h-full w-full object-cover group-hover/actor:scale-110 transition-transform duration-500" loading="lazy" />) : (<User className="size-1/2 text-slate-400 group-hover/actor:text-emerald-400/80 transition-colors" />)}
                   </div>
                   <span className="text-center text-xs sm:text-sm text-slate-100 line-clamp-2 leading-tight group-hover/actor:text-emerald-400 transition-colors">{actor.name}</span>
                 </Link>

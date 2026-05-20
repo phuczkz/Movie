@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useReducer } from "react";
 import {
   ChevronDown,
   LogIn,
@@ -81,48 +81,48 @@ const comicGenreOptions = [
 const Dropdown = ({ label, options, isWide = false }) => {
   const [open, setOpen] = useState(false);
   const timerRef = useRef(null);
-  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+  const isHoverDevice = useRef(
     typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
   );
 
   useEffect(() => {
     const mq = window.matchMedia("(hover: hover)");
-    const handler = (e) => setIsHoverDevice(e.matches);
+    const handler = (e) => { isHoverDevice.current = e.matches; };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
   const openNow = () => {
-    if (!isHoverDevice) return;
+    if (!isHoverDevice.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     setOpen(true);
   };
 
   const closeLater = () => {
-    if (!isHoverDevice) return;
+    if (!isHoverDevice.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setOpen(false), 100);
   };
 
   const handleButtonClick = () => {
-    if (isHoverDevice) return;
+    if (isHoverDevice.current) return;
     setOpen(!open);
   };
 
   // Close when clicking outside on mobile
   useEffect(() => {
-    if (isHoverDevice || !open) return;
+    if (isHoverDevice.current || !open) return;
     const handleClickOutside = () => setOpen(false);
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
-  }, [open, isHoverDevice]);
+  }, [open]);
 
   return (
     <div
       className="relative"
       onMouseEnter={openNow}
       onMouseLeave={closeLater}
-      onClick={(e) => !isHoverDevice && e.stopPropagation()}
+      onClick={(e) => !isHoverDevice.current && e.stopPropagation()}
     >
       <button
         onClick={handleButtonClick}
@@ -173,7 +173,7 @@ const MobileDropdown = ({ label, options, onNavigate }) => {
       >
         <span>{label}</span>
         <ChevronDown
-          className={`h-4 w-4 transition ${open ? "rotate-180" : "rotate-0"}`}
+          className={`size-4 transition ${open ? "rotate-180" : "rotate-0"}`}
         />
       </button>
       {open && (
@@ -194,10 +194,39 @@ const MobileDropdown = ({ label, options, onNavigate }) => {
   );
 };
 
+const initialHeaderState = {
+  menuOpen: false,
+  searchOpen: false,
+  scrolled: false,
+  isHidden: false,
+};
+
+function headerReducer(state, action) {
+  switch (action.type) {
+    case "SET_MENU_OPEN":
+      return { ...state, menuOpen: action.payload };
+    case "SET_SEARCH_OPEN":
+      return { ...state, searchOpen: action.payload };
+    case "SET_SCROLLED":
+      return { ...state, scrolled: action.payload };
+    case "SET_IS_HIDDEN":
+      return { ...state, isHidden: action.payload };
+    case "CLOSE_ALL":
+      return { ...state, menuOpen: false, searchOpen: false };
+    case "SET_SCROLL_STATE":
+      return {
+        ...state,
+        scrolled: action.payload.scrolled,
+        isHidden: action.payload.isHidden,
+      };
+    default:
+      return state;
+  }
+}
+
 const Header = () => {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [headerState, dispatch] = useReducer(headerReducer, initialHeaderState);
+  const { menuOpen, searchOpen, scrolled, isHidden } = headerState;
   const [apiGenreOptions, setApiGenreOptions] = useState([]);
   const location = useLocation();
   const { user, userProfile, logout } = useAuth();
@@ -231,36 +260,42 @@ const Header = () => {
   }, []);
 
   const closeAll = () => {
-    setMenuOpen(false);
-    setSearchOpen(false);
+    dispatch({ type: "CLOSE_ALL" });
   };
 
-  const [isHidden, setIsHidden] = useState(false);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      setScrolled(currentScrollY > 40);
+      const nextScrolled = currentScrollY > 40;
 
-      const isReadingComic = location.pathname.includes("/comics/chapter/");
+      // Read location.pathname inside handler (not from closure/dep)
+      const currentPathname = window.location.pathname;
+      const isReadingComic = currentPathname.includes("/comics/chapter/");
 
+      let nextIsHidden = false;
       if (isReadingComic) {
         if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-          setIsHidden(true);
+          nextIsHidden = true;
         } else if (currentScrollY < lastScrollY.current) {
-          setIsHidden(false);
+          nextIsHidden = false;
         }
       } else {
-        setIsHidden(false);
+        nextIsHidden = false;
       }
+
+      dispatch({
+        type: "SET_SCROLL_STATE",
+        payload: { scrolled: nextScrolled, isHidden: nextIsHidden },
+      });
 
       lastScrollY.current = currentScrollY;
     };
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [location.pathname]);
+  }, []);
 
   const isComicMode = appMode === "comic";
   const primaryNav = isComicMode ? comicPrimaryNav : moviePrimaryNav;
@@ -291,21 +326,21 @@ const Header = () => {
             <button
               aria-label="Toggle menu"
               onClick={() => {
-                setMenuOpen((v) => !v);
-                setSearchOpen(false);
+                dispatch({ type: "SET_MENU_OPEN", payload: !menuOpen });
+                dispatch({ type: "SET_SEARCH_OPEN", payload: false });
               }}
-              className="h-10 w-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+              className="size-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
             >
-              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
           )}
 
           {isStandalone && (
             <Link to={isComicMode ? "/comics" : "/"} className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-slate-800/80 border border-white/10 flex items-center justify-center">
-                {isComicMode ? <BookOpen className="h-4 w-4 text-purple-400" /> : <Film className="h-4 w-4 text-blue-400" />}
+              <div className="size-8 rounded-lg bg-slate-800/80 border border-white/10 flex items-center justify-center">
+                {isComicMode ? <BookOpen className="size-4 text-purple-400" /> : <Film className="size-4 text-blue-400" />}
               </div>
-              <span className="text-lg font-bold text-white tracking-tight">
+              <span className="text-lg font-semibold text-white tracking-tight">
                 {isComicMode ? "MangaHub" : "KhoPhim"}
               </span>
             </Link>
@@ -315,15 +350,15 @@ const Header = () => {
             <button
               aria-label="Open search"
               onClick={() => {
-                setSearchOpen((v) => !v);
-                setMenuOpen(false);
+                dispatch({ type: "SET_SEARCH_OPEN", payload: !searchOpen });
+                dispatch({ type: "SET_MENU_OPEN", payload: false });
               }}
               className="inline-flex flex-shrink-0 items-center justify-center text-white p-2"
             >
               {searchOpen ? (
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               ) : (
-                <Search className="h-5 w-5" />
+                <Search className="size-5" />
               )}
             </button>
 
@@ -340,9 +375,9 @@ const Header = () => {
                   }`}
               >
                 {appMode === "movie" ? (
-                  <BookOpen className="h-5 w-5 text-purple-400" />
+                  <BookOpen className="size-5 text-purple-400" />
                 ) : (
-                  <Film className="h-5 w-5 text-blue-400" />
+                  <Film className="size-5 text-blue-400" />
                 )}
               </button>
             )}
@@ -397,12 +432,12 @@ const Header = () => {
             >
               {appMode === "movie" ? (
                 <>
-                  <BookOpen className="w-4 h-4 text-purple-400" />
+                  <BookOpen className="size-4 text-purple-400" />
                   <span className="text-slate-200">Đọc Truyện</span>
                 </>
               ) : (
                 <>
-                  <Film className="w-4 h-4 text-blue-400" />
+                  <Film className="size-4 text-blue-400" />
                   <span className="text-slate-200">Xem Phim</span>
                 </>
               )}
@@ -411,7 +446,7 @@ const Header = () => {
             {user ? (
               <Link
                 to={isComicMode ? "/comics/profile" : "/profile"}
-                className="h-10 w-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
+                className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
               >
                 {avatarUrl ? (
                   <img
@@ -422,7 +457,7 @@ const Header = () => {
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-slate-900 font-bold text-sm">
+                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-emerald-950 font-semibold text-sm">
                     {(user.email || "").charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -430,9 +465,9 @@ const Header = () => {
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400"
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400"
               >
-                <LogIn className="h-4 w-4" />
+                <LogIn className="size-4" />
                 <span>Đăng nhập</span>
               </Link>
             )}
@@ -476,10 +511,10 @@ const Header = () => {
           <div className="p-6 border-b border-white/5 bg-white/[0.02]">
             <div className="flex items-center justify-between mb-6">
               <Link to={isComicMode ? "/comics" : "/"} onClick={closeAll} className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg bg-slate-800/80 border border-white/10 flex items-center justify-center">
-                  {isComicMode ? <BookOpen className="h-4 w-4 text-purple-400" /> : <Film className="h-4 w-4 text-blue-400" />}
+                <div className="size-8 rounded-lg bg-slate-800/80 border border-white/10 flex items-center justify-center">
+                  {isComicMode ? <BookOpen className="size-4 text-purple-400" /> : <Film className="size-4 text-blue-400" />}
                 </div>
-                <span className="text-lg font-bold text-white tracking-tight">
+                <span className="text-lg font-semibold text-white tracking-tight">
                   {isComicMode ? "MangaHub" : "KhoPhim"}
                 </span>
               </Link>
@@ -487,7 +522,7 @@ const Header = () => {
                 onClick={closeAll}
                 className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             </div>
 
@@ -498,23 +533,23 @@ const Header = () => {
                   onClick={closeAll}
                   className="flex items-center gap-4 group cursor-pointer"
                 >
-                  <div className="h-14 w-14 rounded-2xl border-2 border-emerald-500/20 bg-slate-800 p-0.5 shadow-xl group-hover:border-emerald-500/40 transition-all">
+                  <div className="size-14 rounded-2xl border-2 border-emerald-500/20 bg-slate-800 p-0.5 shadow-xl group-hover:border-emerald-500/40 transition-all">
                     <div className="h-full w-full rounded-[14px] overflow-hidden bg-slate-700">
                       {avatarUrl ? (
                         <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center text-white font-bold text-lg uppercase bg-gradient-to-br from-slate-700 to-slate-800">
+                        <div className="h-full w-full flex items-center justify-center text-white font-semibold text-lg uppercase bg-gradient-to-br from-slate-700 to-slate-800">
                           {(user.email || "U").charAt(0)}
                         </div>
                       )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-lg font-bold text-white truncate leading-tight group-hover:text-emerald-400 transition-colors">
+                    <p className="text-lg font-semibold text-white truncate leading-tight group-hover:text-emerald-400 transition-colors">
                       {userProfile?.displayName || user.displayName || "Người dùng"}
                     </p>
                     {isAdmin && (
-                      <p className="text-[10px] inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-bold uppercase tracking-wider mt-1 border border-emerald-500/20">
+                      <p className="text-[10px] inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-semibold uppercase tracking-wider mt-1 border border-emerald-500/20">
                         Admin
                       </p>
                     )}
@@ -526,9 +561,9 @@ const Header = () => {
                     await logout();
                     closeAll();
                   }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 py-2.5 text-sm font-bold text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-[0.98]"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-[0.98]"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="size-4" />
                   <span>Đăng xuất</span>
                 </button>
               </div>
@@ -536,9 +571,9 @@ const Header = () => {
               <Link
                 to="/login"
                 onClick={closeAll}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition-all active:scale-[0.98]"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-all active:scale-[0.98]"
               >
-                <User className="h-4 w-4" />
+                <User className="size-4" />
                 <span>Đăng nhập ngay</span>
               </Link>
             )}
@@ -560,7 +595,7 @@ const Header = () => {
                     onClick={closeAll}
                     className="group flex items-center gap-4 rounded-2xl bg-white/5 border border-white/5 px-4 py-4 text-base font-semibold text-slate-100 hover:bg-white/10 hover:border-white/10 active:scale-[0.98] transition-all"
                   >
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 opacity-50 group-hover:scale-150 group-hover:opacity-100 transition-all" />
+                    <div className="size-1.5 rounded-full bg-emerald-500 opacity-50 group-hover:scale-150 group-hover:opacity-100 transition-all" />
                     {item.label}
                   </Link>
                 ))}

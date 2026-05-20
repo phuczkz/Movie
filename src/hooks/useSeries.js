@@ -21,8 +21,8 @@ export const useSeries = (currentMovie) => {
 
     const normalizedBase = baseName.toLowerCase().trim();
     
-    // Categorize
-    const categorized = searchResults.map((m) => {
+    // Categorize (single-pass flatMap avoids intermediate null array)
+    const categorized = searchResults.flatMap((m) => {
       const info = parseSeasonInfo(m.name);
       const normalizedMBase = info.baseName.toLowerCase().trim();
       
@@ -30,13 +30,10 @@ export const useSeries = (currentMovie) => {
                       normalizedMBase.includes(normalizedBase) || 
                       normalizedBase.includes(normalizedMBase);
       
-      if (!isMatch) return null;
+      if (!isMatch) return [];
 
-      return {
-        ...m,
-        ...info,
-      };
-    }).filter(Boolean);
+      return [{ ...m, ...info }];
+    });
 
     // Deduplicate by slug
     const seenSlugs = new Set();

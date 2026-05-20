@@ -34,6 +34,7 @@ export default function AdminMovieStatus() {
   const [showResults, setShowResults] = useState(false);
 
   const { data: searchResults = [], isFetching } = useSearchMovies(query);
+  const trailerOverrides = allOverrides.filter((o) => o.mode === "trailer");
 
   // Fetch all overrides on mount
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function AdminMovieStatus() {
   return (
     <div className="space-y-8 max-w-2xl">
       <div>
-        <h2 className="text-2xl font-bold text-white">Trạng thái phim</h2>
+        <h2 className="text-2xl font-semibold text-white">Trạng thái phim</h2>
         <p className="text-slate-400 text-sm mt-1">
           Chuyển phim từ chế độ xem đầy đủ sang chỉ xem trailer
         </p>
@@ -112,7 +113,7 @@ export default function AdminMovieStatus() {
       {/* Search */}
       <div className="relative">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
           <input
             type="text"
             value={query}
@@ -171,14 +172,14 @@ export default function AdminMovieStatus() {
           <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-5">
             <div className="flex items-center gap-3 mb-4">
               <div
-                className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                className={`size-10 rounded-xl flex items-center justify-center ${
                   override.mode === "trailer"
                     ? "bg-amber-500/20"
                     : "bg-emerald-500/20"
                 }`}
               >
                 <Film
-                  className={`h-5 w-5 ${
+                  className={`size-5 ${
                     override.mode === "trailer"
                       ? "text-amber-400"
                       : "text-emerald-400"
@@ -205,10 +206,11 @@ export default function AdminMovieStatus() {
 
             {/* Trailer URL input */}
             <div className="space-y-2 mb-4">
-              <label className="text-sm font-semibold text-slate-300">
+              <label htmlFor="trailer-url-input" className="text-sm font-semibold text-slate-300">
                 URL Trailer (YouTube embed hoặc link trực tiếp)
               </label>
               <input
+                id="trailer-url-input"
                 type="url"
                 value={trailerUrl}
                 onChange={(e) => setTrailerUrl(e.target.value)}
@@ -228,7 +230,7 @@ export default function AdminMovieStatus() {
                   disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/30 px-4 py-2.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/30 transition-colors disabled:opacity-60"
                 >
-                  <Film className="h-4 w-4" />
+                  <Film className="size-4" />
                   Chuyển sang Trailer
                 </button>
               ) : (
@@ -237,7 +239,7 @@ export default function AdminMovieStatus() {
                   disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/30 transition-colors disabled:opacity-60"
                 >
-                  <Check className="h-4 w-4" />
+                  <Check className="size-4" />
                   Khôi phục xem đầy đủ
                 </button>
               )}
@@ -254,9 +256,9 @@ export default function AdminMovieStatus() {
               }`}
             >
               {message.type === "success" ? (
-                <Check className="h-4 w-4" />
+                <Check className="size-4" />
               ) : (
-                <X className="h-4 w-4" />
+                <X className="size-4" />
               )}
               {message.text}
             </div>
@@ -267,21 +269,19 @@ export default function AdminMovieStatus() {
       {/* List of active overrides */}
       <div className="pt-4 border-t border-white/5">
         <div className="flex items-center gap-2 mb-4">
-          <ShieldAlert className="h-5 w-5 text-amber-500" />
-          <h3 className="text-lg font-bold text-white">
+          <ShieldAlert className="size-5 text-amber-500" />
+          <h3 className="text-lg font-semibold text-white">
             Danh sách phim ở chế độ Trailer
           </h3>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          {allOverrides.filter((o) => o.mode === "trailer").length === 0 ? (
+          {trailerOverrides.length === 0 ? (
             <p className="text-slate-500 text-sm py-4">
               Chưa có phim nào bị giới hạn.
             </p>
           ) : (
-            allOverrides
-              .filter((o) => o.mode === "trailer")
-              .map((o) => (
+            trailerOverrides.map((o) => (
                 <div
                   key={o.id}
                   className="p-4 rounded-xl bg-slate-900/40 border border-white/5 flex items-center justify-between group"
@@ -301,7 +301,7 @@ export default function AdminMovieStatus() {
                     className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                     title="Quản lý"
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className="size-4" />
                   </button>
                 </div>
               ))

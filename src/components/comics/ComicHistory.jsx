@@ -72,7 +72,7 @@ function ComicHistoryCard({ item, handleDelete, uid, adminView = false }) {
           className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-950/40 hover:bg-rose-500/20 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
           title="Xóa khỏi lịch sử"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="size-3.5" />
         </button>
       </div>
 
@@ -105,7 +105,7 @@ function ComicHistoryCard({ item, handleDelete, uid, adminView = false }) {
               state={{ slug: item.slug, thumb_url: item.posterUrl }}
               className="sm:hidden flex items-center gap-1 rounded-lg bg-purple-500/20 px-2 py-1 text-[10px] font-semibold text-purple-400 transition hover:bg-purple-500 hover:text-white"
             >
-              <BookOpen className="h-3 w-3" /> Tiếp
+              <BookOpen className="size-3" /> Tiếp
             </Link>
           )}
         </div>
@@ -117,7 +117,7 @@ function ComicHistoryCard({ item, handleDelete, uid, adminView = false }) {
             state={{ slug: item.slug, thumb_url: item.posterUrl }}
             className="hidden sm:flex group/btn items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-purple-900/30 transition hover:-translate-y-[2px] hover:bg-purple-500 active:scale-[0.98] w-full mt-auto"
           >
-            <BookOpen className="h-4 w-4 transition-transform group-hover/btn:scale-110" /> 
+            <BookOpen className="size-4 transition-transform group-hover/btn:scale-110" /> 
             Tiếp tục đọc
           </Link>
         )}
@@ -172,7 +172,7 @@ export default function ComicHistory({ userId, adminView = false }) {
     <div className={`${adminView ? "mt-0" : "mt-10"} space-y-6`}>
       {!adminView && (
         <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-          <h2 className="text-2xl font-bold text-white">Lịch sử đọc truyện</h2>
+          <h2 className="text-2xl font-semibold text-white">Lịch sử đọc truyện</h2>
           <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">
             {history.length}
           </span>
@@ -180,7 +180,7 @@ export default function ComicHistory({ userId, adminView = false }) {
       )}
 
       {loading ? (
-        <div className="text-slate-400 text-sm">Đang tải lịch sử...</div>
+        <div className="text-slate-400 text-sm">Đang tải lịch sử…</div>
       ) : history.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-slate-400 text-sm">
           {adminView ? "Người dùng này chưa đọc truyện nào." : "Bạn chưa đọc truyện nào."}
@@ -204,7 +204,7 @@ export default function ComicHistory({ userId, adminView = false }) {
       {deleteTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="mb-2 text-lg font-bold text-white">Xóa truyện này?</h3>
+            <h3 className="mb-2 text-lg font-semibold text-white">Xóa truyện này?</h3>
             <p className="mb-6 text-sm text-slate-300">
               Bạn có chắc chắn muốn xóa bộ truyện này khỏi lịch sử không? Hành động này không thể hoàn tác.
             </p>

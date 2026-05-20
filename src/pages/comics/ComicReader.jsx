@@ -7,6 +7,8 @@ import { db } from "../../firebase.config";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { comicApi } from "../../api/comicApi";
 
+let blurIdCounter = 0;
+
 export default function ComicReader() {
   const { chapterId } = useParams();
   const navigate = useNavigate();
@@ -141,7 +143,7 @@ export default function ComicReader() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
+        <Loader2 className="size-10 text-purple-500 animate-spin" />
         <p className="text-slate-300 font-semibold animate-pulse">Đang tải ảnh truyện...</p>
       </div>
     );
@@ -166,7 +168,7 @@ export default function ComicReader() {
           onClick={() => navigate(-1)}
           className="p-2 rounded-full hover:bg-white/10 transition-colors text-slate-300 hover:text-white flex flex-shrink-0"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="size-5" />
         </button>
         <div className="text-center flex-1 truncate px-4">
           <h1 className="text-sm md:text-base font-bold text-slate-100 truncate">{comic_name}</h1>
@@ -190,7 +192,7 @@ export default function ComicReader() {
             const imgSrc = `${domain_cdn}/${chapter_path}/${img.image_file}`;
             const isPriority = index < 2; // Priority load for first 2 pages
             return (
-              <div key={index} className={`w-full relative bg-slate-900/10 min-h-[400px] overflow-hidden block ${index !== 0 ? '-mt-[1px]' : ''}`}>
+              <div key={`${img.image_page}-${img.image_file}`} className={`w-full relative bg-slate-900/10 min-h-[400px] overflow-hidden block ${index !== 0 ? '-mt-[1px]' : ''}`}>
                 <img
                   src={imgSrc}
                   alt={`Trang ${img.image_page}`}
@@ -203,7 +205,7 @@ export default function ComicReader() {
                     const rect = e.target.getBoundingClientRect();
                     const y = e.clientY - rect.top;
                     const topRatio = y / rect.height;
-                    setBlurBoxes(prev => [...prev, { id: Date.now(), index, topRatio }]);
+                    setBlurBoxes(prev => [...prev, { id: ++blurIdCounter, index, topRatio }]);
                   }}
                   onLoad={(e) => {
                     const { naturalWidth, naturalHeight } = e.target;
@@ -236,7 +238,7 @@ export default function ComicReader() {
                       className="absolute top-2 right-2 p-1.5 md:p-2 bg-red-500/80 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Xóa làm mờ"
                     >
-                      <X className="w-3 h-3 md:w-4 md:h-4" />
+                      <X className="size-3 md:w-4 md:h-4" />
                     </button>
                   </div>
                 ))}
@@ -279,7 +281,7 @@ export default function ComicReader() {
             className="p-1.5 text-slate-300 hover:text-white transition-colors flex-shrink-0"
             title="Trang chủ truyện"
           >
-            <Home className="w-5 h-5 md:w-6 md:h-6" />
+            <Home className="size-5 md:w-6 md:h-6" />
           </button>
           
           {/* Ad Eraser Button */}
@@ -288,11 +290,11 @@ export default function ComicReader() {
             className={`p-1.5 rounded-full transition-colors flex-shrink-0 relative ${eraserMode ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'text-slate-400 hover:text-white'}`}
             title="Bật/Tắt Cục Tẩy Quảng Cáo"
           >
-            <EyeOff className="w-5 h-5 md:w-6 md:h-6" />
+            <EyeOff className="size-5 md:w-6 md:h-6" />
             {eraserMode && (
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="absolute -top-1 -right-1 flex size-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                <span className="relative inline-flex rounded-full size-3 bg-indigo-500"></span>
               </span>
             )}
           </button>
@@ -303,7 +305,7 @@ export default function ComicReader() {
             className={`p-1.5 rounded-full transition-colors flex-shrink-0 ${(hasPrev && chapters) ? 'bg-white/10 hover:bg-white/20 text-white' : 'text-slate-600 cursor-not-allowed'}`}
             title="Chương trước"
           >
-            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+            <ChevronLeft className="size-5 md:w-6 md:h-6" />
           </button>
           
           <div className="relative" ref={dropdownRef}>
@@ -354,7 +356,7 @@ export default function ComicReader() {
             className={`p-1.5 rounded-full transition-colors flex-shrink-0 ${(hasNext && chapters) ? 'bg-white text-black hover:bg-slate-200' : 'bg-white/10 text-slate-600 cursor-not-allowed'}`}
             title="Chương sau"
           >
-            <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+            <ChevronRight className="size-5 md:w-6 md:h-6" />
           </button>
           
         </div>

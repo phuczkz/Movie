@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "react-router-dom";
 import { comicApi } from "../../api/comicApi";
 import { BookOpen, List, Info, AlertCircle, Heart, ChevronDown } from "lucide-react";
@@ -30,7 +30,7 @@ export default function ComicDetail() {
   if (error || !detailData?.data?.item) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <AlertCircle className="w-12 h-12 text-red-500" />
+        <AlertCircle className="size-12 text-red-500" />
         <p className="text-slate-300">Không thể tải thông tin truyện.</p>
         <Link to="/comics" className="text-purple-400 hover:text-purple-300">
           Quay lại MangaHub
@@ -64,7 +64,7 @@ export default function ComicDetail() {
 
           {/* Details */}
           <div className="flex-1 space-y-4 text-center md:text-left">
-            <h1 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 leading-tight">
+            <h1 className="text-3xl md:text-5xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 leading-tight">
               {comic.name}
             </h1>
 
@@ -89,7 +89,7 @@ export default function ComicDetail() {
 
               <div className="pt-4 text-left">
                 <h3 className="flex items-center gap-2 font-semibold text-slate-100 text-lg mb-2">
-                  <Info className="w-5 h-5 text-purple-400" />
+                  <Info className="size-5 text-purple-400" />
                   Nội Dung
                 </h3>
                 <div
@@ -103,7 +103,7 @@ export default function ComicDetail() {
             <details className="group lg:hidden w-full">
               <summary className="flex items-center justify-center gap-2 py-3 text-sm font-semibold text-purple-300 cursor-pointer select-none [&::-webkit-details-marker]:hidden transition">
                 Thông tin truyện
-                <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+                <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
               </summary>
               <div className="mt-4 space-y-4 text-left">
                 <div className="flex flex-wrap gap-2 justify-center">
@@ -141,7 +141,7 @@ export default function ComicDetail() {
                   state={{ chapters, slug, thumb_url: `${IMAGE_CDN}${comic.thumb_url}` }}
                   className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-6 md:px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-purple-900/50 hover:scale-105"
                 >
-                  <BookOpen className="w-5 h-5" />
+                  <BookOpen className="size-5" />
                   Đọc Từ Đầu
                 </Link>
 
@@ -160,7 +160,7 @@ export default function ComicDetail() {
                     } ${favLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   title={isSaved ? "Hủy Yêu Thích" : "Yêu Thích"}
                 >
-                  <Heart className={`w-5 h-5 ${isSaved ? "fill-red-500" : ""}`} />
+                  <Heart className={`size-5 ${isSaved ? "fill-red-500" : ""}`} />
                   <span className="hidden md:inline">{isSaved ? "Hủy Yêu Thích" : "Yêu Thích"}</span>
                 </button>
               </div>
@@ -172,8 +172,8 @@ export default function ComicDetail() {
       {/* Chapters Section */}
       <section>
         <div className="flex items-center gap-3 mb-6">
-          <List className="w-7 h-7 text-purple-500" />
-          <h2 className="text-2xl font-black uppercase text-slate-100">
+          <List className="size-7 text-purple-500" />
+          <h2 className="text-2xl font-semibold uppercase text-slate-100">
             Danh Sách Chương
           </h2>
         </div>

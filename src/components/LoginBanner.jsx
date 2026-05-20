@@ -43,7 +43,7 @@ const LoginBanner = () => {
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
+            className="size-5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -58,7 +58,7 @@ const LoginBanner = () => {
         </button>
 
         <div className="px-4 md:px-8 pb-8 md:pb-12 pt-16 md:pt-20 text-center relative z-10 w-full">
-          <h3 className="text-4xl md:text-5xl font-bold text-white mb-4 md:mb-6 drop-shadow-lg leading-tight">
+          <h3 className="text-4xl md:text-5xl font-semibold text-white mb-4 md:mb-6 drop-shadow-lg leading-tight">
             Trải nghiệm xem cùng Kho Phim
           </h3>
           <p className="text-slate-100 text-2xl md:text-3xl mb-8 md:mb-10 px-2 md:px-4 drop-shadow-md leading-snug">

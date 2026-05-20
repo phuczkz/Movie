@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { Layers, Film } from 'lucide-react';
 
@@ -53,8 +53,8 @@ const SeasonSelector = ({ groups, currentSeason, currentSlug }) => {
 
   return (
     <div className="space-y-8 p-1">
-      {renderSection("Mùa phim", seasons, <Layers className="h-4 w-4" />, true)}
-      {renderSection("Bản điện ảnh", movies, <Film className="h-4 w-4" />)}
+      {renderSection("Mùa phim", seasons, <Layers className="size-4" />, true)}
+      {renderSection("Bản điện ảnh", movies, <Film className="size-4" />)}
     </div>
   );
 };

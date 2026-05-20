@@ -245,7 +245,7 @@ export const getProfanitySegments = (text) => {
   const segments = [];
   let lastIndex = 0;
 
-  const sortedBadWords = [...BAD_WORDS].sort((a, b) => b.length - a.length);
+  const sortedBadWords = BAD_WORDS.toSorted((a, b) => b.length - a.length);
   const pattern = sortedBadWords
     .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");

@@ -37,7 +37,7 @@ const Footer = () => {
           <div className="space-y-5 md:space-y-6 sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2 group cursor-pointer w-fit">
               <div className="p-2 bg-primary/20 rounded-xl group-hover:bg-primary/30 transition-colors">
-                <Film className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                <Film className="size-5 md:size-6 text-primary" />
               </div>
               <span className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-tight">
                 Kho Phim
@@ -47,18 +47,18 @@ const Footer = () => {
               Nền tảng xem phim trực tuyến chất lượng cao, mang đến trải nghiệm điện ảnh tuyệt vời nhất ngay tại nhà của bạn. Khám phá hàng ngàn bộ phim đa dạng thể loại.
             </p>
             <div className="flex flex-wrap items-center gap-3 md:gap-4">
-              <a href="#" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
+              <button type="button" aria-label="Facebook" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
                 <Facebook size={18} />
-              </a>
-              <a href="#" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
+              </button>
+              <button type="button" aria-label="Instagram" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
                 <Instagram size={18} />
-              </a>
-              <a href="#" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
+              </button>
+              <button type="button" aria-label="Youtube" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
                 <Youtube size={18} />
-              </a>
-              <a href="#" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
+              </button>
+              <button type="button" aria-label="Twitter" className="p-2 bg-slate-900/50 hover:bg-primary/10 hover:text-primary rounded-lg transition-all duration-300">
                 <Twitter size={18} />
-              </a>
+              </button>
             </div>
           </div>
 
@@ -70,27 +70,27 @@ const Footer = () => {
               <ul className="space-y-2 md:space-y-3">
                 <li>
                   <a href="/" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                    <span className="size-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
                     Trang chủ
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                  <button type="button" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1 bg-transparent border-none w-full">
+                    <span className="size-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
                     Phim Mới
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                  <button type="button" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1 bg-transparent border-none w-full">
+                    <span className="size-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
                     Phim Bộ
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
+                  <button type="button" className="text-slate-400 hover:text-primary text-sm transition-colors flex items-center gap-2 group py-1 bg-transparent border-none w-full">
+                    <span className="size-1.5 rounded-full bg-slate-700 group-hover:bg-primary group-hover:scale-125 transition-all"></span>
                     Phim Lẻ
-                  </a>
+                  </button>
                 </li>
               </ul>
             </div>
@@ -99,10 +99,10 @@ const Footer = () => {
             <div className="space-y-4 md:space-y-6">
               <h3 className="text-white font-semibold text-base md:text-lg">Thông Tin</h3>
               <ul className="space-y-2 md:space-y-3">
-                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Điều khoản dịch vụ</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Chính sách bảo mật</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Về chúng tôi</a></li>
-                <li><a href="#" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1">Liên hệ bản quyền</a></li>
+                <li><button type="button" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1 bg-transparent border-none">Điều khoản dịch vụ</button></li>
+                <li><button type="button" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1 bg-transparent border-none">Chính sách bảo mật</button></li>
+                <li><button type="button" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1 bg-transparent border-none">Về chúng tôi</button></li>
+                <li><button type="button" className="text-slate-400 hover:text-primary text-sm transition-colors block py-1 bg-transparent border-none">Liên hệ bản quyền</button></li>
               </ul>
             </div>
           </div>
@@ -138,7 +138,7 @@ const Footer = () => {
           <p className="text-center md:text-left">© {currentYear} MovieSpace. All rights reserved.</p>
           <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
             <span className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500/50 animate-pulse"></span>
+              <span className="size-1.5 rounded-full bg-green-500/50 animate-pulse"></span>
               Server Status: Online
             </span>
           </div>

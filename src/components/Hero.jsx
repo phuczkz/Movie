@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { Info, Play, Sparkles } from "lucide-react";
+﻿import { useEffect, useRef, useState } from "react";
+import { Info, Play } from "lucide-react";
 import { Link } from "react-router-dom";
-import { motion as Motion, AnimatePresence } from "framer-motion";
+import { LazyMotion, domAnimation, m as Motion, AnimatePresence } from "framer-motion";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
 import { useMovieLogos } from "../hooks/useMovieLogo";
 
@@ -62,13 +62,13 @@ const Hero = ({ movie, movies = [] }) => {
   const slideCount = slides.length;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+  const isHoverDevice = useRef(
     typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
   );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(hover: hover)");
-    const handler = (e) => setIsHoverDevice(e.matches);
+    const handler = (e) => { isHoverDevice.current = e.matches; };
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
@@ -142,10 +142,11 @@ const Hero = ({ movie, movies = [] }) => {
   const partString = partMatch ? partMatch[0] : null;
 
   return (
+    <LazyMotion features={domAnimation}>
     <section
       className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px]"
-      onMouseEnter={() => isHoverDevice && setIsPaused(true)}
-      onMouseLeave={() => isHoverDevice && setIsPaused(false)}
+      onMouseEnter={() => isHoverDevice.current && setIsPaused(true)}
+      onMouseLeave={() => isHoverDevice.current && setIsPaused(false)}
     >
       <div className="absolute inset-0">
         <AnimatePresence mode="popLayout">
@@ -194,7 +195,7 @@ const Hero = ({ movie, movies = [] }) => {
                     decoding="async"
                   />
                 ) : (
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)] line-clamp-2">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)] line-clamp-2">
                     {activeMovie.name}
                   </h1>
                 )}
@@ -235,7 +236,7 @@ const Hero = ({ movie, movies = [] }) => {
                   to={secondaryLink}
                   className="group hidden md:inline-flex items-center gap-2.5 sm:gap-3 rounded-full bg-[rgb(16,185,129)] px-4 sm:px-5 md:px-6 py-2 md:py-3 text-[12px] sm:text-[13px] md:text-sm font-semibold text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
                 >
-                  <span className="flex h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
+                  <span className="flex size-8 sm:h-9 sm:w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
                     <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" fill="currentColor" />
                   </span>
                   {primaryLabel}
@@ -245,7 +246,7 @@ const Hero = ({ movie, movies = [] }) => {
                   to={primaryLink}
                   className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30 transition hover:-translate-y-[1px] hover:border-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                 >
-                  <Info className="h-4 w-4" />
+                  <Info className="size-4" />
                   Thông tin
                 </Link>
               </div>
@@ -308,6 +309,7 @@ const Hero = ({ movie, movies = [] }) => {
           </div>
         ) : null}
       </section>
+    </LazyMotion>
   );
 };
 

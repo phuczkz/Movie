@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+﻿import React, { memo } from "react";
 import { Info } from "lucide-react";
 import Player from "../Player";
 import { parseEpisodeNumber } from "../../utils/episodes";
@@ -39,8 +39,8 @@ const PlayerSection = memo(
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
-                <div className="h-16 w-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                  <Info className="h-8 w-8 text-amber-400" />
+                <div className="size-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Info className="size-8 text-amber-400" />
                 </div>
                 <div className="space-y-1">
                   <p className="text-white font-bold text-lg">

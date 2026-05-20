@@ -146,7 +146,7 @@ export default function AdminUsers() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Người dùng</h2>
+          <h2 className="text-2xl font-semibold text-white">Người dùng</h2>
           <p className="text-slate-400 text-sm mt-1">
             {normalizedQuery
               ? `${filteredUsers.length}/${users.length} tài khoản phù hợp`
@@ -162,7 +162,7 @@ export default function AdminUsers() {
                 : "bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10"
             }`}
           >
-            <Power className="h-4 w-4" />
+            <Power className="size-4" />
             Bảo trì: {maintenance.enabled ? "ĐANG BẬT" : "Tắt"}
           </button>
 
@@ -170,7 +170,7 @@ export default function AdminUsers() {
             onClick={() => setShowCreateForm(true)}
             className="flex flex-1 sm:flex-none justify-center items-center gap-2 rounded-xl bg-emerald-500 px-3 sm:px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
           >
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="size-4" />
             Tạo User
           </button>
 
@@ -178,14 +178,14 @@ export default function AdminUsers() {
             onClick={fetchUsers}
             className="flex flex-1 sm:flex-none justify-center items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 sm:px-4 py-2 text-sm text-slate-300 hover:bg-white/10 transition-colors"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="size-4" />
             Làm mới
           </button>
         </div>
       </div>
 
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
         <input
           type="text"
           value={searchQuery}
@@ -200,7 +200,7 @@ export default function AdminUsers() {
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-white/10 hover:text-white"
             aria-label="Xóa tìm kiếm"
           >
-            <X className="h-4 w-4" />
+            <X className="size-4" />
           </button>
         ) : null}
       </div>
@@ -209,23 +209,24 @@ export default function AdminUsers() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-semibold text-white">
                 Tạo tài khoản mới
               </h3>
               <button
                 onClick={() => setShowCreateForm(false)}
                 className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-400 ml-1">
+                <label htmlFor="admin-user-displayname" className="text-sm font-medium text-slate-400 ml-1">
                   Tên hiển thị
                 </label>
                 <input
+                  id="admin-user-displayname"
                   type="text"
                   placeholder="Nguyễn Văn A"
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
@@ -240,10 +241,11 @@ export default function AdminUsers() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-400 ml-1">
+                <label htmlFor="admin-user-email" className="text-sm font-medium text-slate-400 ml-1">
                   Email
                 </label>
                 <input
+                  id="admin-user-email"
                   type="email"
                   required
                   placeholder="user@example.com"
@@ -256,10 +258,11 @@ export default function AdminUsers() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-400 ml-1">
+                <label htmlFor="admin-user-password" className="text-sm font-medium text-slate-400 ml-1">
                   Mật khẩu
                 </label>
                 <input
+                  id="admin-user-password"
                   type="password"
                   required
                   placeholder="••••••••"
@@ -318,7 +321,7 @@ export default function AdminUsers() {
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full overflow-hidden bg-white/5 border border-white/10 shrink-0">
+                      <div className="size-9 rounded-full overflow-hidden bg-white/5 border border-white/10 shrink-0">
                         {u.photoURL ? (
                           <img
                             src={u.photoURL}
@@ -356,7 +359,7 @@ export default function AdminUsers() {
                               onClick={() =>
                                 handleToggleWhitelist(u.id, u.isWhitelisted)
                               }
-                              className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                              className={`inline-flex size-8 items-center justify-center rounded-lg transition-colors ${
                                 u.isWhitelisted
                                   ? "bg-emerald-500/20 text-emerald-400"
                                   : "text-slate-400 hover:bg-white/10"
@@ -373,7 +376,7 @@ export default function AdminUsers() {
                               }
                             >
                               <ShieldCheck
-                                className={`h-4 w-4 ${
+                                className={`size-4 ${
                                   u.isWhitelisted ? "" : "opacity-60"
                                 }`}
                               />
@@ -387,19 +390,19 @@ export default function AdminUsers() {
                                   activeTab: "movie",
                                 })
                               }
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-500/15 hover:text-emerald-300 transition-colors"
+                              className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-500/15 hover:text-emerald-300 transition-colors"
                               aria-label="Xem lịch sử xem phim"
                               title="Xem lịch sử xem phim"
                             >
-                              <History className="h-4 w-4" />
+                              <History className="size-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(u.id)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-500/15 hover:text-rose-300 transition-colors"
+                              className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-500/15 hover:text-rose-300 transition-colors"
                               aria-label="Xóa user"
                               title="Xóa user"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="size-4" />
                             </button>
                           </div>
                         )}
@@ -427,7 +430,7 @@ export default function AdminUsers() {
                         }
                       >
                         <ShieldCheck
-                          className={`h-5 w-5 ${
+                          className={`size-5 ${
                             u.isWhitelisted ? "animate-pulse" : "opacity-30"
                           }`}
                         />
@@ -459,14 +462,14 @@ export default function AdminUsers() {
                           className="p-2 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
                           title="Xem lịch sử xem phim"
                         >
-                          <History className="h-4 w-4" />
+                          <History className="size-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(u.id)}
                           className="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                           title="Xóa user"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="size-4" />
                         </button>
                       </div>
                     )}
@@ -510,8 +513,8 @@ export default function AdminUsers() {
           <div className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300">
             <div className="flex items-center justify-between p-6 border-b border-white/5">
               <div>
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <History className="h-5 w-5 text-emerald-500" />
+                <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <History className="size-5 text-emerald-500" />
                   Lịch sử của: {historyModal.userName}
                 </h3>
                 <p className="text-slate-400 text-xs mt-1">
@@ -524,7 +527,7 @@ export default function AdminUsers() {
                 }
                 className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             </div>
 
@@ -537,7 +540,7 @@ export default function AdminUsers() {
                     : "border-transparent text-slate-500 hover:text-slate-300"
                 }`}
               >
-                <Play className="h-4 w-4" fill="currentColor" />
+                <Play className="size-4" fill="currentColor" />
                 Lịch sử xem phim
               </button>
               <button
@@ -548,7 +551,7 @@ export default function AdminUsers() {
                     : "border-transparent text-slate-500 hover:text-slate-300"
                 }`}
               >
-                <BookOpen className="h-4 w-4" />
+                <BookOpen className="size-4" />
                 Lịch sử đọc truyện
               </button>
             </div>

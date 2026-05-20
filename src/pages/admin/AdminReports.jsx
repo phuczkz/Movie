@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useReducer, useEffect } from "react";
 import {
   collection,
   query,
@@ -18,10 +18,35 @@ import {
   AlertCircle
 } from "lucide-react";
 
+const initialState = {
+  topMovies: [],
+  loading: true,
+  error: null,
+};
+
+function reportsReducer(state, action) {
+  switch (action.type) {
+    case "FETCH_SUCCESS":
+      return {
+        ...state,
+        topMovies: action.payload,
+        error: null,
+        loading: false,
+      };
+    case "FETCH_ERROR":
+      return {
+        ...state,
+        error: action.payload,
+        loading: false,
+      };
+    default:
+      return state;
+  }
+}
+
 export default function AdminReports() {
-  const [topMovies, setTopMovies] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [state, dispatch] = useReducer(reportsReducer, initialState);
+  const { topMovies, loading, error } = state;
 
   useEffect(() => {
     if (!db) return;
@@ -47,13 +72,10 @@ export default function AdminReports() {
         return bCount - aCount;
       });
 
-      setTopMovies(docs.slice(0, 5));
-      setError(null);
-      setLoading(false);
+      dispatch({ type: "FETCH_SUCCESS", payload: docs.slice(0, 5) });
     }, (err) => {
       console.error("[AdminReports] Error:", err);
-      setError(err);
-      setLoading(false);
+      dispatch({ type: "FETCH_ERROR", payload: err });
     });
 
     return unsub;
@@ -62,8 +84,8 @@ export default function AdminReports() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-1">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <BarChart3 className="text-emerald-500 h-6 w-6" />
+        <h2 className="text-2xl font-semibold text-white flex items-center gap-2">
+          <BarChart3 className="text-emerald-500 size-6" />
           Báo cáo thống kê
         </h2>
         <p className="text-slate-400 text-sm">
@@ -73,7 +95,7 @@ export default function AdminReports() {
 
       {error && (
         <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-3 animate-in slide-in-from-top-4">
-          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+          <AlertCircle className="size-5 shrink-0 mt-0.5" />
           <div className="space-y-1 text-sm">
             <p className="font-bold uppercase tracking-wider text-[11px]">Lỗi dữ liệu</p>
             <p className="opacity-90 leading-relaxed">
@@ -91,12 +113,12 @@ export default function AdminReports() {
         {/* Main Leaderboard */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <TrendingUp className="text-amber-500 h-5 w-5" />
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <TrendingUp className="text-amber-500 size-5" />
               Top 5 phim được yêu cầu nhiều nhất
             </h3>
             <div className="flex items-center gap-2 text-xs text-slate-500 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-              <Calendar className="h-3 w-3" />
+              <Calendar className="size-3" />
               Tất cả thời gian
             </div>
           </div>
@@ -108,11 +130,11 @@ export default function AdminReports() {
               </div>
             ) : topMovies.length === 0 ? (
               <div className="text-center space-y-4 p-12">
-                <div className="h-16 w-16 rounded-3xl bg-white/5 flex items-center justify-center mx-auto text-slate-700">
-                   <Film className="h-8 w-8" />
+                <div className="size-16 rounded-3xl bg-white/5 flex items-center justify-center mx-auto text-slate-700">
+                   <Film className="size-8" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-slate-400 font-bold">Chưa có dữ liệu thống kê</p>
+                  <p className="text-slate-400 font-semibold">Chưa có dữ liệu thống kê</p>
                   <p className="text-slate-500 text-sm max-w-[280px] leading-relaxed">
                     Dữ liệu sẽ xuất hiện khi có người dùng truy cập vào trang chi tiết hoặc trang xem phim.
                   </p>
@@ -126,17 +148,17 @@ export default function AdminReports() {
                     className="group flex items-center gap-4 p-5 hover:bg-white/[0.02] transition-colors"
                   >
                     {/* Rank */}
-                    <div className="flex items-center justify-center h-10 w-10 shrink-0">
+                    <div className="flex items-center justify-center size-10 shrink-0">
                       {index === 0 ? (
-                        <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-black italic shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                        <div className="size-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 font-black italic shadow-[0_0_15px_rgba(245,158,11,0.3)]">
                           1
                         </div>
                       ) : index === 1 ? (
-                        <div className="h-7 w-7 rounded-full bg-slate-200/20 flex items-center justify-center text-slate-200 font-bold italic">
+                        <div className="size-7 rounded-full bg-slate-200/20 flex items-center justify-center text-slate-200 font-bold italic">
                           2
                         </div>
                       ) : index === 2 ? (
-                        <div className="h-7 w-7 rounded-full bg-amber-700/20 flex items-center justify-center text-amber-700 font-bold italic">
+                        <div className="size-7 rounded-full bg-amber-700/20 flex items-center justify-center text-amber-700 font-bold italic">
                           3
                         </div>
                       ) : (
@@ -154,7 +176,7 @@ export default function AdminReports() {
                         />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center">
-                          <Film className="h-5 w-5 text-slate-700" />
+                          <Film className="size-5 text-slate-700" />
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -162,7 +184,7 @@ export default function AdminReports() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-slate-200 truncate group-hover:text-emerald-400 transition-colors">
+                      <h4 className="font-semibold text-slate-200 truncate group-hover:text-emerald-400 transition-colors">
                         {movie.name}
                       </h4>
                       <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">
@@ -174,7 +196,7 @@ export default function AdminReports() {
                     <div className="flex flex-col items-end gap-1">
                       <div className="flex items-center gap-2 text-emerald-400 font-black text-xl tabular-nums">
                          {movie.userIds ? movie.userIds.length.toLocaleString() : "0"}
-                         <TrendingUp className="h-4 w-4" />
+                         <TrendingUp className="size-4" />
                       </div>
                       <span className="text-[10px] text-slate-600 font-medium uppercase tracking-tighter">
                         Số User yêu cầu
@@ -190,22 +212,22 @@ export default function AdminReports() {
         {/* Sidebar Info Cards */}
         <div className="space-y-6">
           <div className="rounded-3xl border border-white/5 bg-slate-900/40 p-6 space-y-4">
-            <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-              <Award className="h-6 w-6" />
+            <div className="size-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+              <Award className="size-6" />
             </div>
             <div>
-              <h4 className="text-lg font-bold text-white">Quán quân</h4>
+              <h4 className="text-lg font-semibold text-white">Quán quân</h4>
               <p className="text-slate-400 text-sm mt-1">
                 Phim được yêu thích nhất thời điểm hiện tại:
               </p>
             </div>
             {topMovies[0] && (
               <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-3">
-                 <p className="text-emerald-400 font-bold line-clamp-2">
+                 <p className="text-emerald-400 font-semibold line-clamp-2">
                    {topMovies[0].name}
                  </p>
                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <TrendingUp className="h-3 w-3" />
+                    <TrendingUp className="size-3" />
                     Đang tăng trưởng ổn định
                  </div>
               </div>
@@ -213,8 +235,8 @@ export default function AdminReports() {
           </div>
 
           <div className="rounded-3xl border border-white/5 bg-slate-900/40 p-6 space-y-4">
-             <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400">
-                <RefreshCw className="h-5 w-5" />
+             <div className="size-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400">
+                <RefreshCw className="size-5" />
              </div>
              <p className="text-slate-500 text-xs italic leading-relaxed">
                Dữ liệu lượt xem được cập nhật theo thời gian thực mỗi khi có người xem phim trên trang web.

@@ -59,12 +59,14 @@ const cleanName = (name) => {
   return name;
 };
 
+const EMPTY_REPLIES = [];
+
 /* ───── Comment Row Component for Admin ───── */
 function AdminCommentRow({
   comment,
   movieSlug,
   isReply = false,
-  replies = [],
+  replies = EMPTY_REPLIES,
   onDelete,
   onReply,
   showMovieContext = false,
@@ -75,7 +77,7 @@ function AdminCommentRow({
 
   // Helper to extract movie title from slug
   const displayContext = showMovieContext && comment.movieSlug ? (
-    <div className="flex items-center gap-1.5 mb-2 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400 w-fit">
+    <div className="flex items-center gap-1.5 mb-2 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-semibold text-emerald-400 w-fit">
       <Film size={10} />
       {cleanName(comment.movieSlug)}
     </div>
@@ -104,7 +106,7 @@ function AdminCommentRow({
     >
       <div className="flex gap-3">
         {/* Avatar Placeholder */}
-        <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
+        <div className="size-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/10 overflow-hidden">
           {comment.photoURL ? (
             <img
               src={comment.photoURL}
@@ -113,7 +115,7 @@ function AdminCommentRow({
               referrerPolicy="no-referrer"
             />
           ) : (
-            <User className="h-4 w-4 text-slate-500" />
+            <User className="size-4 text-slate-500" />
           )}
         </div>
 
@@ -124,7 +126,7 @@ function AdminCommentRow({
               {comment.displayName || "Ẩn danh"}
             </span>
             <span className="text-[10px] text-slate-500 flex items-center gap-1">
-              <Clock className="h-3 w-3" />
+              <Clock className="size-3" />
               {formatTime(comment.createdAt)}
             </span>
           </div>
@@ -155,7 +157,7 @@ function AdminCommentRow({
                 <CornerDownRight className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
                 <input
                   type="text"
-                  autoFocus
+                  ref={(el) => el && el.focus()}
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Nhập phản hồi của Admin..."
@@ -216,6 +218,11 @@ export default function AdminComments() {
   const [viewMode, setViewMode] = useState("by-movie"); // 'by-movie' or 'all'
   const [dateFilter, setDateFilter] = useState("all"); // 'all', 'today', 'specific'
   const [selectedDate, setSelectedDate] = useState("");
+  const [todayDate, setTodayDate] = useState("");
+
+  useEffect(() => {
+    setTodayDate(new Date().toISOString().split("T")[0]);
+  }, []);
 
   const showToast = (message, type = "info") => {
     setToast({ message, type });
@@ -269,8 +276,8 @@ export default function AdminComments() {
           lastCommentAt: serverTimestamp(), // Use current time for indexing
         }));
 
-        // Persist to Firestore so it shows up in the normal onSnapshot next time
-        for (const d of discovered) {
+        // Persist to Firestore concurrently so it shows up in the normal onSnapshot next time
+        await Promise.all(discovered.map(async (d) => {
           try {
             await setDoc(
               doc(db, "commentedMovies", d.id),
@@ -283,7 +290,7 @@ export default function AdminComments() {
           } catch (e) {
             console.warn(`Could not persist discovery for ${d.id}:`, e);
           }
-        }
+        }));
 
         showToast(
           `Đã tìm thấy và đồng bộ ${uniqueSlugs.size} phim có bình luận.`,
@@ -406,25 +413,25 @@ export default function AdminComments() {
     if (!activeSlug) return;
 
     try {
-      // 1. Add the reply
-      await addDoc(collection(db, `comments/${activeSlug}/items`), {
-        userId: user.uid,
-        displayName: userProfile?.displayName || "Admin",
-        photoURL: userProfile?.photoURL || null,
-        content: text.trim(),
-        createdAt: serverTimestamp(),
-        parentId,
-        likes: {},
-        likeCount: 0,
-        dislikeCount: 0,
-      });
-
-      // 2. Ensure the parent document in 'comments' is NOT virtual (add a dummy field)
-      await setDoc(
-        doc(db, "comments", activeSlug),
-        { exists: true },
-        { merge: true }
-      );
+      // 1. Add the reply & 2. Ensure the parent document in 'comments' is NOT virtual (add a dummy field) in parallel
+      await Promise.all([
+        addDoc(collection(db, `comments/${activeSlug}/items`), {
+          userId: user.uid,
+          displayName: userProfile?.displayName || "Admin",
+          photoURL: userProfile?.photoURL || null,
+          content: text.trim(),
+          createdAt: serverTimestamp(),
+          parentId,
+          likes: {},
+          likeCount: 0,
+          dislikeCount: 0,
+        }),
+        setDoc(
+          doc(db, "comments", activeSlug),
+          { exists: true },
+          { merge: true }
+        )
+      ]);
 
       // 3. Update 'commentedMovies' index metadata
       await setDoc(
@@ -504,19 +511,21 @@ export default function AdminComments() {
     // Auto-index if name is available to ensure it shows up in the list next time
     if (slug && name) {
       try {
-        await setDoc(
-          doc(db, "comments", slug),
-          { exists: true },
-          { merge: true }
-        );
-        await setDoc(
-          doc(db, "commentedMovies", slug),
-          {
-            movieName: name,
-            lastCommentAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        await Promise.all([
+          setDoc(
+            doc(db, "comments", slug),
+            { exists: true },
+            { merge: true }
+          ),
+          setDoc(
+            doc(db, "commentedMovies", slug),
+            {
+              movieName: name,
+              lastCommentAt: serverTimestamp(),
+            },
+            { merge: true }
+          ),
+        ]);
       } catch (e) {
         console.error("Auto-index error:", e);
       }
@@ -626,7 +635,8 @@ export default function AdminComments() {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-emerald-500/50"
-                max={new Date().toISOString().split("T")[0]}
+                max={todayDate}
+                suppressHydrationWarning
               />
             </div>
           )}
@@ -637,7 +647,7 @@ export default function AdminComments() {
         <div className="space-y-6">
           {/* Search Box */}
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 h-4 w-4" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 size-4" />
             <input
               type="text"
               value={inputQuery}

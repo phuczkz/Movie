@@ -1,4 +1,4 @@
-import {
+﻿import {
   Heart,
   Play,
   ChevronDown,
@@ -147,7 +147,7 @@ const DetailHero = ({
             <details className="lg:hidden w-full">
               <summary className="flex items-center justify-center gap-2 py-2 text-sm font-semibold text-amber-200 cursor-pointer select-none [&::-webkit-details-marker]:hidden">
                 Thông tin phim
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="size-4" />
               </summary>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-white font-medium">
                 {movie?.year && (
@@ -230,12 +230,12 @@ const DetailHero = ({
               >
                 {movieOverride?.mode === "trailer" || isTrailer ? (
                   <>
-                    <Film className="h-4 w-4" fill="currentColor" />
+                    <Film className="size-4" fill="currentColor" />
                     Xem Trailer
                   </>
                 ) : (
                   <>
-                    <Play className="h-4 w-4" fill="currentColor" />
+                    <Play className="size-4" fill="currentColor" />
                     {episodes.length ? "Xem ngay" : "Mở trang xem"}
                   </>
                 )}
@@ -252,7 +252,7 @@ const DetailHero = ({
                 } ${saving ? "opacity-80" : ""}`}
               >
                 <Heart
-                  className="h-4 w-4"
+                  className="size-4"
                   fill={isSaved ? "currentColor" : "none"}
                 />
                 {saving

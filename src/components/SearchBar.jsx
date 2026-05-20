@@ -46,7 +46,7 @@ const SearchBar = ({
     (isComicMode ? "Tìm truyện tranh..." : "Tìm phim, diễn viên...");
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
-  const [debouncedQuery, setDebouncedQuery] = useState(query.trim());
+  const [debouncedQuery, setDebouncedQuery] = useState(() => (params.get("q") || "").trim());
   const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined"
@@ -54,6 +54,14 @@ const SearchBar = ({
       : false
   );
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query.trim());
@@ -110,15 +118,15 @@ const SearchBar = ({
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
       <form onSubmit={onSubmit} className="relative w-full" role="search">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-slate-300" />
         <input
           id="search-input"
           name="q"
+          ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          autoFocus={autoFocus}
           className="w-full h-12 rounded-2xl bg-white/10 pl-12 pr-4 text-sm sm:text-base text-white placeholder:text-slate-200/70 border border-white/10 shadow-glass outline-none focus:border-white/40 focus:ring-2 focus:ring-white/30 backdrop-blur"
         />
       </form>
@@ -129,7 +137,7 @@ const SearchBar = ({
             {isFetching ? (
               <span className="loader-orbit loader-orbit-xs loader-orbit-light" />
             ) : (
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="size-2 rounded-full bg-emerald-400" />
             )}
             <span className="text-xs uppercase tracking-[0.12em] text-slate-400">
               {isFetching ? "Đang tìm..." : "Gợi ý nhanh"}

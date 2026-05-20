@@ -132,8 +132,7 @@ const Detail = () => {
     if (!isTmdb || loadingAlts) return null;
     const normalized = (text) => (text || "").toLowerCase().trim();
     const namesToMatch = [baseMovie?.name, baseMovie?.origin_name]
-      .map(normalized)
-      .filter(Boolean);
+      .flatMap(n => n ? [normalized(n)] : []);
     const targetYear = baseMovie?.year;
 
     return altResults.find((m) => {
@@ -201,7 +200,7 @@ const Detail = () => {
   }, [movie, isLoading]);
 
   const categorySlugs = useMemo(
-    () => (movie?.category || []).map((c) => c.slug).filter(Boolean),
+    () => (movie?.category || []).flatMap((c) => c.slug ? [c.slug] : []),
     [movie?.category]
   );
   const countrySlug = movie?.country?.[0]?.slug;
@@ -287,9 +286,10 @@ const Detail = () => {
   const isMovie = useMemo(() => {
     if (!episodes?.length) return false;
     const nums = new Set(
-      episodes
-        .map((ep) => parseEpisodeNumber(ep.name || ep.slug))
-        .filter((n) => n !== null)
+      episodes.flatMap((ep) => {
+        const n = parseEpisodeNumber(ep.name || ep.slug);
+        return n !== null ? [n] : [];
+      })
     );
     return nums.size <= 1;
   }, [episodes]);
@@ -343,28 +343,28 @@ const Detail = () => {
       return [];
     });
 
-    const normalized = collect
-      .map((entry) => {
-        if (!entry) return null;
-        if (typeof entry === "string")
-          return { id: null, name: entry.trim(), image: null };
-        if (typeof entry === "object")
-          return {
-            id: entry.id || entry.tmdb_id || entry.person_id || null,
-            name: String(
-              entry.name || entry.full_name || entry.title || ""
-            ).trim(),
-            image:
-              entry.avatar ||
-              entry.image ||
-              entry.profile_path ||
-              entry.photo ||
-              entry.thumbnail ||
-              null,
-          };
-        return null;
-      })
-      .filter((item) => item && item.name);
+    const normalized = collect.flatMap((entry) => {
+      if (!entry) return [];
+      let parsed = null;
+      if (typeof entry === "string") {
+        parsed = { id: null, name: entry.trim(), image: null };
+      } else if (typeof entry === "object") {
+        parsed = {
+          id: entry.id || entry.tmdb_id || entry.person_id || null,
+          name: String(
+            entry.name || entry.full_name || entry.title || ""
+          ).trim(),
+          image:
+            entry.avatar ||
+            entry.image ||
+            entry.profile_path ||
+            entry.photo ||
+            entry.thumbnail ||
+            null,
+        };
+      }
+      return parsed && parsed.name ? [parsed] : [];
+    });
 
     const seen = new Set();
     return normalized.filter((item) => {
@@ -595,12 +595,12 @@ const Detail = () => {
 
   const upcomingNotice = upcomingTmdbMessage
     ? {
-        icon: <Calendar className="h-4 w-4" />,
+        icon: <Calendar className="size-4" />,
         text: upcomingTmdbMessage,
       }
     : fallbackUpcomingText
     ? {
-        icon: <Calendar className="h-4 w-4" />,
+        icon: <Calendar className="size-4" />,
         text: fallbackUpcomingText,
       }
     : null;

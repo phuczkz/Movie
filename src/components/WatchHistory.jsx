@@ -78,17 +78,17 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
       <div className="absolute top-2 right-2 z-20">
         <button
           onClick={(e) => { e.preventDefault(); handleDelete(item.slug); }}
-          className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-950/40 hover:bg-rose-500/20 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
+          className="p-1.5 text-slate-400 hover:text-white bg-slate-950/40 hover:bg-rose-600 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
           title="Xóa khỏi lịch sử"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="size-3.5" />
         </button>
       </div>
 
       {/* Content Section */}
       <div className={`relative z-10 flex flex-1 flex-col justify-center overflow-hidden ${adminView ? "p-3" : "p-3 sm:p-5 sm:justify-end"
         }`}>
-        <h3 className={`font-bold text-white tracking-tight line-clamp-1 pr-6 ${adminView ? "text-xs sm:text-sm mb-0.5" : "text-sm sm:text-lg sm:mb-1 sm:line-clamp-2 sm:pr-0 sm:drop-shadow-lg"
+        <h3 className={`font-semibold text-white tracking-tight line-clamp-1 pr-6 ${adminView ? "text-xs sm:text-sm mb-0.5" : "text-sm sm:text-lg sm:mb-1 sm:line-clamp-2 sm:pr-0 sm:drop-shadow-lg"
           }`}>
           {movieName}
         </h3>
@@ -108,9 +108,9 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
             <Link
               to={`/watch/${item.slug}${item.episodeSlug ? `?episode=${item.episodeSlug}` : ""}${item.server ? `&server=${item.server}` : ""}`}
               state={{ initialTime: item.currentTime }}
-              className="sm:hidden flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2 py-1 text-[10px] font-semibold text-emerald-400 transition hover:bg-emerald-500 hover:text-slate-950"
+              className="sm:hidden flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2 py-1 text-[10px] font-semibold text-emerald-400 transition hover:bg-emerald-500 hover:text-emerald-950"
             >
-              <Play className="h-3 w-3" fill="currentColor" /> Tiếp
+              <Play className="size-3" fill="currentColor" /> Tiếp
             </Link>
           )}
         </div>
@@ -120,9 +120,9 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
           <Link
             to={`/watch/${item.slug}${item.episodeSlug ? `?episode=${item.episodeSlug}` : ""}${item.server ? `&server=${item.server}` : ""}`}
             state={{ initialTime: item.currentTime }}
-            className="hidden sm:flex group/btn items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:-translate-y-[2px] hover:bg-emerald-400 active:scale-[0.98] w-full mt-auto"
+            className="hidden sm:flex group/btn items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/30 transition hover:-translate-y-[2px] hover:bg-emerald-400 active:scale-[0.98] w-full mt-auto"
           >
-            <Play className="h-4 w-4 transition-transform group-hover/btn:scale-110" fill="currentColor" />
+            <Play className="size-4 transition-transform group-hover/btn:scale-110" fill="currentColor" />
             Tiếp tục xem
           </Link>
         )}
@@ -196,7 +196,7 @@ export default function WatchHistory({ userId, adminView = false }) {
       {!adminView && (
         <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white">Lịch sử xem</h2>
+            <h2 className="text-2xl font-semibold text-white">Lịch sử xem</h2>
             <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-300">
               {history.length}
             </span>
@@ -204,9 +204,9 @@ export default function WatchHistory({ userId, adminView = false }) {
           {history.length > 0 && (
             <button
               onClick={() => setShowClearAllModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-500 hover:text-white"
+              className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="size-4" />
               Xoá tất cả
             </button>
           )}
@@ -214,7 +214,7 @@ export default function WatchHistory({ userId, adminView = false }) {
       )}
 
       {loading ? (
-        <div className="text-slate-400 text-sm">Đang tải lịch sử...</div>
+        <div className="text-slate-400 text-sm">Đang tải lịch sử…</div>
       ) : history.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-slate-400 text-sm">
           {adminView ? "Người dùng này chưa xem phim nào." : "Bạn chưa xem bộ phim nào."}
@@ -238,7 +238,7 @@ export default function WatchHistory({ userId, adminView = false }) {
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="mb-2 text-lg font-bold text-white">Xóa phim này?</h3>
+            <h3 className="mb-2 text-lg font-semibold text-white">Xóa phim này?</h3>
             <p className="mb-6 text-sm text-slate-300">
               Bạn có chắc chắn muốn xóa bộ phim này khỏi lịch sử không? Hành động này không thể hoàn tác.
             </p>
@@ -251,7 +251,7 @@ export default function WatchHistory({ userId, adminView = false }) {
               </button>
               <button
                 onClick={confirmDelete}
-                className="rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-500 hover:text-white"
+                className="rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
               >
                 Có, xóa ngay
               </button>
@@ -263,7 +263,7 @@ export default function WatchHistory({ userId, adminView = false }) {
       {showClearAllModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="mb-2 text-lg font-bold text-white text-rose-500">Xoá toàn bộ lịch sử?</h3>
+            <h3 className="mb-2 text-lg font-semibold text-white text-rose-500">Xoá toàn bộ lịch sử?</h3>
             <p className="mb-6 text-sm text-slate-300">
               Bạn có chắc chắn muốn xoá sạch toàn bộ lịch sử xem phim không? Hành động này không thể hoàn tác.
             </p>

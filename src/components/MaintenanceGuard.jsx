@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from "react";
+﻿import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { LogOut } from "lucide-react";
@@ -32,10 +32,12 @@ export default function MaintenanceGuard({ children }) {
   useEffect(() => {
     // Only auto-redirect on direct entry/refresh. Do not override explicit in-app navigation.
     if (navigationType !== "POP") return;
-    if (appMode === "comic" && location.pathname === "/") {
+    const currentPathname = location.pathname;
+    if (appMode === "comic" && currentPathname === "/") {
       navigate("/comics", { replace: true });
     }
-  }, [appMode, location.pathname, navigate, navigationType]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appMode, navigate, navigationType]);
 
   // Block DevTools shortcuts
   useEffect(() => {
@@ -67,7 +69,7 @@ export default function MaintenanceGuard({ children }) {
     return (
       <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center z-[99999]">
         <div className="relative flex flex-col items-center gap-5">
-          <div className="w-12 h-12 border-4 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
+          <div className="size-12 border-4 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
         </div>
       </div>
     );
@@ -88,7 +90,7 @@ export default function MaintenanceGuard({ children }) {
                 <MaintenanceIllustration />
               </Suspense>
               <div className="space-y-4">
-                <h1 className="text-4xl md:text-6xl font-black text-[#1e4e8c] tracking-tight uppercase">
+                <h1 className="text-4xl md:text-6xl font-semibold text-[#1e4e8c] tracking-tight uppercase">
                   {maintenance?.title || "BẢO TRÌ HỆ THỐNG"}
                 </h1>
                 <p className="text-xl md:text-2xl text-slate-500 font-medium whitespace-pre-wrap">
@@ -97,9 +99,9 @@ export default function MaintenanceGuard({ children }) {
                 </p>
               </div>
               <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-blue-50 border border-blue-100/50">
-                <span className="relative flex h-3 w-3">
+                <span className="relative flex size-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                  <span className="relative inline-flex rounded-full size-3 bg-blue-500"></span>
                 </span>
                 <span className="text-sm font-bold text-blue-600 uppercase tracking-widest">
                   {maintenance?.statusText || "ĐANG NÂNG CẤP HỆ THỐNG"}

@@ -1,4 +1,4 @@
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+﻿import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { comicApi } from "../../api/comicApi";
 import { Flame } from "lucide-react";
@@ -90,8 +90,8 @@ export default function ComicHome() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Flame className="w-8 h-8 text-purple-500" />
-            <h1 className="text-2xl md:text-3xl font-black uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+            <Flame className="size-8 text-purple-500" />
+            <h1 className="text-2xl md:text-3xl font-semibold uppercase text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
               Truyện Mới Cập Nhật
             </h1>
           </div>

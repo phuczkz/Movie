@@ -33,19 +33,19 @@ const ComicCard = ({ comic }) => {
 
   const [alignment, setAlignment] = useState("center");
 
-  const [isHoverDevice, setIsHoverDevice] = useState(() => 
+  const isHoverDevice = useRef(
     typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
   );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(hover: hover)");
-    const handler = (e) => setIsHoverDevice(e.matches);
+    const handler = (e) => { isHoverDevice.current = e.matches; };
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
   const handleMouseEnter = (e) => {
-    if (!isHoverDevice) return;
+    if (!isHoverDevice.current) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
@@ -83,10 +83,14 @@ const ComicCard = ({ comic }) => {
   };
 
   const latestChapter = comic.chaptersLatest?.[0];
+
+  // Single-pass flatMap avoids creating intermediate array
   const categories = (comic.category || [])
     .slice(0, 3)
-    .map((c) => (typeof c === "string" ? c : c?.name || ""))
-    .filter(Boolean);
+    .flatMap((c) => {
+      const name = typeof c === "string" ? c : c?.name || "";
+      return name ? [name] : [];
+    });
 
   return (
     <div
@@ -150,7 +154,7 @@ const ComicCard = ({ comic }) => {
             {comic.name || "Truyện không tên"}
           </h3>
           <p className="text-[15px] font-medium text-slate-400 line-clamp-1 mt-1 flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" />
+            <Clock className="size-3.5" />
             {formatDate(comic.updatedAt)}
           </p>
         </div>
@@ -161,6 +165,7 @@ const ComicCard = ({ comic }) => {
         <div 
           className={`hc-popup hc-popup--comic ${alignment === "left" ? "hc-popup--left" : alignment === "right" ? "hc-popup--right" : ""}`} 
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           {/* Landscape image */}
           <div className="hc-thumb">
