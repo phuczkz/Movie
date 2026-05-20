@@ -24,11 +24,6 @@ const parseEpisodeCount = (str) => {
   return match ? parseInt(match[1], 10) : 0;
 };
 
-/**
- * Extract all name variants from a title (including parenthetical alternate names).
- * "Thanh Tra Bí Mật (Kiểm Toán Tình Yêu)" → 3 variants:
- *   full / "thanh tra bí mật" / "kiểm toán tình yêu"
- */
 const nameVariants = (raw = "") => {
   const set = new Set();
   const full = (raw || "").toLowerCase().trim();
@@ -46,11 +41,6 @@ const nameVariants = (raw = "") => {
   return set;
 };
 
-/**
- * Build identity keys for a movie item.
- * Keys are generated both WITH and WITHOUT year so that when one API
- * omits the year, we can still match via the no-year key.
- */
 const buildKeys = (item) => {
   const keys = new Set();
   const slug = item.slug || item._id || item.id;
