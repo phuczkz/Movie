@@ -30,6 +30,7 @@ const Player = ({
   isLastEpisodeOfSeason,
   onToggleTheater,
   theaterMode,
+  onReady,
 }) => {
   const artRef = useRef(null); // DOM mount point for ArtPlayer
   const artInstanceRef = useRef(null); // ArtPlayer instance
@@ -536,6 +537,7 @@ const Player = ({
     }
 
     artInstanceRef.current.on("ready", () => {
+      if (onReady) onReady(artInstanceRef.current);
       if (
         onNextEpisode &&
         (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
@@ -625,6 +627,7 @@ const Player = ({
         hlsInstanceRef.current.destroy();
         hlsInstanceRef.current = null;
       }
+      if (onReady) onReady(null);
       if (artInstanceRef.current) {
         artInstanceRef.current.destroy(false);
         artInstanceRef.current = null;

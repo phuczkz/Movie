@@ -1,16 +1,17 @@
 import React, { memo } from "react";
 
-const TABS = [
-  { key: "episodes", label: "Tập phim" },
-  { key: "actors", label: "Diễn viên" },
-  { key: "related", label: "Đề xuất" },
-];
+const WatchMobileTabs = memo(({ activeTab, onTabChange, hasRoom }) => {
+  const tabs = [
+    { key: "episodes", label: "Tập phim" },
+    ...(hasRoom ? [{ key: "chat", label: "Trò chuyện 💬" }] : []),
+    { key: "actors", label: "Diễn viên" },
+    { key: "related", label: "Đề xuất" },
+  ];
 
-const WatchMobileTabs = memo(({ activeTab, onTabChange }) => {
   return (
     <div className="xl:hidden">
       <div className="flex w-full rounded-xl border border-white/10 bg-slate-900/40 p-1">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"

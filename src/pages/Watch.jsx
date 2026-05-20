@@ -10,7 +10,7 @@ import {
   Globe2,
   Info,
 } from "lucide-react";
-import { onSnapshot, doc, increment, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
+import { onSnapshot, doc, increment, setDoc, updateDoc, serverTimestamp, arrayUnion, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase.config.js";
 import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
@@ -34,6 +34,8 @@ import WatchMobileTabs from "../components/watch/WatchMobileTabs.jsx";
 import ActorSection from "../components/detail/ActorSection.jsx";
 import SeasonSelector from "../components/SeasonSelector.jsx";
 import { useSeries } from "../hooks/useSeries.js";
+import WatchTogetherModal from "../components/watch/WatchTogetherModal.jsx";
+import WatchChat from "../components/watch/WatchChat.jsx";
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
@@ -86,7 +88,7 @@ const Watch = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const playerRef = useRef(null);
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { saveProgress, forceSave } = useWatchProgress();
 
   const initialTime = location.state?.initialTime || 0;
@@ -123,6 +125,34 @@ const Watch = () => {
   }, [slug]);
 
   const [params, setParams] = useSearchParams();
+  const roomId = params.get("room") || null;
+  const setRoomId = useCallback((newId) => {
+    const nextParams = new URLSearchParams(params);
+    if (newId) {
+      nextParams.set("room", newId);
+    } else {
+      nextParams.delete("room");
+    }
+    setParams(nextParams, { replace: true });
+  }, [params, setParams]);
+
+  const [roomData, setRoomData] = useState(null);
+  const [isWatchTogetherModalOpen, setIsWatchTogetherModalOpen] = useState(false);
+  const [player, setPlayer] = useState(null);
+  const isSyncing = useRef(false);
+
+  const isHost = Boolean(user && roomData && roomData.hostUid === user.uid);
+  const isMember = Boolean(user && roomData && roomData.hostUid !== user.uid);
+
+  const [sidebarTab, setSidebarTab] = useState("info");
+
+  // Keep mobile tab on "chat" if mobile active tab changes and we enter room
+  useEffect(() => {
+    if (roomId && mobileTab === "episodes") {
+      setMobileTab("chat");
+    }
+  }, [roomId]);
+
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
   const selectedProviderParam = normalizeProviderParam(params.get("provider"));
@@ -243,6 +273,239 @@ const Watch = () => {
   useEffect(() => {
     if (selectedEpisode && playerRef.current) playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedEpisode]);
+
+  // 1. Listen to Room document in Firestore
+  useEffect(() => {
+    if (!db || !roomId) {
+      setRoomData(null);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(doc(db, "watchRooms", roomId), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setRoomData(data);
+      } else {
+        // Room closed/deleted
+        setRoomData(null);
+        setRoomId(null);
+      }
+    }, (error) => {
+      console.error("Lỗi lắng nghe phòng xem chung:", error);
+    });
+
+    return () => unsubscribe();
+  }, [roomId, setRoomId]);
+
+  // 1b. Member: Check Host Heartbeat (Online Status)
+  useEffect(() => {
+    if (!roomId || isHost || !roomData?.playerState?.updatedAt) return;
+
+    const interval = setInterval(() => {
+      const updatedAt = roomData.playerState.updatedAt;
+      const updateMs = updatedAt.toMillis ? updatedAt.toMillis() : Date.now();
+      const diffSeconds = (Date.now() - updateMs) / 1000;
+
+      if (diffSeconds > 60) { // Host offline for more than 60 seconds
+        alert("Chủ phòng đã ngoại tuyến. Bạn sẽ được đưa ra khỏi phòng xem chung.");
+        setRoomId(null);
+        setRoomData(null);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [roomId, isHost, roomData, setRoomId]);
+
+
+  // 1d. Host: Heartbeat timer to keep room alive (runs even when video is paused)
+  useEffect(() => {
+    if (!isHost || !roomId || !db) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const roomRef = doc(db, "watchRooms", roomId);
+        await updateDoc(roomRef, {
+          "playerState.updatedAt": serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn("Lỗi gửi heartbeat chủ phòng:", err);
+      }
+    }, 15000); // Send heartbeat every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [isHost, roomId]);
+
+  // 1e. Participant Presence: Register active status in the room
+  useEffect(() => {
+    if (!roomId || !user || !db) return;
+
+    const memberRef = doc(db, `watchRooms/${roomId}/members`, user.uid);
+    const updatePresence = async () => {
+      try {
+        const displayName = userProfile?.displayName || user.displayName || user.email?.split("@")[0] || "Người dùng";
+        const photoURL = userProfile?.photoURL || user.photoURL || null;
+        await setDoc(memberRef, {
+          userId: user.uid,
+          userName: displayName,
+          userAvatar: photoURL,
+          lastActive: serverTimestamp(),
+        }, { merge: true });
+      } catch (err) {
+        console.warn("Lỗi cập nhật hiện diện:", err);
+      }
+    };
+
+    updatePresence();
+    const interval = setInterval(updatePresence, 15000); // presence heartbeat every 15s
+
+    return () => {
+      clearInterval(interval);
+      deleteDoc(memberRef).catch(() => {});
+    };
+  }, [roomId, user, userProfile]);
+
+  // 2. Member: Sync Movie/Episode/Server/Provider from Firestore room state
+  useEffect(() => {
+    if (!roomData || isHost || !roomId) return;
+
+    const nextParams = new URLSearchParams(params);
+    let changed = false;
+
+    if (roomData.movieSlug && roomData.movieSlug !== slug) {
+      navigate(`/watch/${roomData.movieSlug}?room=${roomId}&episode=${roomData.episodeSlug}&server=${roomData.server || "Vietsub"}${roomData.provider ? `&provider=${roomData.provider}` : ""}`, { replace: true });
+      return;
+    }
+
+    if (roomData.episodeSlug && roomData.episodeSlug !== params.get("episode")) {
+      nextParams.set("episode", roomData.episodeSlug);
+      changed = true;
+    }
+    if (roomData.server && roomData.server !== params.get("server")) {
+      nextParams.set("server", roomData.server);
+      changed = true;
+    }
+    if (roomData.provider && roomData.provider !== params.get("provider")) {
+      nextParams.set("provider", roomData.provider);
+      changed = true;
+    } else if (!roomData.provider && params.get("provider")) {
+      nextParams.delete("provider");
+      changed = true;
+    }
+
+    if (changed) {
+      setParams(nextParams, { replace: true });
+    }
+  }, [roomData, isHost, slug, params, setParams, navigate, roomId]);
+
+  // 3. Host: Sync Episode / Server / Provider changes to Firestore
+  useEffect(() => {
+    if (!isHost || !roomId || !db) return;
+
+    const updateRoomEpisode = async () => {
+      try {
+        const roomRef = doc(db, "watchRooms", roomId);
+        await setDoc(roomRef, {
+          episodeSlug: activeEpisode?.slug || "",
+          server: activeServer || "Vietsub",
+          provider: activeProvider || "",
+          playerState: {
+            isPlaying: false,
+            currentTime: 0,
+            updatedAt: serverTimestamp(),
+          }
+        }, { merge: true });
+      } catch (err) {
+        console.warn("Lỗi cập nhật tập lên phòng Firestore:", err);
+      }
+    };
+
+    updateRoomEpisode();
+  }, [activeEpisode, activeServer, activeProvider, isHost, roomId]);
+
+  // 4. Host: Sync Player playback state (Play/Pause/Seek) to Firestore
+  useEffect(() => {
+    if (!player || !isHost || !roomId || !db) return;
+
+    const updatePlayerState = async (isPlaying, currentTime) => {
+      try {
+        const roomRef = doc(db, "watchRooms", roomId);
+        await setDoc(roomRef, {
+          playerState: {
+            isPlaying,
+            currentTime,
+            updatedAt: serverTimestamp(),
+          }
+        }, { merge: true });
+      } catch (err) {
+        console.error("Lỗi cập nhật trạng thái trình phát lên phòng:", err);
+      }
+    };
+
+    const onPlay = () => {
+      if (isSyncing.current) return;
+      updatePlayerState(true, player.video.currentTime);
+    };
+
+    const onPause = () => {
+      if (isSyncing.current) return;
+      updatePlayerState(false, player.video.currentTime);
+    };
+
+    const onSeeked = () => {
+      if (isSyncing.current) return;
+      updatePlayerState(!player.video.paused, player.video.currentTime);
+    };
+
+    let lastTimeUpdate = 0;
+    const onTimeUpdate = () => {
+      if (isSyncing.current) return;
+      const now = Date.now();
+      if (now - lastTimeUpdate > 5000) {
+        lastTimeUpdate = now;
+        updatePlayerState(!player.video.paused, player.video.currentTime);
+      }
+    };
+
+    player.on("video:play", onPlay);
+    player.on("video:pause", onPause);
+    player.on("video:seeked", onSeeked);
+    player.on("video:timeupdate", onTimeUpdate);
+
+    return () => {
+      player.off("video:play", onPlay);
+      player.off("video:pause", onPause);
+      player.off("video:seeked", onSeeked);
+      player.off("video:timeupdate", onTimeUpdate);
+    };
+  }, [player, isHost, roomId]);
+
+  // 5. Member: Sync Player playback state from Firestore
+  useEffect(() => {
+    if (!player || !roomData || isHost || !roomData.playerState) return;
+
+    const { isPlaying, currentTime, updatedAt } = roomData.playerState;
+
+    isSyncing.current = true;
+
+    // Sync Play/Pause
+    if (isPlaying && player.video.paused) {
+      player.play().catch(() => {});
+    } else if (!isPlaying && !player.video.paused) {
+      player.pause();
+    }
+
+    // Sync Time with fixed latency estimation (avoids client-clock desync)
+    const hostTimeAdjusted = currentTime + (isPlaying ? 0.2 : 0);
+    const timeDiff = Math.abs(player.video.currentTime - hostTimeAdjusted);
+
+    if (timeDiff > 1.5) {
+      player.video.currentTime = hostTimeAdjusted;
+    }
+
+    setTimeout(() => {
+      isSyncing.current = false;
+    }, 600);
+  }, [player, roomData, isHost]);
 
   const onTimeUpdate = useCallback((currentTime, duration) => {
     progressRef.current = { currentTime, duration };
@@ -390,7 +653,26 @@ const Watch = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      <WatchHeader movie={movie} activeEpisode={activeEpisode} episodes={displayEpisodes} autoProviderNotice={autoProviderNotice} />
+      {isMember && (
+        <style>{`
+          .art-progress,
+          .art-control-play,
+          .art-video {
+            pointer-events: none !important;
+            opacity: 0.95;
+          }
+          .art-controls-right {
+            pointer-events: auto !important;
+          }
+        `}</style>
+      )}
+
+      <WatchHeader 
+        movie={movie} 
+        autoProviderNotice={autoProviderNotice} 
+        onOpenWatchTogether={() => setIsWatchTogetherModalOpen(true)}
+        hasActiveRoom={Boolean(roomId)}
+      />
 
       {/* Row 1: Player & Information/Actors */}
       <div className="grid gap-8 items-stretch transition-all duration-500 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
@@ -409,20 +691,61 @@ const Watch = () => {
             onPlaybackIssue={handlePlaybackIssue}
             nextSeason={nextSeason}
             isLastEpisodeOfSeason={isLastEpisode(activeEpisode, movie)}
+            onReady={setPlayer}
           />
         </div>
         
         {isDesktop && (
-          <div className="hidden xl:flex flex-col gap-6 h-full min-h-0">
-            <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
-            <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
+          <div className="hidden xl:flex flex-col gap-6 h-full min-h-0 overflow-hidden">
+            {roomId ? (
+              <>
+                <div className="flex border-b border-white/10 pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab("info")}
+                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
+                      sidebarTab === "info"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Thông tin phim
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab("chat")}
+                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
+                      sidebarTab === "chat"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Trò chuyện 💬
+                  </button>
+                </div>
+
+                {sidebarTab === "info" ? (
+                  <>
+                    <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+                    <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
+                  </>
+                ) : (
+                  <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+                )}
+              </>
+            ) : (
+              <>
+                <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+                <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
+              </>
+            )}
           </div>
         )}
       </div>
 
       {/* Mobile/Tablet Tabs */}
       {!isDesktop && (
-        <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} />
+        <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} hasRoom={Boolean(roomId)} />
       )}
 
       {/* Row 2: Grid/Comments & Related Movies */}
@@ -473,6 +796,10 @@ const Watch = () => {
                 </>
               )}
 
+              {mobileTab === "chat" && roomId && (
+                <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+              )}
+
               {mobileTab === "actors" && (
                 <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
               )}
@@ -491,6 +818,18 @@ const Watch = () => {
           </div>
         )}
       </div>
+
+      <WatchTogetherModal
+        isOpen={isWatchTogetherModalOpen}
+        onClose={() => setIsWatchTogetherModalOpen(false)}
+        roomId={roomId}
+        setRoomId={setRoomId}
+        isHost={isHost}
+        movie={movie}
+        activeEpisode={activeEpisode}
+        activeServer={activeServer}
+        activeProvider={activeProvider}
+      />
     </div>
   );
 };

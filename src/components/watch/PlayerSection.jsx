@@ -20,6 +20,7 @@ const PlayerSection = memo(
     currentSeason,
     nextSeason,
     isLastEpisodeOfSeason,
+    onReady,
   }) => {
     return (
       <div ref={playerRef} className="relative z-10">
@@ -81,6 +82,7 @@ const PlayerSection = memo(
             nextSeason={nextSeason}
             isLastEpisodeOfSeason={isLastEpisodeOfSeason}
             movieSlug={movie?.slug}
+            onReady={onReady}
           />
         )}
       </div>
