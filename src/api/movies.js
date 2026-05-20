@@ -533,7 +533,96 @@ export const getDetail = (slug) =>
         }
       }
 
+      // ── Ophim alt-slug fallback ──────────────────────────────────────────
+      // If Ophim returned 0 episodes (slug mismatch) but KKphim has episodes,
+      // search Ophim by name to find its actual slug and fetch from there.
+      if (ophimEpisodes.length === 0 && kkEpisodes.length > 0 && kkMovie?.name) {
+        try {
+          // Simplify name: remove parenthetical part for better search hit
+          const searchKeyword = (kkMovie.name || "")
+            .replace(/\s*\([^)]*\)/g, "")
+            .trim();
+          const altSearch = await client
+            .get("/tim-kiem", {
+              params: { keyword: searchKeyword || kkMovie.name },
+            })
+            .catch(() => null);
+
+          const altItems =
+            altSearch?.data?.data?.items ||
+            altSearch?.data?.items ||
+            altSearch?.data?.result ||
+            [];
+
+          if (Array.isArray(altItems) && altItems.length) {
+            const norm = (s) =>
+              (s || "")
+                .toLowerCase()
+                .trim()
+                .replace(/\s*\([^)]*\)/g, "")
+                .trim();
+            const kkName = norm(kkMovie.name);
+            const kkOrg = norm(kkMovie.origin_name);
+
+            const altItem = altItems.find((m) => {
+              if (!m?.slug || m.slug === slug) return false;
+              const mName = norm(m.name);
+              const mOrg = norm(m.origin_name);
+              return (
+                (kkName && (mName === kkName || mOrg === kkName)) ||
+                (kkOrg &&
+                  mOrg &&
+                  (mOrg === kkOrg ||
+                    mOrg.includes(kkOrg) ||
+                    kkOrg.includes(mOrg)))
+              );
+            });
+
+            if (altItem?.slug) {
+              const altRes = await client
+                .get(`/phim/${altItem.slug}`)
+                .catch(() => null);
+              if (altRes) {
+                const altPayload =
+                  altRes.data?.data?.item ||
+                  altRes.data?.movie ||
+                  altRes.data?.data ||
+                  altRes.data;
+                const altRaw =
+                  altPayload?.episodes ||
+                  altRes.data?.data?.episodes ||
+                  altRes.data?.episodes ||
+                  [];
+                if (Array.isArray(altRaw) && altRaw.length) {
+                  ophimEpisodes = altRaw.flatMap((server, serverIdx) => {
+                    const serverName =
+                      server?.server_name ||
+                      server?.name ||
+                      server?.server ||
+                      "";
+                    const list = server?.server_data || server || [];
+                    return Array.isArray(list)
+                      ? list.map((ep, idx) => ({
+                          ...ep,
+                          server_name: serverName,
+                          _serverIndex: serverIdx,
+                          _epIndex: idx,
+                          _provider: "ophim",
+                        }))
+                      : [];
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[getDetail] Ophim alt-slug fallback failed", e);
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       const mergedEpisodes = mergeEpisodes(kkEpisodes, ophimEpisodes);
+
 
       const episodes = (mergedEpisodes.length ? mergedEpisodes : []).map(
         (ep) => ({

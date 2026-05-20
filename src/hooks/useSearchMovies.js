@@ -20,64 +20,123 @@ const slugify = (text = "") =>
 
 const parseEpisodeCount = (str) => {
   if (!str) return 0;
-  // Match the first number found (e.g., "Tập 12" -> 12, "12/12" -> 12)
   const match = String(str).match(/(\d+)/);
   return match ? parseInt(match[1], 10) : 0;
 };
 
+/**
+ * Extract all name variants from a title (including parenthetical alternate names).
+ * "Thanh Tra Bí Mật (Kiểm Toán Tình Yêu)" → 3 variants:
+ *   full / "thanh tra bí mật" / "kiểm toán tình yêu"
+ */
+const nameVariants = (raw = "") => {
+  const set = new Set();
+  const full = (raw || "").toLowerCase().trim();
+  if (!full || full.length < 2) return set;
+  set.add(full);
+  // Part without parentheses
+  const stripped = full.replace(/\s*\([^)]*\)/g, "").trim();
+  if (stripped && stripped.length > 2 && stripped !== full) set.add(stripped);
+  // Content inside parentheses
+  const m = full.match(/\(([^)]+)\)/);
+  if (m) {
+    const inside = m[1].trim();
+    if (inside.length > 2) set.add(inside);
+  }
+  return set;
+};
+
+/**
+ * Build identity keys for a movie item.
+ * Keys are generated both WITH and WITHOUT year so that when one API
+ * omits the year, we can still match via the no-year key.
+ */
+const buildKeys = (item) => {
+  const keys = new Set();
+  const slug = item.slug || item._id || item.id;
+  const year = item.year || "";
+
+  if (slug) keys.add(`slug:${slug}`);
+
+  const vName = nameVariants(item.name || "");
+  const vOrigin = nameVariants(item.origin_name || "");
+
+  const addPair = (prefix, value) => {
+    if (!value || value.length <= 2) return;
+    // Key with year (preferred — avoids false positives across different years)
+    if (year) keys.add(`${prefix}:${value}|${year}`);
+    // Key without year (fallback — catches when one API lacks year data)
+    keys.add(`${prefix}:${value}`);
+  };
+
+  // Canonical keys
+  vName.forEach((v) => addPair("name", v));
+  vOrigin.forEach((v) => addPair("origin", v));
+
+  // Cross-field: one API's name may equal the other's origin_name
+  vName.forEach((v) => addPair("origin", v));
+  vOrigin.forEach((v) => addPair("name", v));
+
+  return keys;
+};
+
 const smartDedupe = (items = []) => {
+  // map: key → { item, keys }
   const map = new Map();
 
   for (const it of items) {
     if (!it) continue;
 
-    const slug = it.slug || it._id || it.id;
-    const name = (it.name || "").toLowerCase().trim();
-    const originName = (it.origin_name || "").toLowerCase().trim();
-    const year = it.year;
+    const keys = buildKeys(it);
 
-    // Build a set of potential identity keys
-    const identityKeys = new Set();
-    if (slug) identityKeys.add(`slug:${slug}`);
-    
-    // We only use Name/OriginName as keys if they are substantial
-    if (year) {
-      if (originName && originName.length > 2) identityKeys.add(`origin:${originName}|${year}`);
-      if (name && name.length > 2) identityKeys.add(`name:${name}|${year}`);
-    }
-
-    // Check if any key already exists in our map
+    // Find existing entry by any matching key
     let existing = null;
-    for (const key of identityKeys) {
-      if (map.has(key)) {
-        existing = map.get(key);
+    let existingKeys = null;
+    for (const k of keys) {
+      if (map.has(k)) {
+        ({ item: existing, keys: existingKeys } = map.get(k));
         break;
       }
     }
 
     if (existing) {
-      const currentEpisodes = parseEpisodeCount(it.episode_current);
-      const existingEpisodes = parseEpisodeCount(existing.episode_current);
+      // Merge: keep whichever has MORE episodes, but take the MAX episode count
+      const cur = parseEpisodeCount(it.episode_current);
+      const prev = parseEpisodeCount(existing.episode_current);
 
-      // If the new one has more episodes, we replace the existing one
-      if (currentEpisodes > existingEpisodes) {
-        // Update all associated keys to point to the new item
-        for (const key of identityKeys) {
-          map.set(key, it);
-        }
-        // Also ensure the old item's slug points to the new one in case it was different
-        if (existing.slug) map.set(`slug:${existing.slug}`, it);
-      }
+      // Build merged item: use base with higher episode count, always take max
+      const base = cur >= prev ? it : existing;
+      const merged = {
+        ...base,
+        episode_current:
+          cur >= prev ? it.episode_current : existing.episode_current,
+        episode_total:
+          parseEpisodeCount(it.episode_total) >=
+          parseEpisodeCount(existing.episode_total)
+            ? it.episode_total
+            : existing.episode_total,
+      };
+
+      // Union of all keys from both entries
+      const allKeys = new Set([...existingKeys, ...keys]);
+      const entry = { item: merged, keys: allKeys };
+      for (const k of allKeys) map.set(k, entry);
     } else {
-      // New item: map all its identity keys to it
-      for (const key of identityKeys) {
-        map.set(key, it);
-      }
+      const entry = { item: it, keys };
+      for (const k of keys) map.set(k, entry);
     }
   }
 
-  // Use a Set to get unique movie objects from the map values
-  return Array.from(new Set(map.values()));
+  // Deduplicate by reference (map may have multiple keys pointing to same entry)
+  const seen = new Set();
+  const result = [];
+  for (const { item } of map.values()) {
+    if (!seen.has(item)) {
+      seen.add(item);
+      result.push(item);
+    }
+  }
+  return result;
 };
 
 export const useSearchMovies = (query, appMode = "movie", page = 1) =>
@@ -98,7 +157,6 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
 
       if (appMode === "comic") {
         const res = await safe(() => comicApi.search(q));
-        // otruyenapi structure: { data: { items: [...] } }
         const items = res?.data?.items || [];
         return filterAdultMovies(items);
       }
