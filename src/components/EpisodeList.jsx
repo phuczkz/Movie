@@ -1,6 +1,15 @@
 import { Link, useParams } from "react-router-dom";
 import { parseEpisodeNumber, normalizeServerLabel } from "../utils/episodes";
 
+const formatEpisodeName = (name = "") => {
+  const trimmed = String(name).trim();
+  if (/^\d+$/.test(trimmed)) {
+    const n = parseInt(trimmed, 10);
+    return `Tập ${String(n).padStart(2, "0")}`;
+  }
+  return trimmed;
+};
+
 const EpisodeList = ({ episodes = [], serverLabel, showServerLabels = false }) => {
   const { slug } = useParams();
 
@@ -24,11 +33,8 @@ const EpisodeList = ({ episodes = [], serverLabel, showServerLabels = false }) =
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
       {sortedEpisodes.map((episode, idx) => {
         const sLabel = normalizeServerLabel(episode.server_name);
-        // If we are showing server labels, we don't need the serverParam in the URL 
-        // because the episode slug itself (from mergeEpisodes) should be unique if we have multiple servers.
-        // Actually, to be safe, we should include the server param.
         const epServerParam = showServerLabels ? `&server=${encodeURIComponent(sLabel)}` : (serverLabel ? `&server=${encodeURIComponent(serverLabel)}` : "");
-        
+
         return (
           <Link
             key={`${sLabel}-${episode.slug || idx}`}
@@ -40,8 +46,8 @@ const EpisodeList = ({ episodes = [], serverLabel, showServerLabels = false }) =
             {showServerLabels
               ? sLabel
               : episodes.length === 1 && parseEpisodeNumber(episode.name || episode.slug) === 1
-              ? "Full"
-              : episode.name || episode.slug}
+                ? "Full"
+                : formatEpisodeName(episode.name || episode.slug)}
           </Link>
         );
       })}

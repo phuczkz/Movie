@@ -3,6 +3,20 @@ import { ListChecks } from "lucide-react";
 import { Link } from "react-router-dom";
 import { parseEpisodeNumber } from "../../utils/episodes";
 
+/**
+ * Normalize episode display name.
+ * Ophim returns bare numbers ("15", "16") — prefix with "Tập " and zero-pad.
+ * Other formats ("Tập 15", "Full", etc.) are returned unchanged.
+ */
+const formatEpisodeName = (name = "") => {
+  const trimmed = String(name).trim();
+  if (/^\d+$/.test(trimmed)) {
+    const n = parseInt(trimmed, 10);
+    return `Tập ${String(n).padStart(2, "0")}`;
+  }
+  return trimmed;
+};
+
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
   ophim: "Nguồn 2",
@@ -93,7 +107,10 @@ const WatchEpisodeGrid = memo(({
             {episodesForServer.map((ep) => {
               const isActive = activeEpisode?.slug === ep.slug;
               const epNum = parseEpisodeNumber(ep.name || ep.slug);
-              const label = episodesForServer.length === 1 && epNum === 1 ? "Full" : (ep.name || epNum || "??");
+              const label =
+                episodesForServer.length === 1 && epNum === 1
+                  ? "Full"
+                  : formatEpisodeName(ep.name || ep.slug);
               
               return (
                 <Link
