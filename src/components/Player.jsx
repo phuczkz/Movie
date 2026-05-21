@@ -175,8 +175,8 @@ const Player = ({
               elapsed <= 200
                 ? "color: #10b981; font-weight: bold; font-size: 13px;"
                 : elapsed <= 500
-                ? "color: #f59e0b; font-weight: bold; font-size: 13px;"
-                : "color: #ef4444; font-weight: bold; font-size: 13px;"
+                  ? "color: #f59e0b; font-weight: bold; font-size: 13px;"
+                  : "color: #ef4444; font-weight: bold; font-size: 13px;"
             );
             videoEl.removeEventListener("canplay", onCanPlay);
           };
@@ -185,8 +185,7 @@ const Player = ({
           hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
             const manifestTime = (performance.now() - t0).toFixed(0);
             console.log(
-              `%c[Perf] 📋 Manifest parsed in ${manifestTime}ms (${
-                data?.levels?.length || 0
+              `%c[Perf] 📋 Manifest parsed in ${manifestTime}ms (${data?.levels?.length || 0
               } levels)`,
               "color: #8b5cf6; font-weight: bold;"
             );
@@ -211,8 +210,8 @@ const Player = ({
               let label = lvl.height
                 ? `${lvl.height}p`
                 : lvl.bitrate
-                ? `${Math.round(lvl.bitrate / 1000)}k`
-                : `SD ${lvl.level + 1}`;
+                  ? `${Math.round(lvl.bitrate / 1000)}k`
+                  : `SD ${lvl.level + 1}`;
               if (!seen.has(label)) {
                 seen.add(label);
                 unique.push({ html: label, level: lvl.level });
@@ -419,38 +418,38 @@ const Player = ({
         // Theater mode button (desktop only)
         ...(onToggleTheater && !isMobile
           ? [
-              {
-                position: "right",
-                name: "theater-mode",
-                index: 15,
-                html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
-                tooltip: theaterMode
-                  ? "Thoát chế độ rạp phim"
-                  : "Chế độ rạp phim",
-                click: () => {
-                  if (onToggleTheaterRef.current) onToggleTheaterRef.current();
-                },
+            {
+              position: "right",
+              name: "theater-mode",
+              index: 15,
+              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="15" x="2" y="3" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>`,
+              tooltip: theaterMode
+                ? "Thoát chế độ rạp phim"
+                : "Chế độ rạp phim",
+              click: () => {
+                if (onToggleTheaterRef.current) onToggleTheaterRef.current();
               },
-            ]
+            },
+          ]
           : []),
         // Next Episode button (always visible in control bar if next exists)
         ...(onNextEpisode &&
-        (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
+          (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
           ? [
-              {
-                position: "right",
-                name: "next-episode",
-                index: 20,
-                html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
-                tooltip:
-                  isLastEpisodeOfSeason && nextSeason
-                    ? `Chuyển sang Phần ${nextSeason.season}`
-                    : "Tập tiếp theo",
-                click: () => {
-                  if (onNextEpisodeRef.current) onNextEpisodeRef.current();
-                },
+            {
+              position: "right",
+              name: "next-episode",
+              index: 20,
+              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
+              tooltip:
+                isLastEpisodeOfSeason && nextSeason
+                  ? `Chuyển sang Phần ${nextSeason.season}`
+                  : "Tập tiếp theo",
+              click: () => {
+                if (onNextEpisodeRef.current) onNextEpisodeRef.current();
               },
-            ]
+            },
+          ]
           : []),
       ],
       layers: [
@@ -467,11 +466,11 @@ const Player = ({
         },
         // Floating Next Episode button (shows above control bar)
         ...(onNextEpisode &&
-        (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
+          (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
           ? [
-              {
-                name: "next-episode-overlay",
-                html: `
+            {
+              name: "next-episode-overlay",
+              html: `
                 <div id="art-next-ep-layer" style="
                   display: none;
                   position: absolute;
@@ -496,29 +495,27 @@ const Player = ({
                   max-width: 320px;
                 ">
                   <span style="letter-spacing: 0.02em; line-height: 1.4;">
-                    ${
-                      isLastEpisodeOfSeason && nextSeason
-                        ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${
-                            currentSeason || ""
-                          }</div>
+                    ${isLastEpisodeOfSeason && nextSeason
+                  ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""
+                  }</div>
                          Chuyển sang <b>Phần ${nextSeason.season} (Tập 1)</b>`
-                        : "Tập tiếp theo"
-                    }
+                  : "Tập tiếp theo"
+                }
                   </span>
                 </div>`,
-                click: () => {
-                  if (onNextEpisodeRef.current) onNextEpisodeRef.current();
-                },
-                style: {
-                  position: "absolute",
-                  top: "0",
-                  left: "0",
-                  right: "0",
-                  bottom: "0",
-                  pointerEvents: "none",
-                },
+              click: () => {
+                if (onNextEpisodeRef.current) onNextEpisodeRef.current();
               },
-            ]
+              style: {
+                position: "absolute",
+                top: "0",
+                left: "0",
+                right: "0",
+                bottom: "0",
+                pointerEvents: "none",
+              },
+            },
+          ]
           : []),
       ],
       customType: customType || undefined,
@@ -649,8 +646,6 @@ const Player = ({
     if (artInstanceRef.current && source && !canUseIframe) {
       // Avoid redundant switches if the URL is the same
       if (artInstanceRef.current.url === source) return;
-
-      console.log("[Player] Seamlessly switching to next episode:", source);
       artInstanceRef.current.switchUrl(source, posterUrl);
     }
   }, [source, posterUrl, canUseIframe]);
@@ -671,13 +666,11 @@ const Player = ({
       const span = nextEpBtnElRef.current.querySelector("span");
       if (span) {
         span.innerHTML = `
-          ${
-            isLastEpisodeOfSeason && nextSeason
-              ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${
-                  currentSeason || ""
-                }</div>
+          ${isLastEpisodeOfSeason && nextSeason
+            ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""
+            }</div>
                Chuyển sang <b>Phần ${nextSeason.season} (Tập 1)</b>`
-              : "Tập tiếp theo"
+            : "Tập tiếp theo"
           }
         `;
       }
