@@ -115,8 +115,9 @@ export const useHlsHandler = (source, isHls) => {
       maxMaxBufferLength: isMobile ? 60 : 120,
       maxBufferSize: isMobile ? 100_000_000 : 300_000_000,
 
-      // ── BACK BUFFER — instant backward seeking ──
-      backBufferLength: isMobile ? 300 : Infinity,
+      // ── BACK BUFFER ──
+      // Limit back buffer on both mobile and desktop to prevent memory leaks/bloat over long viewing sessions.
+      backBufferLength: isMobile ? 60 : 120,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the

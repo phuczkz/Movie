@@ -89,6 +89,9 @@ const Player = ({
 
   const { Hls, hlsConfig } = useHlsHandler(source, isHls);
 
+  const hlsConfigRef = useRef(hlsConfig);
+  hlsConfigRef.current = hlsConfig;
+
   // Optimized poster URL via wsrv.nl (only for absolute URLs)
   const posterUrl = useMemo(() => {
     if (!poster) return null;
@@ -156,7 +159,7 @@ const Player = ({
           }
 
           const hls = new Hls({
-            ...hlsConfig,
+            ...hlsConfigRef.current,
             capLevelToPlayerSize: false,
           });
 
@@ -166,6 +169,7 @@ const Player = ({
 
           let networkRecoveryAttempts = 0;
           let mediaRecoveryAttempts = 0;
+          let desyncRecoveryAttempts = 0;
 
           // Measure time to first frame
           const onCanPlay = () => {
@@ -289,28 +293,45 @@ const Player = ({
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
                 mediaRecoveryAttempts += 1;
-                if (mediaRecoveryAttempts <= 2) hls.recoverMediaError();
-                else {
+                if (mediaRecoveryAttempts <= 2) {
+                  console.warn("[Player] Fatal media error, recovering media...");
+                  hls.recoverMediaError();
+                } else if (mediaRecoveryAttempts <= 4) {
+                  console.warn("[Player] Persistent media error, swapping audio codec and recovering...");
                   hls.swapAudioCodec();
                   hls.recoverMediaError();
+                } else {
+                  console.error("[Player] Media recovery failed multiple times. Reloading source completely...");
                   mediaRecoveryAttempts = 0;
+                  hls.loadSource(url);
+                  hls.attachMedia(videoEl);
+                  const currentPos = videoEl.currentTime;
+                  if (currentPos > 0) {
+                    videoEl.currentTime = currentPos;
+                  }
+                  videoEl.play().catch(() => {});
                 }
                 break;
               default:
                 reportPlaybackIssue("fatal-hls");
+                console.error("[Player] Fatal HLS error, attempting full reload of stream...");
                 hls.destroy();
                 hlsInstanceRef.current = null;
+                // Wait 2s and reload the exact URL that had the error
+                setTimeout(() => {
+                  if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
+                    artInstanceRef.current.switchUrl(url, posterUrl);
+                  }
+                }, 2000);
             }
           });
 
-          // ── A/V Desync Watchdog ──
-          // Safety net: detect when video frames freeze (currentTime stops
-          // advancing) while the video is not paused (audio still playing).
-          // This can happen at discontinuity boundaries after ad removal.
-          // When detected, nudge playback forward to force buffer resync.
+          // ── A/V Desync & Stuck Buffer Watchdog ──
           let lastWatchdogTime = 0;
-          let stallStartTime = 0;
-          const STALL_THRESHOLD_MS = 3000; // 3s of frozen frames = trigger recovery
+          let lastTotalFrames = 0;
+          let lastCheckRealTime = 0;
+          let desyncFreezeStartTime = 0;
+          let bufferingStartTime = 0;
 
           if (videoEl && videoEl._desyncWatchdog) {
             clearInterval(videoEl._desyncWatchdog);
@@ -323,41 +344,132 @@ const Player = ({
               videoEl.ended ||
               videoEl.seeking
             ) {
-              stallStartTime = 0;
+              desyncFreezeStartTime = 0;
+              bufferingStartTime = 0;
               return;
             }
 
             const now = performance.now();
             const currentTime = videoEl.currentTime;
+            
+            // Get frame count if supported by browser (with webkit fallback)
+            let totalFrames = 0;
+            const quality = typeof videoEl.getVideoPlaybackQuality === "function" 
+              ? videoEl.getVideoPlaybackQuality() 
+              : null;
+            if (quality) {
+              totalFrames = quality.totalVideoFrames;
+            } else if (typeof videoEl.webkitDecodedFrameCount === "number") {
+              totalFrames = videoEl.webkitDecodedFrameCount;
+            }
 
-            if (
-              lastWatchdogTime > 0 &&
-              Math.abs(currentTime - lastWatchdogTime) < 0.05
-            ) {
-              // Video time hasn't moved — possible frame freeze
-              if (stallStartTime === 0) {
-                stallStartTime = now;
-              } else if (now - stallStartTime > STALL_THRESHOLD_MS) {
-                // Confirmed stall for 3+ seconds — recover
+            if (lastCheckRealTime === 0) {
+              // Initialize trackers on the first tick
+              lastWatchdogTime = currentTime;
+              lastTotalFrames = totalFrames;
+              lastCheckRealTime = now;
+              return;
+            }
+
+            const timeDelta = currentTime - lastWatchdogTime;
+            const frameDelta = totalFrames - lastTotalFrames;
+
+            // 1. Detect Video Decoder Freeze (Audio playing, video frame frozen)
+            // We require totalFrames > 0 AND lastTotalFrames > 0 to ensure we have a valid, active video track
+            // and prevent false positives during the first few seconds of stream startup/recovery.
+            if (totalFrames > 0 && lastTotalFrames > 0 && timeDelta > 0.05 && frameDelta === 0) {
+              if (desyncFreezeStartTime === 0) {
+                desyncFreezeStartTime = now;
+              } else if (now - desyncFreezeStartTime > 2500) {
+                desyncRecoveryAttempts += 1;
                 console.warn(
-                  "[Player] A/V desync detected at",
-                  currentTime.toFixed(1),
-                  "s — auto-recovering"
+                  `[Player] Silent video freeze detected at ${currentTime.toFixed(1)}s (audio is playing but frames aren't rendering). Recovery attempt #${desyncRecoveryAttempts}...`
                 );
-                videoEl.currentTime = currentTime + 0.5;
-                stallStartTime = 0;
-
-                // Also trigger hls recovery
+                
+                desyncFreezeStartTime = 0;
+                bufferingStartTime = 0;
+                
                 if (hlsInstanceRef.current) {
-                  hlsInstanceRef.current.startLoad();
+                  if (desyncRecoveryAttempts <= 2) {
+                    hlsInstanceRef.current.recoverMediaError();
+                  } else if (desyncRecoveryAttempts <= 3) {
+                    console.warn("[Player] Persistent silent freeze. Swapping audio codec and recovering...");
+                    hlsInstanceRef.current.swapAudioCodec();
+                    hlsInstanceRef.current.recoverMediaError();
+                  } else {
+                    console.error("[Player] Silent freeze recovery failed multiple times. Reloading source completely...");
+                    desyncRecoveryAttempts = 0;
+                    hlsInstanceRef.current.loadSource(url);
+                    hlsInstanceRef.current.attachMedia(videoEl);
+                    if (currentTime > 0) {
+                      videoEl.currentTime = currentTime;
+                    }
+                    videoEl.play().catch(() => {});
+                  }
+                } else {
+                  videoEl.currentTime = currentTime + 0.1;
                 }
               }
             } else {
-              stallStartTime = 0;
+              desyncFreezeStartTime = 0;
+              // Reset attempts once video frames are rendering normally
+              if (frameDelta > 0) {
+                desyncRecoveryAttempts = 0;
+              }
+            }
+
+            // 2. Detect Stuck Buffer (Neither audio nor video advancing, stuck loading)
+            if (Math.abs(timeDelta) < 0.05) {
+              if (bufferingStartTime === 0) {
+                bufferingStartTime = now;
+              } else {
+                const stuckDuration = now - bufferingStartTime;
+                if (stuckDuration > 12000) {
+                  // Level 3: Stuck buffering for 12s - reload stream source completely
+                  console.error(
+                    `[Player] Stuck loading for 12s. Reloading HLS stream source...`
+                  );
+                  bufferingStartTime = now; // reset timer for next action
+                  
+                  if (hlsInstanceRef.current) {
+                    hlsInstanceRef.current.loadSource(url);
+                    hlsInstanceRef.current.attachMedia(videoEl);
+                    if (currentTime > 0) {
+                      videoEl.currentTime = currentTime;
+                    }
+                    videoEl.play().catch(() => {});
+                  } else {
+                    // Fallback nudge
+                    videoEl.currentTime = currentTime + 0.5;
+                  }
+                } else if (stuckDuration > 7000) {
+                  // Level 2: Stuck buffering for 7s - recover media error
+                  console.warn(
+                    `[Player] Stuck loading for 7s. Triggering hls.recoverMediaError()...`
+                  );
+                  if (hlsInstanceRef.current) {
+                    hlsInstanceRef.current.recoverMediaError();
+                  } else {
+                    videoEl.currentTime = currentTime + 0.2;
+                  }
+                } else if (stuckDuration > 3000) {
+                  // Level 1: Stuck buffering for 3s - trigger startLoad
+                  console.warn(
+                    `[Player] Stuck loading for 3s. Triggering hls.startLoad()...`
+                  );
+                  if (hlsInstanceRef.current) {
+                    hlsInstanceRef.current.startLoad();
+                  }
+                }
+              }
+            } else {
+              bufferingStartTime = 0;
             }
 
             lastWatchdogTime = currentTime;
-          }, 2000);
+            lastTotalFrames = totalFrames;
+            lastCheckRealTime = now;
+          }, 1000);
 
           // Store cleanup ref for the watchdog
           videoEl._desyncWatchdog = desyncWatchdog;

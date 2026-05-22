@@ -3,12 +3,8 @@ import { X, Upload, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const PRESET_AVATARS = [
-  { id: "sjv", name: "Sung Jin-woo", url: "/avatars/sung_jin_woo.png" },
   { id: "cha", name: "Cha Hae-In", url: "/avatars/cha_hae_in.png" },
 
-  { id: "luffy", name: "Luffy", url: "/avatars/luffy.png" },
-
-  { id: "isagi", name: "Isagi", url: "/avatars/isagi.png" },
   { id: "nagi", name: "Nagi", url: "/avatars/nagi.png" },
   { id: "bachira", name: "Bachira", url: "/avatars/bachira.png" },
   { id: "rin", name: "Rin Itoshi", url: "/avatars/rin.png" },
@@ -16,11 +12,6 @@ const PRESET_AVATARS = [
   { id: "chigiri", name: "Chigiri", url: "/avatars/chigiri.png" },
   { id: "gojo", name: "Gojo", url: "/avatars/gojo.png" },
 
-
-
-  { id: "c-luffy", name: "Chibi Luffy", url: "/avatars/chibi_luffy.png" },
-  { id: "c-zoro", name: "Chibi Zoro", url: "/avatars/chibi_zoro.png" },
-  { id: "c-isagi", name: "Chibi Isagi", url: "/avatars/chibi_isagi.png" },
 ];
 
 export default function AvatarModal({
@@ -107,8 +98,8 @@ export default function AvatarModal({
                     onClick={() => handleSelectPreset(avatar.url)}
                     disabled={uploading}
                     className={`relative group aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border-4 transition-all ${currentAvatarUrl === avatar.url
-                        ? "border-emerald-500 scale-95 shadow-lg shadow-emerald-500/20"
-                        : "border-transparent hover:border-white/20 hover:scale-105"
+                      ? "border-emerald-500 scale-95 shadow-lg shadow-emerald-500/20"
+                      : "border-transparent hover:border-white/20 hover:scale-105"
                       }`}
                   >
                     <img

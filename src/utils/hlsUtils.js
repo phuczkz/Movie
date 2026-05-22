@@ -142,7 +142,7 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   // Log results
   if (adsRemoved > 0) {
     console.log(
-      "%c[BlockADS] ✓ Đã lọc %d đoạn quảng cáo",
+      "%c[BlockADS] ✓ Đã lọc %d đoạn chứa quảng cáo",
       "color: #10b981; font-weight: bold;",
       adsRemoved
     );

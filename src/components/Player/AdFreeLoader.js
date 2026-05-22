@@ -1,16 +1,6 @@
 import { stripAdSegmentsFromPlaylist } from "../../utils/hlsUtils";
 
-/**
- * Builds a lightweight HLS.js playlist loader that ONLY strips ad segments.
- * NO proxying — NO URL modification — just response text filtering.
- *
- * CRITICAL DESIGN DECISION:
- * Unlike previous versions that routed requests through a proxy (causing 8-15s delays),
- * this loader passes ALL URLs through UNCHANGED. It only intercepts the response text
- * of playlist/manifest requests to strip ad segments before hls.js parses them.
- *
- * Fragment (.ts) requests never touch this loader (used as pLoader, not loader).
- */
+
 export const buildAdFreeLoader = (BaseLoader, sourceUrl) => {
   if (!BaseLoader) return null;
 
