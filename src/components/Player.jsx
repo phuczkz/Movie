@@ -41,6 +41,7 @@ const Player = ({
   const onPlaybackIssueRef = useRef(onPlaybackIssue);
   const onTimeUpdateRef = useRef(onTimeUpdate);
   const onNextEpisodeRef = useRef(onNextEpisode);
+  const hasNextEpisodeRef = useRef(hasNextEpisode);
   const onToggleTheaterRef = useRef(onToggleTheater);
   const nextSeasonRef = useRef(nextSeason);
   const isLastEpisodeOfSeasonRef = useRef(isLastEpisodeOfSeason);
@@ -68,6 +69,9 @@ const Player = ({
   useEffect(() => {
     onNextEpisodeRef.current = onNextEpisode;
   }, [onNextEpisode]);
+  useEffect(() => {
+    hasNextEpisodeRef.current = hasNextEpisode;
+  }, [hasNextEpisode]);
   useEffect(() => {
     onToggleTheaterRef.current = onToggleTheater;
   }, [onToggleTheater]);
@@ -527,7 +531,7 @@ const Player = ({
             this.emit("notice", "Tiến 10 giây");
           },
         },
-        // Theater mode button (desktop only)
+         // Theater mode button (desktop only)
         ...(onToggleTheater && !isMobile
           ? [
             {
@@ -544,25 +548,19 @@ const Player = ({
             },
           ]
           : []),
-        // Next Episode button (always visible in control bar if next exists)
-        ...(onNextEpisode &&
-          (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
-          ? [
-            {
-              position: "right",
-              name: "next-episode",
-              index: 20,
-              html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
-              tooltip:
-                isLastEpisodeOfSeason && nextSeason
-                  ? `Chuyển sang Phần ${nextSeason.season}`
-                  : "Tập tiếp theo",
-              click: () => {
-                if (onNextEpisodeRef.current) onNextEpisodeRef.current();
-              },
-            },
-          ]
-          : []),
+        // Next Episode button (visibility managed dynamically)
+        {
+          position: "right",
+          name: "next-episode",
+          index: 20,
+          html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
+          tooltip: "Tập tiếp theo",
+          click: () => {
+            if (onNextEpisodeRef.current && (hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))) {
+              onNextEpisodeRef.current();
+            }
+          },
+        },
       ],
       layers: [
         {
@@ -577,58 +575,50 @@ const Player = ({
           },
         },
         // Floating Next Episode button (shows above control bar)
-        ...(onNextEpisode &&
-          (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
-          ? [
-            {
-              name: "next-episode-overlay",
-              html: `
-                <div id="art-next-ep-layer" style="
-                  display: none;
-                  position: absolute;
-                  bottom: 80px;
-                  right: 24px;
-                  background: rgba(255, 255, 255, 0.08);
-                  backdrop-filter: blur(20px);
-                  -webkit-backdrop-filter: blur(20px);
-                  border: 1px solid rgba(255, 255, 255, 0.15);
-                  border-radius: 12px;
-                  padding: 14px 24px;
-                  color: #ffffff;
-                  font-size: 14px;
-                  font-weight: 700;
-                  cursor: pointer;
-                  align-items: center;
-                  gap: 12px;
-                  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-                  pointer-events: auto;
-                  user-select: none;
-                  max-width: 320px;
-                ">
-                  <span style="letter-spacing: 0.02em; line-height: 1.4;">
-                    ${isLastEpisodeOfSeason && nextSeason
-                  ? `<div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em;">Hết Phần ${currentSeason || ""
-                  }</div>
-                         Chuyển sang <b>Phần ${nextSeason.season} (Tập 1)</b>`
-                  : "Tập tiếp theo"
-                }
-                  </span>
-                </div>`,
-              click: () => {
-                if (onNextEpisodeRef.current) onNextEpisodeRef.current();
-              },
-              style: {
-                position: "absolute",
-                top: "0",
-                left: "0",
-                right: "0",
-                bottom: "0",
-                pointerEvents: "none",
-              },
-            },
-          ]
-          : []),
+        {
+          name: "next-episode-overlay",
+          html: `
+            <div id="art-next-ep-layer" style="
+              display: none;
+              position: absolute;
+              bottom: 80px;
+              right: 24px;
+              background: rgba(255, 255, 255, 0.08);
+              backdrop-filter: blur(20px);
+              -webkit-backdrop-filter: blur(20px);
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              border-radius: 12px;
+              padding: 14px 24px;
+              color: #ffffff;
+              font-size: 14px;
+              font-weight: 700;
+              cursor: pointer;
+              align-items: center;
+              gap: 12px;
+              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+              box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+              pointer-events: auto;
+              user-select: none;
+              max-width: 320px;
+            ">
+              <span style="letter-spacing: 0.02em; line-height: 1.4;">
+                Tập tiếp theo
+              </span>
+            </div>`,
+          click: () => {
+            if (onNextEpisodeRef.current && (hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))) {
+              onNextEpisodeRef.current();
+            }
+          },
+          style: {
+            position: "absolute",
+            top: "0",
+            left: "0",
+            right: "0",
+            bottom: "0",
+            pointerEvents: "none",
+          },
+        },
       ],
       customType: customType || undefined,
     };
@@ -647,35 +637,38 @@ const Player = ({
 
     artInstanceRef.current.on("ready", () => {
       if (onReady) onReady(artInstanceRef.current);
-      if (
-        onNextEpisode &&
-        (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason))
-      ) {
-        nextEpBtnElRef.current =
-          artInstanceRef.current.template?.$player?.querySelector?.(
-            "#art-next-ep-layer"
-          ) || null;
-        if (nextEpBtnElRef.current) {
-          const isHoverDevice = window.matchMedia("(hover: hover)").matches;
-          if (isHoverDevice) {
-            nextEpBtnElRef.current.onmouseenter = () => {
-              Object.assign(nextEpBtnElRef.current.style, {
-                background: "rgba(255, 255, 255, 0.18)",
-                borderColor: "rgba(255, 255, 255, 0.3)",
-                transform: "translateY(-4px)",
-                boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)",
-              });
-            };
-            nextEpBtnElRef.current.onmouseleave = () => {
-              Object.assign(nextEpBtnElRef.current.style, {
-                background: "rgba(255, 255, 255, 0.08)",
-                borderColor: "rgba(255, 255, 255, 0.15)",
-                transform: "translateY(0)",
-                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
-              });
-            };
-          }
+      
+      nextEpBtnElRef.current =
+        artInstanceRef.current.template?.$player?.querySelector?.(
+          "#art-next-ep-layer"
+        ) || null;
+      if (nextEpBtnElRef.current) {
+        const isHoverDevice = window.matchMedia("(hover: hover)").matches;
+        if (isHoverDevice) {
+          nextEpBtnElRef.current.onmouseenter = () => {
+            Object.assign(nextEpBtnElRef.current.style, {
+              background: "rgba(255, 255, 255, 0.18)",
+              borderColor: "rgba(255, 255, 255, 0.3)",
+              transform: "translateY(-4px)",
+              boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)",
+            });
+          };
+          nextEpBtnElRef.current.onmouseleave = () => {
+            Object.assign(nextEpBtnElRef.current.style, {
+              background: "rgba(255, 255, 255, 0.08)",
+              borderColor: "rgba(255, 255, 255, 0.15)",
+              transform: "translateY(0)",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+            });
+          };
         }
+      }
+
+      // Update next episode control visibility immediately on ready
+      const nextEpControl = artInstanceRef.current.template?.$player?.querySelector(".art-control-next-episode");
+      if (nextEpControl) {
+        const shouldShow = !!onNextEpisodeRef.current && (hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current));
+        nextEpControl.style.display = shouldShow ? "flex" : "none";
       }
     });
 
@@ -687,31 +680,26 @@ const Player = ({
       lastPositionRef.current = t;
       if (onTimeUpdateRef.current) onTimeUpdateRef.current(t, d);
       const btn = nextEpBtnElRef.current;
-      if (
-        btn &&
-        (hasNextEpisode ||
-          (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) &&
-        d > 0
-      ) {
-        const remainingTime = d - t;
-        const shouldShow = remainingTime <= 190 || t / d >= 0.9;
-        btn.style.display = shouldShow ? "inline-flex" : "none";
+      if (btn && d > 0) {
+        const hasNext = hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current);
+        if (hasNext) {
+          const remainingTime = d - t;
+          const shouldShow = remainingTime <= 190 || t / d >= 0.9;
+          btn.style.display = shouldShow ? "inline-flex" : "none";
+        } else {
+          btn.style.display = "none";
+        }
       }
     });
 
     artInstanceRef.current.on("video:ended", () => {
-      if (
-        nextEpBtnElRef.current &&
-        (hasNextEpisode ||
-          (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))
-      )
+      const hasNext = hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current);
+      if (nextEpBtnElRef.current && hasNext) {
         nextEpBtnElRef.current.style.display = "inline-flex";
-      if (
-        (hasNextEpisode ||
-          (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current)) &&
-        onNextEpisodeRef.current
-      )
+      }
+      if (hasNext && onNextEpisodeRef.current) {
         onNextEpisodeRef.current();
+      }
     });
 
     artInstanceRef.current.on("video:play", () =>
@@ -762,7 +750,7 @@ const Player = ({
     }
   }, [source, posterUrl, canUseIframe]);
 
-  // Update dynamic UI elements (header, next episode overlay, tooltips)
+  // Update dynamic UI elements (header, next episode overlay, tooltips, control visibility)
   useEffect(() => {
     const art = artInstanceRef.current;
     if (!art) return;
@@ -786,6 +774,12 @@ const Player = ({
           }
         `;
       }
+      
+      // If there is no next episode, hide the floating overlay immediately
+      const hasNext = hasNextEpisode || (isLastEpisodeOfSeason && nextSeason);
+      if (!hasNext) {
+        nextEpBtnElRef.current.style.display = "none";
+      }
     }
 
     // 3. Update Control Tooltips
@@ -797,6 +791,13 @@ const Player = ({
             ? `Chuyển sang Phần ${nextSeason.season}`
             : "Tập tiếp theo",
       });
+    }
+
+    // 4. Update Next Episode Control Visibility
+    const nextEpControl = art.template?.$player?.querySelector(".art-control-next-episode");
+    if (nextEpControl) {
+      const shouldShow = !!onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason));
+      nextEpControl.style.display = shouldShow ? "flex" : "none";
     }
 
     if (art.controls["theater-mode"]) {
@@ -812,6 +813,8 @@ const Player = ({
     nextSeason,
     currentSeason,
     theaterMode,
+    hasNextEpisode,
+    onNextEpisode,
   ]);
 
   const containerClass = `relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 z-10 rounded-2xl border border-white/10`;

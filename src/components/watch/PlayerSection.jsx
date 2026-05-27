@@ -56,16 +56,15 @@ const PlayerSection = memo(
         ) : (
           <Player
             source={activeSource}
-            poster="/anime_player_poster.png"
+            poster="/player_poster.png"
             title={movie?.name}
             subtitle={
               activeEpisode?.name
-                ? `${
-                    episodes.length === 1 &&
-                    parseEpisodeNumber(activeEpisode.name) === 1
-                      ? "Full Movie"
-                      : activeEpisode.name
-                  } • ${activeServer || "Vietsub"} • ${activeProviderLabel}`
+                ? `${episodes.length === 1 &&
+                  parseEpisodeNumber(activeEpisode.name) === 1
+                  ? "Full Movie"
+                  : activeEpisode.name
+                } • ${activeServer || "Vietsub"} • ${activeProviderLabel}`
                 : undefined
             }
             onNextEpisode={onNextEpisode}
