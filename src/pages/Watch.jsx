@@ -18,7 +18,6 @@ import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useActorsWithTmdbImages } from "../hooks/useActorsWithTmdbImages.js";
 import Comments from "../components/Comments.jsx";
-import RelatedMovies from "../components/RelatedMovies.jsx";
 import {
   normalizeServerLabel,
   parseEpisodeNumber,
@@ -815,19 +814,9 @@ const Watch = () => {
                 <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
               )}
 
-              {mobileTab === "related" && (
-                <RelatedMovies movie={movie} variant="grid" />
-              )}
             </div>
           )}
         </div>
-
-        {/* Desktop sidebar: Related Movies */}
-        {isDesktop && (
-          <div className="hidden xl:block">
-            <RelatedMovies movie={movie} variant="list" />
-          </div>
-        )}
       </div>
 
       <WatchTogetherModal

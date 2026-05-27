@@ -5,7 +5,6 @@ const WatchMobileTabs = memo(({ activeTab, onTabChange, hasRoom }) => {
     { key: "episodes", label: "Tập phim" },
     ...(hasRoom ? [{ key: "chat", label: "Trò chuyện 💬" }] : []),
     { key: "actors", label: "Diễn viên" },
-    { key: "related", label: "Đề xuất" },
   ];
 
   return (
