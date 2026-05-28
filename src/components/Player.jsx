@@ -384,7 +384,7 @@ const Player = ({
             if (totalFrames > 0 && lastTotalFrames > 0 && timeDelta > 0.05 && frameDelta === 0) {
               if (desyncFreezeStartTime === 0) {
                 desyncFreezeStartTime = now;
-              } else if (now - desyncFreezeStartTime > 2500) {
+              } else if (now - desyncFreezeStartTime > 1000) {
                 desyncRecoveryAttempts += 1;
                 console.warn(
                   `[Player] Silent video freeze detected at ${currentTime.toFixed(1)}s (audio is playing but frames aren't rendering). Recovery attempt #${desyncRecoveryAttempts}...`
@@ -394,9 +394,21 @@ const Player = ({
                 bufferingStartTime = 0;
                 
                 if (hlsInstanceRef.current) {
-                  if (desyncRecoveryAttempts <= 2) {
-                    hlsInstanceRef.current.recoverMediaError();
+                  if (desyncRecoveryAttempts <= 1) {
+                    // Level 1: Lightweight nudge — force decoder to re-find the next keyframe
+                    // by micro-seeking. This is instant and non-disruptive.
+                    console.warn("[Player] Attempting seek-nudge recovery...");
+                    videoEl.currentTime = currentTime + 0.1;
+                  } else if (desyncRecoveryAttempts <= 2) {
+                    // Level 2: Force hls.js to re-validate buffer and reload from current pos
+                    console.warn("[Player] Attempting startLoad recovery...");
+                    hlsInstanceRef.current.startLoad(currentTime);
+                    videoEl.currentTime = currentTime + 0.1;
                   } else if (desyncRecoveryAttempts <= 3) {
+                    // Level 3: Full media error recovery (re-creates MediaSource pipeline)
+                    console.warn("[Player] Attempting recoverMediaError...");
+                    hlsInstanceRef.current.recoverMediaError();
+                  } else if (desyncRecoveryAttempts <= 4) {
                     console.warn("[Player] Persistent silent freeze. Swapping audio codec and recovering...");
                     hlsInstanceRef.current.swapAudioCodec();
                     hlsInstanceRef.current.recoverMediaError();
@@ -436,20 +448,21 @@ const Player = ({
                   bufferingStartTime = now; // reset timer for next action
                   
                   if (hlsInstanceRef.current) {
-                    hlsInstanceRef.current.loadSource(url);
-                    hlsInstanceRef.current.attachMedia(videoEl);
-                    if (currentTime > 0) {
-                      videoEl.currentTime = currentTime;
-                    }
-                    videoEl.play().catch(() => {});
+                    hlsInstanceRef.current.destroy();
+                    hlsInstanceRef.current = null;
+                    setTimeout(() => {
+                      if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
+                        artInstanceRef.current.switchUrl(url, posterUrl);
+                      }
+                    }, 1000);
                   } else {
                     // Fallback nudge
                     videoEl.currentTime = currentTime + 0.5;
                   }
-                } else if (stuckDuration > 7000) {
-                  // Level 2: Stuck buffering for 7s - recover media error
+                } else if (stuckDuration > 6000) {
+                  // Level 2: Stuck buffering for 6s - recover media error
                   console.warn(
-                    `[Player] Stuck loading for 7s. Triggering hls.recoverMediaError()...`
+                    `[Player] Stuck loading for 6s. Recovering media error...`
                   );
                   if (hlsInstanceRef.current) {
                     hlsInstanceRef.current.recoverMediaError();
@@ -473,10 +486,134 @@ const Player = ({
             lastWatchdogTime = currentTime;
             lastTotalFrames = totalFrames;
             lastCheckRealTime = now;
-          }, 1000);
+          }, 400);
 
           // Store cleanup ref for the watchdog
           videoEl._desyncWatchdog = desyncWatchdog;
+
+          // ── Post-seek buffer flush — robust, deadlock-free implementation ──
+          //
+          // Root cause of seek corruption with progressive: true:
+          //   A) In-flight fetch chunks not yet appended  → stopLoad() stops this
+          //   B) Already-appended partial chunks in SourceBuffer → BUFFER_FLUSHING clears this
+          //
+          // Optimization: If the seek target is already fully buffered, do NOT flush.
+          // This keeps the back-buffer intact for instant (0ms) seeking.
+          let seekDebounceTimer = null;
+          let postSeekCheckTimer = null;
+
+          const onSeeked = () => {
+            if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
+            if (postSeekCheckTimer) clearTimeout(postSeekCheckTimer);
+
+            // Reset watchdog state immediately on every seek to prevent false positives.
+            desyncFreezeStartTime = 0;
+            bufferingStartTime = 0;
+            lastCheckRealTime = 0; // forces watchdog to re-initialize on next tick
+
+            seekDebounceTimer = setTimeout(() => {
+              if (!mountedRef.current || !videoEl || videoEl.ended) return;
+
+              const seekTarget = videoEl.currentTime;
+
+              // Check if the seek target is already buffered.
+              // If it is, skip flushing to allow instant 0ms playback from memory buffer.
+              let isAlreadyBuffered = false;
+              const buffered = videoEl.buffered;
+              if (buffered) {
+                for (let i = 0; i < buffered.length; i++) {
+                  // Allow a small 0.5s tolerance margin
+                  if (seekTarget >= buffered.start(i) && seekTarget <= buffered.end(i) - 0.5) {
+                    isAlreadyBuffered = true;
+                    break;
+                  }
+                }
+              }
+
+              if (isAlreadyBuffered) {
+                console.log("[Player] Seek target is already buffered. Playing instantly from memory...");
+                return;
+              }
+
+              if (!hlsInstanceRef.current) return;
+
+              console.log("[Player] Seek target is unbuffered. Flushing and loading clean segments...");
+              let startLoadFired = false;
+
+              // ── Core: idempotent startLoad ──
+              const doStartLoad = () => {
+                if (startLoadFired) return;
+                startLoadFired = true;
+
+                try {
+                  hlsInstanceRef.current?.off(Hls.Events.BUFFER_FLUSHED, handleFlushed);
+                } catch (_) {}
+
+                if (!mountedRef.current || !hlsInstanceRef.current || videoEl.ended) return;
+                hlsInstanceRef.current.startLoad(seekTarget);
+              };
+
+              // ── Guaranteed fallback ──
+              const guaranteedTimer = setTimeout(doStartLoad, 200);
+
+              // ── BUFFER_FLUSHED listener (preferred path) ──
+              const handleFlushed = () => {
+                clearTimeout(guaranteedTimer);
+                doStartLoad();
+              };
+
+              try {
+                // Step 1: Register BUFFER_FLUSHED listener BEFORE triggering flush
+                hlsInstanceRef.current.on(Hls.Events.BUFFER_FLUSHED, handleFlushed);
+
+                // Step 2: Abort all in-flight progressive fetch requests
+                hlsInstanceRef.current.stopLoad();
+
+                // Step 3: Flush video SourceBuffer in a ±5s window around seek point.
+                hlsInstanceRef.current.trigger(Hls.Events.BUFFER_FLUSHING, {
+                  startOffset: Math.max(0, seekTarget - 5),
+                  endOffset: seekTarget + 5,
+                  type: "video",
+                });
+              } catch (_) {
+                // Internal events not available, guaranteedTimer will fire startLoad
+              }
+
+              // ── Post-seek frame sanity check (safety net) ──
+              const snapQuality = typeof videoEl.getVideoPlaybackQuality === "function"
+                ? videoEl.getVideoPlaybackQuality()
+                : null;
+              const snapFrames = snapQuality
+                ? snapQuality.totalVideoFrames
+                : (typeof videoEl.webkitDecodedFrameCount === "number" ? videoEl.webkitDecodedFrameCount : 0);
+
+              postSeekCheckTimer = setTimeout(() => {
+                if (!mountedRef.current || !videoEl || videoEl.paused || videoEl.ended || videoEl.seeking) return;
+                const q = typeof videoEl.getVideoPlaybackQuality === "function"
+                  ? videoEl.getVideoPlaybackQuality()
+                  : null;
+                const nowFrames = q
+                  ? q.totalVideoFrames
+                  : (typeof videoEl.webkitDecodedFrameCount === "number" ? videoEl.webkitDecodedFrameCount : 0);
+
+                if (snapFrames > 0 && nowFrames === snapFrames) {
+                  console.warn("[Player] Post-seek frame freeze detected. Nudging playhead...");
+                  videoEl.currentTime = videoEl.currentTime + 0.15;
+                }
+              }, 900);
+            }, 250);
+          };
+
+          videoEl.addEventListener("seeked", onSeeked);
+          videoEl._seekCleanup = () => {
+            if (seekDebounceTimer) clearTimeout(seekDebounceTimer);
+            if (postSeekCheckTimer) clearTimeout(postSeekCheckTimer);
+            videoEl.removeEventListener("seeked", onSeeked);
+          };
+
+
+
+
         },
       };
     }
@@ -714,11 +851,15 @@ const Player = ({
 
     return () => {
       mountedRef.current = false;
-      // Clear A/V desync watchdog
+      // Clear A/V desync watchdog & post-seek handlers
       const videoEl = artInstanceRef.current?.video;
       if (videoEl?._desyncWatchdog) {
         clearInterval(videoEl._desyncWatchdog);
         videoEl._desyncWatchdog = null;
+      }
+      if (videoEl?._seekCleanup) {
+        videoEl._seekCleanup();
+        videoEl._seekCleanup = null;
       }
       if (hlsInstanceRef.current) {
         hlsInstanceRef.current.destroy();
