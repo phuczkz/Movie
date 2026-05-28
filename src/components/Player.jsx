@@ -547,7 +547,9 @@ const Player = ({
 
                 try {
                   hlsInstanceRef.current?.off(Hls.Events.BUFFER_FLUSHED, handleFlushed);
-                } catch (_) {}
+                } catch {
+                  // Ignore cleanup errors
+                }
 
                 if (!mountedRef.current || !hlsInstanceRef.current || videoEl.ended) return;
                 hlsInstanceRef.current.startLoad(seekTarget);
@@ -575,7 +577,7 @@ const Player = ({
                   endOffset: seekTarget + 5,
                   type: "video",
                 });
-              } catch (_) {
+              } catch {
                 // Internal events not available, guaranteedTimer will fire startLoad
               }
 
@@ -968,6 +970,7 @@ const Player = ({
           src={source}
           className="h-full w-full"
           allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
         />
       </div>
     );

@@ -91,9 +91,11 @@ export default function ComicFavorites() {
               
               {/* Quick remove button */}
               <button
+                type="button"
                 onClick={() => removeSavedComic(comic.slug)}
                 className="absolute top-2 left-2 z-20 p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:border-red-500 transition-all"
                 title="Xóa khỏi yêu thích"
+                aria-label="Xóa khỏi yêu thích"
               >
                 <Trash2 className="size-4" />
               </button>

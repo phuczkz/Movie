@@ -1,4 +1,4 @@
-﻿import {
+import {
   Heart,
   Play,
   ChevronDown,
@@ -76,7 +76,7 @@ const DetailHero = ({
             />
           </div>
 
-          <div className="space-y-4 flex-1 w-full lg:pt-4 drop-shadow-2xl flex flex-col items-center lg:items-start text-center lg:text-left">
+          <div className="gap-4 flex-1 w-full lg:pt-4 drop-shadow-2xl flex flex-col items-center lg:items-start text-center lg:text-left">
             <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,1)]">
               {movie?.name || passedMovie?.name || "Đang tải tên phim..."}
             </h1>

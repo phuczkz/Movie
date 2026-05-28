@@ -1,7 +1,8 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Info, Play } from "lucide-react";
 import { Link } from "react-router-dom";
-import { LazyMotion, domAnimation, m as Motion, AnimatePresence } from "framer-motion";
+// eslint-disable-next-line no-unused-vars
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
 import { useMovieLogos } from "../hooks/useMovieLogo";
 
@@ -56,12 +57,13 @@ const withWidthParam = (url, w = 640) => {
   }
 };
 
-const Hero = ({ movie, movies = [] }) => {
+const EMPTY_MOVIES = [];
+
+const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   const movieList = Array.isArray(movies) ? movies.filter(Boolean) : [];
   const slides = movieList.length ? movieList : movie ? [movie] : [];
   const slideCount = slides.length;
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
   const isHoverDevice = useRef(
     typeof window !== "undefined" ? window.matchMedia("(hover: hover)").matches : false
   );
@@ -80,18 +82,18 @@ const Hero = ({ movie, movies = [] }) => {
   const activeLogo = logoMap.get(activeMovie?.slug) || null;
 
   useEffect(() => {
-    if (slideCount <= 1 || isPaused) return undefined;
+    if (slideCount <= 1) return undefined;
     const timer = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % slideCount);
     }, 6500);
     return () => clearInterval(timer);
-  }, [slideCount, isPaused]);
+  }, [slideCount]);
 
   if (!activeMovie) {
     return (
       <section className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-900/40 h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px] animate-pulse">
         <div className="absolute inset-0 bg-slate-800/50" />
-        <div className="relative z-10 flex h-full flex-col justify-end px-4 pb-14 md:px-10 md:pb-24 lg:px-16 lg:pb-12 space-y-6">
+        <div className="relative z-10 flex h-full flex-col justify-end px-4 pb-14 md:px-10 md:pb-24 lg:px-16 lg:pb-12 gap-6">
           <div className="h-12 w-1/3 bg-slate-700/50 rounded-lg" />
           <div className="h-6 w-1/4 bg-slate-700/30 rounded-lg" />
           <div className="flex gap-4">
@@ -145,12 +147,10 @@ const Hero = ({ movie, movies = [] }) => {
     <LazyMotion features={domAnimation}>
     <section
       className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px]"
-      onMouseEnter={() => isHoverDevice.current && setIsPaused(true)}
-      onMouseLeave={() => isHoverDevice.current && setIsPaused(false)}
     >
       <div className="absolute inset-0">
         <AnimatePresence mode="popLayout">
-          <Motion.img
+          <m.img
             key={activeMovie?.slug}
             initial={{ opacity: 0, scale: 1.05 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -176,7 +176,7 @@ const Hero = ({ movie, movies = [] }) => {
       <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-14 pt-12 sm:pb-16 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
         <div className="max-w-3xl space-y-3 md:space-y-6">
           <AnimatePresence mode="wait">
-            <Motion.div
+            <m.div
               key={activeMovie?.slug}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -184,7 +184,7 @@ const Hero = ({ movie, movies = [] }) => {
               transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
               className="space-y-3 md:space-y-6"
             >
-              <div className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[80px]">
+              <div className="gap-1.5 md:gap-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[80px]">
                 {activeLogo ? (
                   <img
                     src={activeLogo}
@@ -228,7 +228,7 @@ const Hero = ({ movie, movies = [] }) => {
                   </span>
                 ) : null}
               </div>
-            </Motion.div>
+            </m.div>
           </AnimatePresence>
 
               <div className="hidden md:flex flex-wrap items-center justify-center md:justify-start gap-3 pt-1">
@@ -261,7 +261,7 @@ const Hero = ({ movie, movies = [] }) => {
         />
 
         {slides.length > 1 ? (
-          <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex items-center gap-1.5 md:gap-2 rounded-2xl px-2 py-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
+          <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex items-center gap-1.5 md:gap-2 rounded-2xl p-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
             {slides.slice(0, 6).map((item, idx) => {
               const isActive = idx === safeIndex;
               const thumbSource =

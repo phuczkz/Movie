@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Send, UserCircle, Users } from "lucide-react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase.config";
@@ -125,12 +125,14 @@ export default function WatchChat({ roomId, roomHostId }) {
             {messages.length} tin nhắn
           </span>
           <button 
+            type="button"
             onClick={() => setShowMembersList(!showMembersList)}
             className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md transition-all shrink-0 ${
               showMembersList 
                 ? "bg-emerald-500 text-slate-950" 
                 : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
             }`}
+            aria-label="Danh sách thành viên"
           >
             <Users className="size-3" />
             <span>{activeMembers.length} người</span>
@@ -144,8 +146,10 @@ export default function WatchChat({ roomId, roomHostId }) {
           <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
             <span className="text-xs font-bold text-slate-300">Đang xem chung ({activeMembers.length})</span>
             <button 
+              type="button"
               onClick={() => setShowMembersList(false)}
               className="text-[11px] text-slate-400 hover:text-white transition-colors"
+              aria-label="Đóng danh sách"
             >
               Đóng
             </button>
@@ -203,7 +207,7 @@ export default function WatchChat({ roomId, roomHostId }) {
               )}
 
               {/* Message Bubble */}
-              <div className="flex flex-col space-y-0.5">
+              <div className="flex flex-col gap-y-0.5">
                 {!isMe && (
                   <span className="text-[10px] font-semibold text-slate-400 pl-1">
                     {msg.userName}
@@ -243,6 +247,7 @@ export default function WatchChat({ roomId, roomHostId }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Nhập tin nhắn..."
+              aria-label="Nhập tin nhắn"
               className="w-full rounded-xl border border-white/10 bg-white/5 pl-3.5 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
             />
             <button

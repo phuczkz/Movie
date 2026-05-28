@@ -26,6 +26,7 @@ const Actor = () => {
           Không tìm thấy thông tin diễn viên.
         </p>
         <button
+          type="button"
           onClick={() => navigate(-1)}
           className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
         >
@@ -38,6 +39,7 @@ const Actor = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       <button
+        type="button"
         onClick={() => navigate(-1)}
         className="inline-flex items-center gap-2 text-slate-400 hover:text-emerald-400 font-medium transition-all group lg:mb-4"
       >

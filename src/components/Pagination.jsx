@@ -36,9 +36,10 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
       <div className="flex items-center gap-1.5 sm:gap-3 bg-slate-900/40 p-1.5 rounded-2xl border border-white/5 backdrop-blur-md shadow-2xl">
         {/* Quay về trang đầu */}
         <button
+          type="button"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
-          className="flex size-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-slate-400 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group"
+          className="flex size-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-white/60 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group"
           title="Trang đầu"
         >
           <ChevronsLeft
@@ -49,9 +50,10 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
 
         {/* Trang trước */}
         <button
+          type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="flex h-10 px-3 sm:px-5 items-center gap-2 rounded-xl border border-white/5 bg-white/5 text-sm font-bold text-slate-300 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group shadow-sm"
+          className="flex h-10 px-3 sm:px-5 items-center gap-2 rounded-xl border border-white/5 bg-white/5 text-sm font-bold text-white/80 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group shadow-sm"
         >
           <ChevronLeft
             size={18}
@@ -71,11 +73,12 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
           {pages.map((p) => (
             <button
               key={p}
+              type="button"
               onClick={() => onPageChange(p)}
               className={`flex size-10 items-center justify-center rounded-xl border text-sm font-bold transition-all duration-500 transform active:scale-95 ${
                 p === currentPage
                   ? "border-emerald-500 bg-emerald-500 text-emerald-950 shadow-[0_0_25px_rgba(16,185,129,0.4)] rotate-0 scale-105"
-                  : "border-white/5 bg-white/5 text-slate-400 hover:border-white/20 hover:bg-white/10 hover:text-white"
+                  : "border-white/5 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white"
               }`}
             >
               {p}
@@ -91,9 +94,10 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
 
         {/* Trang sau */}
         <button
+          type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={!hasNext}
-          className="flex h-10 px-3 sm:px-5 items-center gap-2 rounded-xl border border-white/5 bg-white/5 text-sm font-bold text-slate-300 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group shadow-sm"
+          className="flex h-10 px-3 sm:px-5 items-center gap-2 rounded-xl border border-white/5 bg-white/5 text-sm font-bold text-white/80 transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-20 disabled:cursor-not-allowed group shadow-sm"
         >
           <span className="hidden sm:inline">Sau</span>
           <ChevronRight

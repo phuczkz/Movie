@@ -10,7 +10,9 @@ const formatEpisodeName = (name = "") => {
   return trimmed;
 };
 
-const EpisodeList = ({ episodes = [], serverLabel, showServerLabels = false }) => {
+const EMPTY_EPISODES = [];
+
+const EpisodeList = ({ episodes = EMPTY_EPISODES, serverLabel, showServerLabels = false }) => {
   const { slug } = useParams();
 
   const sortedEpisodes = (episodes || [])

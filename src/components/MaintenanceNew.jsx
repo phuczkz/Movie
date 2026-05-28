@@ -51,7 +51,7 @@ const MaintenanceNew = () => {
                     onMouseEnter={() => setIsHovering(true)}
                     onMouseLeave={() => setIsHovering(false)}
                 >
-                    <div className="size-10 bg-black rounded-xl flex items-center justify-center text-white font-black text-2xl group-hover:rotate-12 transition-transform shadow-lg">k</div>
+                    <div className="size-10 bg-slate-950 rounded-xl flex items-center justify-center text-white font-black text-2xl group-hover:rotate-12 transition-transform shadow-lg">k</div>
                     <span className="text-2xl font-black tracking-tight text-gray-900">khophim</span>
                 </div>
                 <nav className="hidden lg:flex items-center gap-10">
@@ -82,7 +82,7 @@ const MaintenanceNew = () => {
                     onMouseEnter={() => setIsHovering(true)}
                     onMouseLeave={() => setIsHovering(false)}
                 >
-                    Trải nghiệm <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-orange-500">khophim</span> <br />
+                    Trải nghiệm <span className="text-blue-600">khophim</span> <br />
                     nâng tầm điện ảnh
                 </h1>
 

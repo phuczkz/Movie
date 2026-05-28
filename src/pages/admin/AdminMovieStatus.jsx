@@ -122,6 +122,7 @@ export default function AdminMovieStatus() {
               setShowResults(true);
             }}
             placeholder="Tìm phim theo tên (vd: Trục Ngọc...)"
+            aria-label="Tìm phim"
             className="w-full rounded-xl bg-white/5 border border-white/10 pl-9 pr-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none text-sm"
           />
           {isFetching && (
@@ -137,6 +138,7 @@ export default function AdminMovieStatus() {
             {searchResults.map((m) => (
               <button
                 key={m.slug}
+                type="button"
                 onClick={() => selectMovie(m)}
                 className="w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 text-left transition-colors"
               >
@@ -226,6 +228,7 @@ export default function AdminMovieStatus() {
             <div className="flex gap-3">
               {override.mode !== "trailer" ? (
                 <button
+                  type="button"
                   onClick={() => handleSetMode("trailer")}
                   disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/30 px-4 py-2.5 text-sm font-semibold text-amber-400 hover:bg-amber-500/30 transition-colors disabled:opacity-60"
@@ -235,6 +238,7 @@ export default function AdminMovieStatus() {
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={() => handleSetMode("full")}
                   disabled={saving}
                   className="flex items-center gap-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/30 transition-colors disabled:opacity-60"
@@ -295,11 +299,13 @@ export default function AdminMovieStatus() {
                     </p>
                   </div>
                   <button
+                    type="button"
                     onClick={() =>
                       selectMovie({ slug: o.id, name: o.name || o.id })
                     }
                     className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                     title="Quản lý"
+                    aria-label={`Quản lý ${o.name || o.id}`}
                   >
                     <RefreshCw className="size-4" />
                   </button>

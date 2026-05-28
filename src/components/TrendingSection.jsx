@@ -1,7 +1,9 @@
 import TrendingCard from "./TrendingCard.jsx";
 import Section from "./Section.jsx";
 
-const TrendingSection = ({ movies = [], loading = false }) => {
+const EMPTY_MOVIES = [];
+
+const TrendingSection = ({ movies = EMPTY_MOVIES, loading = false }) => {
   if (loading) {
     return (
       <Section title="Top 10 phim bộ hôm nay">

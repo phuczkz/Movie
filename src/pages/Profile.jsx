@@ -117,9 +117,11 @@ const Profile = () => {
             )}
           </div>
           <button
+            type="button"
             onClick={() => setShowAvatarModal(true)}
             className="absolute right-0 bottom-0 p-2.5 rounded-full bg-emerald-500 text-emerald-950 shadow-xl border-4 border-slate-950 transition-all hover:scale-110 active:scale-95 z-20"
             title="Đổi ảnh đại diện"
+            aria-label="Đổi ảnh đại diện"
           >
             <Camera size={20} />
           </button>
@@ -142,6 +144,7 @@ const Profile = () => {
           <div className="pt-4 flex flex-wrap justify-center sm:justify-start gap-3">
             {user?.email === import.meta.env.VITE_ADMIN_EMAIL && (
               <button
+                type="button"
                 onClick={() => navigate("/admin")}
                 className="rounded-full bg-amber-500/10 border border-amber-500/30 px-6 py-2 text-sm font-bold text-amber-400 transition-all hover:bg-amber-500/20 flex items-center gap-2"
               >
@@ -150,8 +153,9 @@ const Profile = () => {
               </button>
             )}
             <button
+              type="button"
               onClick={() => logout().then(() => navigate("/"))}
-              className="rounded-full bg-white/5 border border-white/10 px-6 py-2 text-sm font-bold text-slate-300 transition-all hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+              className="rounded-full bg-white/5 border border-white/10 px-6 py-2 text-sm font-bold text-white/80 transition-all hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
             >
               Đăng xuất
             </button>

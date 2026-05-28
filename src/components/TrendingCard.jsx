@@ -222,9 +222,6 @@ const TrendingCard = ({ movie, index }) => {
             className="text-[90px] font-['Cinzel'] font-black leading-none tracking-tighter inline-block relative"
             style={{
               color: "#ceb794",
-              background: "linear-gradient(to bottom, #f3e5ad 0%, #ceb794 50%, #9a7d45 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
               WebkitTextStroke: "1px rgba(0,0,0,0.5)",
               filter: "drop-shadow(4px 4px 0px rgba(0,0,0,0.8))",
               transform: "translateY(-4px)",

@@ -679,3 +679,30 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background-size: 200% 100%;
   animation: mc-shimmer 1.6s ease-in-out infinite;
 }
+
+/* ── Accessibility: Respect prefers-reduced-motion (WCAG 2.3.3) ──────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .mc-img-skeleton {
+    animation: none;
+    background: #1e293b;
+  }
+
+  .loader,
+  .loader-orbit {
+    animation: none;
+  }
+
+  .loader::before,
+  .loader-orbit::before {
+    animation: none;
+  }
+}

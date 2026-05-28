@@ -98,7 +98,7 @@ const Watch = () => {
 
   // Prevent duplicate rendering on mobile by tracking desktop state
   const [isDesktop, setIsDesktop] = useState(typeof window !== "undefined" ? window.innerWidth >= 1280 : true);
-  
+
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 1280);
     window.addEventListener("resize", handleResize, { passive: true });
@@ -217,13 +217,13 @@ const Watch = () => {
   const autoProviderNotice = autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
   const episodeProviders = buildEpisodeProviders(activeEpisode);
 
-  const [prevScopeKey, setPrevScopeKey] = useState(playbackScopeKey);
-  if (playbackScopeKey !== prevScopeKey) {
-    setPrevScopeKey(playbackScopeKey);
+  const prevScopeKeyRef = useRef(playbackScopeKey);
+  if (playbackScopeKey !== prevScopeKeyRef.current) {
+    prevScopeKeyRef.current = playbackScopeKey;
     setUseEmbedFallback(false);
   }
 
-  const availableProviders = Object.entries(episodeProviders).filter(([, v]) => v?.link).map(([k]) => k);
+  const availableProviders = Object.entries(episodeProviders).flatMap(([k, v]) => v?.link ? [k] : []);
   const preferredProvider = normalizeProviderParam(activeEpisode?._preferredProvider) || availableProviders[0] || null;
   const activeProvider = (selectedProviderParam && episodeProviders[selectedProviderParam]?.link ? selectedProviderParam : null) || (autoProviderOverride && episodeProviders[autoProviderOverride]?.link ? autoProviderOverride : null) || preferredProvider;
   const activeProviderLabel = PROVIDER_LABELS[activeProvider] || "Mặc định";
@@ -366,7 +366,7 @@ const Watch = () => {
 
     return () => {
       clearInterval(interval);
-      deleteDoc(memberRef).catch(() => {});
+      deleteDoc(memberRef).catch(() => { });
     };
   }, [roomId, user, userProfile]);
 
@@ -495,7 +495,7 @@ const Watch = () => {
 
     // Sync Play/Pause
     if (isPlaying && player.video.paused) {
-      player.play().catch(() => {});
+      player.play().catch(() => { });
     } else if (!isPlaying && !player.video.paused) {
       player.pause();
     }
@@ -549,10 +549,12 @@ const Watch = () => {
   }, [activeEpisode, activeServer, movie]);
 
   useEffect(() => {
+    const currentProgressRef = progressRef;
+    const currentMetaRef = metaRef;
     return () => {
       if (!user || !slug) return;
-      const { currentTime, duration } = progressRef.current;
-      const m = metaRef.current;
+      const { currentTime, duration } = currentProgressRef.current;
+      const m = currentMetaRef.current;
       if (currentTime > 10) forceSave(slug, { ...m, episodeSlug: m.slug, episodeName: m.name, currentTime, duration });
     };
   }, [user, slug, forceSave]);
@@ -593,16 +595,20 @@ const Watch = () => {
       if (typeof item === "string") return item.split(/[,/|]/);
       return [];
     });
-    const normalized = collect.map((entry) => {
-      if (!entry) return null;
-      if (typeof entry === "string") return { id: null, name: entry.trim(), image: null };
-      if (typeof entry === "object") return {
-        id: entry.id || entry.tmdb_id || entry.person_id || null,
-        name: String(entry.name || entry.full_name || entry.title || "").trim(),
-        image: entry.avatar || entry.image || entry.profile_path || entry.photo || entry.thumbnail || null,
-      };
-      return null;
-    }).filter((item) => item && item.name);
+    const normalized = collect.flatMap((entry) => {
+      if (!entry) return [];
+      let item = null;
+      if (typeof entry === "string") {
+        item = { id: null, name: entry.trim(), image: null };
+      } else if (typeof entry === "object") {
+        item = {
+          id: entry.id || entry.tmdb_id || entry.person_id || null,
+          name: String(entry.name || entry.full_name || entry.title || "").trim(),
+          image: entry.avatar || entry.image || entry.profile_path || entry.photo || entry.thumbnail || null,
+        };
+      }
+      return (item && item.name) ? [item] : [];
+    });
     const seen = new Set();
     return normalized.filter((item) => {
       if (seen.has(item.name)) return false;
@@ -650,7 +656,7 @@ const Watch = () => {
         <p className="text-white font-bold text-xl">{isTmdb ? "Dữ liệu nguồn phim đang gặp sự cố" : "Phim này chưa có nguồn phát"}</p>
         <div className="pt-4">
           <Link to={`/movie/${slug}`} className="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold group transition-all">
-            <Info className="size-5 group-hover:scale-110 transition-transform" /> 
+            <Info className="size-5 group-hover:scale-110 transition-transform" />
             Quay lại trang chi tiết
           </Link>
         </div>
@@ -677,9 +683,9 @@ const Watch = () => {
         `}</style>
       )}
 
-      <WatchHeader 
-        movie={movie} 
-        autoProviderNotice={autoProviderNotice} 
+      <WatchHeader
+        movie={movie}
+        autoProviderNotice={autoProviderNotice}
         onOpenWatchTogether={() => setIsWatchTogetherModalOpen(true)}
         hasActiveRoom={Boolean(roomId)}
       />
@@ -687,15 +693,15 @@ const Watch = () => {
       {/* Row 1: Player & Information/Actors */}
       <div className="grid gap-8 items-stretch transition-all duration-500 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
         <div className="w-full">
-          <PlayerSection 
+          <PlayerSection
             playerRef={playerRef} movieOverride={movieOverride} activeSource={activeSource} movie={movie}
             activeEpisode={activeEpisode} episodes={displayEpisodes} activeServer={activeServer} activeProviderLabel={activeProviderLabel}
             onNextEpisode={
-              nextEpisode 
-                ? () => navigate(`/watch/${slug}?episode=${nextEpisode.slug}&server=${activeServer}${selectedProviderParam ? `&provider=${selectedProviderParam}` : ""}`) 
+              nextEpisode
+                ? () => navigate(`/watch/${slug}?episode=${nextEpisode.slug}&server=${activeServer}${selectedProviderParam ? `&provider=${selectedProviderParam}` : ""}`)
                 : (isLastEpisode(activeEpisode, movie) && nextSeason)
-                ? () => navigate(`/watch/${nextSeason.slug}?episode=1`)
-                : null
+                  ? () => navigate(`/watch/${nextSeason.slug}?episode=1`)
+                  : null
             }
             onTimeUpdate={onTimeUpdate} initialTime={initialTime}
             onPlaybackIssue={handlePlaybackIssue}
@@ -704,7 +710,7 @@ const Watch = () => {
             onReady={setPlayer}
           />
         </div>
-        
+
         {isDesktop && (
           <div className="hidden xl:flex flex-col gap-6 h-full min-h-0 overflow-hidden">
             {roomId ? (
@@ -713,22 +719,20 @@ const Watch = () => {
                   <button
                     type="button"
                     onClick={() => setSidebarTab("info")}
-                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
-                      sidebarTab === "info"
+                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "info"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-slate-400 hover:text-slate-200"
-                    }`}
+                      }`}
                   >
                     Thông tin phim
                   </button>
                   <button
                     type="button"
                     onClick={() => setSidebarTab("chat")}
-                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
-                      sidebarTab === "chat"
+                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-slate-400 hover:text-slate-200"
-                    }`}
+                      }`}
                   >
                     Trò chuyện 💬
                   </button>
@@ -766,14 +770,14 @@ const Watch = () => {
             <div className="hidden xl:block space-y-8">
               {isSeries && (
                 <div className="pb-4">
-                  <SeasonSelector 
-                    groups={groups} 
-                    currentSeason={currentSeason} 
+                  <SeasonSelector
+                    groups={groups}
+                    currentSeason={currentSeason}
                     currentSlug={slug}
                   />
                 </div>
               )}
-              <WatchEpisodeGrid 
+              <WatchEpisodeGrid
                 serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
                 episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
                 activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
@@ -789,14 +793,14 @@ const Watch = () => {
                 <>
                   {isSeries && (
                     <div className="pb-4">
-                      <SeasonSelector 
-                        groups={groups} 
-                        currentSeason={currentSeason} 
+                      <SeasonSelector
+                        groups={groups}
+                        currentSeason={currentSeason}
                         currentSlug={slug}
                       />
                     </div>
                   )}
-                  <WatchEpisodeGrid 
+                  <WatchEpisodeGrid
                     serverGroups={serverGroups} activeServer={activeServer} handleServerChange={handleServerChange}
                     episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
                     activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}

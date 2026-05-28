@@ -80,9 +80,11 @@ export default function AvatarModal({
             </p>
           </div>
           <button
+            type="button"
             onClick={() => !uploading && onClose()}
             className="p-2.5 rounded-2xl text-slate-400 hover:bg-white/5 hover:text-white transition-all active:scale-90"
             disabled={uploading}
+            aria-label="Đóng"
           >
             <X size={24} />
           </button>
@@ -95,8 +97,10 @@ export default function AvatarModal({
                 {PRESET_AVATARS.map((avatar) => (
                   <button
                     key={avatar.id}
+                    type="button"
                     onClick={() => handleSelectPreset(avatar.url)}
                     disabled={uploading}
+                    aria-label={`Chọn avatar ${avatar.name}`}
                     className={`relative group aspect-square rounded-2xl sm:rounded-3xl overflow-hidden border-4 transition-all ${currentAvatarUrl === avatar.url
                       ? "border-emerald-500 scale-95 shadow-lg shadow-emerald-500/20"
                       : "border-transparent hover:border-white/20 hover:scale-105"
@@ -141,13 +145,16 @@ export default function AvatarModal({
               onChange={handleFileUpload}
               className="hidden"
               ref={fileInputRef}
+              aria-label="Tải lên ảnh đại diện"
             />
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
+              aria-label="Tải lên ảnh từ thiết bị"
               className="w-full flex flex-col items-center justify-center gap-4 p-8 sm:p-10 rounded-3xl border-2 border-dashed border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-emerald-500/50 transition-all group disabled:opacity-50"
             >
-              <div className="p-5 rounded-3xl bg-slate-800 text-slate-400 group-hover:bg-emerald-500 group-hover:text-emerald-950 group-hover:scale-110 transition-all duration-300 shadow-xl">
+              <div className="p-5 rounded-3xl bg-slate-800 text-white/60 group-hover:bg-emerald-500 group-hover:text-emerald-950 group-hover:scale-110 transition-all duration-300 shadow-xl">
                 {uploading ? (
                   <div className="loader-orbit loader-orbit-sm" />
                 ) : (

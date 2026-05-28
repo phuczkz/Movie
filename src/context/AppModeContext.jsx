@@ -1,4 +1,4 @@
-import { createContext, use, useState } from "react";
+import { createContext, use, useMemo, useState, useCallback } from "react";
 
 const APP_MODE_STORAGE_KEY = "app-mode";
 
@@ -17,7 +17,7 @@ export const AppModeProvider = ({ children }) => {
     }
   });
 
-  const setAppMode = (mode) => {
+  const setAppMode = useCallback((mode) => {
     try {
       if (mode === "movie" || mode === "comic") {
         localStorage.setItem(APP_MODE_STORAGE_KEY, mode);
@@ -28,10 +28,15 @@ export const AppModeProvider = ({ children }) => {
       // Ignore storage failures (private mode, blocked storage, etc.)
     }
     setAppModeState(mode);
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({ appMode, setAppMode }),
+    [appMode, setAppMode]
+  );
 
   return (
-    <AppModeContext.Provider value={{ appMode, setAppMode }}>
+    <AppModeContext.Provider value={contextValue}>
       {children}
     </AppModeContext.Provider>
   );

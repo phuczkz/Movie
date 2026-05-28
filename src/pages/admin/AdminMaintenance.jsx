@@ -137,6 +137,7 @@ export default function AdminMaintenance() {
           </div>
         </div>
         <button
+          type="button"
           onClick={toggle}
           disabled={saving}
           className={`flex items-center gap-2 rounded-xl px-5 py-3 font-semibold text-sm transition-all ${

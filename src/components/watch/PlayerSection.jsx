@@ -1,4 +1,4 @@
-﻿import React, { memo } from "react";
+import React, { memo } from "react";
 import { Info } from "lucide-react";
 import Player from "../Player";
 import { parseEpisodeNumber } from "../../utils/episodes";
@@ -35,6 +35,7 @@ const PlayerSection = memo(
                 title="Trailer"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
                 className="absolute inset-0 w-full h-full"
               />
             ) : (

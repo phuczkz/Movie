@@ -1,25 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { onSnapshot, doc } from "firebase/firestore";
-import { db, auth, isFirebaseConfigured } from "../firebase.config";
+import { auth, isFirebaseConfigured } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, loginEmail, loginGoogle, loading } = useAuth();
+  const { user, loginEmail, loginGoogle, loading, maintenance } = useAuth();
+  const maintenanceEnabled = maintenance?.enabled || false;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
 
-  useEffect(() => {
-    if (!db) return;
-    const unsub = onSnapshot(doc(db, "settings", "maintenance"), (snap) => {
-      setMaintenanceEnabled(snap.exists() ? snap.data().enabled : false);
-    });
-    return unsub;
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -145,6 +137,7 @@ const Login = () => {
       </div>
 
       <button
+        type="button"
         onClick={onGoogle}
         disabled={submitting || loading}
         className="w-full rounded-full border border-white/15 bg-white/5 px-4 py-3 text-white font-semibold hover:border-white/30 disabled:opacity-60"

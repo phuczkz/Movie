@@ -142,18 +142,18 @@ export default function ComicReader() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <Loader2 className="size-10 text-purple-500 animate-spin" />
-        <p className="text-slate-300 font-semibold animate-pulse">Đang tải ảnh truyện...</p>
+        <p className="text-slate-300 font-semibold animate-pulse">Đang tải ảnh truyện…</p>
       </div>
     );
   }
 
   if (error || !chapterRes?.data?.item) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
         <p className="text-red-400">Có lỗi xảy ra khi tải chương truyện này.</p>
-        <button onClick={() => navigate(slug ? `/comics/${slug}` : '/comics')} className="text-purple-400 hover:text-purple-300 underline">
+        <button type="button" onClick={() => navigate(slug ? `/comics/${slug}` : '/comics')} className="text-purple-400 hover:text-purple-300 underline">
           Quay lại
         </button>
       </div>
@@ -161,12 +161,14 @@ export default function ComicReader() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto animate-in fade-in zoom-in-95 duration-500 bg-black min-h-screen">
+    <div className="max-w-3xl mx-auto animate-in fade-in zoom-in-95 duration-500 bg-slate-950 min-h-screen">
 
       <div className={`sticky top-0 z-40 bg-slate-900/90 backdrop-blur border-b border-white/10 px-4 py-3 flex items-center justify-between shadow-lg shadow-black/50 overflow-hidden transition-transform duration-300 ${isHidden ? '-translate-y-full' : 'translate-y-0'}`}>
         <button
+          type="button"
           onClick={() => navigate(-1)}
           className="p-2 rounded-full hover:bg-white/10 transition-colors text-slate-300 hover:text-white flex flex-shrink-0"
+          aria-label="Quay lại"
         >
           <ArrowLeft className="size-5" />
         </button>
@@ -186,42 +188,57 @@ export default function ComicReader() {
       )}
 
       {/* Image Container with removed padding on mobile/tablet */}
-      <div className="flex flex-col items-center min-h-screen mt-4 shadow-2xl bg-black -mx-4 w-[calc(100%+32px)] md:-mx-6 md:w-[calc(100%+48px)] lg:mx-0 lg:w-full">
+      <div className="flex flex-col items-center min-h-screen mt-4 shadow-2xl bg-slate-950 -mx-4 w-[calc(100%+32px)] md:-mx-6 md:w-[calc(100%+48px)] lg:mx-0 lg:w-full">
         {chapter_image && chapter_image.length > 0 ? (
           chapter_image.map((img, index) => {
             const imgSrc = `${domain_cdn}/${chapter_path}/${img.image_file}`;
             const isPriority = index < 2; // Priority load for first 2 pages
             return (
               <div key={`${img.image_page}-${img.image_file}`} className={`w-full relative bg-slate-900/10 min-h-[400px] overflow-hidden block ${index !== 0 ? '-mt-[1px]' : ''}`}>
+              <button
+                type="button"
+                className={`w-full block p-0 m-0 border-none bg-transparent ${eraserMode ? 'cursor-crosshair' : 'cursor-default'}`}
+                onClick={(e) => {
+                  if (!eraserMode) return;
+                  const imgEl = e.currentTarget.querySelector('img');
+                  if (!imgEl) return;
+                  const rect = imgEl.getBoundingClientRect();
+                  const y = e.clientY - rect.top;
+                  const topRatio = y / rect.height;
+                  setBlurBoxes(prev => [...prev, { id: ++blurIdCounter, index, topRatio }]);
+                }}
+                aria-label={`Trang ${img.image_page}`}
+              >
                 <img
                   src={imgSrc}
                   alt={`Trang ${img.image_page}`}
                   loading={isPriority ? "eager" : "lazy"}
                   fetchPriority={isPriority ? "high" : "auto"}
                   decoding="async"
-                  className={`w-full h-auto block m-0 p-0 align-top transition-opacity duration-300 ${eraserMode ? 'cursor-crosshair' : ''}`}
-                  onClick={(e) => {
-                    if (!eraserMode) return;
-                    const rect = e.target.getBoundingClientRect();
-                    const y = e.clientY - rect.top;
-                    const topRatio = y / rect.height;
-                    setBlurBoxes(prev => [...prev, { id: ++blurIdCounter, index, topRatio }]);
-                  }}
+                  className="w-full h-auto block m-0 p-0 align-top transition-opacity duration-300"
                   onLoad={(e) => {
                     const { naturalWidth, naturalHeight } = e.target;
                     // Detect banner ads (very wide and short images)
                     if (naturalWidth && naturalHeight && (naturalWidth / naturalHeight >= 2.5)) {
-                      e.target.parentElement.style.display = 'none';
+                      if (e.target.parentElement?.parentElement) {
+                        e.target.parentElement.parentElement.style.display = 'none';
+                      }
                     }
                   }}
                   onError={(e) => {
                     e.target.style.display = 'none';
-                    e.target.parentElement.style.display = 'none';
+                    if (e.target.parentElement) {
+                      e.target.parentElement.style.display = 'none';
+                    }
+                    if (e.target.parentElement?.parentElement) {
+                      e.target.parentElement.parentElement.style.display = 'none';
+                    }
                   }}
                 />
+              </button>
 
-                {/* Render Blur Overlays */}
-                {blurBoxes.filter(b => b.index === index).map((box) => (
+              {/* Render Blur Overlays */}
+                {blurBoxes.flatMap((box) => box.index !== index ? [] : [
                   <div
                     key={box.id}
                     style={{ top: `calc(${box.topRatio * 100}%)`, transform: 'translateY(-50%)' }}
@@ -231,17 +248,19 @@ export default function ComicReader() {
                       Quảng cáo đã che
                     </p>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setBlurBoxes(prev => prev.filter(b => b.id !== box.id));
                       }}
                       className="absolute top-2 right-2 p-1.5 md:p-2 bg-red-500/80 hover:bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Xóa làm mờ"
+                      aria-label="Xóa làm mờ"
                     >
                       <X className="size-3 md:w-4 md:h-4" />
                     </button>
                   </div>
-                ))}
+                ])}
               </div>
             );
           })
@@ -257,6 +276,7 @@ export default function ComicReader() {
         <p className="text-slate-400 text-sm font-semibold mb-4">Hết chương {chapter_name}</p>
         <div className="flex flex-row flex-nowrap items-center justify-center gap-2 sm:gap-3">
           <button
+            type="button"
             onClick={() => navigate(slug ? `/comics/${slug}` : '/comics')}
             className="px-4 sm:px-6 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-200 transition-colors font-medium border border-white/10 shadow-lg text-[13px] sm:text-base whitespace-nowrap"
           >
@@ -264,6 +284,7 @@ export default function ComicReader() {
           </button>
           {hasNext && (
             <button
+              type="button"
               onClick={handleNext}
               className="px-4 sm:px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-full text-white transition-all font-bold shadow-lg shadow-purple-900/50 flex items-center justify-center gap-1 sm:gap-2 hover:scale-105 text-[13px] sm:text-base whitespace-nowrap"
             >
@@ -277,18 +298,22 @@ export default function ComicReader() {
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e2022]/98 backdrop-blur-md shadow-[0_-5px_20px_rgba(0,0,0,0.5)] border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-3xl mx-auto px-2 py-1.5 md:py-2 flex items-center justify-center gap-1 md:gap-3">
           <button
+            type="button"
             onClick={() => navigate(slug ? `/comics/${slug}` : '/comics')}
             className="p-1.5 text-slate-300 hover:text-white transition-colors flex-shrink-0"
             title="Trang chủ truyện"
+            aria-label="Trang chủ truyện"
           >
             <Home className="size-5 md:w-6 md:h-6" />
           </button>
           
           {/* Ad Eraser Button */}
           <button
+            type="button"
             onClick={() => setEraserMode(!eraserMode)}
             className={`p-1.5 rounded-full transition-colors flex-shrink-0 relative ${eraserMode ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'text-slate-400 hover:text-white'}`}
             title="Bật/Tắt Cục Tẩy Quảng Cáo"
+            aria-label="Bật/Tắt Cục Tẩy Quảng Cáo"
           >
             <EyeOff className="size-5 md:w-6 md:h-6" />
             {eraserMode && (
@@ -300,10 +325,12 @@ export default function ComicReader() {
           </button>
           
           <button
+            type="button"
             onClick={handlePrev}
             disabled={!hasPrev || !chapters}
             className={`p-1.5 rounded-full transition-colors flex-shrink-0 ${(hasPrev && chapters) ? 'bg-white/10 hover:bg-white/20 text-white' : 'text-slate-600 cursor-not-allowed'}`}
             title="Chương trước"
+            aria-label="Chương trước"
           >
             <ChevronLeft className="size-5 md:w-6 md:h-6" />
           </button>
@@ -312,8 +339,10 @@ export default function ComicReader() {
             {chapters && chapters.length > 0 ? (
               <>
                 <button
+                  type="button"
                   onClick={() => setShowChapters(!showChapters)}
                   className="w-28 md:w-36 bg-white text-black font-bold border-0 rounded py-1 md:py-1.5 px-2 outline-none text-xs md:text-sm cursor-pointer flex justify-between items-center shadow-md select-none hover:bg-slate-50 transition-colors"
+                  aria-label="Chọn chương"
                 >
                   <span className="truncate text-center flex-1">Chương {chapter_name}</span>
                   <ChevronRight className={`w-3.5 h-3.5 ml-1 flex-shrink-0 transition-transform duration-300 ${showChapters ? '-rotate-90 text-slate-800' : 'rotate-90 text-slate-400'}`} />
@@ -329,6 +358,7 @@ export default function ComicReader() {
                       return (
                         <button
                           key={chap.chapter_api_data}
+                          type="button"
                           ref={isActive ? activeChapterRef : null}
                           onClick={() => {
                             navigate(`/comics/chapter/${encodeURIComponent(chap.chapter_api_data)}`, { state: { ...location.state, chapters } });
@@ -351,10 +381,12 @@ export default function ComicReader() {
           </div>
           
           <button
+            type="button"
             onClick={handleNext}
             disabled={!hasNext || !chapters}
             className={`p-1.5 rounded-full transition-colors flex-shrink-0 ${(hasNext && chapters) ? 'bg-white text-black hover:bg-slate-200' : 'bg-white/10 text-slate-600 cursor-not-allowed'}`}
             title="Chương sau"
+            aria-label="Chương sau"
           >
             <ChevronRight className="size-5 md:w-6 md:h-6" />
           </button>

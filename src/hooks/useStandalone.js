@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 
 export const useStandalone = () => {
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    return window.matchMedia('(display-mode: standalone)').matches 
+      || (window.navigator).standalone 
+      || (typeof document !== "undefined" && document.referrer.includes('android-app://'));
+  });
 
   useEffect(() => {
     const checkStandalone = () => {
@@ -11,7 +16,6 @@ export const useStandalone = () => {
       setIsStandalone(isStandaloneMode);
     };
 
-    checkStandalone();
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     mediaQuery.addEventListener('change', checkStandalone);
     

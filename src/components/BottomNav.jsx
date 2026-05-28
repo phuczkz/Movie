@@ -11,7 +11,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppMode } from "../context/AppModeContext";
 import { useStandalone } from "../hooks/useStandalone";
-import { LazyMotion, domAnimation, m as Motion, AnimatePresence } from "framer-motion";
+import { LazyMotion, domAnimation, AnimatePresence } from "framer-motion";
 
 /* ── static data ───────────────────────────────────────────────────────────── */
 
@@ -154,7 +154,7 @@ const BottomNav = () => {
       {/* ── Backdrop ────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {(showCategoryMenu || showModeMenu) && (
-          <Motion.div
+          <m.div
             key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -168,7 +168,7 @@ const BottomNav = () => {
       {/* ── Category overlay ────────────────────────────────────────────── */}
       <AnimatePresence>
         {showCategoryMenu && (
-          <Motion.div
+          <m.div
             key="category"
             initial={{ opacity: 0, y: 60 }}
             animate={{ opacity: 1, y: 0 }}
@@ -194,14 +194,14 @@ const BottomNav = () => {
                 </button>
               ))}
             </div>
-          </Motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
       {/* ── Mode picker ─────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showModeMenu && (
-          <Motion.div
+          <m.div
             key="mode"
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -210,6 +210,7 @@ const BottomNav = () => {
             className="lg:hidden fixed z-[110] bottom-24 inset-x-0 flex justify-center gap-3 px-4"
           >
             <button
+              type="button"
               onClick={() => handleModeSelect("movie")}
               className={`flex items-center gap-2.5 px-6 py-4 rounded-2xl border backdrop-blur-2xl font-bold text-sm transition-all active:scale-95 shadow-xl ${appMode === "movie"
                   ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
@@ -220,6 +221,7 @@ const BottomNav = () => {
               <span>Movie</span>
             </button>
             <button
+              type="button"
               onClick={() => handleModeSelect("comic")}
               className={`flex items-center gap-2.5 px-6 py-4 rounded-2xl border backdrop-blur-2xl font-bold text-sm transition-all active:scale-95 shadow-xl ${appMode === "comic"
                   ? "bg-purple-500/20 border-purple-500/40 text-purple-300"
@@ -229,7 +231,7 @@ const BottomNav = () => {
               <BookOpen size={20} />
               <span>Comic</span>
             </button>
-          </Motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -260,24 +262,25 @@ const BottomNav = () => {
             }}
           >
             {/* Dark ring */}
-            <div className="w-[72px] h-[72px] rounded-full bg-[#0b0b15] flex items-center justify-center relative">
+            <div className="size-[72px] rounded-full bg-[#0b0b15] flex items-center justify-center relative">
               {/* Left curve connector */}
-              <div className="absolute -left-[14px] bottom-[24px] w-[15px] h-[15px] overflow-hidden">
+              <div className="absolute -left-[14px] bottom-[24px] size-[15px] overflow-hidden">
                 <div
-                  className="w-[30px] h-[30px] rounded-full"
+                  className="size-[30px] rounded-full"
                   style={{ boxShadow: "15px -15px 0 0 #0b0b15" }}
                 />
               </div>
               {/* Right curve connector */}
-              <div className="absolute -right-[14px] bottom-[24px] w-[15px] h-[15px] overflow-hidden">
+              <div className="absolute -right-[14px] bottom-[24px] size-[15px] overflow-hidden">
                 <div
-                  className="w-[30px] h-[30px] rounded-full"
+                  className="size-[30px] rounded-full"
                   style={{ boxShadow: "-15px -15px 0 0 #0b0b15" }}
                 />
               </div>
               {/* White FAB circle */}
               <button 
-                className={`w-[56px] h-[56px] rounded-full bg-white shadow-[0_4px_20px_rgba(255,255,255,0.15)] flex items-center justify-center active:scale-95 transition-all ${
+                type="button"
+                className={`size-[56px] rounded-full bg-white shadow-[0_4px_20px_rgba(255,255,255,0.15)] flex items-center justify-center active:scale-95 transition-all ${
                   activeTab === 2 ? "ring-4 ring-emerald-500/30 shadow-[0_0_20px_rgba(52,211,153,0.5)]" : ""
                 }`}
                 onClick={() => handleTab(2)}
@@ -306,6 +309,7 @@ const BottomNav = () => {
               return (
                 <button
                   key={tab.key}
+                  type="button"
                   onClick={() => handleTab(i)}
                   aria-label={tab.label}
                   className="flex-1 flex flex-col items-center justify-center relative transition-colors active:bg-white/5"

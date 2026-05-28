@@ -1,4 +1,4 @@
-﻿import { Film, BookOpen } from "lucide-react";
+import { Film, BookOpen } from "lucide-react";
 import { useAppMode } from "../context/AppModeContext";
 import { useNavigate } from "react-router-dom";
 
@@ -15,7 +15,7 @@ export default function SelectionScreen() {
       </div>
 
       <div className="z-10 text-center mb-16 animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <h1 className="text-5xl md:text-7xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500 mb-4 drop-shadow-sm">
+        <h1 className="text-5xl md:text-7xl font-semibold text-white mb-4 drop-shadow-sm">
           Chào mừng quay trở lại!
         </h1>
         <p className="text-slate-400 text-lg md:text-xl max-w-xl mx-auto">
@@ -26,6 +26,7 @@ export default function SelectionScreen() {
       <div className="z-10 grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl px-4 animate-in fade-in slide-in-from-bottom-12 duration-1000">
         {/* Movie Option */}
         <button
+          type="button"
           onClick={() => {
             setAppMode("movie");
             navigate("/");
@@ -42,6 +43,7 @@ export default function SelectionScreen() {
 
         {/* Comic Option */}
         <button
+          type="button"
           onClick={() => {
             setAppMode("comic");
             navigate("/comics");

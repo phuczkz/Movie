@@ -157,6 +157,7 @@ const Register = () => {
       </div>
 
       <button
+        type="button"
         onClick={onGoogle}
         disabled={submitting || loading}
         className="w-full rounded-full border border-white/15 bg-white/5 px-4 py-3 text-white font-semibold hover:border-white/30 disabled:opacity-60"

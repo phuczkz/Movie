@@ -39,7 +39,7 @@ const Footer = () => {
               <div className="p-2 bg-primary/20 rounded-xl group-hover:bg-primary/30 transition-colors">
                 <Film className="size-5 md:size-6 text-primary" />
               </div>
-              <span className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent tracking-tight">
+              <span className="text-xl md:text-2xl font-bold text-white tracking-tight">
                 Kho Phim
               </span>
             </div>

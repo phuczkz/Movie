@@ -61,6 +61,7 @@ export default function AdminPanel() {
           Bạn không có quyền truy cập trang này.
         </p>
         <button
+          type="button"
           onClick={() => navigate("/")}
           className="rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-colors"
         >
@@ -81,9 +82,11 @@ export default function AdminPanel() {
     <div className="min-h-screen bg-slate-950 flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden cursor-default"
           onClick={() => setSidebarOpen(false)}
+          aria-label="Đóng sidebar"
         />
       )}
 
@@ -94,7 +97,7 @@ export default function AdminPanel() {
         } lg:translate-x-0 lg:static lg:flex`}
       >
         {/* Sidebar header */}
-        <div className="flex items-center justify-between px-5 py-5 border-b border-white/5">
+        <div className="flex items-center justify-between p-5 border-b border-white/5">
           <div>
             <p className="text-xs uppercase tracking-widest text-emerald-500 font-black mb-0.5">
               Admin
@@ -102,8 +105,10 @@ export default function AdminPanel() {
             <h1 className="text-lg font-semibold text-white">Bảng điều khiển</h1>
           </div>
           <button
+            type="button"
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden text-slate-500 hover:text-white p-1"
+            aria-label="Đóng sidebar"
           >
             <X className="size-5" />
           </button>
@@ -114,6 +119,7 @@ export default function AdminPanel() {
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
+              type="button"
               onClick={() => handleNav(item.id)}
               className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
                 section === item.id
@@ -133,6 +139,7 @@ export default function AdminPanel() {
         {/* Back to site */}
         <div className="p-3 border-t border-white/5">
           <button
+            type="button"
             onClick={() => navigate("/")}
             className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 hover:text-white hover:bg-white/5 transition-all"
           >
@@ -147,8 +154,10 @@ export default function AdminPanel() {
         {/* Top bar (mobile) */}
         <div className="lg:hidden sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-slate-900/90 backdrop-blur">
           <button
+            type="button"
             onClick={() => setSidebarOpen(true)}
             className="text-slate-400 hover:text-white p-2 -ml-1"
+            aria-label="Mở menu"
           >
             <Menu className="size-5" />
           </button>

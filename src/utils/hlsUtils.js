@@ -115,7 +115,10 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   // After removing ads, we may have consecutive #EXT-X-DISCONTINUITY lines
   // or discontinuity at the very start/end. Clean those up.
   const cleaned = [];
-  const trimmedOut = out.map(l => l.trim()).filter(Boolean);
+  const trimmedOut = out.flatMap(l => {
+    const t = l.trim();
+    return t ? [t] : [];
+  });
   for (let j = 0; j < trimmedOut.length; j++) {
     const curr = trimmedOut[j];
 

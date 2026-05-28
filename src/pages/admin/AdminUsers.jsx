@@ -155,6 +155,7 @@ export default function AdminUsers() {
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:gap-3 lg:w-auto lg:justify-end">
           <button
+            type="button"
             onClick={() => toggleMaintenanceMode(!maintenance.enabled)}
             className={`flex flex-1 sm:flex-none justify-center items-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-sm font-semibold transition-all ${
               maintenance.enabled
@@ -167,6 +168,7 @@ export default function AdminUsers() {
           </button>
 
           <button
+            type="button"
             onClick={() => setShowCreateForm(true)}
             className="flex flex-1 sm:flex-none justify-center items-center gap-2 rounded-xl bg-emerald-500 px-3 sm:px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
           >
@@ -175,6 +177,7 @@ export default function AdminUsers() {
           </button>
 
           <button
+            type="button"
             onClick={fetchUsers}
             className="flex flex-1 sm:flex-none justify-center items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 sm:px-4 py-2 text-sm text-slate-300 hover:bg-white/10 transition-colors"
           >
@@ -191,6 +194,7 @@ export default function AdminUsers() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Tìm theo tên, email hoặc UID"
+          aria-label="Tìm kiếm người dùng"
           className="w-full rounded-2xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-10 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
         />
         {searchQuery ? (
@@ -213,8 +217,10 @@ export default function AdminUsers() {
                 Tạo tài khoản mới
               </h3>
               <button
+                type="button"
                 onClick={() => setShowCreateForm(false)}
                 className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors"
+                aria-label="Đóng form tạo"
               >
                 <X className="size-5" />
               </button>
@@ -310,7 +316,7 @@ export default function AdminUsers() {
                 <th className="px-4 py-3 text-xs uppercase tracking-widest text-slate-500 font-semibold hidden lg:table-cell">
                   Ngày tạo
                 </th>
-                <th className="px-4 py-3 w-20 hidden md:table-cell" />
+                <th className="px-4 py-3 w-20 hidden md:table-cell" aria-label="Thao tác" />
               </tr>
             </thead>
             <tbody>
@@ -356,6 +362,7 @@ export default function AdminUsers() {
                         ) : (
                           <div className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1.5">
                             <button
+                              type="button"
                               onClick={() =>
                                 handleToggleWhitelist(u.id, u.isWhitelisted)
                               }
@@ -382,6 +389,7 @@ export default function AdminUsers() {
                               />
                             </button>
                             <button
+                              type="button"
                               onClick={() =>
                                 setHistoryModal({
                                   isOpen: true,
@@ -390,15 +398,16 @@ export default function AdminUsers() {
                                   activeTab: "movie",
                                 })
                               }
-                              className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-emerald-500/15 hover:text-emerald-300 transition-colors"
+                              className="inline-flex size-8 items-center justify-center rounded-lg text-white/60 hover:bg-emerald-500/15 hover:text-emerald-300 transition-colors"
                               aria-label="Xem lịch sử xem phim"
                               title="Xem lịch sử xem phim"
                             >
                               <History className="size-4" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleDelete(u.id)}
-                              className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-500/15 hover:text-rose-300 transition-colors"
+                              className="inline-flex size-8 items-center justify-center rounded-lg text-white/60 hover:bg-rose-500/15 hover:text-rose-300 transition-colors"
                               aria-label="Xóa user"
                               title="Xóa user"
                             >
@@ -415,6 +424,7 @@ export default function AdminUsers() {
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <div className="flex justify-center">
                       <button
+                        type="button"
                         onClick={() =>
                           handleToggleWhitelist(u.id, u.isWhitelisted)
                         }
@@ -423,6 +433,7 @@ export default function AdminUsers() {
                             ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 shadow-inner"
                             : "bg-white/5 text-slate-600 hover:bg-white/10"
                         }`}
+                        aria-label={u.isWhitelisted ? "Bỏ Whitelist" : "Thêm vào Whitelist"}
                         title={
                           u.isWhitelisted
                             ? "Bỏ Whitelist"
@@ -451,6 +462,7 @@ export default function AdminUsers() {
                     ) : (
                       <div className="flex items-center gap-1 justify-end">
                         <button
+                          type="button"
                           onClick={() =>
                             setHistoryModal({
                               isOpen: true,
@@ -459,14 +471,17 @@ export default function AdminUsers() {
                               activeTab: "movie",
                             })
                           }
-                          className="p-2 rounded-lg text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                          className="p-2 rounded-lg text-white/50 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                          aria-label="Xem lịch sử xem phim"
                           title="Xem lịch sử xem phim"
                         >
                           <History className="size-4" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => handleDelete(u.id)}
-                          className="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          className="p-2 rounded-lg text-white/50 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          aria-label="Xóa user"
                           title="Xóa user"
                         >
                           <Trash2 className="size-4" />
@@ -522,10 +537,12 @@ export default function AdminUsers() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() =>
                   setHistoryModal({ isOpen: false, userId: null, userName: "", activeTab: "movie" })
                 }
                 className="p-2 rounded-xl hover:bg-white/5 text-slate-400 transition-colors"
+                aria-label="Đóng"
               >
                 <X className="size-5" />
               </button>
@@ -533,6 +550,7 @@ export default function AdminUsers() {
 
             <div className="px-6 border-b border-white/5 flex gap-6">
               <button
+                type="button"
                 onClick={() => setHistoryModal(prev => ({ ...prev, activeTab: 'movie' }))}
                 className={`flex items-center gap-2 py-4 px-1 border-b-2 transition-all font-semibold text-sm ${
                   historyModal.activeTab === 'movie'
@@ -544,6 +562,7 @@ export default function AdminUsers() {
                 Lịch sử xem phim
               </button>
               <button
+                type="button"
                 onClick={() => setHistoryModal(prev => ({ ...prev, activeTab: 'comic' }))}
                 className={`flex items-center gap-2 py-4 px-1 border-b-2 transition-all font-semibold text-sm ${
                   historyModal.activeTab === 'comic'
@@ -566,6 +585,7 @@ export default function AdminUsers() {
 
             <div className="p-4 border-t border-white/5 flex justify-end">
               <button
+                type="button"
                 onClick={() =>
                   setHistoryModal({ isOpen: false, userId: null, userName: "", activeTab: "movie" })
                 }

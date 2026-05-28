@@ -385,6 +385,7 @@ function CommentRow({
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Viết phản hồi..."
+                  aria-label="Viết phản hồi"
                   ref={(input) => input && input.focus()}
                   className="w-full rounded-full border border-white/10 bg-white/5 pl-3.5 pr-10 py-2 text-[13px] text-white placeholder-slate-400 focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
                 />
@@ -612,6 +613,7 @@ export default function Comments({ movieSlug, movieName }) {
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Bạn nghĩ gì về bộ phim này?"
+              aria-label="Nhập bình luận của bạn"
               className="w-full rounded-2xl border border-white/10 bg-white/5 pl-4 pr-14 py-3 sm:py-3.5 text-sm text-white placeholder-slate-400 focus:border-emerald-500/50 focus:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
             />
             <button

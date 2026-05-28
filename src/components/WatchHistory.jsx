@@ -77,9 +77,11 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
       {/* Delete Button (top right) */}
       <div className="absolute top-2 right-2 z-20">
         <button
+          type="button"
           onClick={(e) => { e.preventDefault(); handleDelete(item.slug); }}
-          className="p-1.5 text-slate-400 hover:text-white bg-slate-950/40 hover:bg-rose-600 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
+          className="p-1.5 text-white/60 hover:text-white bg-slate-950/40 hover:bg-rose-600 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
           title="Xóa khỏi lịch sử"
+          aria-label="Xóa khỏi lịch sử"
         >
           <Trash2 className="size-3.5" />
         </button>
@@ -203,6 +205,7 @@ export default function WatchHistory({ userId, adminView = false }) {
           </div>
           {history.length > 0 && (
             <button
+              type="button"
               onClick={() => setShowClearAllModal(true)}
               className="flex items-center gap-2 rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
             >
@@ -244,12 +247,14 @@ export default function WatchHistory({ userId, adminView = false }) {
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
+                type="button"
                 onClick={() => setDeleteTarget(null)}
                 className="rounded-xl px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 Không, giữ lại
               </button>
               <button
+                type="button"
                 onClick={confirmDelete}
                 className="rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-500 transition hover:bg-rose-500 hover:text-white"
               >
@@ -269,12 +274,14 @@ export default function WatchHistory({ userId, adminView = false }) {
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
+                type="button"
                 onClick={() => setShowClearAllModal(false)}
                 className="rounded-xl px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 Không, quay lại
               </button>
               <button
+                type="button"
                 onClick={handleClearAll}
                 className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-rose-500/20 transition hover:bg-rose-600 active:scale-95"
               >

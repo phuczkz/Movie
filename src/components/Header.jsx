@@ -123,8 +123,10 @@ const Dropdown = ({ label, options, isWide = false }) => {
       onMouseEnter={openNow}
       onMouseLeave={closeLater}
       onClick={(e) => !isHoverDevice.current && e.stopPropagation()}
+      role="none"
     >
       <button
+        type="button"
         onClick={handleButtonClick}
         className="flex items-center gap-0.5 xl:gap-1 px-1 xl:px-3 py-2 text-[13px] xl:text-base font-semibold text-white/90 hover:text-white transition-colors"
       >
@@ -168,6 +170,7 @@ const MobileDropdown = ({ label, options, onNavigate }) => {
   return (
     <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 shadow-inner shadow-black/20">
       <button
+        type="button"
         className="flex w-full items-center justify-between text-left text-base font-semibold text-white"
         onClick={() => setOpen((v) => !v)}
       >
@@ -324,6 +327,7 @@ const Header = () => {
         <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
           {!isStandalone && (
             <button
+              type="button"
               aria-label="Toggle menu"
               onClick={() => {
                 dispatch({ type: "SET_MENU_OPEN", payload: !menuOpen });
@@ -348,6 +352,7 @@ const Header = () => {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               aria-label="Open search"
               onClick={() => {
                 dispatch({ type: "SET_SEARCH_OPEN", payload: !searchOpen });
@@ -365,6 +370,7 @@ const Header = () => {
             {/* Mobile Toggle Button */}
             {!isStandalone && (
               <button
+                type="button"
                 onClick={() => {
                   setAppMode(appMode === "movie" ? "comic" : "movie");
                   if (appMode === "movie") navigate("/comics");
@@ -423,6 +429,7 @@ const Header = () => {
           <div className="flex items-center gap-2">
             {/* Desktop Toggle Button */}
             <button
+              type="button"
               onClick={() => {
                 setAppMode(appMode === "movie" ? "comic" : "movie");
                 if (appMode === "movie") navigate("/comics");
@@ -496,10 +503,12 @@ const Header = () => {
           }`}
       >
         {/* Backdrop */}
-        <div
-          className={`absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 ${menuOpen ? "opacity-100" : "opacity-0"
+        <button
+          type="button"
+          className={`absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 w-full h-full border-none cursor-default ${menuOpen ? "opacity-100" : "opacity-0"
             }`}
           onClick={closeAll}
+          aria-label="Đóng menu"
         />
 
         {/* Sidebar Container */}
@@ -519,8 +528,10 @@ const Header = () => {
                 </span>
               </Link>
               <button
+                type="button"
                 onClick={closeAll}
                 className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white transition-colors"
+                aria-label="Đóng menu"
               >
                 <X className="size-5" />
               </button>
@@ -557,6 +568,7 @@ const Header = () => {
                 </Link>
 
                 <button
+                  type="button"
                   onClick={async () => {
                     await logout();
                     closeAll();
@@ -593,7 +605,7 @@ const Header = () => {
                     key={item.to}
                     to={item.to}
                     onClick={closeAll}
-                    className="group flex items-center gap-4 rounded-2xl bg-white/5 border border-white/5 px-4 py-4 text-base font-semibold text-slate-100 hover:bg-white/10 hover:border-white/10 active:scale-[0.98] transition-all"
+                    className="group flex items-center gap-4 rounded-2xl bg-white/5 border border-white/5 p-4 text-base font-semibold text-slate-100 hover:bg-white/10 hover:border-white/10 active:scale-[0.98] transition-all"
                   >
                     <div className="size-1.5 rounded-full bg-emerald-500 opacity-50 group-hover:scale-150 group-hover:opacity-100 transition-all" />
                     {item.label}

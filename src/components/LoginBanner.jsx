@@ -37,6 +37,7 @@ const LoginBanner = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-slate-900/20 opacity-90"></div>
 
         <button
+          type="button"
           onClick={handleClose}
           className="absolute top-3 right-3 z-20 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full transition-colors"
           aria-label="Đóng"

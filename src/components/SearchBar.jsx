@@ -72,7 +72,6 @@ const SearchBar = ({
   useEffect(() => {
     const media = window.matchMedia(`(max-width: ${MOBILE_WIDTH}px)`);
     const handleChange = () => setIsMobile(media.matches);
-    handleChange();
     media.addEventListener("change", handleChange);
     return () => media.removeEventListener("change", handleChange);
   }, []);
@@ -127,6 +126,7 @@ const SearchBar = ({
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
+          aria-label={placeholder}
           className="w-full h-12 rounded-2xl bg-white/10 pl-12 pr-4 text-sm sm:text-base text-white placeholder:text-slate-200/70 border border-white/10 shadow-glass outline-none focus:border-white/40 focus:ring-2 focus:ring-white/30 backdrop-blur"
         />
       </form>

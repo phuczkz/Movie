@@ -1,4 +1,4 @@
-﻿import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "react-router-dom";
 import { comicApi } from "../../api/comicApi";
 import { BookOpen, List, Info, AlertCircle, Heart, ChevronDown } from "lucide-react";
@@ -29,7 +29,7 @@ export default function ComicDetail() {
 
   if (error || !detailData?.data?.item) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
         <AlertCircle className="size-12 text-red-500" />
         <p className="text-slate-300">Không thể tải thông tin truyện.</p>
         <Link to="/comics" className="text-purple-400 hover:text-purple-300">
@@ -64,7 +64,7 @@ export default function ComicDetail() {
 
           {/* Details */}
           <div className="flex-1 space-y-4 text-center md:text-left">
-            <h1 className="text-3xl md:text-5xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500 leading-tight">
+            <h1 className="text-3xl md:text-5xl font-semibold text-white leading-tight">
               {comic.name}
             </h1>
 
@@ -146,6 +146,7 @@ export default function ComicDetail() {
                 </Link>
 
                 <button
+                  type="button"
                   onClick={() => {
                     if (!user) {
                       navigate("/login");
@@ -159,6 +160,7 @@ export default function ComicDetail() {
                       : "bg-white/5 border-white/20 text-white hover:bg-white/10"
                     } ${favLoading ? "opacity-50 cursor-not-allowed" : ""}`}
                   title={isSaved ? "Hủy Yêu Thích" : "Yêu Thích"}
+                  aria-label={isSaved ? "Hủy Yêu Thích" : "Yêu Thích"}
                 >
                   <Heart className={`size-5 ${isSaved ? "fill-red-500" : ""}`} />
                   <span className="hidden md:inline">{isSaved ? "Hủy Yêu Thích" : "Yêu Thích"}</span>
@@ -188,7 +190,7 @@ export default function ComicDetail() {
                   key={chap.chapter_name}
                   to={`/comics/chapter/${encodeURIComponent(chap.chapter_api_data)}`}
                   state={{ chapters, slug, thumb_url: `${IMAGE_CDN}${comic.thumb_url}` }}
-                  className="px-4 py-3 bg-slate-800/80 hover:bg-purple-600 rounded-xl text-center text-slate-200 font-semibold transition-colors shadow shadow-black/20 border border-white/5 truncate"
+                  className="px-4 py-3 bg-slate-800/80 hover:bg-purple-600 rounded-xl text-center text-white font-semibold transition-colors shadow shadow-black/20 border border-white/5 truncate"
                 >
                   Chương {chap.chapter_name}
                 </Link>

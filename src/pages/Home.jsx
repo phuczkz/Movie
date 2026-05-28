@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import Hero from "../components/Hero.jsx";
@@ -85,8 +85,10 @@ const useSectionVisibility = () => {
   return [ref, visible];
 };
 
+const EMPTY_ITEMS = [];
+
 const Grid = ({
-  items = [],
+  items = EMPTY_ITEMS,
   variant = "portrait",
   className = "",
   priorityCount = 0,
@@ -169,7 +171,7 @@ const Home = () => {
       <section className="!mt-0 rounded-3xl p-0 overflow-hidden relative">
         <div className="mb-4 flex items-center gap-3 pt-6 px-4 sm:px-6 sm:mb-5">
           <span className="h-7 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
-          <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Bạn đang quan tâm gì?
           </h2>
         </div>
@@ -195,7 +197,7 @@ const Home = () => {
                 </h3>
                 <div className="inline-flex items-center gap-1.5 text-white/90 text-sm font-bold tracking-wide uppercase">
                   <span>{item.subtitle}</span>
-                  <ChevronRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                  <ChevronRight className="size-3.5 transition-transform duration-300 group-hover:translate-x-1" />
                 </div>
               </div>
             </Link>

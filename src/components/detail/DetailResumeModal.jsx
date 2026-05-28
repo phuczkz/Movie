@@ -1,4 +1,4 @@
-﻿import { Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { getHiRes, formatTime } from "./detailUtils.js";
 
 const DetailResumeModal = ({ show, resumeData, movie, onResume, onStartFromBeginning }) => {
@@ -42,7 +42,7 @@ const DetailResumeModal = ({ show, resumeData, movie, onResume, onStartFromBegin
             <button
               type="button"
               onClick={onResume}
-              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:-translate-y-[2px] hover:bg-emerald-400 active:scale-[0.98]"
+              className="group flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3.5 text-sm font-bold text-emerald-950 shadow-lg shadow-emerald-500/30 transition hover:-translate-y-[2px] hover:bg-emerald-400 active:scale-[0.98]"
             >
               <Play
                 className="size-4 transition-transform group-hover:scale-110"

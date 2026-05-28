@@ -550,15 +550,16 @@ const Detail = () => {
     if (isCompleted) return null;
     if (!canUseTmdbSchedule || !tmdbFullEpisodes.length) return null;
 
-    const tmdbEpisodes = tmdbFullEpisodes
-      .filter(
-        (ep) => ep?.air_date && Number.isFinite(Number(ep?.episode_number))
-      )
-      .map((ep) => ({
-        ...ep,
-        episode_number: Number(ep.episode_number),
-        air_date: String(ep.air_date),
-      }));
+    const tmdbEpisodes = tmdbFullEpisodes.flatMap((ep) => {
+      if (ep?.air_date && Number.isFinite(Number(ep?.episode_number))) {
+        return [{
+          ...ep,
+          episode_number: Number(ep.episode_number),
+          air_date: String(ep.air_date),
+        }];
+      }
+      return [];
+    });
 
     if (!tmdbEpisodes.length) return null;
 
@@ -617,7 +618,7 @@ const Detail = () => {
 
   return (
     <div className="relative">
-      <div className="relative z-10 flex flex-col space-y-8 lg:space-y-12 pb-16">
+      <div className="relative z-10 flex flex-col gap-y-8 lg:gap-y-12 pb-16">
         <DetailHero
           movie={movie}
           passedMovie={passedMovie}

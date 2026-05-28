@@ -55,6 +55,7 @@ export default function ConfirmModal({
             <Icon size={24} />
           </div>
           <button
+            type="button"
             onClick={onCancel}
             className="p-2 rounded-xl text-slate-500 hover:text-white hover:bg-white/5 transition-colors"
           >
@@ -69,6 +70,7 @@ export default function ConfirmModal({
 
         <div className="flex gap-3">
           <button
+            type="button"
             disabled={loading}
             onClick={onCancel}
             className="flex-1 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 text-slate-300 font-bold hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50"
@@ -76,6 +78,7 @@ export default function ConfirmModal({
             {cancelText}
           </button>
           <button
+            type="button"
             disabled={loading}
             onClick={onConfirm}
             className={`flex-1 px-4 py-3.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${colorClasses[type]}`}

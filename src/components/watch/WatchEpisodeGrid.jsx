@@ -52,6 +52,7 @@ const WatchEpisodeGrid = memo(({
           {Object.keys(serverGroups).map((serverLabel) => (
             <button
               key={serverLabel}
+              type="button"
               onClick={() => handleServerChange(serverLabel)}
               className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
                 activeServer === serverLabel
@@ -72,6 +73,7 @@ const WatchEpisodeGrid = memo(({
           {availableProviders.map((p) => (
             <button
               key={p}
+              type="button"
               onClick={() => handleProviderChange(p)}
               className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
                 activeProvider === p
@@ -83,6 +85,7 @@ const WatchEpisodeGrid = memo(({
             </button>
           ))}
           <button
+            type="button"
             onClick={() => handleProviderChange("auto")}
             className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
               !activeProvider || activeProvider === "auto"

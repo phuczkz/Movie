@@ -68,9 +68,11 @@ function ComicHistoryCard({ item, handleDelete, uid, adminView = false }) {
       {/* Delete Button (top right) */}
       <div className="absolute top-2 right-2 z-20">
         <button
+          type="button"
           onClick={(e) => { e.preventDefault(); handleDelete(item.slug); }}
-          className="p-1.5 text-slate-400 hover:text-rose-400 bg-slate-950/40 hover:bg-rose-500/20 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
+          className="p-1.5 text-white/60 hover:text-rose-400 bg-slate-950/40 hover:bg-rose-500/20 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
           title="Xóa khỏi lịch sử"
+          aria-label="Xóa khỏi lịch sử"
         >
           <Trash2 className="size-3.5" />
         </button>
@@ -210,12 +212,14 @@ export default function ComicHistory({ userId, adminView = false }) {
             </p>
             <div className="flex items-center justify-end gap-3">
               <button
+                type="button"
                 onClick={() => setDeleteTarget(null)}
                 className="rounded-xl px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
               >
                 Không, giữ lại
               </button>
               <button
+                type="button"
                 onClick={confirmDelete}
                 className="rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-bold text-rose-500 transition hover:bg-rose-500 hover:text-white"
               >

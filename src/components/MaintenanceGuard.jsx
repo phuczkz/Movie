@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { LogOut } from "lucide-react";
@@ -29,15 +29,15 @@ export default function MaintenanceGuard({ children }) {
     !isWhitelisted &&
     !isLoginPath;
 
+  const { pathname } = location;
+
   useEffect(() => {
     // Only auto-redirect on direct entry/refresh. Do not override explicit in-app navigation.
     if (navigationType !== "POP") return;
-    const currentPathname = location.pathname;
-    if (appMode === "comic" && currentPathname === "/") {
+    if (appMode === "comic" && pathname === "/") {
       navigate("/comics", { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appMode, navigate, navigationType]);
+  }, [appMode, navigate, navigationType, pathname]);
 
   // Block DevTools shortcuts
   useEffect(() => {

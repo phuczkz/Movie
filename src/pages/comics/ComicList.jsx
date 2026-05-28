@@ -1,4 +1,4 @@
-﻿import { useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { comicApi } from "../../api/comicApi";
@@ -107,6 +107,7 @@ export default function ComicList() {
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
         <p className="text-red-400 text-lg font-medium">Có lỗi xảy ra khi tải danh sách truyện.</p>
         <button 
+          type="button"
           onClick={() => window.location.reload()}
           className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
         >

@@ -88,18 +88,16 @@ const normalizePeople = (peoples = []) => {
     return cdn ? `${cdn}${raw}` : raw;
   };
 
-  const list = peoples
-    .map((p) => {
-      const name = p?.name || p?.original_name || p?.full_name || "";
-      if (!name) return null;
-      const image = pickImage(p);
-      return {
-        name,
-        image,
-        character: p?.character,
-      };
-    })
-    .filter(Boolean);
+  const list = peoples.flatMap((p) => {
+    const name = p?.name || p?.original_name || p?.full_name || "";
+    if (!name) return [];
+    const image = pickImage(p);
+    return [{
+      name,
+      image,
+      character: p?.character,
+    }];
+  });
 
   return list.filter((item) => {
     if (seen.has(item.name)) return false;

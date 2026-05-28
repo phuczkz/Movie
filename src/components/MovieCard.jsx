@@ -95,6 +95,7 @@ const HoverCard = ({ movie, thumbSrc, audioBadges, alignment }) => {
           </Link>
 
           <button
+            type="button"
             className={`hc-icon-btn ${isSaved ? "hc-icon-btn--active" : ""}`}
             aria-label="Yêu thích"
             onClick={(e) => {

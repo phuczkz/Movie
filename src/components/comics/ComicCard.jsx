@@ -197,6 +197,7 @@ const ComicCard = ({ comic }) => {
               </Link>
               
               <button
+                type="button"
                 className={`hc-icon-btn ${isSaved ? "hc-icon-btn--active" : ""}`}
                 aria-label="Yêu thích"
                 onClick={(e) => {

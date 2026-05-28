@@ -137,6 +137,7 @@ function AdminCommentRow({
           <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
             {!isReply && (
               <button
+                type="button"
                 onClick={() => setShowReplyInput(!showReplyInput)}
                 className="text-[11px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-wider"
               >
@@ -144,6 +145,7 @@ function AdminCommentRow({
               </button>
             )}
             <button
+              type="button"
               onClick={() => onDelete(comment.id, movieSlug)}
               className="text-[11px] font-bold text-rose-500 hover:text-rose-400 uppercase tracking-wider"
             >
@@ -154,22 +156,23 @@ function AdminCommentRow({
           {showReplyInput && (
             <form onSubmit={handleSubmitReply} className="mt-3 flex gap-2">
               <div className="flex-1 relative">
-                <CornerDownRight className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                <CornerDownRight className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-slate-500" />
                 <input
                   type="text"
                   ref={(el) => el && el.focus()}
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder="Nhập phản hồi của Admin..."
+                  aria-label="Phản hồi Admin"
                   className="w-full rounded-lg bg-white/5 border border-white/10 pl-8 pr-4 py-2 text-xs text-white placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none"
                 />
               </div>
               <button
                 type="submit"
                 disabled={!replyText.trim() || submitting}
-                className="rounded-lg bg-emerald-500 px-3 py-2 text-slate-950 hover:bg-emerald-400 transition-colors disabled:opacity-40"
+                className="rounded-lg bg-emerald-500 px-3 py-2 text-emerald-950 hover:bg-emerald-400 transition-colors disabled:opacity-40"
               >
-                <Send className="h-3.5 w-3.5" />
+                <Send className="size-3.5" />
               </button>
             </form>
           )}
@@ -550,6 +553,7 @@ export default function AdminComments() {
         <div className="flex items-center gap-3">
           {view === "list" && (
             <button
+              type="button"
               onClick={discoverMovies}
               disabled={loading}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50"
@@ -557,13 +561,14 @@ export default function AdminComments() {
               {loading ? (
                 <span className="loader-orbit loader-orbit-xs" />
               ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="size-3.5" />
               )}
               {loading ? "Đang quét..." : "Đồng bộ bình luận cũ"}
             </button>
           )}
           {view === "detail" && (
             <button
+              type="button"
               onClick={() => setView("list")}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-all text-sm font-medium"
             >
@@ -579,6 +584,7 @@ export default function AdminComments() {
         {/* View Mode Toggle */}
         <div className="flex bg-slate-950/40 p-1 rounded-xl border border-white/5 shrink-0">
           <button
+            type="button"
             onClick={() => {
               setViewMode("by-movie");
               if (view === "detail") setView("list");
@@ -592,6 +598,7 @@ export default function AdminComments() {
             <Layers size={14} /> Theo phim
           </button>
           <button
+            type="button"
             onClick={() => {
               setViewMode("all");
               setView("detail");
@@ -636,6 +643,7 @@ export default function AdminComments() {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-emerald-500/50"
                 max={todayDate}
+                aria-label="Chọn ngày lọc bình luận"
                 suppressHydrationWarning
               />
             </div>
@@ -656,6 +664,7 @@ export default function AdminComments() {
                 setShowSearchResults(true);
               }}
               placeholder="Tìm phim để quản lý bình luận..."
+              aria-label="Tìm phim quản lý bình luận"
               className="w-full bg-slate-900 border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-emerald-500/40 focus:outline-none transition-all shadow-xl"
             />
 
@@ -663,12 +672,13 @@ export default function AdminComments() {
               <div className="absolute top-full left-0 right-0 mt-3 z-50 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl max-h-[400px] overflow-y-auto p-2 space-y-1">
                 {isFetching ? (
                   <div className="py-8 text-center text-slate-500 text-sm">
-                    Đang tìm kiếm...
+                    Đang tìm kiếm…
                   </div>
                 ) : searchResults.length > 0 ? (
                   searchResults.map((m) => (
                     <button
                       key={m.slug}
+                      type="button"
                       onClick={() => selectMovie(m.slug, m.name)}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
                     >
@@ -709,6 +719,7 @@ export default function AdminComments() {
               commentedMovies.map((m) => (
                 <button
                   key={m.id}
+                  type="button"
                   onClick={() => selectMovie(m.id, m.movieName)}
                   className="group relative bg-slate-900/60 border border-white/5 hover:border-emerald-500/40 p-5 rounded-[24px] text-left transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-emerald-500/10"
                 >
