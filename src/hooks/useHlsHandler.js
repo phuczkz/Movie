@@ -115,16 +115,14 @@ export const useHlsHandler = (source, isHls) => {
       // ── FORWARD BUFFER ──
       // Keep buffer sizes optimal. Over-buffering causes massive memory usage
       // and continuous background decoding that stutters the active playback.
-      maxBufferLength: isMobile ? 20 : 30,
-      maxMaxBufferLength: isMobile ? 40 : 60,
-      maxBufferSize: isMobile ? 30_000_000 : 60_000_000, // 30MB / 60MB
+      maxBufferLength: isMobile ? 30 : 60,
+      maxMaxBufferLength: isMobile ? 120 : 300,
+      maxBufferSize: isMobile ? 60_000_000 : 150_000_000, // 60MB / 150MB
 
       // ── BACK BUFFER ──
-      // Do NOT use Infinity as it leaks memory over long viewing sessions,
-      // causing the browser to lag and drop frames.
-      // 120s (desktop) / 60s (mobile) is more than enough for instant
-      // backward seeking without causing memory-induced stutters.
-      backBufferLength: isMobile ? 60 : 120,
+      // Using Infinity ensures that previously played segments are cached in memory.
+      // This allows instant backward seeking (ArrowLeft) without triggers for network re-fetch.
+      backBufferLength: isMobile ? 120 : Infinity,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
@@ -137,12 +135,12 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── ABR ──
       startLevel: -1,
-      // Start with a conservative 1Mbps estimate on desktop and 400Kbps on mobile.
-      // This fetches a small, low-res first segment (<150KB) for instant loading,
-      // then upgrades to full HD on the second segment.
-      abrEwmaDefaultEstimate: isMobile ? 400_000 : 1_000_000,
+      // Start with 3Mbps estimate on desktop and 800Kbps on mobile to choose the correct quality faster.
+      // With progressive: false, we wait for full segment download, so a higher estimate prevents initial buffering.
+      abrEwmaDefaultEstimate: isMobile ? 800_000 : 3_000_000,
       abrBandWidthFactor: 0.95,
       abrBandWidthUpFactor: 0.7,
+      testBandwidth: true,
 
       // ── LOADING — minimal timeouts for fast failure detection ──
       fragLoadingTimeOut: 20000,
@@ -157,10 +155,10 @@ export const useHlsHandler = (source, isHls) => {
       // ── PERFORMANCE CORE ──
       enableWorker: true,
       lowLatencyMode: false,
-      // progressive: true — Stream segment chunks into the SourceBuffer as they
-      // download for fast Time-To-First-Frame (~200ms) and fast seeking forward.
-      // Any potential freeze is resolved via our 400ms/1000ms watchdog nudge.
-      progressive: true,
+      // progressive: false — Fetch the complete segment before appending to the SourceBuffer.
+      // This avoids sending partial segments (partial GOPs) to the hardware decoder,
+      // which is the root cause of video frames freezing while audio continues during continuous seeking.
+      progressive: false,
       startFragPrefetch: true,
       stretchShortVideoTrack: true,
 
@@ -168,8 +166,6 @@ export const useHlsHandler = (source, isHls) => {
       // Benefits of fetchSetup over xhrSetup:
       //   • No CORS preflight for credentialless requests (saves 50-200ms per req)
       //   • Native HTTP/2 multiplexing + connection reuse with no extra overhead
-      //   • Streams response bytes → pairs perfectly with progressive: true so the
-      //     first decoded frames appear as soon as the first bytes hit the decoder
       // "omit" credentials = browser never attaches cookies to CDN requests,
       // which would otherwise force a costly OPTIONS preflight on every fragment.
       fetchSetup: (context, initParams) => {
@@ -183,9 +179,9 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── EARLY PLAYBACK TRIGGER ──
       // Reduce how much buffer hls.js requires before un-stalling playback.
-      // With progressive: true the first chunks arrive early — fire play sooner.
       maxStarvationDelay: 2,        // start playing when 2s buffered (default: 4)
       highBufferWatchdogPeriod: 1,  // check buffer health every 1s (default: 3)
+      liveSyncDurationCount: 3,     // keep sync in live streams
     };
 
     // Ad-stripping via pLoader (playlist-only, no proxy, just text filter)
