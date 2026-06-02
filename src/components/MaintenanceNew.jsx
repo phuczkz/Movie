@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 const MaintenanceNew = () => {
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [isHovering, setIsHovering] = useState(false);
+    const containerRef = useRef(null);
 
     useEffect(() => {
         const handleMouseMove = (e) => {
@@ -22,8 +23,55 @@ const MaintenanceNew = () => {
         };
     }, []);
 
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const activePetals = new Set();
+
+        function createPetal() {
+            if (!container) return;
+            const petal = document.createElement('div');
+            petal.className = 'petal';
+            const size = Math.random() * 6 + 6;
+            const duration = Math.random() * 3 + 4;
+            petal.style.left = Math.random() * 100 + '%';
+            petal.style.width = petal.style.height = size + 'px';
+            petal.style.animationDuration = duration + 's';
+            petal.style.opacity = Math.random() * 0.4 + 0.4;
+            container.appendChild(petal);
+            activePetals.add(petal);
+
+            const timeoutId = setTimeout(() => {
+                petal.remove();
+                activePetals.delete(petal);
+            }, (duration + 1) * 1000);
+
+            petal.dataset.timeoutId = timeoutId;
+        }
+
+        const intervalId = setInterval(createPetal, 220);
+
+        const initialTimeouts = [];
+        for (let i = 0; i < 12; i++) {
+            const tId = setTimeout(createPetal, i * 120);
+            initialTimeouts.push(tId);
+        }
+
+        return () => {
+            clearInterval(intervalId);
+            initialTimeouts.forEach(clearTimeout);
+            activePetals.forEach(petal => {
+                clearTimeout(Number(petal.dataset.timeoutId));
+                petal.remove();
+            });
+        };
+    }, []);
+
     return (
         <div className="maintenance-page relative w-full h-screen bg-white overflow-hidden font-['Outfit',sans-serif] select-none cursor-none">
+            {/* Cherry Blossom Container */}
+            <div ref={containerRef} id="petals-container" />
             {/* Custom Sword Mouse Cursor */}
             <div
                 className={`fixed pointer-events-none z-[9999] transition-transform duration-100 ease-out`}
@@ -107,6 +155,28 @@ const MaintenanceNew = () => {
                 /* Completely hide system cursor for EVERYTHING in this page */
                 .maintenance-page, .maintenance-page * {
                     cursor: none !important;
+                }
+
+                #petals-container {
+                    position: fixed;
+                    inset: 0;
+                    pointer-events: none;
+                    z-index: 9998;
+                    overflow: hidden;
+                }
+                .petal {
+                    position: absolute;
+                    top: -15px;
+                    width: 8px;
+                    height: 8px;
+                    background: radial-gradient(circle at center, #ff6b9d, #ff1744);
+                    border-radius: 50% 0 50% 0;
+                    opacity: 0.7;
+                    animation: petal-fall linear infinite;
+                }
+                @keyframes petal-fall {
+                    from { transform: translateY(-10px) rotate(0deg); }
+                    to { transform: translateY(100vh) rotate(360deg); }
                 }
             `}} />
         </div>
