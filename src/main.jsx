@@ -8,29 +8,6 @@ import { AppModeProvider } from "./context/AppModeContext.jsx";
 import MaintenanceGuard from "./components/MaintenanceGuard.jsx";
 import "./index.css";
 
-// Register Service Worker for PWA support (Production only)
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => {
-        console.log("SW registered:", reg.scope);
-        // Auto-update on new version
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
-              if (newWorker.state === "activated" && navigator.serviceWorker.controller) {
-                console.log("New SW version available – refresh to update");
-              }
-            });
-          }
-        });
-      })
-      .catch((err) => console.warn("SW registration failed:", err));
-  });
-}
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

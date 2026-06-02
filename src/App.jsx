@@ -9,7 +9,6 @@ import { AnimatePresence } from "framer-motion";
 import PageTransition from "./components/PageTransition.jsx";
 import Layout from "./components/Layout.jsx";
 import ComicLayout from "./components/comics/ComicLayout.jsx";
-import BottomNav from "./components/BottomNav.jsx";
 import { useAppMode } from "./context/AppModeContext";
 import { cancelAllPendingRequests } from "./api/client";
 import { cancelAllKKphimRequests } from "./api/kkphim";
@@ -143,7 +142,6 @@ function App() {
         />
       </Routes>
       </AnimatePresence>
-      <BottomNav />
     </Suspense>
   );
 }

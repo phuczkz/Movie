@@ -27,16 +27,7 @@
         ]
       },
       {
-        "source": "/sw.js",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache, no-store, must-revalidate"
-          }
-        ]
-      },
-      {
-        "source": "/@(manifest.json|apple-touch-icon.png|player_poster.png)",
+        "source": "/@(apple-touch-icon.png|player_poster.png)",
         "headers": [
           {
             "key": "Cache-Control",

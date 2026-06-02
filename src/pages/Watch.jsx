@@ -290,7 +290,7 @@ const Watch = () => {
         notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.` 
       };
     });
-  }, [selectedProviderParam, activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback]);
+  }, [selectedProviderParam, activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback, params, setParams]);
 
   const handleServerChange = useCallback((serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);
