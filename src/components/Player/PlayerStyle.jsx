@@ -178,6 +178,8 @@ const PlayerStyle = () => {
             }
           }
 
+
+
           /* Hover effect for floating button */
           #art-next-ep-layer:hover {
             /* Handled in JS for background, shadow handled here */

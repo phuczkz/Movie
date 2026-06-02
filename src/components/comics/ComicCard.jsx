@@ -4,6 +4,7 @@ import { Clock, BookOpen, Heart, Info, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { comicApi } from "../../api/comicApi";
 import { useSavedComic } from "../../hooks/useSavedComic";
+import { isMobile } from "../../utils/responsive.js";
 
 const IMAGE_CDN =
   import.meta.env.VITE_COMIC_IMAGE_CDN ||
@@ -45,7 +46,7 @@ const ComicCard = ({ comic }) => {
   }, []);
 
   const handleMouseEnter = (e) => {
-    if (!isHoverDevice.current) return;
+    if (!isHoverDevice.current || window.innerWidth < 1024) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
@@ -65,8 +66,13 @@ const ComicCard = ({ comic }) => {
     ? comic.thumb_url
     : `${IMAGE_CDN}${comic.thumb_url}`;
 
-  const posterSrc = `https://wsrv.nl/?url=${encodeURIComponent(thumbUrl)}&output=webp&w=360&fit=cover&q=80`;
-  const thumbHoverSrc = `https://wsrv.nl/?url=${encodeURIComponent(thumbUrl)}&output=webp&w=640&fit=cover&q=80`;
+  const isMobileSize = isMobile();
+  const posterSrc = `https://wsrv.nl/?url=${encodeURIComponent(thumbUrl)}&output=webp&w=${
+    isMobileSize ? 200 : 360
+  }&fit=cover&q=${isMobileSize ? 70 : 80}`;
+  const thumbHoverSrc = `https://wsrv.nl/?url=${encodeURIComponent(thumbUrl)}&output=webp&w=${
+    isMobileSize ? 400 : 640
+  }&fit=cover&q=${isMobileSize ? 70 : 80}`;
 
   const formatDate = (dateValue) => {
     if (!dateValue) return "Vừa xong";
@@ -100,11 +106,11 @@ const ComicCard = ({ comic }) => {
       onMouseLeave={() => setHovered(false)}
     >
       <Link to={`/comics/${comic.slug}`} className="relative flex flex-col">
-        <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg group-hover:shadow-purple-500/20 transition-all duration-300">
+        <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg lg:group-hover:shadow-purple-500/20 transition-all duration-300">
           <img
             src={posterSrc}
             alt={comic.name || "Comic"}
-            className="absolute h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            className="absolute h-full w-full object-cover transition duration-500 lg:group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               const currentSrc = e.currentTarget.src;
@@ -141,7 +147,7 @@ const ComicCard = ({ comic }) => {
 
           {/* Latest chapter badge */}
           {comic.chaptersLatest && comic.chaptersLatest.length > 0 && (
-            <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-bold border border-white/10 text-white z-10 transition-transform group-hover:-translate-y-[2px]">
+            <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-bold border border-white/10 text-white z-10 transition-transform lg:group-hover:-translate-y-[2px]">
               CH. {comic.chaptersLatest[0].chapter_name}
             </div>
           )}
@@ -150,7 +156,7 @@ const ComicCard = ({ comic }) => {
         </div>
 
         <div className="mt-4 flex flex-col items-center text-center px-1">
-          <h3 className="text-[17px] font-semibold text-white line-clamp-1 group-hover:text-purple-400 transition-colors">
+          <h3 className="text-[17px] font-semibold text-white line-clamp-1 lg:group-hover:text-purple-400 transition-colors">
             {comic.name || "Truyện không tên"}
           </h3>
           <p className="text-[15px] font-medium text-slate-400 line-clamp-1 mt-1 flex items-center gap-1">

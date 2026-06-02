@@ -146,9 +146,7 @@ const Player = ({
     const isMobile =
       /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       window.innerWidth <= 768;
-
     const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
     // ── Build HLS customType ──
     let customType;
     if (isHls && Hls && Hls.isSupported()) {
@@ -511,7 +509,6 @@ const Player = ({
       container: artRef.current,
       url: source || "",
       type: isHls ? "m3u8" : undefined,
-      poster: posterUrl || undefined,
       volume: 1,
       autoplay: false,
       pip: !isIos, // Disable ArtPlayer built-in PIP on iOS; we add a custom native PIP button instead

@@ -6,13 +6,14 @@ import { Play, Calendar, Film, Globe, Heart, Info, ChevronDown } from "lucide-re
 import { useSavedMovie } from "../hooks/useSavedMovie.js";
 import { getEpisodes } from "../api/movies.js";
 import { normalizeServerLabel, parseEpisodeNumber } from "../utils/episodes.js";
+import { isMobile } from "../utils/responsive.js";
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
 const fallbackLandscape =
   "https://placehold.co/1280x720/0f172a/94a3b8?text=No+Image";
 
-const getOptimizedPoster = (url, w = 360) => {
+const getOptimizedPoster = (url, w = 360, q = 80) => {
   if (!url) return url;
   try {
     const rawHost = new URL(url).hostname;
@@ -24,7 +25,7 @@ const getOptimizedPoster = (url, w = 360) => {
     }
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
-    )}&output=webp&w=${w}&fit=cover&q=80`;
+    )}&output=webp&w=${w}&fit=cover&q=${q}`;
   } catch {
     return url;
   }
@@ -180,7 +181,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const hoverTimerRef = useRef(null);
 
   const handleMouseEnter = (e) => {
-    if (suppressHover || !isHoverDevice.current) return;
+    if (suppressHover || !isHoverDevice.current || window.innerWidth < 1024) return;
 
     // Trigger API fetch only if user stays on the card for 250ms
     hoverTimerRef.current = setTimeout(() => {
@@ -318,15 +319,23 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     return () => observer.disconnect();
   }, [shouldLoad, slug]);
 
+  const isMobileSize = isMobile();
   const basePoster = movie.poster_url || movie.thumb_url;
   const posterSrc =
     shouldLoad || priority
-      ? getOptimizedPoster(basePoster, priority ? 480 : 360) || fallbackPoster
+      ? getOptimizedPoster(
+          basePoster,
+          priority ? (isMobileSize ? 300 : 480) : (isMobileSize ? 200 : 360),
+          isMobileSize ? 70 : 80
+        ) || fallbackPoster
       : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
   const thumbSrc =
-    getOptimizedPoster(movie.thumb_url || movie.poster_url, 640) ||
-    fallbackLandscape;
+    getOptimizedPoster(
+      movie.thumb_url || movie.poster_url,
+      isMobileSize ? 400 : 640,
+      isMobileSize ? 70 : 80
+    ) || fallbackLandscape;
 
   return (
     <div
@@ -340,7 +349,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
         state={{ movie }}
         className="relative flex flex-col"
       >
-        <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-300">
+        <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg lg:group-hover:shadow-emerald-500/20 transition-all duration-300">
           {/* Skeleton shimmer — visible until image is loaded */}
           {!loaded && (
             <div className="absolute inset-0 mc-img-skeleton" />
@@ -349,7 +358,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
             ref={imgRef}
             src={posterSrc}
             alt={movie.name}
-            className={`absolute h-full w-full object-cover transition-opacity duration-500 group-hover:scale-105 ${
+            className={`absolute h-full w-full object-cover transition-opacity duration-500 lg:group-hover:scale-105 ${
               loaded ? "opacity-100 scale-100" : "opacity-0"
             }`}
             loading={priority ? "eager" : "lazy"}
@@ -371,7 +380,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
                 <div
                   key={badge.key}
                   title={badge.label}
-                    className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] leading-none font-bold uppercase shadow-md transition-transform duration-200 group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
+                    className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] leading-none font-bold uppercase shadow-md transition-transform duration-200 lg:group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
                       ? "bg-slate-600/90 text-white backdrop-blur-md"
                       : badge.code === "TM"
                         ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
@@ -394,7 +403,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
         </div>
 
         <div className="mt-4 flex flex-col items-center text-center px-1">
-          <h3 className="text-[17px] font-semibold text-white line-clamp-1 group-hover:text-emerald-400 transition-colors">
+          <h3 className="text-[17px] font-semibold text-white line-clamp-1 lg:group-hover:text-emerald-400 transition-colors">
             {movie.name}
           </h3>
           <p className="text-[15px] font-medium text-slate-400 line-clamp-1 mt-1">

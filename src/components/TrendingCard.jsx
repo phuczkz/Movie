@@ -3,11 +3,12 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getEpisodes } from "../api/movies.js";
 import { normalizeServerLabel, parseEpisodeNumber } from "../utils/episodes.js";
+import { isMobile } from "../utils/responsive.js";
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
 
-const getOptimizedPoster = (url, w = 360) => {
+const getOptimizedPoster = (url, w = 360, q = 80) => {
   if (!url) return url;
   try {
     const rawHost = new URL(url).hostname;
@@ -19,7 +20,7 @@ const getOptimizedPoster = (url, w = 360) => {
     }
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
-    )}&output=webp&w=${w}&fit=cover&q=80`;
+    )}&output=webp&w=${w}&fit=cover&q=${q}`;
   } catch {
     return url;
   }
@@ -56,9 +57,14 @@ const TrendingCard = ({ movie, index }) => {
     gcTime: 10 * 60 * 1000,
   });
 
+  const isMobileSize = isMobile();
   const basePoster = movie.poster_url || movie.thumb_url;
   const posterSrc = shouldLoad
-    ? getOptimizedPoster(basePoster, 360) || fallbackPoster
+    ? getOptimizedPoster(
+        basePoster,
+        isMobileSize ? 240 : 360,
+        isMobileSize ? 70 : 80
+      ) || fallbackPoster
     : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
   const badges = useMemo(() => {
@@ -138,6 +144,7 @@ const TrendingCard = ({ movie, index }) => {
   };
 
   const handleMouseEnter = () => {
+    if (window.innerWidth < 1024) return;
     hoverTimerRef.current = setTimeout(() => {
       setApiReady(true);
     }, 200);
@@ -155,11 +162,11 @@ const TrendingCard = ({ movie, index }) => {
       to={`/movie/${movie.slug}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="group relative flex flex-col min-w-[200px] sm:min-w-[240px] max-w-[240px] transition-all duration-300 hover:z-30 snap-start"
+      className="group relative flex flex-col min-w-[200px] sm:min-w-[240px] max-w-[240px] transition-all duration-300 lg:hover:z-30 snap-start"
     >
       {/* Slanted Poster Container using EXACT custom polygon for all edges and rounded corners */}
       <div
-        className="relative aspect-[2/3] w-full bg-slate-800 shadow-2xl transition-all duration-500 group-hover:brightness-110 group-hover:shadow-emerald-500/30"
+        className="relative aspect-[2/3] w-full bg-slate-800 shadow-2xl transition-all duration-500 lg:group-hover:brightness-110 lg:group-hover:shadow-emerald-500/30"
         style={clipPathStyle}
       >
         {!loaded && (
@@ -180,7 +187,7 @@ const TrendingCard = ({ movie, index }) => {
 
         {/* Custom Exact Border for Hover - Traces the polygon perfectly */}
         <svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          className="absolute inset-0 w-full h-full pointer-events-none z-30 opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
         >
@@ -233,7 +240,7 @@ const TrendingCard = ({ movie, index }) => {
 
         {/* Content Info */}
         <div className="flex flex-col min-w-0">
-          <h3 className="text-lg font-bold text-white line-clamp-1 group-hover:text-amber-400 transition-colors leading-tight">
+          <h3 className="text-lg font-bold text-white line-clamp-1 lg:group-hover:text-amber-400 transition-colors leading-tight">
             {movie.name}
           </h3>
           <p className="text-sm text-slate-400 font-medium line-clamp-1 mt-0.5">

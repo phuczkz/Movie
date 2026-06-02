@@ -347,8 +347,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   position: relative;
 }
 
-/* Hide popup on mobile — no hover on touch */
-@media (max-width: 767.98px) {
+/* Hide popup on mobile and tablet — no hover on touch */
+@media (max-width: 1023.98px), (hover: none) {
   .hc-popup {
     display: none !important;
   }

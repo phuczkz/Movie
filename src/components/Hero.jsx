@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
 import { useMovieLogos } from "../hooks/useMovieLogo";
+import { isMobile } from "../utils/responsive.js";
 
 /* const normalizeList = (items = []) => {
   if (!Array.isArray(items)) return [];
@@ -122,13 +123,13 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   const background =
     normalizeTmdbImageSize(rawBackground, "w1280") || rawBackground;
 
-  // Optimized srcSet: Use direct TMDB URLs for LCP candidates to avoid proxy delay.
-  // wsrv.nl is still used for other CDNs that don't support resizing.
   const isTmdb = background.includes("image.tmdb.org");
+  const isMobileSize = isMobile();
+  const qVal = isMobileSize ? 70 : 85;
 
-  const background640 = isTmdb ? normalizeTmdbImageSize(background, "w780") : toWsrv(background, 640);
-  const background1280 = isTmdb ? background : toWsrv(background, 1280);
-  const background1920 = isTmdb ? normalizeTmdbImageSize(background, "original") : toWsrv(background, 1920);
+  const background640 = isTmdb ? normalizeTmdbImageSize(background, "w780") : toWsrv(background, 640, qVal);
+  const background1280 = isTmdb ? background : toWsrv(background, 1280, qVal);
+  const background1920 = isTmdb ? normalizeTmdbImageSize(background, "original") : toWsrv(background, 1920, qVal);
   const background2560 = background1920;
   const background3840 = background1920;
   // const ratingValue =
@@ -156,7 +157,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
-            src={background1280}
+            src={isMobileSize ? background640 : background1280}
             srcSet={`${background640} 640w, ${background1280} 1280w, ${background1920} 1920w, ${background2560} 2560w, ${background3840} 3840w`}
             sizes="100vw"
             alt=""
