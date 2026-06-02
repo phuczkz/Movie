@@ -10,6 +10,7 @@ import {
   useKKphimMovies,
 } from "../hooks/useKKphimMovies.js";
 import { useChieuRapMerged } from "../hooks/useChieuRapMerged.js";
+import { useHoatHinhMerged } from "../hooks/useHoatHinhMerged.js";
 
 const categoryLabels = {
   "hoat-hinh": "Hoạt hình",
@@ -43,7 +44,8 @@ const Category = () => {
   const isSingle = category === "phim-le";
   const isLatest = category === "phim-moi";
   const isChieuRap = category === "phim-chieu-rap";
-  const isCategory = !isSeries && !isSingle && !isLatest && !isChieuRap;
+  const isHoatHinh = category === "hoat-hinh";
+  const isCategory = !isSeries && !isSingle && !isLatest && !isChieuRap && !isHoatHinh;
 
   const { data: seriesOphim = [], isLoading: loadingSeriesOphim } =
     useMoviesList("series", undefined, {
@@ -81,6 +83,9 @@ const Category = () => {
   const { data: mergedChieuRap = [], isLoading: loadingChieuRap } =
     useChieuRapMerged(page, { enabled: isChieuRap, country: countryParam });
 
+  const { data: mergedHoatHinh = [], isLoading: loadingHoatHinh } =
+    useHoatHinhMerged(page, { enabled: isHoatHinh, country: countryParam });
+
   const { data: byCategory = [], isLoading: loadingCategory } = useMoviesList(
     "category",
     category,
@@ -116,6 +121,7 @@ const Category = () => {
     else if (isSingle) result = mergeUnique(singleKK, singleOphim);
     else if (isLatest) result = mergeUnique(latestKK, latestOphim);
     else if (isChieuRap) result = mergedChieuRap;
+    else if (isHoatHinh) result = mergedHoatHinh;
     else result = mergeUnique(kkCategory, byCategory);
 
     if (countryParam) {
@@ -143,6 +149,8 @@ const Category = () => {
     latestOphim,
     isChieuRap,
     mergedChieuRap,
+    isHoatHinh,
+    mergedHoatHinh,
     byCategory,
     kkCategory,
     countryParam,
@@ -153,6 +161,7 @@ const Category = () => {
     if (isSingle) return loadingSingleOphim || loadingSingleKK;
     if (isLatest) return loadingLatestOphim || loadingLatestKK;
     if (isChieuRap) return loadingChieuRap;
+    if (isHoatHinh) return loadingHoatHinh;
     return loadingCategory || loadingKKCategory;
   }, [
     isSeries,
@@ -166,6 +175,8 @@ const Category = () => {
     loadingLatestKK,
     isChieuRap,
     loadingChieuRap,
+    isHoatHinh,
+    loadingHoatHinh,
     loadingCategory,
     loadingKKCategory,
   ]);

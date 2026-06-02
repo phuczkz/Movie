@@ -66,37 +66,46 @@ const WatchEpisodeGrid = memo(({
         </div>
       )}
 
-      {/* Provider Selection (KKphim / Ophim) */}
-      {availableProviders.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mr-2">Nguồn phát:</span>
-          {availableProviders.map((p) => (
+      {/* Provider Selection (KKphim / Ophim) & Notice */}
+      <div className="space-y-3">
+        {availableProviders.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mr-2">Nguồn phát:</span>
+            {availableProviders.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => handleProviderChange(p)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  activeProvider === p
+                    ? "border-sky-500/50 bg-sky-500/20 text-sky-400"
+                    : "border-white/5 bg-white/5 text-slate-400 hover:border-sky-500/30 hover:text-sky-300"
+                }`}
+              >
+                {PROVIDER_LABELS[p] || p}
+              </button>
+            ))}
             <button
-              key={p}
               type="button"
-              onClick={() => handleProviderChange(p)}
+              onClick={() => handleProviderChange("auto")}
               className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-                activeProvider === p
-                  ? "border-sky-500/50 bg-sky-500/20 text-sky-400"
-                  : "border-white/5 bg-white/5 text-slate-400 hover:border-sky-500/30 hover:text-sky-300"
+                !activeProvider || activeProvider === "auto"
+                  ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
+                  : "border-white/5 bg-white/5 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-300"
               }`}
             >
-              {PROVIDER_LABELS[p] || p}
+              Tự động
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => handleProviderChange("auto")}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-              !activeProvider || activeProvider === "auto"
-                ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
-                : "border-white/5 bg-white/5 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-300"
-            }`}
-          >
-            Tự động
-          </button>
+          </div>
+        )}
+        
+        {/* Helper Note for User */}
+        <div className="text-sm font-medium text-amber-400/80 italic">
+          {availableProviders.length > 1
+            ? "Lưu ý: Nếu nguồn phát bị chậm, vui lòng chuyển sang nguồn khác."
+            : "Lưu ý: Phim chỉ có 1 nguồn duy nhất, có thể bị gián đoạn hoặc load chậm."}
         </div>
-      )}
+      </div>
 
       {/* Episode Grid */}
       <div className="space-y-3">

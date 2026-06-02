@@ -11,6 +11,8 @@ import Layout from "./components/Layout.jsx";
 import ComicLayout from "./components/comics/ComicLayout.jsx";
 import BottomNav from "./components/BottomNav.jsx";
 import { useAppMode } from "./context/AppModeContext";
+import { cancelAllPendingRequests } from "./api/client";
+import { cancelAllKKphimRequests } from "./api/kkphim";
 
 const Home = lazy(() => import("./pages/Home.jsx"));
 const Category = lazy(() => import("./pages/Category.jsx"));
@@ -36,6 +38,14 @@ function App() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const { appMode, setAppMode } = useAppMode();
+
+  // ── Cancel stale API requests on route change ──
+  // When user navigates away, all in-flight Ophim/KKphim requests are aborted
+  // immediately, freeing network connections for the new page.
+  useEffect(() => {
+    cancelAllPendingRequests();
+    cancelAllKKphimRequests();
+  }, [location.pathname]);
 
   useEffect(() => {
     // Read location.pathname inside effect body — not as deps — to avoid mutable-in-deps warning

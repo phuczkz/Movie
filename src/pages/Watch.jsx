@@ -246,18 +246,49 @@ const Watch = () => {
   }, [params, playbackScopeKey, setParams, setAutoProviderState]);
 
   const handlePlaybackIssue = useCallback((reason) => {
-    if (selectedProviderParam || !activeProvider) return;
+    if (!activeProvider) return;
+    
+    // Tìm nguồn khác
     const fallbackProvider = availableProviders.find(p => p !== activeProvider && episodeProviders[p]?.link);
-    if (!fallbackProvider) return;
+
+    // Nếu người dùng đang chọn cứng URL param, ta xoá nó đi để auto-provider hoạt động
+    if (selectedProviderParam && fallbackProvider) {
+      const nextParams = new URLSearchParams(params);
+      nextParams.delete("provider");
+      setParams(nextParams, { replace: true });
+    }
 
     setAutoProviderState((prev) => {
+      // Đã có thông báo hoặc đang chuyển đổi thì thôi
       if (prev.key === playbackScopeKey && prev.notice) return prev;
+      
       const isDeadSource = ["manifest-error", "fatal-hls", "network-error", "network-timeout"].includes(reason);
+      
+      // Nếu có nguồn dự phòng, tự động chuyển luôn
+      if (fallbackProvider) {
+        return { 
+          key: playbackScopeKey, 
+          provider: fallbackProvider, 
+          notice: `Nguồn ${activeProviderLabel} đang gặp sự cố. Hệ thống tự động chuyển sang Nguồn ${PROVIDER_LABELS[fallbackProvider] || fallbackProvider}.` 
+        };
+      }
+      
+      // Nếu không có nguồn dự phòng nhưng có link embed (iframe)
       if (isDeadSource && activeEpisode?.link_embed && !useEmbedFallback) {
         setUseEmbedFallback(true);
-        return { key: playbackScopeKey, provider: prev.provider || null, notice: `Nguồn ${activeProviderLabel} gặp sự cố kỹ thuật. Hệ thống đang tự động chuyển sang Trình phát dự phòng.` };
+        return { 
+          key: playbackScopeKey, 
+          provider: prev.provider || null, 
+          notice: `Các nguồn chính gặp sự cố kỹ thuật. Hệ thống tự động chuyển sang Trình phát dự phòng.` 
+        };
       }
-      return { key: playbackScopeKey, provider: prev.provider || null, notice: `${PROVIDER_LABELS[activeProvider] || activeProvider} đang chậm. Vui lòng thử chuyển sang nguồn khác.` };
+      
+      // Nếu không có gì để fallback
+      return { 
+        key: playbackScopeKey, 
+        provider: prev.provider || null, 
+        notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.` 
+      };
     });
   }, [selectedProviderParam, activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback]);
 

@@ -8,14 +8,39 @@ const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
 );
 const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
+// ── Request cancellation system (mirrors client.js) ──
+let _pendingControllers = new Set();
+
 const kkphim = axios.create({
   baseURL: apiBase,
   timeout: 8000,
 });
 
+// Auto-attach AbortController to every request
+kkphim.interceptors.request.use((config) => {
+  if (!config.signal) {
+    const controller = new AbortController();
+    config.signal = controller.signal;
+    config._abortController = controller;
+    _pendingControllers.add(controller);
+  }
+  return config;
+});
+
 kkphim.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config._abortController) {
+      _pendingControllers.delete(response.config._abortController);
+    }
+    return response;
+  },
   (error) => {
+    if (error.config?._abortController) {
+      _pendingControllers.delete(error.config._abortController);
+    }
+    if (axios.isCancel(error) || error.name === "CanceledError" || error.code === "ERR_CANCELED") {
+      return Promise.reject(error);
+    }
     const message =
       error?.response?.data?.msg ||
       error?.response?.data?.message ||
@@ -24,6 +49,16 @@ kkphim.interceptors.response.use(
     return Promise.reject(new Error(message));
   }
 );
+
+/**
+ * Cancel all pending KKphim API requests.
+ */
+export const cancelAllKKphimRequests = () => {
+  _pendingControllers.forEach((controller) => {
+    try { controller.abort(); } catch { /* ignore */ }
+  });
+  _pendingControllers.clear();
+};
 
 const normalizePosterUrl = (url = "") => {
   const trimmed = (url || "").trim();
@@ -89,6 +124,8 @@ export const getKKphimSingle = (page = 1, extraParams = {}) =>
   fetchList("/danh-sach/phim-le", page, extraParams);
 export const getKKphimChieuRap = (page = 1, extraParams = {}) =>
   fetchList("/danh-sach/phim-chieu-rap", page, extraParams);
+export const getKKphimHoatHinh = (page = 1, extraParams = {}) =>
+  fetchList("/danh-sach/hoat-hinh", page, extraParams);
 
 export const getKKphimDetail = async (slug, options = {}) => {
   const { data } = await kkphim.get(`/phim/${slug}`, {

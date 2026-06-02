@@ -113,16 +113,18 @@ export const useHlsHandler = (source, isHls) => {
 
     const config = {
       // ── FORWARD BUFFER ──
-      // Keep buffer sizes optimal. Over-buffering causes massive memory usage
-      // and continuous background decoding that stutters the active playback.
-      maxBufferLength: isMobile ? 30 : 60,
-      maxMaxBufferLength: isMobile ? 120 : 300,
-      maxBufferSize: isMobile ? 60_000_000 : 150_000_000, // 60MB / 150MB
+      // Conservative buffer sizes to prevent network queue congestion.
+      // Over-buffering causes dozens of concurrent .ts requests, which
+      // overwhelm the browser's connection pool and get mass-cancelled.
+      maxBufferLength: isMobile ? 15 : 30,
+      maxMaxBufferLength: isMobile ? 60 : 120,
+      maxBufferSize: isMobile ? 30_000_000 : 60_000_000, // 30MB / 60MB
 
       // ── BACK BUFFER ──
-      // Using Infinity ensures that previously played segments are cached in memory.
-      // This allows instant backward seeking (ArrowLeft) without triggers for network re-fetch.
-      backBufferLength: isMobile ? 120 : Infinity,
+      // Keep 2 minutes of played video in memory for instant backward seeking.
+      // NEVER use Infinity — it causes unbounded memory growth that triggers
+      // browser garbage collection, which mass-cancels pending network requests.
+      backBufferLength: isMobile ? 120 : 300,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
@@ -143,9 +145,9 @@ export const useHlsHandler = (source, isHls) => {
       testBandwidth: true,
 
       // ── LOADING — minimal timeouts for fast failure detection ──
-      fragLoadingTimeOut: 20000,
-      fragLoadingMaxRetry: 4,
-      fragLoadingRetryDelay: 1000,
+      fragLoadingTimeOut: 15000,
+      fragLoadingMaxRetry: 3,
+      fragLoadingRetryDelay: 1500,
       fragLoadingMaxRetryTimeout: 16000,
       manifestLoadingTimeOut: 10000,
       manifestLoadingMaxRetry: 3,
@@ -179,8 +181,8 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── EARLY PLAYBACK TRIGGER ──
       // Reduce how much buffer hls.js requires before un-stalling playback.
-      maxStarvationDelay: 2,        // start playing when 2s buffered (default: 4)
-      highBufferWatchdogPeriod: 1,  // check buffer health every 1s (default: 3)
+      maxStarvationDelay: 4,        // default: wait for 4s buffer before playing (prevents re-stall)
+      highBufferWatchdogPeriod: 2,  // check buffer health every 2s (default: 3)
       liveSyncDurationCount: 3,     // keep sync in live streams
     };
 

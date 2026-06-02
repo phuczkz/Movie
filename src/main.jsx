@@ -38,7 +38,8 @@ const queryClient = new QueryClient({
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
-      retry: 2,
+      retry: 1,              // Reduced from 2 — less request spam on slow networks
+      networkMode: 'online', // Only fetch when browser is online
     },
   },
 });

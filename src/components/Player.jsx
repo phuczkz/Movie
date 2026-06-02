@@ -440,6 +440,7 @@ const Player = ({
                     hlsInstanceRef.current = null;
                     setTimeout(() => {
                       if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
+                        reportPlaybackIssue("network-timeout");
                         artInstanceRef.current.switchUrl(url, posterUrl);
                       }
                     }, 1000);
@@ -762,10 +763,16 @@ const Player = ({
 
   useEffect(() => {
     playbackIssueReportedRef.current = false;
-    lastPositionRef.current =
-      typeof initialTime === "number" && Number.isFinite(initialTime)
-        ? initialTime
-        : 0;
+    // Khi source thay đổi (chuyển server/nguồn), giữ nguyên thời gian đang xem hiện tại
+    const currentVidTime = artInstanceRef.current?.video?.currentTime;
+    if (currentVidTime > 0) {
+      lastPositionRef.current = currentVidTime;
+    } else {
+      lastPositionRef.current =
+        typeof initialTime === "number" && Number.isFinite(initialTime)
+          ? initialTime
+          : 0;
+    }
   }, [source, initialTime]);
 
   // Seamless source/poster switching

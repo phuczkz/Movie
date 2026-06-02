@@ -1,7 +1,6 @@
 import client from "./client";
 import {
   getTmdbDetailBySlug,
-  getTmdbByGenre,
   searchTmdbPerson,
   getTmdbPersonCredits,
   getTmdbFullEpisodes,
@@ -351,12 +350,17 @@ export const getOphimChieuRap = (page = 1, extraParams = {}) =>
     return mapOrFallback(unwrapItems(data));
   }, []);
 
+export const getOphimHoatHinh = (page = 1, extraParams = {}) =>
+  withFallback(async () => {
+    const { data } = await client.get("/danh-sach/hoat-hinh", {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
+
 export const getCategory = (category, page = 1, extraParams = {}) =>
   withFallback(async () => {
-    // TMDB Animation category integration
-    if (category === "hoat-hinh") {
-      return getTmdbByGenre(16, page, extraParams);
-    }
+
     if (category === "phim-thuyet-minh") {
       const { data } = await client.get("/danh-sach/phim-thuyet-minh", {
         params: { page, ...extraParams },

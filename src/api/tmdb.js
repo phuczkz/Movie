@@ -198,37 +198,6 @@ export const getTmdbCredits = async (id, mediaType = "movie") => {
     return [];
   }
 };
-export const getTmdbByGenre = async (genreId, page = 1, extraParams = {}) => {
-  const params = {
-    with_genres: genreId,
-    page,
-    sort_by: "popularity.desc",
-    "vote_count.gte": 50, // Ensure some level of quality/popularity
-  };
-
-  if (extraParams.country) {
-    const tmdbCountry = {
-      "viet-nam": "VN",
-      "han-quoc": "KR",
-      "nhat-ban": "JP",
-      "trung-quoc": "CN",
-      my: "US",
-      anh: "GB",
-      "thai-lan": "TH",
-    }[extraParams.country];
-
-    if (tmdbCountry) {
-      params.with_origin_country = tmdbCountry;
-    }
-  }
-
-  const { data } = await tmdb.get("discover/movie", { params });
-  return (
-    filterAdultMovies(
-      data?.results?.map((r) => normalizeTmdbMovie(r, "movie"))
-    ) || []
-  );
-};
 export const searchTmdbPerson = async (query) => {
   if (!query) return null;
   try {

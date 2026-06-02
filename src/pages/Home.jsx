@@ -8,6 +8,7 @@ import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
+import { useHoatHinhMerged } from "../hooks/useHoatHinhMerged.js";
 import LoginBanner from "../components/LoginBanner.jsx";
 import TrendingSection from "../components/TrendingSection.jsx";
 
@@ -129,11 +130,10 @@ const Home = () => {
     enabled: true,
     ...commonQueryOpts,
   });
-  const { data: anime = [], isLoading: loadingAnime } = useMoviesList(
-    undefined,
-    "hoat-hinh",
-    { enabled: showAnime, ...commonQueryOpts }
-  );
+  const { data: anime = [], isLoading: loadingAnime } = useHoatHinhMerged(1, {
+    enabled: showAnime,
+    ...commonQueryOpts,
+  });
   const { data: series = [], isLoading: loadingSeries } = useMoviesList(
     "series",
     undefined,
