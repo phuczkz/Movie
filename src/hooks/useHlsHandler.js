@@ -146,9 +146,9 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── LOADING — minimal timeouts for fast failure detection ──
       fragLoadingTimeOut: 15000,
-      fragLoadingMaxRetry: 3,
-      fragLoadingRetryDelay: 1500,
-      fragLoadingMaxRetryTimeout: 16000,
+      fragLoadingMaxRetry: 5,
+      fragLoadingRetryDelay: 1000,
+      fragLoadingMaxRetryTimeout: 20000,
       manifestLoadingTimeOut: 10000,
       manifestLoadingMaxRetry: 3,
       levelLoadingTimeOut: 10000,
@@ -157,10 +157,9 @@ export const useHlsHandler = (source, isHls) => {
       // ── PERFORMANCE CORE ──
       enableWorker: true,
       lowLatencyMode: false,
-      // progressive: false — Fetch the complete segment before appending to the SourceBuffer.
-      // This avoids sending partial segments (partial GOPs) to the hardware decoder,
-      // which is the root cause of video frames freezing while audio continues during continuous seeking.
-      progressive: false,
+      // progressive: true — Fetch and append data to SourceBuffer incrementally.
+      // This is the default and provides optimal buffering performance on most networks.
+      progressive: true,
       startFragPrefetch: true,
       stretchShortVideoTrack: true,
 

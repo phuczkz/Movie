@@ -50,9 +50,46 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
   while (i < lines.length) {
     const line = lines[i].trim();
 
+    // ── Check if we are entering a discontinuity block ──
+    if (line === "#EXT-X-DISCONTINUITY") {
+      let nextDiscontinuityIndex = -1;
+      let hasOnlyAdsInBlock = true;
+      let hasSegmentsInBlock = false;
+      let blockDuration = 0;
+
+      for (let k = i + 1; k < lines.length; k++) {
+        const l = lines[k].trim();
+        if (l === "#EXT-X-DISCONTINUITY") {
+          nextDiscontinuityIndex = k;
+          break;
+        }
+        if (l.startsWith("#EXTINF")) {
+          hasSegmentsInBlock = true;
+          const durationMatch = l.match(/#EXTINF:([\d.]+)/);
+          blockDuration += durationMatch ? parseFloat(durationMatch[1]) : 0;
+        } else if (l && !l.startsWith("#")) {
+          if (!isAdSegment(l)) {
+            hasOnlyAdsInBlock = false;
+          }
+        }
+      }
+
+      // If the block contains only ads and we are allowed to cut them, skip the entire block
+      if (
+        nextDiscontinuityIndex !== -1 &&
+        hasSegmentsInBlock &&
+        hasOnlyAdsInBlock &&
+        (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60)
+      ) {
+        i = nextDiscontinuityIndex + 1;
+        accumulatedTime += blockDuration;
+        adsRemoved++;
+        continue;
+      }
+    }
+
     // ── Skip #EXT-X-KEY:METHOD=NONE (injected before ad blocks) ──
     if (line === "#EXT-X-KEY:METHOD=NONE") {
-      // Allow cutting if before 2 mins (early ads) or after 13 mins (late ads)
       if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
         i++;
         continue;
@@ -66,13 +103,7 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
 
       const nextLine = (lines[i + 1] || "").trim();
       if (nextLine && isAdSegment(nextLine)) {
-        // User requested: only cut video ads from minute 14 onwards.
-        // The segment around 2m57s contains movie footage with an ad title overlay,
-        // so we keep it to avoid skipping movie content.
-        // UPDATE: The user reported gambling ads at the very beginning (e.g. 28s).
-        // So we now cut ads if they are in the first 2 minutes OR after 13 minutes.
         if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
-          // Skip both the #EXTINF and the ad segment URL
           adsRemoved++;
           i += 2;
           accumulatedTime += segmentDuration;

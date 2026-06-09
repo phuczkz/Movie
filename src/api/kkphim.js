@@ -111,7 +111,12 @@ const uniqueBySlug = (items = []) => {
 };
 
 const fetchList = async (path, page = 1, extraParams = {}) => {
-  const { data } = await kkphim.get(path, { params: { page, ...extraParams } });
+  const config = { params: { page, ...extraParams } };
+  if (path === "/danh-sach/phim-moi-cap-nhat") {
+    // This endpoint is hosted directly under phimapi.com without the /v1/api prefix
+    config.baseURL = "https://phimapi.com";
+  }
+  const { data } = await kkphim.get(path, config);
   const items = data?.data?.items || data?.items || [];
   return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };

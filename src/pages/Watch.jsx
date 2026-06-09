@@ -93,6 +93,7 @@ const Watch = () => {
   const initialTime = location.state?.initialTime || 0;
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const lastSaveRef = useRef(0);
+  const failedProvidersRef = useRef(new Set());
   const [deferLoad, setDeferLoad] = useState(false);
   const [mobileTab, setMobileTab] = useState("episodes");
 
@@ -221,6 +222,7 @@ const Watch = () => {
   if (playbackScopeKey !== prevScopeKeyRef.current) {
     prevScopeKeyRef.current = playbackScopeKey;
     setUseEmbedFallback(false);
+    failedProvidersRef.current.clear();
   }
 
   const availableProviders = Object.entries(episodeProviders).flatMap(([k, v]) => v?.link ? [k] : []);
@@ -238,9 +240,11 @@ const Watch = () => {
     if (provider === "auto") {
       nextParams.delete("provider");
       setAutoProviderState({ key: playbackScopeKey, provider: null, notice: "" });
+      failedProvidersRef.current.clear();
     } else {
       nextParams.set("provider", provider);
       setAutoProviderState({ key: playbackScopeKey, provider: null, notice: "" });
+      failedProvidersRef.current.delete(provider);
     }
     setParams(nextParams, { replace: true });
   }, [params, playbackScopeKey, setParams, setAutoProviderState]);
@@ -248,23 +252,28 @@ const Watch = () => {
   const handlePlaybackIssue = useCallback((reason) => {
     if (!activeProvider) return;
     
-    // Tìm nguồn khác
-    const fallbackProvider = availableProviders.find(p => p !== activeProvider && episodeProviders[p]?.link);
+    // Mark the current provider as failed
+    failedProvidersRef.current.add(activeProvider);
+    
+    // Find another provider that hasn't failed yet
+    const fallbackProvider = availableProviders.find(
+      p => p !== activeProvider && !failedProvidersRef.current.has(p) && episodeProviders[p]?.link
+    );
 
-    // Nếu người dùng đang chọn cứng URL param, ta xoá nó đi để auto-provider hoạt động
-    if (selectedProviderParam && fallbackProvider) {
+    // If there's a fallback provider, update URL/params accordingly
+    if (fallbackProvider) {
       const nextParams = new URLSearchParams(params);
-      nextParams.delete("provider");
+      nextParams.delete("provider"); // Remove hardcoded provider param to let auto-provider switch
       setParams(nextParams, { replace: true });
     }
 
     setAutoProviderState((prev) => {
-      // Đã có thông báo hoặc đang chuyển đổi thì thôi
+      // If we already have a notice for this specific playback scope, skip updating to avoid UI flickering
       if (prev.key === playbackScopeKey && prev.notice) return prev;
       
       const isDeadSource = ["manifest-error", "fatal-hls", "network-error", "network-timeout"].includes(reason);
       
-      // Nếu có nguồn dự phòng, tự động chuyển luôn
+      // If a working fallback provider is found
       if (fallbackProvider) {
         return { 
           key: playbackScopeKey, 
@@ -273,7 +282,7 @@ const Watch = () => {
         };
       }
       
-      // Nếu không có nguồn dự phòng nhưng có link embed (iframe)
+      // If all main sources failed, try embed fallback iframe
       if (isDeadSource && activeEpisode?.link_embed && !useEmbedFallback) {
         setUseEmbedFallback(true);
         return { 
@@ -283,7 +292,7 @@ const Watch = () => {
         };
       }
       
-      // Nếu không có gì để fallback
+      // Absolutely no sources work
       return { 
         key: playbackScopeKey, 
         provider: prev.provider || null, 
