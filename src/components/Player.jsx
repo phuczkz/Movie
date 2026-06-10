@@ -76,6 +76,17 @@ const Player = ({
     onToggleTheaterRef.current = onToggleTheater;
   }, [onToggleTheater]);
 
+  const effectiveSource = useMemo(() => {
+    const streamProxy = import.meta.env.VITE_STREAM_PROXY;
+    if (source && streamProxy && !source.includes("iframe") && !source.includes("embed")) {
+      const cleanProxy = streamProxy.trim().replace(/\/$/, "");
+      if (!source.includes(cleanProxy)) {
+        return `${cleanProxy}/?url=${encodeURIComponent(source)}`;
+      }
+    }
+    return source;
+  }, [source]);
+
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
     [source]
@@ -91,7 +102,7 @@ const Player = ({
     }
   }, [source]);
 
-  const { Hls, hlsConfig } = useHlsHandler(source, isHls);
+  const { Hls, hlsConfig } = useHlsHandler(effectiveSource, isHls);
 
   const hlsConfigRef = useRef(hlsConfig);
   hlsConfigRef.current = hlsConfig;
@@ -291,6 +302,12 @@ const Player = ({
                   reportPlaybackIssue("network-timeout");
                   networkRecoveryAttempts = 0;
                   hls.loadSource(url);
+                  hls.attachMedia(videoEl);
+                  const currentPos = videoEl.currentTime;
+                  if (currentPos > 0) {
+                    videoEl.currentTime = currentPos;
+                  }
+                  videoEl.play().catch(() => {});
                 }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
@@ -319,9 +336,13 @@ const Player = ({
                 console.error("[Player] Fatal HLS error, attempting full reload of stream...");
                 hls.destroy();
                 hlsInstanceRef.current = null;
-                // Wait 2s and reload the exact URL that had the error
+                // Wait 2s and reload the exact URL that had the error, preserving playhead
                 setTimeout(() => {
                   if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
+                    const currentPos = artInstanceRef.current.video.currentTime;
+                    if (currentPos > 0) {
+                      lastPositionRef.current = currentPos;
+                    }
                     artInstanceRef.current.switchUrl(url, posterUrl);
                   }
                 }, 2000);
@@ -459,7 +480,7 @@ const Player = ({
 
     const option = {
       container: artRef.current,
-      url: source || "",
+      url: effectiveSource || "",
       type: isHls ? "m3u8" : undefined,
       volume: 1,
       autoplay: false,
@@ -726,12 +747,12 @@ const Player = ({
 
   // Seamless source/poster switching
   useEffect(() => {
-    if (artInstanceRef.current && source && !canUseIframe) {
+    if (artInstanceRef.current && effectiveSource && !canUseIframe) {
       // Avoid redundant switches if the URL is the same
-      if (artInstanceRef.current.url === source) return;
-      artInstanceRef.current.switchUrl(source, posterUrl);
+      if (artInstanceRef.current.url === effectiveSource) return;
+      artInstanceRef.current.switchUrl(effectiveSource, posterUrl);
     }
-  }, [source, posterUrl, canUseIframe]);
+  }, [effectiveSource, posterUrl, canUseIframe]);
 
   // Update dynamic UI elements (header, next episode overlay, tooltips, control visibility)
   useEffect(() => {

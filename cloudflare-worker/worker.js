@@ -26,8 +26,17 @@ const CORS_HEADERS = {
  * Chuyển tất cả URL tương đối trong m3u8 thành URL tuyệt đối.
  * Điều này quan trọng để HLS.js loader có thể wrap chúng qua proxy.
  */
-function absolutizeM3u8(content, baseUrl) {
+function absolutizeM3u8(content, baseUrl, requestUrl) {
   if (!content || typeof content !== "string") return content;
+
+  let workerOrigin = "";
+  if (requestUrl) {
+    try {
+      workerOrigin = new URL(requestUrl).origin;
+    } catch {
+      // ignore
+    }
+  }
 
   try {
     new URL(".", baseUrl);
@@ -47,11 +56,12 @@ function absolutizeM3u8(content, baseUrl) {
       if (trimmed.startsWith("#")) {
         if (trimmed.includes('URI="')) {
           return trimmed.replace(/URI="([^"]+)"/g, (match, uri) => {
-            if (uri.startsWith("http://") || uri.startsWith("https://"))
-              return match;
+            if (uri.startsWith("http://") || uri.startsWith("https://")) {
+              return workerOrigin ? `URI="${workerOrigin}/?url=${encodeURIComponent(uri)}"` : match;
+            }
             try {
               const absolute = new URL(uri, baseUrl).href;
-              return `URI="${absolute}"`;
+              return workerOrigin ? `URI="${workerOrigin}/?url=${encodeURIComponent(absolute)}"` : `URI="${absolute}"`;
             } catch {
               return match;
             }
@@ -60,13 +70,14 @@ function absolutizeM3u8(content, baseUrl) {
         return line;
       }
 
-      // Dòng URL — resolve thành absolute
+      // Dòng URL — resolve thành absolute và đi qua proxy
       if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        return line; // Đã absolute rồi
+        return workerOrigin ? `${workerOrigin}/?url=${encodeURIComponent(trimmed)}` : line;
       }
 
       try {
-        return new URL(trimmed, baseUrl).href;
+        const absolute = new URL(trimmed, baseUrl).href;
+        return workerOrigin ? `${workerOrigin}/?url=${encodeURIComponent(absolute)}` : absolute;
       } catch {
         return line;
       }
@@ -277,7 +288,7 @@ export default {
         responseHeaders.set("Cache-Control", "no-cache");
 
         const text = await upstream.text();
-        const rewritten = absolutizeM3u8(text, targetUrl);
+        const rewritten = absolutizeM3u8(text, targetUrl, request.url);
 
         return new Response(rewritten, {
           status: upstream.status,
