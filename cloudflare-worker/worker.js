@@ -88,7 +88,26 @@ function absolutizeM3u8(content, baseUrl, requestUrl) {
 // ===================== Main Handler =====================
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
+    // Only cache GET requests
+    const isGet = request.method === "GET";
+    const cache = caches.default;
+
+    if (isGet) {
+      const cachedResponse = await cache.match(request);
+      if (cachedResponse) {
+        const headers = new Headers(cachedResponse.headers);
+        for (const [key, value] of Object.entries(CORS_HEADERS)) {
+          headers.set(key, value);
+        }
+        return new Response(cachedResponse.body, {
+          status: cachedResponse.status,
+          statusText: cachedResponse.statusText,
+          headers,
+        });
+      }
+    }
+
     // CORS preflight
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -313,10 +332,16 @@ export default {
         responseHeaders.set("Cache-Control", "public, max-age=86400");
       }
 
-      return new Response(upstream.body, {
+      const responseToReturn = new Response(upstream.body, {
         status: upstream.status,
         headers: responseHeaders,
       });
+
+      if (isGet && (upstream.status === 200 || upstream.status === 206) && (targetUrl.includes(".ts") || targetUrl.includes(".m4s"))) {
+        ctx.waitUntil(cache.put(request, responseToReturn.clone()));
+      }
+
+      return responseToReturn;
     } catch (err) {
       return new Response(
         JSON.stringify({ error: `Proxy error: ${err.message}` }),

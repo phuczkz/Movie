@@ -144,8 +144,8 @@ export const useHlsHandler = (source, isHls) => {
       abrBandWidthUpFactor: 0.7,
       testBandwidth: true,
 
-      // ── LOADING — minimal timeouts for fast failure detection ──
-      fragLoadingTimeOut: 15000,
+      // ── LOADING — balanced timeouts for stable failure recovery ──
+      fragLoadingTimeOut: 10000,
       fragLoadingMaxRetry: 5,
       fragLoadingRetryDelay: 1000,
       fragLoadingMaxRetryTimeout: 20000,
