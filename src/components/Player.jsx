@@ -333,7 +333,6 @@ const Player = ({
           let lastTotalFrames = 0;
           let lastCheckRealTime = 0;
           let desyncFreezeStartTime = 0;
-          let bufferingStartTime = 0;
 
           if (videoEl && videoEl._desyncWatchdog) {
             clearInterval(videoEl._desyncWatchdog);
@@ -347,7 +346,6 @@ const Player = ({
               videoEl.seeking
             ) {
               desyncFreezeStartTime = 0;
-              bufferingStartTime = 0;
               return;
             }
 
@@ -388,7 +386,6 @@ const Player = ({
                 );
                 
                 desyncFreezeStartTime = 0;
-                bufferingStartTime = 0;
                 
                 if (hlsInstanceRef.current) {
                   if (desyncRecoveryAttempts <= 1) {
@@ -421,53 +418,9 @@ const Player = ({
             }
 
             // 2. Detect Stuck Buffer (Neither audio nor video advancing, stuck loading)
-            if (Math.abs(timeDelta) < 0.05) {
-              if (bufferingStartTime === 0) {
-                bufferingStartTime = now;
-              } else {
-                const stuckDuration = now - bufferingStartTime;
-                if (stuckDuration > 12000) {
-                  // Level 3: Stuck buffering for 12s - reload stream source completely
-                  console.error(
-                    `[Player] Stuck loading for 12s. Reloading HLS stream source...`
-                  );
-                  bufferingStartTime = now; // reset timer for next action
-                  
-                  if (hlsInstanceRef.current) {
-                    hlsInstanceRef.current.destroy();
-                    hlsInstanceRef.current = null;
-                    setTimeout(() => {
-                      if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
-                        reportPlaybackIssue("network-timeout");
-                        artInstanceRef.current.switchUrl(url, posterUrl);
-                      }
-                    }, 1000);
-                  } else {
-                    videoEl.currentTime = currentTime + 0.5;
-                  }
-                } else if (stuckDuration > 6000) {
-                  // Level 2: Stuck buffering for 6s - recover media error
-                  console.warn(
-                    `[Player] Stuck loading for 6s. Recovering media error...`
-                  );
-                  if (hlsInstanceRef.current) {
-                    hlsInstanceRef.current.recoverMediaError();
-                  } else {
-                    videoEl.currentTime = currentTime + 0.2;
-                  }
-                } else if (stuckDuration > 3000) {
-                  // Level 1: Stuck buffering for 3s - trigger startLoad
-                  console.warn(
-                    `[Player] Stuck loading for 3s. Triggering hls.startLoad()...`
-                  );
-                  if (hlsInstanceRef.current) {
-                    hlsInstanceRef.current.startLoad();
-                  }
-                }
-              }
-            } else {
-              bufferingStartTime = 0;
-            }
+            // Note: Removed custom stuck buffer watchdog because it interferes with normal initial buffering/loading
+            // and triggers premature reloads/error states, causing infinite loading loops. Hls.js native error
+            // handling and stall detection are sufficient.
 
             lastWatchdogTime = currentTime;
             lastTotalFrames = totalFrames;
@@ -483,7 +436,6 @@ const Player = ({
           // to start loading at the new playhead.
           const onSeeked = () => {
             desyncFreezeStartTime = 0;
-            bufferingStartTime = 0;
             lastCheckRealTime = 0;
 
             if (hlsInstanceRef.current) {

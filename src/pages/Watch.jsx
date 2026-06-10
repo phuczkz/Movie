@@ -219,9 +219,12 @@ const Watch = () => {
   const episodeProviders = buildEpisodeProviders(activeEpisode);
 
   const prevScopeKeyRef = useRef(playbackScopeKey);
-  if (playbackScopeKey !== prevScopeKeyRef.current) {
+  const prevProviderRef = useRef(selectedProviderParam);
+  if (playbackScopeKey !== prevScopeKeyRef.current || selectedProviderParam !== prevProviderRef.current) {
     prevScopeKeyRef.current = playbackScopeKey;
+    prevProviderRef.current = selectedProviderParam;
     setUseEmbedFallback(false);
+    // Clear failed providers when scope or selected provider changes to ensure a fresh start
     failedProvidersRef.current.clear();
   }
 
@@ -244,7 +247,8 @@ const Watch = () => {
     } else {
       nextParams.set("provider", provider);
       setAutoProviderState({ key: playbackScopeKey, provider: null, notice: "" });
-      failedProvidersRef.current.delete(provider);
+      // Clear all failed providers on manual switch to start fresh
+      failedProvidersRef.current.clear();
     }
     setParams(nextParams, { replace: true });
   }, [params, playbackScopeKey, setParams, setAutoProviderState]);
@@ -299,7 +303,7 @@ const Watch = () => {
         notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.` 
       };
     });
-  }, [selectedProviderParam, activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback, params, setParams]);
+  }, [activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback, params, setParams]);
 
   const handleServerChange = useCallback((serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);
