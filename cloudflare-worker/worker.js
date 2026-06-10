@@ -246,13 +246,25 @@ export default {
       }
 
       // ===== Attempt fetch with retry =====
-      // Strategy 1: Minimal headers (no Origin/Referer — look like a direct browser hit)
-      // Strategy 2: With Referer pointing to a known embedder
-      const strategies = [
-        { ...fetchHeaders },
-        { ...fetchHeaders, Referer: "https://ophim.cc/", Origin: "https://ophim.cc" },
-        { ...fetchHeaders, Referer: parsedTarget.origin + "/", Origin: parsedTarget.origin },
-      ];
+      // Prioritize the matching referer/origin headers based on target URL domain to bypass trial-and-error latency
+      const lowerUrl = targetUrl.toLowerCase();
+      const strategies = [];
+
+      if (lowerUrl.includes("opstream.me") || lowerUrl.includes("1080p.com") || lowerUrl.includes("ophim")) {
+        strategies.push({ ...fetchHeaders, Referer: "https://ophim.cc/", Origin: "https://ophim.cc" });
+        strategies.push({ ...fetchHeaders });
+        strategies.push({ ...fetchHeaders, Referer: parsedTarget.origin + "/", Origin: parsedTarget.origin });
+      } else if (lowerUrl.includes("sotrim.xyz") || lowerUrl.includes("phimapi.com") || lowerUrl.includes("kkphim")) {
+        strategies.push({ ...fetchHeaders, Referer: "https://kkphim.vip/", Origin: "https://kkphim.vip" });
+        strategies.push({ ...fetchHeaders });
+        strategies.push({ ...fetchHeaders, Referer: parsedTarget.origin + "/", Origin: parsedTarget.origin });
+      } else {
+        strategies.push({ ...fetchHeaders });
+        strategies.push({ ...fetchHeaders, Referer: "https://ophim.cc/", Origin: "https://ophim.cc" });
+        strategies.push({ ...fetchHeaders, Referer: "https://kkphim.vip/", Origin: "https://kkphim.vip" });
+        strategies.push({ ...fetchHeaders, Referer: parsedTarget.origin + "/", Origin: parsedTarget.origin });
+      }
+
 
       let upstream = null;
       let lastStatus = 0;
@@ -298,21 +310,27 @@ export default {
 
       const responseHeaders = new Headers(CORS_HEADERS);
 
-      // ===== M3U8 playlist: absolutize URLs =====
+      // ===== M3U8 playlist: absolutize URLs and cache rewritten responses =====
       if (isM3u8) {
         responseHeaders.set(
           "Content-Type",
           "application/vnd.apple.mpegurl; charset=utf-8"
         );
-        responseHeaders.set("Cache-Control", "no-cache");
+        responseHeaders.set("Cache-Control", "public, max-age=600"); // Cache for 10 minutes
 
         const text = await upstream.text();
         const rewritten = absolutizeM3u8(text, targetUrl, request.url);
 
-        return new Response(rewritten, {
+        const responseToReturn = new Response(rewritten, {
           status: upstream.status,
           headers: responseHeaders,
         });
+
+        if (isGet && upstream.status === 200) {
+          ctx.waitUntil(cache.put(request, responseToReturn.clone()));
+        }
+
+        return responseToReturn;
       }
 
       // ===== Binary content (ts segments, encryption keys, etc.) =====

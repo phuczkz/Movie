@@ -116,22 +116,22 @@ export const useHlsHandler = (source, isHls) => {
       // Conservative buffer sizes to prevent network queue congestion.
       // Optimized: Reduced to 10s (mobile) / 15s (desktop) to avoid loading too many
       // heavy segments in parallel, which would congest the connection pool.
-      maxBufferLength: isMobile ? 10 : 15,
-      maxMaxBufferLength: isMobile ? 20 : 30,
-      maxBufferSize: isMobile ? 10_000_000 : 20_000_000, // 10MB / 20MB
+    maxBufferLength: isMobile ? 15 : 30,
+    maxMaxBufferLength: isMobile ? 30 : 60,
+    maxBufferSize: isMobile ? 30_000_000 : 60_000_000,
 
       // ── BACK BUFFER ──
       // Keep 2 minutes of played video in memory for instant backward seeking.
       // NEVER use Infinity — it causes unbounded memory growth that triggers
       // browser garbage collection, which mass-cancels pending network requests.
-      backBufferLength: isMobile ? 120 : 300,
+      backBufferLength: isMobile ? 90 : 180,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
       // timeline at discontinuity boundaries. These settings ensure hls.js
       // automatically skips over those gaps instead of freezing video.
       maxBufferHole: 1.0,          // skip gaps up to 1s (was 0.5 — too tight after ad removal)
-      nudgeMaxRetry: 8,            // more retries before giving up on stall recovery
+      nudgeMaxRetry: 8,            // more retries before giving up on stall recovery 
       nudgeOffset: 0.2,            // 200ms nudge per retry
       maxFragLookUpTolerance: 0.5, // wider tolerance for fragment matching after discontinuity
 

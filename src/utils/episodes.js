@@ -78,6 +78,8 @@ export const parseSeasonInfo = (name = "") => {
   // Patterns for seasons
   const seasonPatterns = [
     /(.*?)\s*\(?\s*phần\s*(\d+)\s*\)?/i,
+    /(.*?)\s*\(?\s*mùa\s*(\d+)\s*\)?/i,
+    /(.*?)\s*\(?\s*mua\s*(\d+)\s*\)?/i,
     /(.*?)\s*\(?\s*season\s*(\d+)\s*\)?/i,
     /(.*?)\s*\(?\s*ss\s*(\d+)\s*\)?/i,
     /(.*?)\s*\(?\s*part\s*(\d+)\s*\)?/i,
