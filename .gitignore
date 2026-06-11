@@ -34,3 +34,7 @@ dist-ssr
 .gemini/style_guide.md
 .github/copilot-instructions.md
 RULES.md
+
+# Cloudflare Wrangler
+.wrangler/
+cloudflare-worker/.wrangler/

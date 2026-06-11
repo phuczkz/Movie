@@ -1,318 +1,536 @@
 /**
  * Cloudflare Worker — Stream Proxy cho khophim.io.vn
  *
- * Proxy video HLS (.m3u8 + .ts segments) qua domain của bạn,
- * cho phép bypass firewall công ty chặn các CDN streaming.
- *
- * Cách hoạt động:
- *   GET /?url=https://cdn.example.com/video.m3u8
- *   → Worker fetch upstream, absolutize URLs trong m3u8, trả về cho client
+ * Proxy video HLS (.m3u8 + .ts segments) và TMDB API.
  */
 
-// ===================== CORS =====================
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://khophim.io.vn",
+  "https://www.khophim.io.vn",
+  "http://localhost:5173",
+  "https://hlsjs.video-dev.org",
+];
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Range",
-  "Access-Control-Expose-Headers":
-    "Content-Length, Content-Range, Content-Type",
-  "Access-Control-Max-Age": "86400",
-};
+const DEFAULT_ALLOWED_HOSTS = [
+  "kkphimplayer7.com",
+  "opstream11.com",
+];
 
-// ===================== M3U8 URL Resolution =====================
+function getListFromEnv(env, key, fallback = []) {
+  const value = env?.[key];
 
-/**
- * Chuyển tất cả URL tương đối trong m3u8 thành URL tuyệt đối.
- * Điều này quan trọng để HLS.js loader có thể wrap chúng qua proxy.
- */
-function absolutizeM3u8(content, baseUrl) {
-  if (!content || typeof content !== "string") return content;
+  if (!value || typeof value !== "string") {
+    return fallback;
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildCorsHeaders(request, env) {
+  const allowedOrigins = getListFromEnv(
+    env,
+    "ALLOWED_ORIGINS",
+    DEFAULT_ALLOWED_ORIGINS
+  );
+
+  const requestOrigin = request.headers.get("Origin");
+  let allowOrigin = allowedOrigins[0] || "*";
+
+  if (requestOrigin) {
+    if (allowedOrigins.includes(requestOrigin)) {
+      allowOrigin = requestOrigin;
+    } else {
+      // Auto-allow localhost and 127.0.0.1 with any port for local development convenience.
+      try {
+        const url = new URL(requestOrigin);
+        if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+          allowOrigin = requestOrigin;
+        }
+      } catch {}
+    }
+  }
+
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Range, Content-Type, Accept, Origin, If-None-Match, If-Modified-Since",
+    "Access-Control-Expose-Headers":
+      "Content-Length, Content-Range, Content-Type, Accept-Ranges, Cache-Control, ETag, Last-Modified",
+    "Access-Control-Max-Age": "86400",
+  };
+}
+
+function jsonResponse(data, status, corsHeaders) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function isAllowedHost(hostname, allowedHosts) {
+  if (!hostname || !Array.isArray(allowedHosts) || allowedHosts.length === 0) {
+    return false;
+  }
+
+  const normalizedHostname = hostname.toLowerCase();
+
+  return allowedHosts.some((host) => {
+    const normalizedHost = host.toLowerCase();
+    return (
+      normalizedHostname === normalizedHost ||
+      normalizedHostname.endsWith(`.${normalizedHost}`)
+    );
+  });
+}
+
+function isBlockedPrivateHost(hostname) {
+  const host = hostname.toLowerCase();
+
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.startsWith("127.") ||
+    host.startsWith("10.") ||
+    host.startsWith("192.168.") ||
+    host.startsWith("169.254.") ||
+    host === "::1" ||
+    host === "[::1]"
+  );
+}
+
+function buildUpstreamHeaders(request, targetUrl) {
+  const headers = new Headers();
+
+  // Forward standard client headers to keep the request as transparent and legitimate as possible.
+  const passHeaders = [
+    "Accept",
+    "Accept-Language",
+    "Range",
+    "If-None-Match",
+    "If-Modified-Since",
+  ];
+
+  for (const headerName of passHeaders) {
+    const value = request.headers.get(headerName);
+    if (value) {
+      headers.set(headerName, value);
+    }
+  }
+
+  // Explicitly override Referer and Origin to prevent Cloudflare Worker from forwarding the client's values automatically.
+  // We set Referer to the target URL's origin to make it look like a same-site request, which is universally allowed by CDNs.
+  try {
+    const targetOrigin = new URL(targetUrl).origin;
+    headers.set("Referer", targetOrigin + "/");
+    headers.set("Origin", targetOrigin);
+  } catch {
+    headers.set("Referer", "");
+    headers.set("Origin", "");
+  }
+
+  return headers;
+}
+
+function proxifyUrl(rawUrl, baseUrl, requestUrl) {
+  let workerOrigin = "";
 
   try {
-    new URL(".", baseUrl);
+    const parsedRequest = new URL(requestUrl);
+    // Force https for production domains to avoid Mixed Content issues on HTTPS players.
+    if (parsedRequest.hostname !== "localhost" && parsedRequest.hostname !== "127.0.0.1") {
+      parsedRequest.protocol = "https:";
+    }
+    workerOrigin = parsedRequest.origin;
   } catch {
+    return rawUrl;
+  }
+
+  try {
+    const absoluteUrl = new URL(rawUrl, baseUrl);
+
+    if (!["http:", "https:"].includes(absoluteUrl.protocol)) {
+      return rawUrl;
+    }
+
+    return `${workerOrigin}/?url=${encodeURIComponent(absoluteUrl.href)}`;
+  } catch {
+    return rawUrl;
+  }
+}
+
+function rewriteM3u8(content, baseUrl, requestUrl) {
+  if (!content || typeof content !== "string") {
     return content;
   }
 
-  const lines = content.split("\n");
-  return lines
+  return content
+    .split("\n")
     .map((line) => {
       const trimmed = line.trim();
 
-      // Bỏ qua dòng trống
-      if (!trimmed) return line;
-
-      // Xử lý URI= trong các tag HLS (EXT-X-KEY, EXT-X-MAP, etc.)
-      if (trimmed.startsWith("#")) {
-        if (trimmed.includes('URI="')) {
-          return trimmed.replace(/URI="([^"]+)"/g, (match, uri) => {
-            if (uri.startsWith("http://") || uri.startsWith("https://"))
-              return match;
-            try {
-              const absolute = new URL(uri, baseUrl).href;
-              return `URI="${absolute}"`;
-            } catch {
-              return match;
-            }
-          });
-        }
+      if (!trimmed) {
         return line;
       }
 
-      // Dòng URL — resolve thành absolute
-      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        return line; // Đã absolute rồi
+      if (trimmed.startsWith("#")) {
+        if (!trimmed.includes('URI="')) {
+          return line;
+        }
+
+        return line.replace(/URI="([^"]+)"/g, (match, uri) => {
+          try {
+            const absoluteUrl = new URL(uri, baseUrl);
+            if (isMediaSegment(absoluteUrl.pathname)) {
+              return `URI="${absoluteUrl.href}"`;
+            }
+          } catch {}
+          const proxied = proxifyUrl(uri, baseUrl, requestUrl);
+          return `URI="${proxied}"`;
+        });
       }
 
       try {
-        return new URL(trimmed, baseUrl).href;
-      } catch {
-        return line;
-      }
+        const absoluteUrl = new URL(trimmed, baseUrl);
+        if (isMediaSegment(absoluteUrl.pathname)) {
+          return absoluteUrl.href;
+        }
+      } catch {}
+
+      return proxifyUrl(trimmed, baseUrl, requestUrl);
     })
     .join("\n");
 }
 
-// ===================== Main Handler =====================
+function copySelectedUpstreamHeaders(upstream, corsHeaders) {
+  const headers = new Headers(corsHeaders);
+
+  const contentType = upstream.headers.get("Content-Type");
+  const contentLength = upstream.headers.get("Content-Length");
+  const contentRange = upstream.headers.get("Content-Range");
+  const acceptRanges = upstream.headers.get("Accept-Ranges");
+  const etag = upstream.headers.get("ETag");
+  const lastModified = upstream.headers.get("Last-Modified");
+  const contentDisposition = upstream.headers.get("Content-Disposition");
+
+  if (contentType) headers.set("Content-Type", contentType);
+  if (contentLength) headers.set("Content-Length", contentLength);
+  if (contentRange) headers.set("Content-Range", contentRange);
+  if (acceptRanges) headers.set("Accept-Ranges", acceptRanges);
+  if (etag) headers.set("ETag", etag);
+  if (lastModified) headers.set("Last-Modified", lastModified);
+  if (contentDisposition) {
+    headers.set("Content-Disposition", contentDisposition);
+  }
+
+  return headers;
+}
+
+function isMediaSegment(pathname) {
+  const path = pathname.toLowerCase();
+
+  return (
+    path.endsWith(".ts") ||
+    path.endsWith(".m4s") ||
+    path.endsWith(".mp4") ||
+    path.endsWith(".aac") ||
+    path.endsWith(".mp3") ||
+    path.endsWith(".vtt") ||
+    path.endsWith(".srt")
+  );
+}
+
+async function handleTmdb(request, env, corsHeaders) {
+  const url = new URL(request.url);
+  const tmdbPath = url.pathname.replace(/^\/tmdb\/?/, "");
+
+  if (!tmdbPath) {
+    return jsonResponse(
+      { error: "Missing TMDB path" },
+      400,
+      corsHeaders
+    );
+  }
+
+  const TMDB_KEY = env?.TMDB_API_KEY;
+
+  if (!TMDB_KEY) {
+    return jsonResponse(
+      { error: "TMDB_API_KEY not configured on worker" },
+      500,
+      corsHeaders
+    );
+  }
+
+  const tmdbUrl = new URL(`https://api.themoviedb.org/3/${tmdbPath}`);
+
+  url.searchParams.forEach((value, key) => {
+    if (key !== "api_key") {
+      tmdbUrl.searchParams.set(key, value);
+    }
+  });
+
+  tmdbUrl.searchParams.set("api_key", TMDB_KEY);
+
+  try {
+    const tmdbRes = await fetch(tmdbUrl.toString(), {
+      method: request.method,
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    const headers = new Headers(corsHeaders);
+    headers.set("Content-Type", "application/json; charset=utf-8");
+    headers.set("Cache-Control", "public, max-age=300");
+
+    if (request.method === "HEAD") {
+      return new Response(null, {
+        status: tmdbRes.status,
+        headers,
+      });
+    }
+
+    return new Response(tmdbRes.body, {
+      status: tmdbRes.status,
+      headers,
+    });
+  } catch {
+    return jsonResponse(
+      { error: "TMDB proxy failed" },
+      502,
+      corsHeaders
+    );
+  }
+}
 
 export default {
-  async fetch(request, env) {
-    // CORS preflight
+  async fetch(request, env, ctx) {
+    const corsHeaders = buildCorsHeaders(request, env);
+
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders,
+      });
     }
 
-    const jsonHeaders = {
-      ...CORS_HEADERS,
-      "Content-Type": "application/json; charset=utf-8",
-    };
-
-    // Chỉ cho phép GET/HEAD
     if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: jsonHeaders,
-      });
+      return jsonResponse(
+        { error: "Method not allowed" },
+        405,
+        corsHeaders
+      );
     }
 
-    const url = new URL(request.url);
+    const requestUrl = new URL(request.url);
 
-    // ===================== TMDB API Proxy =====================
-    // Logic: https://your-worker.com/tmdb/movie/popular -> https://api.themoviedb.org/3/movie/popular?api_key=...
-    const pathname = url.pathname;
-    if (pathname.includes("/tmdb")) {
-      // Extract the part after /tmdb (e.g., /tmdb/movie/popular -> movie/popular)
-      const parts = pathname.split("/tmdb");
-      const tmdbPath = (parts[1] || "").replace(/^\//, "");
-      const tmdbUrl = new URL(`https://api.themoviedb.org/3/${tmdbPath}`);
-
-      // Copy all query params from the client request
-      url.searchParams.forEach((value, key) => {
-        tmdbUrl.searchParams.set(key, value);
-      });
-
-      // Attach the secret API Key from environment variables
-      const TMDB_KEY = env.TMDB_API_KEY;
-      if (!TMDB_KEY) {
-        return new Response(
-          JSON.stringify({ error: "TMDB_API_KEY not configured on worker" }),
-          { status: 500, headers: jsonHeaders }
-        );
-      }
-      tmdbUrl.searchParams.set("api_key", TMDB_KEY);
-
-      const tmdbRes = await fetch(tmdbUrl.toString());
-      const tmdbData = await tmdbRes.arrayBuffer();
-
-      const responseHeaders = new Headers(CORS_HEADERS);
-      responseHeaders.set("Content-Type", "application/json; charset=utf-8");
-      
-      return new Response(tmdbData, {
-        status: tmdbRes.status,
-        headers: responseHeaders,
-      });
+    if (requestUrl.pathname.startsWith("/tmdb")) {
+      return handleTmdb(request, env, corsHeaders);
     }
 
-    const targetUrl = url.searchParams.get("url");
+    const targetUrl = requestUrl.searchParams.get("url");
 
-
-    // Health check endpoint
-    if (!targetUrl && url.pathname === "/") {
-      return new Response(
-        JSON.stringify({ status: "ok", service: "stream-proxy" }),
+    if (!targetUrl && requestUrl.pathname === "/") {
+      return jsonResponse(
         {
-          status: 200,
-          headers: jsonHeaders,
-        }
+          status: "ok",
+          service: "stream-proxy",
+        },
+        200,
+        corsHeaders
       );
     }
 
     if (!targetUrl) {
-      return new Response(
-        JSON.stringify({ error: "Missing ?url= parameter" }),
-        {
-          status: 400,
-          headers: jsonHeaders,
-        }
+      return jsonResponse(
+        { error: "Missing ?url= parameter" },
+        400,
+        corsHeaders
       );
     }
 
-    // Validate URL
     let parsedTarget;
+
     try {
       parsedTarget = new URL(targetUrl);
+
       if (!["http:", "https:"].includes(parsedTarget.protocol)) {
         throw new Error("Invalid protocol");
       }
     } catch {
-      return new Response(JSON.stringify({ error: "Invalid URL" }), {
-        status: 400,
-        headers: jsonHeaders,
-      });
+      return jsonResponse(
+        { error: "Invalid URL" },
+        400,
+        corsHeaders
+      );
+    }
+
+    if (isBlockedPrivateHost(parsedTarget.hostname)) {
+      return jsonResponse(
+        { error: "Blocked private host" },
+        403,
+        corsHeaders
+      );
+    }
+
+    const allowedHosts = getListFromEnv(
+      env,
+      "ALLOWED_HOSTS",
+      DEFAULT_ALLOWED_HOSTS
+    );
+
+    const allowAllHosts = env?.ALLOW_ALL_HOSTS !== "false";
+
+    if (!allowAllHosts && !isAllowedHost(parsedTarget.hostname, allowedHosts)) {
+      return jsonResponse(
+        {
+          error:
+            "Host not allowed. Configure ALLOWED_HOSTS in Worker variables.",
+        },
+        403,
+        corsHeaders
+      );
+    }
+
+    const hasRange = request.headers.has("Range");
+    const isGet = request.method === "GET";
+    const cache = caches.default;
+    const cacheKey = new Request(request.url, {
+      method: "GET",
+    });
+
+    if (isGet && !hasRange) {
+      const cachedResponse = await cache.match(cacheKey);
+
+      if (cachedResponse) {
+        const headers = new Headers(cachedResponse.headers);
+
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          headers.set(key, value);
+        });
+
+        return new Response(cachedResponse.body, {
+          status: cachedResponse.status,
+          statusText: cachedResponse.statusText,
+          headers,
+        });
+      }
     }
 
     try {
-      // ===== User-Agent rotation =====
-      const USER_AGENTS = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-      ];
-      const randomUA = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+      const upstreamHeaders = buildUpstreamHeaders(request, targetUrl);
 
-      // ===== Generate random Vietnamese residential IP =====
-      // Common VN ISP IP ranges (Viettel, FPT, VNPT)
-      const VN_IP_PREFIXES = [
-        "113.160", "113.161", "113.185", "14.160", "14.161",
-        "14.162", "14.176", "14.177", "27.64", "27.65",
-        "42.112", "42.113", "42.114", "42.115", "42.116",
-        "42.117", "42.118", "42.119", "58.186", "58.187",
-        "171.224", "171.225", "171.226", "171.250", "171.251",
-        "183.80", "183.81", "115.73", "115.74", "115.75",
-      ];
-      const prefix = VN_IP_PREFIXES[Math.floor(Math.random() * VN_IP_PREFIXES.length)];
-      const randomIP = `${prefix}.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}`;
+      const upstream = await fetch(targetUrl, {
+        method: request.method,
+        headers: upstreamHeaders,
+        redirect: "follow",
+      });
 
-      // ===== Build fetch headers =====
-      // Important: Do NOT mirror the target's own origin as Referer/Origin.
-      // Many CDNs detect this pattern as a proxy/leech and respond with 403/404.
-      // Instead, use a common Vietnamese movie site or omit them entirely.
-      const fetchHeaders = {
-        "User-Agent": request.headers.get("User-Agent") || randomUA,
-        Accept: "*/*",
-        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
-        "X-Forwarded-For": randomIP,
-        "X-Real-IP": randomIP,
-      };
-
-      // Forward Range header (important for seeking in ts segments)
-      const rangeHeader = request.headers.get("Range");
-      if (rangeHeader) {
-        fetchHeaders["Range"] = rangeHeader;
-      }
-
-      // ===== Attempt fetch with retry =====
-      // Strategy 1: Minimal headers (no Origin/Referer — look like a direct browser hit)
-      // Strategy 2: With Referer pointing to a known embedder
-      const strategies = [
-        { ...fetchHeaders },
-        { ...fetchHeaders, Referer: "https://ophim.cc/", Origin: "https://ophim.cc" },
-        { ...fetchHeaders, Referer: parsedTarget.origin + "/", Origin: parsedTarget.origin },
-      ];
-
-      let upstream = null;
-      let lastStatus = 0;
-
-      for (const hdrs of strategies) {
-        try {
-          const resp = await fetch(targetUrl, {
-            headers: hdrs,
-            redirect: "follow",
-          });
-          lastStatus = resp.status;
-
-          if (resp.ok || resp.status === 206) {
-            upstream = resp;
-            break;
-          }
-          // Consume body to free connection for next attempt
-          await resp.text().catch(() => {});
-        } catch {
-          // Network error — try next strategy
-        }
-      }
-
-      if (!upstream) {
-        return new Response(
-          JSON.stringify({
-            error: `Upstream returned ${lastStatus || 502}`,
-            url: targetUrl,
-          }),
-          {
-            status: lastStatus >= 400 ? lastStatus : 502,
-            headers: jsonHeaders,
-          }
+      if (
+        !upstream.ok &&
+        upstream.status !== 206 &&
+        upstream.status !== 304
+      ) {
+        return jsonResponse(
+          { error: `Upstream returned ${upstream.status}` },
+          upstream.status,
+          corsHeaders
         );
       }
 
-      // ===== Detect content type =====
+      const pathname = parsedTarget.pathname.toLowerCase();
       const contentType = upstream.headers.get("Content-Type") || "";
+
       const isM3u8 =
-        targetUrl.includes(".m3u8") ||
+        pathname.endsWith(".m3u8") ||
         contentType.includes("mpegurl") ||
         contentType.includes("m3u8");
 
-      const responseHeaders = new Headers(CORS_HEADERS);
+      if (request.method === "HEAD") {
+        const headers = copySelectedUpstreamHeaders(upstream, corsHeaders);
 
-      // ===== M3U8 playlist: absolutize URLs =====
-      if (isM3u8) {
-        responseHeaders.set(
-          "Content-Type",
-          "application/vnd.apple.mpegurl; charset=utf-8"
-        );
-        responseHeaders.set("Cache-Control", "no-cache");
-
-        const text = await upstream.text();
-        const rewritten = absolutizeM3u8(text, targetUrl);
-
-        return new Response(rewritten, {
+        return new Response(null, {
           status: upstream.status,
-          headers: responseHeaders,
+          headers,
         });
       }
 
-      // ===== Binary content (ts segments, encryption keys, etc.) =====
-      responseHeaders.set(
-        "Content-Type",
-        contentType || "application/octet-stream"
-      );
+      if (isM3u8) {
+        const originalText = await upstream.text();
+        const rewrittenText = rewriteM3u8(
+          originalText,
+          targetUrl,
+          request.url
+        );
 
-      const contentLength = upstream.headers.get("Content-Length");
-      if (contentLength) responseHeaders.set("Content-Length", contentLength);
+        const isVodPlaylist = rewrittenText.includes("#EXT-X-ENDLIST");
 
-      const contentRange = upstream.headers.get("Content-Range");
-      if (contentRange) responseHeaders.set("Content-Range", contentRange);
+        const headers = new Headers(corsHeaders);
+        headers.set(
+          "Content-Type",
+          "application/vnd.apple.mpegurl; charset=utf-8"
+        );
+        headers.set(
+          "Cache-Control",
+          isVodPlaylist ? "public, max-age=600" : "no-store"
+        );
 
-      // Cache ts/m4s segments aggressively (immutable content)
-      if (targetUrl.includes(".ts") || targetUrl.includes(".m4s")) {
-        responseHeaders.set("Cache-Control", "public, max-age=86400");
+        const response = new Response(rewrittenText, {
+          status: upstream.status,
+          headers,
+        });
+
+        if (
+          isGet &&
+          !hasRange &&
+          upstream.status === 200 &&
+          isVodPlaylist
+        ) {
+          ctx.waitUntil(cache.put(cacheKey, response.clone()));
+        }
+
+        return response;
       }
 
-      return new Response(upstream.body, {
+      const headers = copySelectedUpstreamHeaders(upstream, corsHeaders);
+
+      if (isMediaSegment(pathname)) {
+        headers.set("Cache-Control", "public, max-age=86400");
+      } else {
+        headers.set("Cache-Control", "no-store");
+      }
+
+      const response = new Response(upstream.body, {
         status: upstream.status,
-        headers: responseHeaders,
+        headers,
       });
+
+      if (
+        isGet &&
+        !hasRange &&
+        upstream.status === 200 &&
+        isMediaSegment(pathname)
+      ) {
+        ctx.waitUntil(cache.put(cacheKey, response.clone()));
+      }
+
+      return response;
     } catch (err) {
-      return new Response(
-        JSON.stringify({ error: `Proxy error: ${err.message}` }),
+      return jsonResponse(
         {
-          status: 502,
-          headers: jsonHeaders,
-        }
+          error: "Proxy error",
+          message: err instanceof Error ? err.message : "Unknown error",
+        },
+        502,
+        corsHeaders
       );
     }
   },
