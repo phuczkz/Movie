@@ -81,7 +81,27 @@ const Player = ({
     if (source && streamProxy && !source.includes("iframe") && !source.includes("embed")) {
       const cleanProxy = streamProxy.trim().replace(/\/$/, "");
       if (!source.includes(cleanProxy)) {
-        return `${cleanProxy}/?url=${encodeURIComponent(source)}`;
+        // Upgrade http to https to prevent Mixed Content blocks on production
+        let targetUrl = source;
+        if (source.startsWith("http://")) {
+          const isLocalhost = source.includes("localhost") || source.includes("127.0.0.1");
+          if (!isLocalhost) {
+            targetUrl = source.replace("http://", "https://");
+          }
+        }
+
+        try {
+          const urlObj = new URL(targetUrl);
+          const hostname = urlObj.hostname.toLowerCase();
+
+          // phim1280.tv blocks Cloudflare Workers but allows direct CORS (*).
+          // Playing directly from the browser avoids the Worker 404 block.
+          if (hostname.endsWith("phim1280.tv")) {
+            return targetUrl;
+          }
+        } catch {}
+
+        return `${cleanProxy}/?url=${encodeURIComponent(targetUrl)}`;
       }
     }
     return source;
