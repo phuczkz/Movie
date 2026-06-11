@@ -76,6 +76,17 @@ const Player = ({
     onToggleTheaterRef.current = onToggleTheater;
   }, [onToggleTheater]);
 
+  const effectiveSource = useMemo(() => {
+    const streamProxy = import.meta.env.VITE_STREAM_PROXY;
+    if (source && streamProxy && !source.includes("iframe") && !source.includes("embed")) {
+      const cleanProxy = streamProxy.trim().replace(/\/$/, "");
+      if (!source.includes(cleanProxy)) {
+        return `${cleanProxy}/?url=${encodeURIComponent(source)}`;
+      }
+    }
+    return source;
+  }, [source]);
+
   const canUseIframe = useMemo(
     () => source && (source.includes("iframe") || source.includes("embed")),
     [source]
@@ -91,7 +102,7 @@ const Player = ({
     }
   }, [source]);
 
-  const { Hls, hlsConfig } = useHlsHandler(source, isHls);
+  const { Hls, hlsConfig } = useHlsHandler(effectiveSource, isHls);
 
   const hlsConfigRef = useRef(hlsConfig);
   hlsConfigRef.current = hlsConfig;
@@ -291,6 +302,12 @@ const Player = ({
                   reportPlaybackIssue("network-timeout");
                   networkRecoveryAttempts = 0;
                   hls.loadSource(url);
+                  hls.attachMedia(videoEl);
+                  const currentPos = videoEl.currentTime;
+                  if (currentPos > 0) {
+                    videoEl.currentTime = currentPos;
+                  }
+                  videoEl.play().catch(() => {});
                 }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
@@ -319,9 +336,13 @@ const Player = ({
                 console.error("[Player] Fatal HLS error, attempting full reload of stream...");
                 hls.destroy();
                 hlsInstanceRef.current = null;
-                // Wait 2s and reload the exact URL that had the error
+                // Wait 2s and reload the exact URL that had the error, preserving playhead
                 setTimeout(() => {
                   if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
+                    const currentPos = artInstanceRef.current.video.currentTime;
+                    if (currentPos > 0) {
+                      lastPositionRef.current = currentPos;
+                    }
                     artInstanceRef.current.switchUrl(url, posterUrl);
                   }
                 }, 2000);
@@ -333,7 +354,6 @@ const Player = ({
           let lastTotalFrames = 0;
           let lastCheckRealTime = 0;
           let desyncFreezeStartTime = 0;
-          let bufferingStartTime = 0;
 
           if (videoEl && videoEl._desyncWatchdog) {
             clearInterval(videoEl._desyncWatchdog);
@@ -347,7 +367,6 @@ const Player = ({
               videoEl.seeking
             ) {
               desyncFreezeStartTime = 0;
-              bufferingStartTime = 0;
               return;
             }
 
@@ -388,7 +407,6 @@ const Player = ({
                 );
                 
                 desyncFreezeStartTime = 0;
-                bufferingStartTime = 0;
                 
                 if (hlsInstanceRef.current) {
                   if (desyncRecoveryAttempts <= 1) {
@@ -421,53 +439,9 @@ const Player = ({
             }
 
             // 2. Detect Stuck Buffer (Neither audio nor video advancing, stuck loading)
-            if (Math.abs(timeDelta) < 0.05) {
-              if (bufferingStartTime === 0) {
-                bufferingStartTime = now;
-              } else {
-                const stuckDuration = now - bufferingStartTime;
-                if (stuckDuration > 12000) {
-                  // Level 3: Stuck buffering for 12s - reload stream source completely
-                  console.error(
-                    `[Player] Stuck loading for 12s. Reloading HLS stream source...`
-                  );
-                  bufferingStartTime = now; // reset timer for next action
-                  
-                  if (hlsInstanceRef.current) {
-                    hlsInstanceRef.current.destroy();
-                    hlsInstanceRef.current = null;
-                    setTimeout(() => {
-                      if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
-                        reportPlaybackIssue("network-timeout");
-                        artInstanceRef.current.switchUrl(url, posterUrl);
-                      }
-                    }, 1000);
-                  } else {
-                    videoEl.currentTime = currentTime + 0.5;
-                  }
-                } else if (stuckDuration > 6000) {
-                  // Level 2: Stuck buffering for 6s - recover media error
-                  console.warn(
-                    `[Player] Stuck loading for 6s. Recovering media error...`
-                  );
-                  if (hlsInstanceRef.current) {
-                    hlsInstanceRef.current.recoverMediaError();
-                  } else {
-                    videoEl.currentTime = currentTime + 0.2;
-                  }
-                } else if (stuckDuration > 3000) {
-                  // Level 1: Stuck buffering for 3s - trigger startLoad
-                  console.warn(
-                    `[Player] Stuck loading for 3s. Triggering hls.startLoad()...`
-                  );
-                  if (hlsInstanceRef.current) {
-                    hlsInstanceRef.current.startLoad();
-                  }
-                }
-              }
-            } else {
-              bufferingStartTime = 0;
-            }
+            // Note: Removed custom stuck buffer watchdog because it interferes with normal initial buffering/loading
+            // and triggers premature reloads/error states, causing infinite loading loops. Hls.js native error
+            // handling and stall detection are sufficient.
 
             lastWatchdogTime = currentTime;
             lastTotalFrames = totalFrames;
@@ -483,7 +457,6 @@ const Player = ({
           // to start loading at the new playhead.
           const onSeeked = () => {
             desyncFreezeStartTime = 0;
-            bufferingStartTime = 0;
             lastCheckRealTime = 0;
 
             if (hlsInstanceRef.current) {
@@ -507,7 +480,7 @@ const Player = ({
 
     const option = {
       container: artRef.current,
-      url: source || "",
+      url: effectiveSource || "",
       type: isHls ? "m3u8" : undefined,
       volume: 1,
       autoplay: false,
@@ -774,12 +747,12 @@ const Player = ({
 
   // Seamless source/poster switching
   useEffect(() => {
-    if (artInstanceRef.current && source && !canUseIframe) {
+    if (artInstanceRef.current && effectiveSource && !canUseIframe) {
       // Avoid redundant switches if the URL is the same
-      if (artInstanceRef.current.url === source) return;
-      artInstanceRef.current.switchUrl(source, posterUrl);
+      if (artInstanceRef.current.url === effectiveSource) return;
+      artInstanceRef.current.switchUrl(effectiveSource, posterUrl);
     }
-  }, [source, posterUrl, canUseIframe]);
+  }, [effectiveSource, posterUrl, canUseIframe]);
 
   // Update dynamic UI elements (header, next episode overlay, tooltips, control visibility)
   useEffect(() => {

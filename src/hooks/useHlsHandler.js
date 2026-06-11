@@ -114,38 +114,38 @@ export const useHlsHandler = (source, isHls) => {
     const config = {
       // ── FORWARD BUFFER ──
       // Conservative buffer sizes to prevent network queue congestion.
-      // Over-buffering causes dozens of concurrent .ts requests, which
-      // overwhelm the browser's connection pool and get mass-cancelled.
-      maxBufferLength: isMobile ? 15 : 30,
-      maxMaxBufferLength: isMobile ? 60 : 120,
-      maxBufferSize: isMobile ? 30_000_000 : 60_000_000, // 30MB / 60MB
+      // Optimized: Reduced to 10s (mobile) / 15s (desktop) to avoid loading too many
+      // heavy segments in parallel, which would congest the connection pool.
+    maxBufferLength: isMobile ? 15 : 30,
+    maxMaxBufferLength: isMobile ? 30 : 60,
+    maxBufferSize: isMobile ? 30_000_000 : 60_000_000,
 
       // ── BACK BUFFER ──
       // Keep 2 minutes of played video in memory for instant backward seeking.
       // NEVER use Infinity — it causes unbounded memory growth that triggers
       // browser garbage collection, which mass-cancels pending network requests.
-      backBufferLength: isMobile ? 120 : 300,
+      backBufferLength: isMobile ? 90 : 180,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
       // timeline at discontinuity boundaries. These settings ensure hls.js
       // automatically skips over those gaps instead of freezing video.
       maxBufferHole: 1.0,          // skip gaps up to 1s (was 0.5 — too tight after ad removal)
-      nudgeMaxRetry: 8,            // more retries before giving up on stall recovery
+      nudgeMaxRetry: 8,            // more retries before giving up on stall recovery 
       nudgeOffset: 0.2,            // 200ms nudge per retry
       maxFragLookUpTolerance: 0.5, // wider tolerance for fragment matching after discontinuity
 
       // ── ABR ──
       startLevel: -1,
-      // Start with 3Mbps estimate on desktop and 800Kbps on mobile to choose the correct quality faster.
-      // With progressive: false, we wait for full segment download, so a higher estimate prevents initial buffering.
-      abrEwmaDefaultEstimate: isMobile ? 800_000 : 3_000_000,
+      // Optimized: Start with a lower default estimate (1Mbps desktop, 500Kbps mobile)
+      // to quickly load a smaller first segment (instant start) and then dynamically scale up.
+      abrEwmaDefaultEstimate: isMobile ? 500_000 : 1_000_000,
       abrBandWidthFactor: 0.95,
       abrBandWidthUpFactor: 0.7,
       testBandwidth: true,
 
-      // ── LOADING — minimal timeouts for fast failure detection ──
-      fragLoadingTimeOut: 15000,
+      // ── LOADING — balanced timeouts for stable failure recovery ──
+      fragLoadingTimeOut: 10000,
       fragLoadingMaxRetry: 5,
       fragLoadingRetryDelay: 1000,
       fragLoadingMaxRetryTimeout: 20000,
@@ -156,7 +156,7 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── PERFORMANCE CORE ──
       enableWorker: true,
-      lowLatencyMode: false,
+      lowLatencyMode: true, // Optimized: Enable low latency mode to optimize buffer management
       // progressive: true — Fetch and append data to SourceBuffer incrementally.
       // This is the default and provides optimal buffering performance on most networks.
       progressive: true,
@@ -180,7 +180,7 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── EARLY PLAYBACK TRIGGER ──
       // Reduce how much buffer hls.js requires before un-stalling playback.
-      maxStarvationDelay: 4,        // default: wait for 4s buffer before playing (prevents re-stall)
+      maxStarvationDelay: 2,        // Optimized: Reduced from 4s to 2s to resume faster after stall
       highBufferWatchdogPeriod: 2,  // check buffer health every 2s (default: 3)
       liveSyncDurationCount: 3,     // keep sync in live streams
     };

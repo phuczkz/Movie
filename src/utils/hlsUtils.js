@@ -14,12 +14,21 @@ export const FALLBACK_PROXY = (import.meta.env.VITE_HLS_PROXY_BASE || "")
  */
 const isAdSegment = (url) => {
   if (!url) return false;
+  // Decode URL if it went through proxy (which encodes slashes as %2F) so regexes can match correctly
+  let decoded = url;
+  if (url.includes("%") || url.includes("?url=")) {
+    try {
+      decoded = decodeURIComponent(url);
+    } catch {
+      // ignore
+    }
+  }
   // Pattern 1: convertv7/, convertv8/, convertv9/, etc.
-  if (/convertv\d+\//i.test(url)) return true;
+  if (/convertv\d+\//i.test(decoded)) return true;
   // Pattern 2: /v7/hexhash/segment_XXXX.ts, /v8/..., etc.
-  if (/\/v\d+\/[a-f0-9]{16,}\/segment_\d+\.ts/i.test(url)) return true;
+  if (/\/v\d+\/[a-f0-9]{16,}\/segment_\d+\.ts/i.test(decoded)) return true;
   // Pattern 3: new adjump format (/adjump/YYYYMMDD/HEX/00000X.ts)
-  if (/\/adjump\//i.test(url)) return true;
+  if (/\/adjump\//i.test(decoded)) return true;
   return false;
 };
 
