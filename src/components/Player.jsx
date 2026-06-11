@@ -94,9 +94,9 @@ const Player = ({
           const urlObj = new URL(targetUrl);
           const hostname = urlObj.hostname.toLowerCase();
 
-          // phim1280.tv blocks Cloudflare Workers but allows direct CORS (*).
-          // Playing directly from the browser avoids the Worker 404 block.
-          if (hostname.endsWith("phim1280.tv")) {
+          // phim1280.tv and kkphimplayer CDN domains block Cloudflare Workers but allow direct CORS (*).
+          // Playing directly from the browser avoids the Worker 404/403 blocks.
+          if (hostname.endsWith("phim1280.tv") || hostname.includes("kkphimplayer")) {
             return targetUrl;
           }
         } catch {}
