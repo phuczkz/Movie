@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from "react";
+import React, { memo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Info } from "lucide-react";
 import Player from "../Player";
@@ -30,11 +30,17 @@ const PlayerSection = memo(
     setSelectedSubLanguage,
   }) => {
     const [activeLine, setActiveLine] = useState(null);
+    // Keep a ref to avoid stale closure inside the event handler
+    const activeLineRef = useRef(null);
 
     // Listen to video:timeupdate to extract active subtitle line
     useEffect(() => {
       if (!player || !subtitles || subtitles.length === 0 || !showSubtitleOverlay) {
-        setActiveLine(null);
+        if (activeLineRef.current !== null) {
+          activeLineRef.current = null;
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setActiveLine(null);
+        }
         return;
       }
 
@@ -42,8 +48,11 @@ const PlayerSection = memo(
         const time = player.video.currentTime;
         const current = subtitles.find(
           (line) => time >= line.startTime && time <= line.endTime
-        );
-        setActiveLine(current || null);
+        ) || null;
+        if (current !== activeLineRef.current) {
+          activeLineRef.current = current;
+          setActiveLine(current);
+        }
       };
 
       player.on("video:timeupdate", handleTimeUpdate);

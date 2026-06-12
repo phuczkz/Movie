@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { comicApi } from "../../api/comicApi";
 import { useSavedComic } from "../../hooks/useSavedComic";
 import { isMobile } from "../../utils/responsive.js";
+import { getOptimizedPoster } from "../../utils/image-helper.js";
 
 const IMAGE_CDN =
   import.meta.env.VITE_COMIC_IMAGE_CDN ||
@@ -67,12 +68,8 @@ const ComicCard = ({ comic }) => {
     : `${IMAGE_CDN}${comic.thumb_url}`;
 
   const isMobileSize = isMobile();
-  const posterSrc = `https://wsrv.nl/?url=${encodeURIComponent(thumbUrl)}&output=webp&w=${
-    isMobileSize ? 200 : 360
-  }&fit=cover&q=${isMobileSize ? 70 : 80}`;
-  const thumbHoverSrc = `https://wsrv.nl/?url=${encodeURIComponent(thumbUrl)}&output=webp&w=${
-    isMobileSize ? 400 : 640
-  }&fit=cover&q=${isMobileSize ? 70 : 80}`;
+  const posterSrc = getOptimizedPoster(thumbUrl, isMobileSize ? 200 : 360, isMobileSize ? 70 : 80);
+  const thumbHoverSrc = getOptimizedPoster(thumbUrl, isMobileSize ? 400 : 640, isMobileSize ? 70 : 80);
 
   const formatDate = (dateValue) => {
     if (!dateValue) return "Vừa xong";

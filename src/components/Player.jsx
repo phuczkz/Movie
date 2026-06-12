@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
 } from "react";
@@ -10,6 +9,7 @@ import { useHlsHandler } from "../hooks/useHlsHandler";
 import { usePlayerHotkeys } from "./Player/usePlayerHotkeys";
 import { getHeaderHtml } from "./Player/PlayerHeader";
 import PlayerStyle from "./Player/PlayerStyle";
+import { getOptimizedPlayerPoster } from "../utils/image-helper.js";
 
 // ─────────────────────────────────────────────
 // Main Player Component
@@ -112,7 +112,7 @@ const Player = ({
           if (hostname.endsWith("phim1280.tv") || hostname.includes("kkphimplayer")) {
             return targetUrl;
           }
-        } catch { }
+        } catch { /* Ignore invalid URL formats */ }
 
         return `${cleanProxy}/?url=${encodeURIComponent(targetUrl)}`;
       }
@@ -140,14 +140,8 @@ const Player = ({
   const hlsConfigRef = useRef(hlsConfig);
   hlsConfigRef.current = hlsConfig;
 
-  // Optimized poster URL via wsrv.nl (only for absolute URLs)
-  const posterUrl = useMemo(() => {
-    if (!poster) return null;
-    if (!poster.startsWith("http")) return poster;
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      poster
-    )}&w=800&output=webp&q=75`;
-  }, [poster]);
+  // Optimized poster URL — bypasses wsrv.nl for Vietnamese CDNs (fast direct load)
+  const posterUrl = useMemo(() => getOptimizedPlayerPoster(poster), [poster]);
 
   // Report playback issue (at most once per source)
   const reportPlaybackIssue = useCallback((reason) => {

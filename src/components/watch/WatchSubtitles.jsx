@@ -25,7 +25,7 @@ const extractMovieTitles = (movie) => {
   // Split by slashes, commas, semicolons to isolate different language names
   [rawOrigin, rawName].forEach(str => {
     if (!str) return;
-    const parts = str.split(/[\/;,]/).map(p => p.trim()).filter(Boolean);
+    const parts = str.split(/[/;,]/).map(p => p.trim()).filter(Boolean);
     candidates.push(...parts);
   });
 
@@ -40,7 +40,7 @@ const extractMovieTitles = (movie) => {
   const originalTitle = uniqueCandidates.find(c => hasChinese(c) || hasKorean(c) || hasJapanese(c)) || "";
 
   // English title candidate (strictly alphanumeric and English characters, no accents)
-  const isEnglishOnly = (text) => /^[a-zA-Z0-9\s\-\:\'\!\&\.\,\?]+$/.test(text);
+  const isEnglishOnly = (text) => /^[a-zA-Z0-9\s\-:'!&.,?]+$/.test(text);
   const englishTitle = uniqueCandidates.find(c => isEnglishOnly(c)) || uniqueCandidates.find(c => !hasChinese(c) && !hasKorean(c) && !hasJapanese(c)) || uniqueCandidates[0] || "";
 
   return {
@@ -145,8 +145,8 @@ const WatchSubtitles = ({
   setSelectedLanguage: externalSetLanguage
 }) => {
   const [activeId, setActiveId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [searchQuery] = useState("");
+  const [autoScroll] = useState(true);
 
   // Use external language state if provided, otherwise fallback to internal
   const [internalLanguage, setInternalLanguage] = useState("zh");
@@ -171,7 +171,7 @@ const WatchSubtitles = ({
   const [authToken, setAuthToken] = useState(null);
 
   const listContainerRef = useRef(null);
-  const docId = `${slug || "movie"}__${activeEpisode?.slug || "ep-1"}`;
+  // docId removed — was computed but never used
 
   // 1. Authenticate user to bypass anonymous limits (20 downloads/day)
   useEffect(() => {
@@ -391,7 +391,7 @@ const WatchSubtitles = ({
     setSelectedVersionId("");
     setRawSubtitles([]);
     setSubtitles([]);
-  }, [movie, activeEpisode]);
+  }, [movie, activeEpisode, setSubtitles]);
 
   // Trigger search on mount, episode change, or language change, but only if subtitle overlay is enabled
   useEffect(() => {
@@ -411,6 +411,7 @@ const WatchSubtitles = ({
     if (queryText) {
       performSearch(queryText);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLanguage, activeEpisode, movie, slug, showSubtitleOverlay]);
 
   // Download and parse subtitle by version
@@ -486,7 +487,7 @@ const WatchSubtitles = ({
     }));
 
     setSubtitles(shifted);
-  }, [rawSubtitles, timeOffset]);
+  }, [rawSubtitles, timeOffset, setSubtitles]);
 
   // Switch version manually
   const handleVersionChange = async (e) => {

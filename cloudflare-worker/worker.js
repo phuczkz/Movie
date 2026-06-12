@@ -49,7 +49,7 @@ function buildCorsHeaders(request, env) {
         if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
           allowOrigin = requestOrigin;
         }
-      } catch {}
+      } catch { /* Ignore invalid origin URLs */ }
     }
   }
 
@@ -191,7 +191,7 @@ function rewriteM3u8(content, baseUrl, requestUrl) {
             if (isMediaSegment(absoluteUrl.pathname)) {
               return `URI="${absoluteUrl.href}"`;
             }
-          } catch {}
+          } catch { /* Ignore malformed URIs in M3U8 headers */ }
           const proxied = proxifyUrl(uri, baseUrl, requestUrl);
           return `URI="${proxied}"`;
         });
@@ -202,7 +202,7 @@ function rewriteM3u8(content, baseUrl, requestUrl) {
         if (isMediaSegment(absoluteUrl.pathname)) {
           return absoluteUrl.href;
         }
-      } catch {}
+      } catch { /* Ignore lines that are not valid URLs */ }
 
       return proxifyUrl(trimmed, baseUrl, requestUrl);
     })

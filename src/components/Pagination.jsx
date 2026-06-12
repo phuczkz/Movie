@@ -106,18 +106,7 @@ const Pagination = ({ currentPage, hasNext, onPageChange }) => {
           />
         </button>
       </div>
-
-      {/* Chỉ báo trạng thái trang */}
-      <div className="flex items-center gap-3">
-        <span className="h-px w-8 bg-gradient-to-r from-transparent to-white/10"></span>
-        <p className="text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-[0.25em] flex items-center gap-2">
-          Page{" "}
-          <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-            {currentPage}
-          </span>
-        </p>
-        <span className="h-px w-8 bg-gradient-to-l from-transparent to-white/10"></span>
-      </div>
+      {/* Removed the page indicator section below (Page X indicator) to clean up the layout */}
     </div>
   );
 };

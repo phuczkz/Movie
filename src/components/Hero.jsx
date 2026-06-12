@@ -6,46 +6,7 @@ import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
 import { useMovieLogos } from "../hooks/useMovieLogo";
 import { isMobile } from "../utils/responsive.js";
-
-/* const normalizeList = (items = []) => {
-  if (!Array.isArray(items)) return [];
-  return items
-    .map((item) => (typeof item === "string" ? item : item?.name))
-    .filter(Boolean);
-}; */
-
-const normalizeTmdbImageSize = (url, size = "w780") => {
-  if (!url || typeof url !== "string") return url;
-  // Only rewrite TMDB image URLs. Keep other CDNs as-is.
-  try {
-    const host = new URL(url).hostname;
-    if (!host.includes("image.tmdb.org")) return url;
-  } catch {
-    return url;
-  }
-  return url.replace(/\/(w\d+|original)\//, `/${size}/`);
-};
-
-const toWsrv = (url, w = 640, q = 85) => {
-  if (!url) return url;
-  try {
-    const parsed = new URL(url);
-
-    // If already proxied through wsrv.nl, just update params.
-    if (parsed.hostname === "wsrv.nl") {
-      parsed.searchParams.set("w", String(w));
-      parsed.searchParams.set("output", "webp");
-      parsed.searchParams.set("q", String(q));
-      return parsed.toString();
-    }
-
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      url
-    )}&w=${w}&output=webp&q=${q}`;
-  } catch {
-    return url;
-  }
-};
+import { toOptimizedHeroImage } from "../utils/image-helper.js";
 
 const withWidthParam = (url, w = 640) => {
   if (!url) return url;
@@ -118,18 +79,26 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
     activeMovie.thumb_url ||
     activeMovie.poster_url ||
     "https://placehold.co/1600x900";
+
+  // Inline TMDB size helper specific to Hero (needs w780, w1280, original variants)
+  const tmdbResize = (url, size) => {
+    if (!url || typeof url !== "string") return url;
+    try {
+      if (!new URL(url).hostname.includes("image.tmdb.org")) return url;
+    } catch { return url; }
+    return url.replace(/\/(w\d+|original)\//, `/${size}/`);
+  };
+
   // Avoid noticeable blur from upscaling: use a larger TMDB source for the hero backdrop.
-  // wsrv still delivers a properly sized WebP for each viewport.
-  const background =
-    normalizeTmdbImageSize(rawBackground, "w1280") || rawBackground;
+  const background = tmdbResize(rawBackground, "w1280") || rawBackground;
 
   const isTmdb = background.includes("image.tmdb.org");
   const isMobileSize = isMobile();
   const qVal = isMobileSize ? 70 : 85;
 
-  const background640 = isTmdb ? normalizeTmdbImageSize(background, "w780") : toWsrv(background, 640, qVal);
-  const background1280 = isTmdb ? background : toWsrv(background, 1280, qVal);
-  const background1920 = isTmdb ? normalizeTmdbImageSize(background, "original") : toWsrv(background, 1920, qVal);
+  const background640 = isTmdb ? tmdbResize(background, "w780") : toOptimizedHeroImage(background, 640, qVal);
+  const background1280 = isTmdb ? background : toOptimizedHeroImage(background, 1280, qVal);
+  const background1920 = isTmdb ? tmdbResize(background, "original") : toOptimizedHeroImage(background, 1920, qVal);
   const background2560 = background1920;
   const background3840 = background1920;
   // const ratingValue =

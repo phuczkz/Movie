@@ -5,20 +5,7 @@ export const getHiRes = (url) => {
   return url.replace(/\/w(92|154|185|300|342|500|780)\//, "/w1280/");
 };
 
-export const getOptimizedImage = (url, w = 1280) => {
-  if (!url) return url;
-  try {
-    const rawHost = new URL(url).hostname;
-    // TMDB handled natively
-    if (rawHost.includes("tmdb.org")) return url;
-    // Use proxy for others
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      url
-    )}&output=webp&w=${w}&fit=cover&q=75`;
-  } catch {
-    return url;
-  }
-};
+export { getOptimizedBanner as getOptimizedImage } from "../../utils/image-helper.js";
 
 export const formatTime = (secs) => {
   const s = Math.floor(secs);

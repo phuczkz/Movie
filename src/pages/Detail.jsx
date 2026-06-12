@@ -20,7 +20,7 @@ import {
 } from "../utils/episodes.js";
 import { getTmdbEpisodes } from "../api/movies.js";
 import { useSeries } from "../hooks/useSeries.js";
-import { getHiRes, getOptimizedImage } from "../components/detail/detailUtils.js";
+import { getHiRes } from "../components/detail/detailUtils.js";
 import DetailHero from "../components/detail/DetailHero.jsx";
 import DetailMobileContent from "../components/detail/DetailMobileContent.jsx";
 import DetailDesktopContent from "../components/detail/DetailDesktopContent.jsx";

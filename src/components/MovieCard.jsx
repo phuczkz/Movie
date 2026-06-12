@@ -7,29 +7,12 @@ import { useSavedMovie } from "../hooks/useSavedMovie.js";
 import { getEpisodes } from "../api/movies.js";
 import { normalizeServerLabel, parseEpisodeNumber } from "../utils/episodes.js";
 import { isMobile } from "../utils/responsive.js";
+import { getOptimizedPoster } from "../utils/image-helper.js";
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
 const fallbackLandscape =
   "https://placehold.co/1280x720/0f172a/94a3b8?text=No+Image";
-
-const getOptimizedPoster = (url, w = 360, q = 80) => {
-  if (!url) return url;
-  try {
-    const rawHost = new URL(url).hostname;
-    if (rawHost.includes("tmdb.org")) {
-      return url.replace(
-        /\/w(92|154|185|300|342|500|780|original)\//,
-        `/w${w > 400 ? 500 : 342}/`
-      );
-    }
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      url
-    )}&output=webp&w=${w}&fit=cover&q=${q}`;
-  } catch {
-    return url;
-  }
-};
 
 
 // ─── Hover Preview Card ──────────────────────────────────────────────────────

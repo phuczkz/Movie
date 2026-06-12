@@ -3,34 +3,21 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useAppMode } from "../context/AppModeContext";
+import { getOptimizedPoster } from "../utils/image-helper.js";
 
 const MOBILE_WIDTH = 640;
 const FALLBACK_POSTER =
   "https://placehold.co/120x180/0f172a/94a3b8?text=No+Image";
 
-// Dùng cùng logic tối ưu poster như MovieCard để đồng bộ ảnh với Category page
-const getOptimizedPoster = (url, w = 360, isComic = false) => {
+// Wrapper to handle comic CDN prefix before passing to centralized helper
+const getSearchPoster = (url, w = 360, isComic = false) => {
   if (!url) return FALLBACK_POSTER;
-  try {
-    let fullUrl = url;
-    if (isComic && !url.startsWith("http")) {
-      const comicCdn = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
-      fullUrl = `${comicCdn}${url}`;
-    }
-
-    const rawHost = new URL(fullUrl).hostname;
-    if (rawHost.includes("tmdb.org")) {
-      return fullUrl.replace(
-        /\/w(92|154|185|300|342|500|780|original)\//,
-        `/w${w > 400 ? 500 : 342}/`
-      );
-    }
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      fullUrl
-    )}&output=webp&w=${w}&fit=cover&q=80`;
-  } catch {
-    return url;
+  let fullUrl = url;
+  if (isComic && !url.startsWith("http")) {
+    const comicCdn = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
+    fullUrl = `${comicCdn}${url}`;
   }
+  return getOptimizedPoster(fullUrl, w) || FALLBACK_POSTER;
 };
 
 const SearchBar = ({
@@ -158,7 +145,7 @@ const SearchBar = ({
                   className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-700/70 transition-colors"
                 >
                   <img
-                    src={getOptimizedPoster(
+                    src={getSearchPoster(
                       movie.poster_url || movie.thumb_url,
                       360,
                       isComicMode

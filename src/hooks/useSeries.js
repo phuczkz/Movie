@@ -111,12 +111,11 @@ export const useSeries = (currentMovie) => {
     }
 
     return { seasons: finalSeasons, movies, series };
-  }, [baseName, searchResults, currentMovie?.slug, currentTmdbId]);
+  }, [baseName, searchResults, currentMovie, currentTmdbId, currentSeasonNumber]);
 
-  const nextSeason = useMemo(() => {
-    if (currentSeasonNumber === null) return null;
-    return groups.seasons.find((s) => s.season === currentSeasonNumber + 1) || null;
-  }, [groups.seasons, currentSeasonNumber]);
+  const nextSeason = groups.seasons.find(
+    (s) => currentSeasonNumber !== null && s.season === currentSeasonNumber + 1
+  ) || null;
 
   // isSeries = true if there are at least 2 season entries, or spinoffs/related series exist
   const isSeries = groups.seasons.length >= 2 || groups.movies.length > 0 || groups.series.length > 0;

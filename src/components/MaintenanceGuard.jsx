@@ -65,70 +65,35 @@ export default function MaintenanceGuard({ children }) {
     };
   }, [isActive]);
 
-  if (loading || !maintenance.isLoaded) {
-    return (
-      <div className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center z-[99999]">
-        <div className="relative flex flex-col items-center gap-5">
-          <div className="size-12 border-4 border-slate-800 border-t-emerald-500 rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
+  // Modified to load the App in parallel during Firebase initialization to improve UX/speed and to use the unified orbital loader design.
+  const showInitialLoading = loading || !maintenance.isLoaded;
 
-  if (isActive) {
-    /* 
-    // Old Maintenance UI (Kept as requested)
-    return (
-      <div
-        style={{ zIndex: 99999 }}
-        className="fixed inset-0 grid grid-rows-[1fr_auto] bg-white select-none text-slate-800 overflow-hidden"
-        onContextMenu={(e) => e.preventDefault()}
-      >
-          <div className="w-full flex items-center justify-center px-6 py-6">
-            <div className="max-w-4xl w-full flex flex-col items-center text-center space-y-6 animate-in fade-in zoom-in duration-500">
-              <Suspense fallback={<div className="h-40 w-full" />}>
-                <MaintenanceIllustration />
-              </Suspense>
-              <div className="space-y-4">
-                <h1 className="text-4xl md:text-6xl font-semibold text-[#1e4e8c] tracking-tight uppercase">
-                  {maintenance?.title || "BẢO TRÌ HỆ THỐNG"}
-                </h1>
-                <p className="text-xl md:text-2xl text-slate-500 font-medium whitespace-pre-wrap">
-                  {maintenance?.message ||
-                    "Admin đang nghèo, ủng hộ Admin để duy trì website"}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-blue-50 border border-blue-100/50">
-                <span className="relative flex size-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full size-3 bg-blue-500"></span>
-                </span>
-                <span className="text-sm font-bold text-blue-600 uppercase tracking-widest">
-                  {maintenance?.statusText || "ĐANG NÂNG CẤP HỆ THỐNG"}
-                </span>
-              </div>
-              <div className="pt-4 flex flex-col sm:flex-row gap-4 items-center justify-center">
-                {user && (
-                  <button
-                    onClick={() => logout().then(() => navigate("/login"))}
-                    className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 transition-all shadow-md active:scale-95 text-sm font-bold"
-                  >
-                    <LogOut size={18} />
-                    Đăng xuất tài khoản
-                  </button>
-                )}
-              </div>
+  return (
+    <>
+      {showInitialLoading && (
+        <div className="fixed inset-0 bg-[#0b0b15] flex flex-col items-center justify-center z-[99999] overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,176,155,0.05),transparent_50%)]" />
+          <div className="relative z-10 flex flex-col items-center gap-5">
+            <div className="loader-orbit loader-orbit-lg"></div>
+            <div className="animate-pulse flex flex-col items-center">
+              <span className="text-white/40 text-xs font-bold tracking-[0.2em] uppercase"></span>
             </div>
           </div>
         </div>
-    );
-    */
-    return <MaintenanceNew />;
-  }
+      )}
 
-  if (!appMode && !isLoginPath) {
-    return <SelectionScreen />;
-  }
+      {!showInitialLoading && isActive && <MaintenanceNew />}
 
-  return <>{children}</>;
+      {!showInitialLoading && !isActive && !appMode && !isLoginPath && (
+        <SelectionScreen />
+      )}
+
+      {/* Render children during loading (to preload lazy bundles in parallel) or when active normally */}
+      {(!isActive || showInitialLoading) && (appMode || isLoginPath || showInitialLoading) && (
+        <div style={{ display: showInitialLoading ? "none" : "contents" }}>
+          {children}
+        </div>
+      )}
+    </>
+  );
 }
