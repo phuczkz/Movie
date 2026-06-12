@@ -35,6 +35,7 @@ import SeasonSelector from "../components/SeasonSelector.jsx";
 import { useSeries } from "../hooks/useSeries.js";
 import WatchTogetherModal from "../components/watch/WatchTogetherModal.jsx";
 import WatchChat from "../components/watch/WatchChat.jsx";
+import WatchSubtitles from "../components/watch/WatchSubtitles.jsx";
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
@@ -96,6 +97,9 @@ const Watch = () => {
   const failedProvidersRef = useRef(new Set());
   const [deferLoad, setDeferLoad] = useState(false);
   const [mobileTab, setMobileTab] = useState("episodes");
+  const [subtitles, setSubtitles] = useState([]);
+  const [showSubtitleOverlay, setShowSubtitleOverlay] = useState(true);
+  const [selectedSubLanguage, setSelectedSubLanguage] = useState("zh");
 
   // Prevent duplicate rendering on mobile by tracking desktop state
   const [isDesktop, setIsDesktop] = useState(typeof window !== "undefined" ? window.innerWidth >= 1280 : true);
@@ -255,10 +259,10 @@ const Watch = () => {
 
   const handlePlaybackIssue = useCallback((reason) => {
     if (!activeProvider) return;
-    
+
     // Mark the current provider as failed
     failedProvidersRef.current.add(activeProvider);
-    
+
     // Find another provider that hasn't failed yet
     const fallbackProvider = availableProviders.find(
       p => p !== activeProvider && !failedProvidersRef.current.has(p) && episodeProviders[p]?.link
@@ -274,33 +278,33 @@ const Watch = () => {
     setAutoProviderState((prev) => {
       // If we already have a notice for this specific playback scope, skip updating to avoid UI flickering
       if (prev.key === playbackScopeKey && prev.notice) return prev;
-      
+
       const isDeadSource = ["manifest-error", "fatal-hls", "network-error", "network-timeout"].includes(reason);
-      
+
       // If a working fallback provider is found
       if (fallbackProvider) {
-        return { 
-          key: playbackScopeKey, 
-          provider: fallbackProvider, 
-          notice: `Nguồn ${activeProviderLabel} đang gặp sự cố. Hệ thống tự động chuyển sang Nguồn ${PROVIDER_LABELS[fallbackProvider] || fallbackProvider}.` 
+        return {
+          key: playbackScopeKey,
+          provider: fallbackProvider,
+          notice: `Nguồn ${activeProviderLabel} đang gặp sự cố. Hệ thống tự động chuyển sang Nguồn ${PROVIDER_LABELS[fallbackProvider] || fallbackProvider}.`
         };
       }
-      
+
       // If all main sources failed, try embed fallback iframe
       if (isDeadSource && activeEpisode?.link_embed && !useEmbedFallback) {
         setUseEmbedFallback(true);
-        return { 
-          key: playbackScopeKey, 
-          provider: prev.provider || null, 
-          notice: `Các nguồn chính gặp sự cố kỹ thuật. Hệ thống tự động chuyển sang Trình phát dự phòng.` 
+        return {
+          key: playbackScopeKey,
+          provider: prev.provider || null,
+          notice: `Các nguồn chính gặp sự cố kỹ thuật. Hệ thống tự động chuyển sang Trình phát dự phòng.`
         };
       }
-      
+
       // Absolutely no sources work
-      return { 
-        key: playbackScopeKey, 
-        provider: prev.provider || null, 
-        notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.` 
+      return {
+        key: playbackScopeKey,
+        provider: prev.provider || null,
+        notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.`
       };
     });
   }, [activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback, params, setParams]);
@@ -752,50 +756,76 @@ const Watch = () => {
             nextSeason={nextSeason}
             isLastEpisodeOfSeason={isLastEpisode(activeEpisode, movie)}
             onReady={setPlayer}
+            player={player}
+            subtitles={subtitles}
+            showSubtitleOverlay={showSubtitleOverlay}
+            setShowSubtitleOverlay={setShowSubtitleOverlay}
+            selectedSubLanguage={selectedSubLanguage}
+            setSelectedSubLanguage={setSelectedSubLanguage}
           />
         </div>
 
         {isDesktop && (
           <div className="hidden xl:flex flex-col gap-6 h-full min-h-0 overflow-hidden">
-            {roomId ? (
-              <>
-                <div className="flex border-b border-white/10 pb-1">
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab("info")}
-                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "info"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-slate-400 hover:text-slate-200"
-                      }`}
-                  >
-                    Thông tin phim
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSidebarTab("chat")}
-                    className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-slate-400 hover:text-slate-200"
-                      }`}
-                  >
-                    Trò chuyện 💬
-                  </button>
-                </div>
+            <div className="flex border-b border-white/10 pb-1">
+              <button
+                type="button"
+                onClick={() => setSidebarTab("info")}
+                className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "info"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
+              >
+                Thông tin phim
+              </button>
+              <button
+                type="button"
+                onClick={() => setSidebarTab("subtitles")}
+                className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "subtitles"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
+              >
+                Phụ đề gốc
+              </button>
+              {roomId && (
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("chat")}
+                  className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
+                    ? "border-emerald-500 text-emerald-400"
+                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  Trò chuyện
+                </button>
+              )}
+            </div>
 
-                {sidebarTab === "info" ? (
-                  <>
-                    <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
-                    <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
-                  </>
-                ) : (
-                  <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
-                )}
-              </>
-            ) : (
+            {sidebarTab === "info" && (
               <>
                 <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
                 <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
               </>
+            )}
+
+            <div className={sidebarTab === "subtitles" ? "block" : "hidden"}>
+              <WatchSubtitles
+                player={player}
+                slug={slug}
+                activeEpisode={activeEpisode}
+                movie={movie}
+                subtitles={subtitles}
+                setSubtitles={setSubtitles}
+                showSubtitleOverlay={showSubtitleOverlay}
+                setShowSubtitleOverlay={setShowSubtitleOverlay}
+                selectedLanguage={selectedSubLanguage}
+                setSelectedLanguage={setSelectedSubLanguage}
+              />
+            </div>
+
+            {sidebarTab === "chat" && roomId && (
+              <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
             )}
           </div>
         )}
@@ -853,6 +883,21 @@ const Watch = () => {
                   {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
                 </>
               )}
+
+              <div className={mobileTab === "subtitles" ? "block" : "hidden"}>
+                <WatchSubtitles
+                  player={player}
+                  slug={slug}
+                  activeEpisode={activeEpisode}
+                  movie={movie}
+                  subtitles={subtitles}
+                  setSubtitles={setSubtitles}
+                  showSubtitleOverlay={showSubtitleOverlay}
+                  setShowSubtitleOverlay={setShowSubtitleOverlay}
+                  selectedLanguage={selectedSubLanguage}
+                  setSelectedLanguage={setSelectedSubLanguage}
+                />
+              </div>
 
               {mobileTab === "chat" && roomId && (
                 <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />

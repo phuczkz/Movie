@@ -1,4 +1,5 @@
-import React, { memo } from "react";
+import React, { memo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Info } from "lucide-react";
 import Player from "../Player";
 import { parseEpisodeNumber } from "../../utils/episodes";
@@ -21,7 +22,34 @@ const PlayerSection = memo(
     nextSeason,
     isLastEpisodeOfSeason,
     onReady,
+    player,
+    subtitles = [],
+    showSubtitleOverlay = true,
+    setShowSubtitleOverlay,
+    selectedSubLanguage,
+    setSelectedSubLanguage,
   }) => {
+    const [activeLine, setActiveLine] = useState(null);
+
+    // Listen to video:timeupdate to extract active subtitle line
+    useEffect(() => {
+      if (!player || !subtitles || subtitles.length === 0 || !showSubtitleOverlay) {
+        setActiveLine(null);
+        return;
+      }
+
+      const handleTimeUpdate = () => {
+        const time = player.video.currentTime;
+        const current = subtitles.find(
+          (line) => time >= line.startTime && time <= line.endTime
+        );
+        setActiveLine(current || null);
+      };
+
+      player.on("video:timeupdate", handleTimeUpdate);
+      return () => player.off("video:timeupdate", handleTimeUpdate);
+    }, [player, subtitles, showSubtitleOverlay]);
+
     return (
       <div ref={playerRef} className="relative z-10">
         {movieOverride?.mode === "trailer" ? (
@@ -55,35 +83,62 @@ const PlayerSection = memo(
             )}
           </div>
         ) : (
-          <Player
-            source={activeSource}
-            poster="/player_poster.png"
-            title={movie?.name}
-            subtitle={
-              activeEpisode?.name
-                ? `${episodes.length === 1 &&
-                  parseEpisodeNumber(activeEpisode.name) === 1
-                  ? "Full Movie"
-                  : activeEpisode.name
-                } • ${activeServer || "Vietsub"} • ${activeProviderLabel}`
-                : undefined
-            }
-            onNextEpisode={onNextEpisode}
-            hasNextEpisode={!!onNextEpisode}
-            nextEpisodeTitle={
-              isLastEpisodeOfSeason && nextSeason
-                ? `Chuyển sang Phần ${nextSeason.season}`
-                : "Tập tiếp theo"
-            }
-            onTimeUpdate={onTimeUpdate}
-            initialTime={initialTime}
-            onPlaybackIssue={onPlaybackIssue}
-            currentSeason={currentSeason}
-            nextSeason={nextSeason}
-            isLastEpisodeOfSeason={isLastEpisodeOfSeason}
-            movieSlug={movie?.slug}
-            onReady={onReady}
-          />
+          <div className="relative">
+            <Player
+              source={activeSource}
+              poster="/player_poster.png"
+              title={movie?.name}
+              subtitle={
+                activeEpisode?.name
+                  ? `${episodes.length === 1 &&
+                    parseEpisodeNumber(activeEpisode.name) === 1
+                    ? "Full Movie"
+                    : activeEpisode.name
+                  } • ${activeServer || "Vietsub"} • ${activeProviderLabel}`
+                  : undefined
+              }
+              onNextEpisode={onNextEpisode}
+              hasNextEpisode={!!onNextEpisode}
+              nextEpisodeTitle={
+                isLastEpisodeOfSeason && nextSeason
+                  ? `Chuyển sang Phần ${nextSeason.season}`
+                  : "Tập tiếp theo"
+              }
+              onTimeUpdate={onTimeUpdate}
+              initialTime={initialTime}
+              onPlaybackIssue={onPlaybackIssue}
+              currentSeason={currentSeason}
+              nextSeason={nextSeason}
+              isLastEpisodeOfSeason={isLastEpisodeOfSeason}
+              movieSlug={movie?.slug}
+              onReady={onReady}
+              selectedSubLanguage={selectedSubLanguage}
+              setSelectedSubLanguage={setSelectedSubLanguage}
+              showSubtitleOverlay={showSubtitleOverlay}
+              setShowSubtitleOverlay={setShowSubtitleOverlay}
+            />
+
+            {/* Custom Bilingual Subtitle Overlay */}
+            {showSubtitleOverlay && activeLine && player?.template?.$player
+              ? createPortal(
+                  <div className="absolute top-[calc(0.5rem+env(safe-area-inset-top,0px))] sm:top-[calc(1rem+env(safe-area-inset-top,0px))] left-1/2 -translate-x-1/2 z-20 pointer-events-none w-full max-w-[90%] sm:max-w-[80%] md:max-w-[70%] text-center">
+                    <div className="inline-block whitespace-pre-line px-2">
+                      {activeLine.text && (
+                        <p className="text-white text-[13px] sm:text-base md:text-lg lg:text-xl font-bold leading-normal tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                          {activeLine.text}
+                        </p>
+                      )}
+                      {activeLine.translation && activeLine.translation !== activeLine.text && (
+                        <p className="text-emerald-400 text-[11px] sm:text-sm md:text-base lg:text-lg font-semibold mt-0.5 sm:mt-1 leading-normal tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                          {activeLine.translation}
+                        </p>
+                      )}
+                    </div>
+                  </div>,
+                  player.template.$player
+                )
+              : null}
+          </div>
         )}
       </div>
     );

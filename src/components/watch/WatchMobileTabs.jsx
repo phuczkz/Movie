@@ -3,7 +3,8 @@ import React, { memo } from "react";
 const WatchMobileTabs = memo(({ activeTab, onTabChange, hasRoom }) => {
   const tabs = [
     { key: "episodes", label: "Tập phim" },
-    ...(hasRoom ? [{ key: "chat", label: "Trò chuyện 💬" }] : []),
+    { key: "subtitles", label: "Phụ đề gốc" },
+    ...(hasRoom ? [{ key: "chat", label: "Trò chuyện" }] : []),
     { key: "actors", label: "Diễn viên" },
   ];
 
@@ -15,11 +16,10 @@ const WatchMobileTabs = memo(({ activeTab, onTabChange, hasRoom }) => {
             key={tab.key}
             type="button"
             onClick={() => onTabChange(tab.key)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-              activeTab === tab.key
+            className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${activeTab === tab.key
                 ? "bg-white/5 text-amber-200"
                 : "text-slate-300 hover:text-slate-100"
-            }`}
+              }`}
           >
             {tab.label}
           </button>

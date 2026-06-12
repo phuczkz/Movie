@@ -706,3 +706,88 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     animation: none;
   }
 }
+
+/* ─── Premium Artplayer Settings Panel Styling ───────────────────────────── */
+.art-setting-panel {
+  background: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+  padding: 8px !important;
+  font-family: inherit !important;
+}
+
+/* Individual setting items */
+.art-setting-item {
+  color: #e2e8f0 !important;
+  font-size: 14px !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  margin: 2px 0 !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.art-setting-item:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #ffffff !important;
+}
+
+/* Current selection highlight - Emerald color matching our theme */
+.art-setting-item.art-current,
+.art-setting-item .art-current {
+  color: #10b981 !important;
+  font-weight: 700 !important;
+}
+
+/* Sub-panel header/back button */
+.art-setting-header {
+  color: #94a3b8 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  margin-bottom: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.art-setting-back {
+  font-weight: 700 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Style the custom toggle switch to match Emerald green */
+.art-switch {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 9999px !important;
+  transition: all 0.3s ease !important;
+}
+
+.art-switch.art-switch-open {
+  background-color: #10b981 !important; /* Emerald green */
+}
+
+/* Mobile & Tablet Specific Setting Enhancements */
+@media (max-width: 768px) {
+  .art-setting-panel {
+    width: 220px !important;
+    max-height: 280px !important;
+    overflow-y: auto !important;
+  }
+
+  .art-setting-item {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+  }
+
+  .art-setting-header {
+    font-size: 11px !important;
+  }
+}
+
+/* In case of landscape/short height mobile screens */
+@media (max-height: 480px) {
+  .art-setting-panel {
+    max-height: 160px !important;
+  }
+}

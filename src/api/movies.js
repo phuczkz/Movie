@@ -6,7 +6,7 @@ import {
   getTmdbFullEpisodes,
 } from "./tmdb";
 
-import { getKKphimDetail } from "./kkphim";
+import { getKKphimDetail, searchKKphim } from "./kkphim";
 import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 
 const fallbackPortrait =
@@ -619,6 +619,77 @@ export const getDetail = (slug) =>
           }
         } catch (e) {
           console.warn("[getDetail] Ophim alt-slug fallback failed", e);
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // ── KKphim alt-slug fallback ─────────────────────────────────────────
+      // Symmetric counterpart: if the current URL slug is recognized by Ophim
+      // but NOT by KKphim (e.g. user navigated to the English origin-name slug
+      // like "whiplash" while KKphim stores it under the Vietnamese slug
+      // "khat-vong-nhip-dieu"), search KKphim by name and fetch its episodes
+      // so that Source 1 (KKphim) is also available.
+      if (kkEpisodes.length === 0 && ophimEpisodes.length > 0 && ophimMovie?.name) {
+        try {
+          const searchKeyword = (ophimMovie.name || ophimMovie.origin_name || "")
+            .replace(/\s*\([^)]*\)/g, "")
+            .trim();
+          // Search KKphim by the Ophim movie name to find its Vietnamese slug
+          const kkSearchRes = await searchKKphim(searchKeyword || ophimMovie.name).catch(() => []);
+
+          if (Array.isArray(kkSearchRes) && kkSearchRes.length) {
+            const norm = (s) =>
+              (s || "")
+                .toLowerCase()
+                .trim()
+                .replace(/\s*\([^)]*\)/g, "")
+                .trim();
+            const opName = norm(ophimMovie.name);
+            const opOrg = norm(ophimMovie.origin_name);
+
+            const targetYear = ophimMovie.year;
+            const kkAltItem = kkSearchRes.find((m) => {
+              if (!m?.slug || m.slug === slug) return false;
+              const mName = norm(m.name);
+              const mOrg = norm(m.origin_name);
+              const nameHit =
+                (opName && (mName === opName || mOrg === opName)) ||
+                (opOrg &&
+                  mOrg &&
+                  (mOrg === opOrg ||
+                    mOrg.includes(opOrg) ||
+                    opOrg.includes(mOrg)));
+              if (!nameHit) return false;
+              // Year guard: avoid false-positive matches across different release years
+              const yearHit = targetYear && m.year ? String(m.year) === String(targetYear) : true;
+              return yearHit;
+            });
+
+            if (kkAltItem?.slug) {
+              const kkAltDetail = await getKKphimDetail(kkAltItem.slug).catch(() => null);
+              if (kkAltDetail?.episodes?.length) {
+                const { movie: kkAltMovie, episodes: kkAltEps } = kkAltDetail;
+                const mergedWithKK = mergeEpisodes(kkAltEps, ophimEpisodes);
+                // Since the current slug belongs to Ophim, prefer Ophim as the default
+                // playback source. KKphim (alt-slug) is kept as a backup Source 1.
+                // Without this, _preferredProvider defaults to "kkphim" (priority 0),
+                // causing KKphim m3u8 to be tried first — often failing for Ophim-native
+                // slugs and triggering the error cascade notice unnecessarily.
+                const episodesOut = mergedWithKK.map((ep) => ({
+                  ...ep,
+                  slug: ep.slug || normalizeEpisodeSlug(ep.name),
+                  // Only override if Ophim has a working link for this episode
+                  _preferredProvider: ep._providers?.ophim?.link ? "ophim" : ep._preferredProvider,
+                }));
+                const movieOut = kkAltMovie?.name ? kkAltMovie : ophimMovie;
+                if (!isAdultMovie(movieOut)) {
+                  return { movie: movieOut, episodes: episodesOut };
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[getDetail] KKphim alt-slug fallback failed", e);
         }
       }
       // ─────────────────────────────────────────────────────────────────────
