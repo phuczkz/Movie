@@ -24,7 +24,7 @@ const PlayerSection = memo(
     onReady,
     player,
     subtitles = [],
-    showSubtitleOverlay = true,
+    showSubtitleOverlay = false, // Thay đổi giá trị mặc định sang false
     setShowSubtitleOverlay,
     selectedSubLanguage,
     setSelectedSubLanguage,

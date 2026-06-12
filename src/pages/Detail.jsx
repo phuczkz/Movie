@@ -178,27 +178,6 @@ const Detail = () => {
     return passedMovie || detailMovie || null;
   }, [altDetail?.movie, baseMovie, passedMovie]);
 
-  // LCP Optimization: Preload hero/banner image ASAP
-  useEffect(() => {
-    const img =
-      movie?.backdrop_url ||
-      movie?.banner ||
-      movie?.thumb_url ||
-      movie?.poster_url;
-    if (img && !isLoading) {
-      const url = getOptimizedImage(getHiRes(img), 1200);
-      const link = document.createElement("link");
-      link.rel = "preload";
-      link.as = "image";
-      link.href = url;
-      link.setAttribute("fetchpriority", "high");
-      document.head.appendChild(link);
-      return () => {
-        if (link.parentNode) link.parentNode.removeChild(link);
-      };
-    }
-  }, [movie, isLoading]);
-
   const categorySlugs = useMemo(
     () => (movie?.category || []).flatMap((c) => c.slug ? [c.slug] : []),
     [movie?.category]
@@ -596,24 +575,24 @@ const Detail = () => {
 
   const upcomingNotice = upcomingTmdbMessage
     ? {
-        icon: <Calendar className="size-4" />,
-        text: upcomingTmdbMessage,
-      }
+      icon: <Calendar className="size-4" />,
+      text: upcomingTmdbMessage,
+    }
     : fallbackUpcomingText
-    ? {
+      ? {
         icon: <Calendar className="size-4" />,
         text: fallbackUpcomingText,
       }
-    : null;
+      : null;
 
   const heroImage = getHiRes(
     passedMovie?.thumb_url ||
-      passedMovie?.backdrop_url ||
-      movie?.backdrop_url ||
-      movie?.banner ||
-      movie?.thumb_url ||
-      passedMovie?.poster_url ||
-      movie?.poster_url
+    passedMovie?.backdrop_url ||
+    movie?.backdrop_url ||
+    movie?.banner ||
+    movie?.thumb_url ||
+    passedMovie?.poster_url ||
+    movie?.poster_url
   );
 
   return (

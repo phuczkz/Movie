@@ -98,7 +98,8 @@ const Watch = () => {
   const [deferLoad, setDeferLoad] = useState(false);
   const [mobileTab, setMobileTab] = useState("episodes");
   const [subtitles, setSubtitles] = useState([]);
-  const [showSubtitleOverlay, setShowSubtitleOverlay] = useState(true);
+  // Thay đổi mặc định hiển thị phụ đề sang false để tránh tự động gọi API tìm kiếm khi vào xem phim
+  const [showSubtitleOverlay, setShowSubtitleOverlay] = useState(false);
   const [selectedSubLanguage, setSelectedSubLanguage] = useState("zh");
 
   // Prevent duplicate rendering on mobile by tracking desktop state

@@ -112,7 +112,7 @@ const Player = ({
           if (hostname.endsWith("phim1280.tv") || hostname.includes("kkphimplayer")) {
             return targetUrl;
           }
-        } catch {}
+        } catch { }
 
         return `${cleanProxy}/?url=${encodeURIComponent(targetUrl)}`;
       }
@@ -148,25 +148,6 @@ const Player = ({
       poster
     )}&w=800&output=webp&q=75`;
   }, [poster]);
-
-  // LCP Optimization: preload poster image
-  useLayoutEffect(() => {
-    if (!posterUrl) return;
-    const existing = document.head.querySelector(
-      `link[rel="preload"][as="image"][href="${posterUrl}"]`
-    );
-    if (existing) return;
-    const link = document.createElement("link");
-    link.rel = "preload";
-    link.as = "image";
-    link.href = posterUrl;
-    link.setAttribute("fetchpriority", "high");
-    link.dataset.copilot = "lcp-poster";
-    document.head.appendChild(link);
-    return () => {
-      if (link.parentNode) link.parentNode.removeChild(link);
-    };
-  }, [posterUrl]);
 
   // Report playback issue (at most once per source)
   const reportPlaybackIssue = useCallback((reason) => {
@@ -340,7 +321,7 @@ const Player = ({
                   if (currentPos > 0) {
                     videoEl.currentTime = currentPos;
                   }
-                  videoEl.play().catch(() => {});
+                  videoEl.play().catch(() => { });
                 }
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
@@ -361,7 +342,7 @@ const Player = ({
                   if (currentPos > 0) {
                     videoEl.currentTime = currentPos;
                   }
-                  videoEl.play().catch(() => {});
+                  videoEl.play().catch(() => { });
                 }
                 break;
               default:
@@ -405,11 +386,11 @@ const Player = ({
 
             const now = performance.now();
             const currentTime = videoEl.currentTime;
-            
+
             // Get frame count if supported by browser (with webkit fallback)
             let totalFrames = 0;
-            const quality = typeof videoEl.getVideoPlaybackQuality === "function" 
-              ? videoEl.getVideoPlaybackQuality() 
+            const quality = typeof videoEl.getVideoPlaybackQuality === "function"
+              ? videoEl.getVideoPlaybackQuality()
               : null;
             if (quality) {
               totalFrames = quality.totalVideoFrames;
@@ -438,9 +419,9 @@ const Player = ({
                 console.warn(
                   `[Player] Silent video freeze detected at ${currentTime.toFixed(1)}s. Recovery attempt #${desyncRecoveryAttempts}...`
                 );
-                
+
                 desyncFreezeStartTime = 0;
-                
+
                 if (hlsInstanceRef.current) {
                   if (desyncRecoveryAttempts <= 1) {
                     // Level 1: Recover media pipeline error directly (much safer than seek nudge)
@@ -460,7 +441,7 @@ const Player = ({
                     if (currentTime > 0) {
                       videoEl.currentTime = currentTime;
                     }
-                    videoEl.play().catch(() => {});
+                    videoEl.play().catch(() => { });
                   }
                 }
               }
@@ -514,6 +495,7 @@ const Player = ({
     const option = {
       container: artRef.current,
       url: effectiveSource || "",
+      poster: posterUrl || "", // Gán poster trực tiếp trong Artplayer option
       type: isHls ? "m3u8" : undefined,
       volume: 1,
       autoplay: false,
@@ -594,7 +576,7 @@ const Player = ({
             this.emit("notice", "Tiến 10 giây");
           },
         },
-         // Theater mode button (desktop only)
+        // Theater mode button (desktop only)
         ...(onToggleTheater && !isMobile
           ? [
             {
@@ -700,7 +682,7 @@ const Player = ({
 
     artInstanceRef.current.on("ready", () => {
       if (onReady) onReady(artInstanceRef.current);
-      
+
       nextEpBtnElRef.current =
         artInstanceRef.current.template?.$player?.querySelector?.(
           "#art-next-ep-layer"
@@ -883,7 +865,7 @@ const Player = ({
           }
         `;
       }
-      
+
       // If there is no next episode, hide the floating overlay immediately
       const hasNext = hasNextEpisode || (isLastEpisodeOfSeason && nextSeason);
       if (!hasNext) {

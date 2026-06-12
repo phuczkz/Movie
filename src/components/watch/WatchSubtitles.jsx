@@ -393,9 +393,10 @@ const WatchSubtitles = ({
     setSubtitles([]);
   }, [movie, activeEpisode]);
 
-  // Trigger search on mount, episode change, or language change
+  // Trigger search on mount, episode change, or language change, but only if subtitle overlay is enabled
   useEffect(() => {
     if (!slug || !activeEpisode || !movie) return;
+    if (!showSubtitleOverlay) return; // Không gọi API tìm kiếm phụ đề nếu chế độ hiển thị đang tắt
 
     const titles = extractMovieTitles(movie);
     const country = getMovieCountry(movie);
@@ -410,7 +411,7 @@ const WatchSubtitles = ({
     if (queryText) {
       performSearch(queryText);
     }
-  }, [selectedLanguage, activeEpisode, movie, slug]);
+  }, [selectedLanguage, activeEpisode, movie, slug, showSubtitleOverlay]);
 
   // Download and parse subtitle by version
   const downloadSubtitle = async (version) => {
