@@ -29,6 +29,10 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Firebase chunk separation to reduce entry bundle size
+          if (id.includes("firebase")) {
+            return "vendor-firebase";
+          }
           if (id.includes("node_modules")) {
             // Group core React dependencies together as they are used everywhere
             if (

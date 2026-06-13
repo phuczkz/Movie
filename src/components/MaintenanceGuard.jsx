@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react";
 import { useAppMode } from "../context/AppModeContext";
 import SelectionScreen from "./SelectionScreen.jsx";
 import MaintenanceNew from "./MaintenanceNew.jsx";
+import AppLoader from "./app-loader.jsx";
 
 const MaintenanceIllustration = lazy(() =>
   import("./MaintenanceIllustration.jsx")
@@ -70,17 +71,7 @@ export default function MaintenanceGuard({ children }) {
 
   return (
     <>
-      {showInitialLoading && (
-        <div className="fixed inset-0 bg-[#0b0b15] flex flex-col items-center justify-center z-[99999] overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(37,176,155,0.05),transparent_50%)]" />
-          <div className="relative z-10 flex flex-col items-center gap-5">
-            <div className="loader-orbit loader-orbit-lg"></div>
-            <div className="animate-pulse flex flex-col items-center">
-              <span className="text-white/40 text-xs font-bold tracking-[0.2em] uppercase"></span>
-            </div>
-          </div>
-        </div>
-      )}
+      {showInitialLoading && <AppLoader />}
 
       {!showInitialLoading && isActive && <MaintenanceNew />}
 

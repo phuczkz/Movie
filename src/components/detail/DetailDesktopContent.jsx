@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { User, Info } from "lucide-react";
+import { lazy, Suspense } from "react";
 import EpisodeList from "../EpisodeList.jsx";
-import Comments from "../Comments.jsx";
 import MovieCard from "../MovieCard.jsx";
 import SeasonSelector from "../SeasonSelector.jsx";
+
+const Comments = lazy(() => import("../Comments.jsx"));
 
 const DetailDesktopContent = ({
   movie, episodes, selectedEpisodes, serverGroups, selectedServer,
@@ -112,7 +114,11 @@ const DetailDesktopContent = ({
 
       {/* Cột 1 hàng 2: Bình luận */}
       <div className="hidden lg:block lg:col-start-1 lg:row-start-2">
-        {movie && movie.slug && (<Comments movieSlug={movie.slug} movieName={movie.name} />)}
+        {movie && movie.slug && (
+          <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải bình luận...</div>}>
+            <Comments movieSlug={movie.slug} movieName={movie.name} />
+          </Suspense>
+        )}
       </div>
     </div>
   );

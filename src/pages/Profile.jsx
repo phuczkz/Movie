@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Timestamp } from "firebase/firestore";
 import { Camera, Check, Shield, BookOpen, Play } from "lucide-react";
 import { isFirebaseConfigured } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
-import WatchHistory from "../components/WatchHistory.jsx";
-import ComicHistory from "../components/comics/ComicHistory.jsx";
 import AvatarModal from "../components/AvatarModal.jsx";
 import { useAppMode } from "../context/AppModeContext";
+
+const WatchHistory = lazy(() => import("../components/WatchHistory.jsx"));
+const ComicHistory = lazy(() => import("../components/comics/ComicHistory.jsx"));
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -277,7 +278,9 @@ const Profile = () => {
         </form>
       </div>
 
-      {appMode === 'comic' ? <ComicHistory /> : <WatchHistory />}
+      <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải lịch sử...</div>}>
+        {appMode === 'comic' ? <ComicHistory /> : <WatchHistory />}
+      </Suspense>
 
       <AvatarModal
         isOpen={showAvatarModal}

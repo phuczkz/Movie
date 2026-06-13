@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import {
@@ -17,8 +17,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmModal from "../../components/ConfirmModal";
-import WatchHistory from "../../components/WatchHistory";
-import ComicHistory from "../../components/comics/ComicHistory";
+
+const WatchHistory = lazy(() => import("../../components/WatchHistory"));
+const ComicHistory = lazy(() => import("../../components/comics/ComicHistory"));
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -576,11 +577,13 @@ export default function AdminUsers() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
-              {historyModal.activeTab === 'movie' ? (
-                <WatchHistory userId={historyModal.userId} adminView={true} />
-              ) : (
-                <ComicHistory userId={historyModal.userId} adminView={true} />
-              )}
+              <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải lịch sử...</div>}>
+                {historyModal.activeTab === 'movie' ? (
+                  <WatchHistory userId={historyModal.userId} adminView={true} />
+                ) : (
+                  <ComicHistory userId={historyModal.userId} adminView={true} />
+                )}
+              </Suspense>
             </div>
 
             <div className="p-4 border-t border-white/5 flex justify-end">

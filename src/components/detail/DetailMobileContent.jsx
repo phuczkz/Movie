@@ -1,9 +1,11 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { User, Info } from "lucide-react";
+import { lazy, Suspense } from "react";
 import EpisodeList from "../EpisodeList.jsx";
-import Comments from "../Comments.jsx";
 import MovieCard from "../MovieCard.jsx";
 import SeasonSelector from "../SeasonSelector.jsx";
+
+const Comments = lazy(() => import("../Comments.jsx"));
 
 const DetailMobileContent = ({
   mobileSection, movie, episodes, selectedEpisodes, serverGroups,
@@ -63,7 +65,11 @@ const DetailMobileContent = ({
               <p className="text-slate-400">{isTmdb ? "Nguồn TMDB chưa có tập phát online." : "Chưa có tập."}</p>
             )}
           </div>
-          {movie && movie.slug && (<Comments movieSlug={movie.slug} movieName={movie.name} />)}
+          {movie && movie.slug && (
+            <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải bình luận...</div>}>
+              <Comments movieSlug={movie.slug} movieName={movie.name} />
+            </Suspense>
+          )}
         </div>
       ) : null}
 

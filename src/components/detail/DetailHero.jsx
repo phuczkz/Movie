@@ -4,8 +4,10 @@ import {
   ChevronDown,
   Film,
 } from "lucide-react";
-import Rating from "../Rating.jsx";
+import { lazy, Suspense } from "react";
 import { getOptimizedImage } from "./detailUtils.js";
+
+const Rating = lazy(() => import("../Rating.jsx"));
 
 const DetailHero = ({
   movie,
@@ -91,7 +93,9 @@ const DetailHero = ({
               </>
             ) : null}
 
-            <Rating movieSlug={slug} apiRating={movie.rating} />
+            <Suspense fallback={<div className="text-slate-500 text-xs">Đang tải đánh giá...</div>}>
+              <Rating movieSlug={slug} apiRating={movie.rating} />
+            </Suspense>
 
             {/* Desktop/Laptop+: giữ layout meta như hiện tại */}
             <div className="hidden lg:flex flex-wrap items-center gap-2 text-xs sm:text-sm text-white font-medium drop-shadow-md">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState, lazy, Suspense } from "react";
 import {
   Link,
   useParams,
@@ -17,7 +17,6 @@ import { useSearchMovies } from "../hooks/useSearchMovies.js";
 import { useWatchProgress } from "../hooks/useWatchProgress.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useActorsWithTmdbImages } from "../hooks/useActorsWithTmdbImages.js";
-import Comments from "../components/Comments.jsx";
 import {
   normalizeServerLabel,
   parseEpisodeNumber,
@@ -33,9 +32,11 @@ import WatchMobileTabs from "../components/watch/WatchMobileTabs.jsx";
 import ActorSection from "../components/detail/ActorSection.jsx";
 import SeasonSelector from "../components/SeasonSelector.jsx";
 import { useSeries } from "../hooks/useSeries.js";
-import WatchTogetherModal from "../components/watch/WatchTogetherModal.jsx";
-import WatchChat from "../components/watch/WatchChat.jsx";
 import WatchSubtitles from "../components/watch/WatchSubtitles.jsx";
+
+const Comments = lazy(() => import("../components/Comments.jsx"));
+const WatchTogetherModal = lazy(() => import("../components/watch/WatchTogetherModal.jsx"));
+const WatchChat = lazy(() => import("../components/watch/WatchChat.jsx"));
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
@@ -826,7 +827,9 @@ const Watch = () => {
             </div>
 
             {sidebarTab === "chat" && roomId && (
-              <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+              <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>
+                <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+              </Suspense>
             )}
           </div>
         )}
@@ -857,7 +860,11 @@ const Watch = () => {
                 episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
                 activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
               />
-              {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
+              {movie?.slug && (
+                <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải bình luận...</div>}>
+                  <Comments movieSlug={movie.slug} movieName={movie.name} />
+                </Suspense>
+              )}
             </div>
           )}
 
@@ -881,7 +888,11 @@ const Watch = () => {
                     activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
                   />
                   <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
-                  {movie?.slug && <Comments movieSlug={movie.slug} movieName={movie.name} />}
+                  {movie?.slug && (
+                    <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải bình luận...</div>}>
+                      <Comments movieSlug={movie.slug} movieName={movie.name} />
+                    </Suspense>
+                  )}
                 </>
               )}
 
@@ -901,7 +912,9 @@ const Watch = () => {
               </div>
 
               {mobileTab === "chat" && roomId && (
-                <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+                <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>
+                  <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+                </Suspense>
               )}
 
               {mobileTab === "actors" && (
@@ -913,17 +926,19 @@ const Watch = () => {
         </div>
       </div>
 
-      <WatchTogetherModal
-        isOpen={isWatchTogetherModalOpen}
-        onClose={() => setIsWatchTogetherModalOpen(false)}
-        roomId={roomId}
-        setRoomId={setRoomId}
-        isHost={isHost}
-        movie={movie}
-        activeEpisode={activeEpisode}
-        activeServer={activeServer}
-        activeProvider={activeProvider}
-      />
+      <Suspense fallback={null}>
+        <WatchTogetherModal
+          isOpen={isWatchTogetherModalOpen}
+          onClose={() => setIsWatchTogetherModalOpen(false)}
+          roomId={roomId}
+          setRoomId={setRoomId}
+          isHost={isHost}
+          movie={movie}
+          activeEpisode={activeEpisode}
+          activeServer={activeServer}
+          activeProvider={activeProvider}
+        />
+      </Suspense>
     </div>
   );
 };

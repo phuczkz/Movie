@@ -10,12 +10,10 @@ import {
   Menu,
   X,
   BarChart3,
-  LayoutDashboard,
 } from "lucide-react";
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
-const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
 const AdminUsers = lazy(() => import("./admin/AdminUsers"));
 const AdminComments = lazy(() => import("./admin/AdminComments"));
 const AdminMaintenance = lazy(() => import("./admin/AdminMaintenance"));
@@ -23,7 +21,6 @@ const AdminMovieStatus = lazy(() => import("./admin/AdminMovieStatus"));
 const AdminReports = lazy(() => import("./admin/AdminReports"));
 
 const NAV_ITEMS = [
-  { id: "dashboard", label: "Tổng quan", icon: LayoutDashboard },
   { id: "reports", label: "Báo cáo", icon: BarChart3 },
   { id: "users", label: "Người dùng", icon: Users },
   { id: "comments", label: "Bình luận", icon: MessageSquare },
@@ -32,7 +29,6 @@ const NAV_ITEMS = [
 ];
 
 const PAGE_MAP = {
-  dashboard: AdminDashboard,
   reports: AdminReports,
   users: AdminUsers,
   comments: AdminComments,
@@ -43,7 +39,7 @@ const PAGE_MAP = {
 export default function AdminPanel() {
   const { user, loading, maintenance } = useAuth();
   const navigate = useNavigate();
-  const [section, setSection] = useState("dashboard");
+  const [section, setSection] = useState("reports");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (loading) {
@@ -71,7 +67,7 @@ export default function AdminPanel() {
     );
   }
 
-  const ActivePage = PAGE_MAP[section] || AdminDashboard;
+  const ActivePage = PAGE_MAP[section] || AdminReports;
 
   const handleNav = (id) => {
     setSection(id);

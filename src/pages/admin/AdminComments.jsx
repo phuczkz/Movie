@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   collection,
   addDoc,
@@ -227,6 +227,45 @@ export default function AdminComments() {
     setTodayDate(new Date().toISOString().split("T")[0]);
   }, []);
 
+  const [viewedComments, setViewedComments] = useState(() => {
+    const keys = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("admin_view_comment_")) {
+          const slug = key.replace("admin_view_comment_", "");
+          keys[slug] = Number(localStorage.getItem(key)) || 0;
+        }
+      }
+    } catch (e) {
+      console.warn("Error reading localStorage", e);
+    }
+    return keys;
+  });
+
+  // Wrap isUnread in useCallback to prevent unnecessary recreation and fix lint warnings
+  const isUnread = useCallback((m) => {
+    const lastComment = m.lastCommentAt?.toMillis?.() || 0;
+    const lastViewed = viewedComments[m.id] || 0;
+    return lastComment > lastViewed;
+  }, [viewedComments]);
+
+  // Sort commented movies by read/unread state and last comment timestamp, using isUnread dependency
+  const sortedCommentedMovies = useMemo(() => {
+    const list = [...commentedMovies];
+    list.sort((a, b) => {
+      const aUnread = isUnread(a);
+      const bUnread = isUnread(b);
+      if (aUnread && !bUnread) return -1;
+      if (!aUnread && bUnread) return 1;
+
+      const aTime = a.lastCommentAt?.toMillis?.() || 0;
+      const bTime = b.lastCommentAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
+    return list;
+  }, [commentedMovies, isUnread]);
+
   const showToast = (message, type = "info") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -255,66 +294,33 @@ export default function AdminComments() {
     return unsub;
   }, []);
 
-  // 2. Discover older commented movies (that aren't in the index yet)
-  const discoverMovies = async () => {
+  // 2. Refresh commented movies from Firestore and localStorage
+  const refreshComments = async () => {
     setLoading(true);
     try {
-      const q = query(collectionGroup(db, "items"), limit(500));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "commentedMovies"));
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      list.sort(
+        (a, b) =>
+          (b.lastCommentAt?.toMillis?.() || 0) -
+          (a.lastCommentAt?.toMillis?.() || 0)
+      );
+      setCommentedMovies(list);
 
-      const uniqueSlugs = new Set();
-      snap.docs.forEach((d) => {
-        const path = d.ref.path; // e.g. "comments/slug/items/id"
-        const parts = path.split("/");
-        // Path matches "comments / {slug} / items / {id}"
-        if (parts.length >= 2 && parts[0] === "comments") {
-          uniqueSlugs.add(parts[1]);
+      // Refresh viewed timestamps state from localStorage
+      const keys = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("admin_view_comment_")) {
+          const slug = key.replace("admin_view_comment_", "");
+          keys[slug] = Number(localStorage.getItem(key)) || 0;
         }
-      });
-
-      if (uniqueSlugs.size > 0) {
-        const discovered = Array.from(uniqueSlugs).map((slug) => ({
-          id: slug,
-          movieName: cleanName(slug),
-          lastCommentAt: serverTimestamp(), // Use current time for indexing
-        }));
-
-        // Persist to Firestore concurrently so it shows up in the normal onSnapshot next time
-        await Promise.all(discovered.map(async (d) => {
-          try {
-            await setDoc(
-              doc(db, "commentedMovies", d.id),
-              {
-                movieName: d.movieName,
-                lastCommentAt: d.lastCommentAt,
-              },
-              { merge: true }
-            );
-          } catch (e) {
-            console.warn(`Could not persist discovery for ${d.id}:`, e);
-          }
-        }));
-
-        showToast(
-          `Đã tìm thấy và đồng bộ ${uniqueSlugs.size} phim có bình luận.`,
-          "success"
-        );
-      } else {
-        showToast("Không tìm thấy bình luận nào thông qua quét sâu.", "info");
       }
+      setViewedComments(keys);
+
+      showToast("Đã làm mới danh sách bình luận.", "success");
     } catch (err) {
-      console.error("Discovery error:", err);
-      if (
-        err.code === "failed-precondition" ||
-        err.message?.includes("index")
-      ) {
-        showToast(
-          "Cần tạo Index trên Firebase để quét bình luận. Vui lòng kiểm tra Console (F12) để lấy link tạo Index.",
-          "error"
-        );
-      } else {
-        showToast("Lỗi khi quét: " + err.message, "error");
-      }
+      showToast("Lỗi làm mới: " + err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -505,6 +511,14 @@ export default function AdminComments() {
   };
 
   const selectMovie = async (slug, name) => {
+    const now = Date.now();
+    try {
+      localStorage.setItem(`admin_view_comment_${slug}`, String(now));
+      setViewedComments((prev) => ({ ...prev, [slug]: now }));
+    } catch (e) {
+      console.warn("Error saving viewed timestamp:", e);
+    }
+
     setMovieSlug(slug);
     setMovieName(name);
     setView("detail");
@@ -554,7 +568,7 @@ export default function AdminComments() {
           {view === "list" && (
             <button
               type="button"
-              onClick={discoverMovies}
+              onClick={refreshComments}
               disabled={loading}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs font-bold uppercase tracking-wider disabled:opacity-50"
             >
@@ -563,7 +577,7 @@ export default function AdminComments() {
               ) : (
                 <RefreshCw className="size-3.5" />
               )}
-              {loading ? "Đang quét..." : "Đồng bộ bình luận cũ"}
+              {loading ? "Đang làm mới..." : "Làm mới"}
             </button>
           )}
           {view === "detail" && (
@@ -705,18 +719,18 @@ export default function AdminComments() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {commentedMovies.length === 0 ? (
+            {sortedCommentedMovies.length === 0 ? (
               <div className="col-span-full py-16 flex flex-col items-center justify-center text-center border-2 border-dashed border-white/5 rounded-[32px] bg-white/[0.01]">
                 <MessageCircle size={40} className="text-slate-700 mb-4" />
                 <p className="text-slate-500 max-w-xs">
                   Chưa có phim nào trong danh sách quản lý nhanh.
                 </p>
                 <p className="text-slate-600 text-xs mt-2 italic">
-                  Hãy nhấn nút "Đồng bộ" ở góc trên hoặc tìm kiếm phim.
+                  Hãy nhấn nút "Làm mới" ở góc trên hoặc tìm kiếm phim.
                 </p>
               </div>
             ) : (
-              commentedMovies.map((m) => (
+              sortedCommentedMovies.map((m) => (
                 <button
                   key={m.id}
                   type="button"
@@ -729,8 +743,11 @@ export default function AdminComments() {
                     </div>
                     <ChevronRight className="text-slate-700 group-hover:text-emerald-500 transition-colors" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-200 line-clamp-1 mb-1 group-hover:text-emerald-400">
+                  <h3 className="text-base font-bold text-slate-200 line-clamp-1 mb-1 group-hover:text-emerald-400 flex items-center gap-2">
                     {cleanName(m.movieName || m.id)}
+                    {isUnread(m) && (
+                      <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] shrink-0" title="Có bình luận mới chưa xem" />
+                    )}
                   </h3>
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                     <Clock size={12} />
