@@ -372,7 +372,8 @@ const Player = ({
               !videoEl ||
               videoEl.paused ||
               videoEl.ended ||
-              videoEl.seeking
+              videoEl.seeking ||
+              document.hidden
             ) {
               desyncFreezeStartTime = 0;
               return;
