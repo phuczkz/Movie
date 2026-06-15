@@ -1,6 +1,28 @@
 import axios from "axios";
 import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 
+// Helpers to escape and decode HTML entities for search queries and display names
+const decodeHtmlEntities = (str = "") => {
+  if (!str) return "";
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'");
+};
+
+const escapeHtmlSearch = (str = "") => {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/'/g, "&#039;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+};
+
 const apiBase = import.meta.env.VITE_KKPHIM_API;
 const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
   /\/$/,
@@ -76,8 +98,8 @@ const normalizeKKphimMovie = (raw = {}) => {
 
   return {
     slug: raw.slug || raw._id || raw.id || "unknown",
-    name: raw.name || raw.title || null,
-    origin_name: raw.origin_name || "",
+    name: decodeHtmlEntities(raw.name || raw.title || null),
+    origin_name: decodeHtmlEntities(raw.origin_name || ""),
     poster_url,
     thumb_url,
     year: raw.year,
@@ -172,8 +194,9 @@ export const getKKphimDetail = async (slug, options = {}) => {
 };
 
 export const searchKKphim = async (keyword, page = 1) => {
+  const escapedKeyword = escapeHtmlSearch(keyword);
   const { data } = await kkphim.get("/tim-kiem", {
-    params: { keyword, page },
+    params: { keyword: escapedKeyword, page },
   });
   const items = data?.data?.items || data?.items || [];
   return filterAdultMovies(items.map(normalizeKKphimMovie));
