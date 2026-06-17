@@ -116,9 +116,9 @@ export const useHlsHandler = (source, isHls) => {
       // Conservative buffer sizes to prevent network queue congestion.
       // Optimized: Reduced to 10s (mobile) / 15s (desktop) to avoid loading too many
       // heavy segments in parallel, which would congest the connection pool.
-    maxBufferLength: isMobile ? 20 : 40,
-    maxMaxBufferLength: isMobile ? 30 : 60,
-    maxBufferSize: isMobile ? 30_000_000 : 60_000_000,
+      maxBufferLength: isMobile ? 15 : 35,
+      maxMaxBufferLength: isMobile ? 30 : 60,
+      maxBufferSize: isMobile ? 30_000_000 : 60_000_000,
 
       // ── BACK BUFFER ──
       // Keep 2 minutes of played video in memory for instant backward seeking.
