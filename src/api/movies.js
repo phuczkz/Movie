@@ -9,6 +9,28 @@ import {
 import { getKKphimDetail, searchKKphim } from "./kkphim";
 import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 
+// Helpers to escape and decode HTML entities for search queries and display names
+const decodeHtmlEntities = (str = "") => {
+  if (!str) return "";
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'");
+};
+
+const escapeHtmlSearch = (str = "") => {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/'/g, "&#039;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+};
+
 const fallbackPortrait =
   "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 const fallbackLandscape =
@@ -49,7 +71,7 @@ const normalizeMovie = (raw = {}) => {
 
   return {
     slug: raw.slug || raw._id || raw.id || "unknown",
-    name: raw.name || raw.title || raw.origin_name || null,
+    name: decodeHtmlEntities(raw.name || raw.title || raw.origin_name || null),
     poster_url: posterNormalized,
     thumb_url: thumbNormalized,
     year: raw.year || raw.released || raw.publishYear,
@@ -59,7 +81,7 @@ const normalizeMovie = (raw = {}) => {
     lang: raw.lang,
     time: raw.time,
     country: raw.country,
-    origin_name: raw.origin_name,
+    origin_name: decodeHtmlEntities(raw.origin_name || ""),
     category: raw.category || raw.genres || [],
     content: raw.content || raw.description || "",
     origin: raw,
@@ -756,9 +778,11 @@ export const searchMovies = (query, page = 1) =>
     const q = (query || "").trim();
     if (!q) return [];
 
+    const escapedQ = escapeHtmlSearch(q);
+
     // Parallel search: don't let one source failure block the other
     const ophimPromise = client
-      .get("/tim-kiem", { params: { keyword: q, page } })
+      .get("/tim-kiem", { params: { keyword: escapedQ, page } })
       .then((res) => mapOrFallback(unwrapItems(res.data)))
       .catch((err) => {
         console.warn("[searchMovies] Ophim failed", err.message);
