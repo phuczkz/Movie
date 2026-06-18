@@ -64,6 +64,7 @@ const PlayerStyle = () => {
           .art-controls {
             display: flex !important;
             align-items: center !important;
+            margin: 0 8px 8px 8px !important;
           }
           .art-controls-left, .art-controls-right {
             display: flex !important;
