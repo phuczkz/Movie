@@ -108,6 +108,7 @@ const PlayerSection = memo(
               }
               onNextEpisode={onNextEpisode}
               hasNextEpisode={!!onNextEpisode}
+              episodeSlug={activeEpisode?.slug || activeEpisode?.name}
               nextEpisodeTitle={
                 isLastEpisodeOfSeason && nextSeason
                   ? `Chuyển sang Phần ${nextSeason.season}`

@@ -92,7 +92,24 @@ const Watch = () => {
   const { user, userProfile } = useAuth();
   const { saveProgress, forceSave } = useWatchProgress();
 
-  const initialTime = location.state?.initialTime || 0;
+  const [params, setParams] = useSearchParams();
+
+  // Freeze initialTime per-episode: đọc từ location.state một lần duy nhất khi tập (episode) thay đổi.
+  // Tránh việc setParams (cập nhật URL) làm mất location.state và reset initialTime về 0,
+  // nhưng đồng thời đảm bảo chuyển sang tập mới thì initialTime = 0 chứ không kế thừa tập cũ.
+  const currentEpisodeSlug = params.get("episode") || "default";
+  const episodeInitialTimeRef = useRef({ slug: null, episode: null, time: 0 });
+  
+  if (episodeInitialTimeRef.current.slug !== slug || episodeInitialTimeRef.current.episode !== currentEpisodeSlug) {
+    episodeInitialTimeRef.current = {
+      slug,
+      episode: currentEpisodeSlug,
+      time: (typeof location.state?.initialTime === "number" && location.state.initialTime > 0)
+        ? location.state.initialTime
+        : 0,
+    };
+  }
+  const initialTime = episodeInitialTimeRef.current.time;
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const lastSaveRef = useRef(0);
   const failedProvidersRef = useRef(new Set());
@@ -130,7 +147,6 @@ const Watch = () => {
     });
   }, [slug]);
 
-  const [params, setParams] = useSearchParams();
   const roomId = params.get("room") || null;
   const setRoomId = useCallback((newId) => {
     const nextParams = new URLSearchParams(params);

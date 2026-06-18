@@ -28,6 +28,7 @@ const Player = ({
   currentSeason,
   nextSeason,
   isLastEpisodeOfSeason,
+  episodeSlug,
   onToggleTheater,
   theaterMode,
   onReady,
@@ -71,6 +72,11 @@ const Player = ({
     typeof initialTime === "number" && Number.isFinite(initialTime)
       ? initialTime
       : 0
+  );
+  // pendingSeekRef: giá trị != 0 chỉ khi cần seek một lần sau khi source load xong.
+  // Sau khi seek xong sẽ được clear về 0 để không can thiệp vào các timeupdate sau này.
+  const pendingSeekRef = useRef(
+    typeof initialTime === "number" && initialTime > 0 ? initialTime : 0
   );
 
   useEffect(() => {
@@ -179,8 +185,15 @@ const Player = ({
             hlsInstanceRef.current = null;
           }
 
+          const seekTarget = pendingSeekRef.current;
+          // KHÔNG xoá pendingSeekRef.current ở đây! 
+          // Hls.js sẽ dùng startPosition để tải đúng chunk mạng (tiết kiệm băng thông),
+          // Nhưng ta vẫn cần pendingSeekRef cho sự kiện `loadedmetadata` phía dưới 
+          // để ép buộc trình duyệt/Artplayer không được reset về 0.
+
           const hls = new Hls({
             ...hlsConfigRef.current,
+            startPosition: seekTarget > 0 ? seekTarget : -1,
             capLevelToPlayerSize: false,
           });
 
@@ -269,13 +282,10 @@ const Player = ({
                 else art.setting.add(qualityConfig);
               };
 
-              if (art.isReady) addQuality();
-              else art.on("ready", addQuality);
-            }
-
-            const startOffset = lastPositionRef.current;
-            if (startOffset > 0 && videoEl) videoEl.currentTime = startOffset;
-          });
+            if (art.isReady) addQuality();
+            else art.on("ready", addQuality);
+          }
+        });
 
           hls.on(Hls.Events.ERROR, (_, data) => {
             // ── Handle non-fatal errors that can cause A/V desync ──
@@ -712,6 +722,48 @@ const Player = ({
       }
     });
 
+    // Cơ chế Watchdog cực mạnh để ép seek bằng mọi giá (trị dứt điểm mọi bug reset 0:00)
+    let forceSeekInterval = null;
+    
+    const applyForceSeek = () => {
+      const seekTarget = pendingSeekRef.current;
+      if (seekTarget > 0 && artInstanceRef.current?.video) {
+        const video = artInstanceRef.current.video;
+        if (video.currentTime < 5 && seekTarget > 10) {
+          console.log(`[Player Watchdog] Đang ép video nhảy tới ${seekTarget}s...`);
+          try {
+            video.currentTime = seekTarget;
+            if (artInstanceRef.current.seek) artInstanceRef.current.seek = seekTarget;
+          } catch(e) { console.warn("Seek error", e); }
+        } else if (video.currentTime >= seekTarget - 2) {
+          // Đã seek thành công
+          pendingSeekRef.current = 0;
+          if (forceSeekInterval) {
+            clearInterval(forceSeekInterval);
+            forceSeekInterval = null;
+          }
+        }
+      } else if (forceSeekInterval && seekTarget <= 0) {
+        clearInterval(forceSeekInterval);
+        forceSeekInterval = null;
+      }
+    };
+
+    artInstanceRef.current.on("video:loadedmetadata", () => {
+      applyForceSeek();
+      // Khởi động watchdog theo dõi trong 5 giây đầu
+      if (pendingSeekRef.current > 0 && !forceSeekInterval) {
+        forceSeekInterval = setInterval(applyForceSeek, 500);
+        setTimeout(() => {
+           if (forceSeekInterval) { clearInterval(forceSeekInterval); forceSeekInterval = null; }
+        }, 5000); // Tự hủy sau 5s để không gây lag
+      }
+    });
+
+    artInstanceRef.current.on("video:playing", () => {
+      applyForceSeek();
+    });
+
     artInstanceRef.current.on("video:timeupdate", () => {
       const art = artInstanceRef.current;
       if (!art || !art.video) return;
@@ -777,19 +829,27 @@ const Player = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Hls, isHls, canUseIframe]);
 
+  const currentEpSlugRef = useRef(episodeSlug);
+
   useEffect(() => {
     playbackIssueReportedRef.current = false;
-    // Khi source thay đổi (chuyển server/nguồn), giữ nguyên thời gian đang xem hiện tại
     const currentVidTime = artInstanceRef.current?.video?.currentTime;
-    if (currentVidTime > 0) {
+    
+    if (episodeSlug === currentEpSlugRef.current && currentVidTime > 0) {
+      // Đang xem giữa chừng, CHỈ chuyển server/nguồn (cùng tập): giữ vị trí hiện tại
       lastPositionRef.current = currentVidTime;
+      pendingSeekRef.current = currentVidTime; // seek lại sau khi source mới load
     } else {
-      lastPositionRef.current =
-        typeof initialTime === "number" && Number.isFinite(initialTime)
+      // Lần đầu load hoặc CHUYỂN TẬP MỚI: sử dụng initialTime mới (hoặc về 0)
+      const resumeTime =
+        typeof initialTime === "number" && Number.isFinite(initialTime) && initialTime > 0
           ? initialTime
           : 0;
+      pendingSeekRef.current = resumeTime;
+      lastPositionRef.current = resumeTime;
+      currentEpSlugRef.current = episodeSlug; // cập nhật tập hiện tại
     }
-  }, [source, initialTime]);
+  }, [source, initialTime, episodeSlug]);
 
   // Seamless source/poster switching
   useEffect(() => {
