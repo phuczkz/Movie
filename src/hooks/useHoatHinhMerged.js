@@ -60,6 +60,6 @@ export const useHoatHinhMerged = (page = 1, options = {}) => {
       
       return Array.from(map.values());
     },
-    ...options,
+    ...queryOptions,
   });
 };
