@@ -32,8 +32,6 @@ import WatchMobileTabs from "../components/watch/WatchMobileTabs.jsx";
 import ActorSection from "../components/detail/ActorSection.jsx";
 import SeasonSelector from "../components/SeasonSelector.jsx";
 import { useSeries } from "../hooks/useSeries.js";
-import WatchSubtitles from "../components/watch/WatchSubtitles.jsx";
-
 const Comments = lazy(() => import("../components/Comments.jsx"));
 const WatchTogetherModal = lazy(() => import("../components/watch/WatchTogetherModal.jsx"));
 const WatchChat = lazy(() => import("../components/watch/WatchChat.jsx"));
@@ -115,10 +113,6 @@ const Watch = () => {
   const failedProvidersRef = useRef(new Set());
   const [deferLoad, setDeferLoad] = useState(false);
   const [mobileTab, setMobileTab] = useState("episodes");
-  const [subtitles, setSubtitles] = useState([]);
-  // Thay đổi mặc định hiển thị phụ đề sang false để tránh tự động gọi API tìm kiếm khi vào xem phim
-  const [showSubtitleOverlay, setShowSubtitleOverlay] = useState(false);
-  const [selectedSubLanguage, setSelectedSubLanguage] = useState("zh");
 
   // Prevent duplicate rendering on mobile by tracking desktop state
   const [isDesktop, setIsDesktop] = useState(typeof window !== "undefined" ? window.innerWidth >= 1280 : true);
@@ -775,42 +769,27 @@ const Watch = () => {
             isLastEpisodeOfSeason={isLastEpisode(activeEpisode, movie)}
             onReady={setPlayer}
             player={player}
-            subtitles={subtitles}
-            showSubtitleOverlay={showSubtitleOverlay}
-            setShowSubtitleOverlay={setShowSubtitleOverlay}
-            selectedSubLanguage={selectedSubLanguage}
-            setSelectedSubLanguage={setSelectedSubLanguage}
           />
         </div>
 
         {isDesktop && (
           <div className="hidden xl:flex flex-col gap-6 h-full min-h-0 overflow-hidden">
-            <div className="flex border-b border-white/10 pb-1">
+            <div className="flex gap-6 border-b border-white/10 pb-1 px-2">
               <button
                 type="button"
                 onClick={() => setSidebarTab("info")}
-                className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "info"
+                className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "info"
                   ? "border-emerald-500 text-emerald-400"
                   : "border-transparent text-slate-400 hover:text-slate-200"
                   }`}
               >
                 Thông tin phim
               </button>
-              <button
-                type="button"
-                onClick={() => setSidebarTab("subtitles")}
-                className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "subtitles"
-                  ? "border-emerald-500 text-emerald-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-                  }`}
-              >
-                Phụ đề gốc
-              </button>
               {roomId && (
                 <button
                   type="button"
                   onClick={() => setSidebarTab("chat")}
-                  className={`flex-1 pb-2.5 text-center text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
+                  className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
                     ? "border-emerald-500 text-emerald-400"
                     : "border-transparent text-slate-400 hover:text-slate-200"
                     }`}
@@ -826,21 +805,6 @@ const Watch = () => {
                 <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
               </>
             )}
-
-            <div className={sidebarTab === "subtitles" ? "block" : "hidden"}>
-              <WatchSubtitles
-                player={player}
-                slug={slug}
-                activeEpisode={activeEpisode}
-                movie={movie}
-                subtitles={subtitles}
-                setSubtitles={setSubtitles}
-                showSubtitleOverlay={showSubtitleOverlay}
-                setShowSubtitleOverlay={setShowSubtitleOverlay}
-                selectedLanguage={selectedSubLanguage}
-                setSelectedLanguage={setSelectedSubLanguage}
-              />
-            </div>
 
             {sidebarTab === "chat" && roomId && (
               <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>
@@ -911,21 +875,6 @@ const Watch = () => {
                   )}
                 </>
               )}
-
-              <div className={mobileTab === "subtitles" ? "block" : "hidden"}>
-                <WatchSubtitles
-                  player={player}
-                  slug={slug}
-                  activeEpisode={activeEpisode}
-                  movie={movie}
-                  subtitles={subtitles}
-                  setSubtitles={setSubtitles}
-                  showSubtitleOverlay={showSubtitleOverlay}
-                  setShowSubtitleOverlay={setShowSubtitleOverlay}
-                  selectedLanguage={selectedSubLanguage}
-                  setSelectedLanguage={setSelectedSubLanguage}
-                />
-              </div>
 
               {mobileTab === "chat" && roomId && (
                 <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>

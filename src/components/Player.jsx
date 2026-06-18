@@ -32,10 +32,6 @@ const Player = ({
   onToggleTheater,
   theaterMode,
   onReady,
-  selectedSubLanguage,
-  setSelectedSubLanguage,
-  showSubtitleOverlay,
-  setShowSubtitleOverlay,
 }) => {
   const artRef = useRef(null); // DOM mount point for ArtPlayer
   const artInstanceRef = useRef(null); // ArtPlayer instance
@@ -51,15 +47,6 @@ const Player = ({
   const nextSeasonRef = useRef(nextSeason);
   const isLastEpisodeOfSeasonRef = useRef(isLastEpisodeOfSeason);
   const playbackIssueReportedRef = useRef(false);
-  const setSelectedSubLanguageRef = useRef(setSelectedSubLanguage);
-  useEffect(() => {
-    setSelectedSubLanguageRef.current = setSelectedSubLanguage;
-  }, [setSelectedSubLanguage]);
-
-  const setShowSubtitleOverlayRef = useRef(setShowSubtitleOverlay);
-  useEffect(() => {
-    setShowSubtitleOverlayRef.current = setShowSubtitleOverlay;
-  }, [setShowSubtitleOverlay]);
 
   useEffect(() => {
     nextSeasonRef.current = nextSeason;
@@ -523,43 +510,7 @@ const Player = ({
       airplay: false,
       playsInline: true,
       clickPause: true,
-      settings: [
-        // Subtitle language selector
-        {
-          name: 'original-subtitle',
-          html: 'Phụ đề gốc',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>',
-          tooltip: selectedSubLanguage === 'zh' ? 'Trung' : selectedSubLanguage === 'en' ? 'Anh' : 'Nhật',
-          selector: [
-            { default: selectedSubLanguage === 'zh', html: 'Trung 🇨🇳', value: 'zh' },
-            { default: selectedSubLanguage === 'en', html: 'Anh 🇬🇧', value: 'en' },
-            { default: selectedSubLanguage === 'ja', html: 'Nhật 🇯🇵', value: 'ja' },
-          ],
-          onSelect: function (item) {
-            if (setSelectedSubLanguageRef.current) {
-              setSelectedSubLanguageRef.current(item.value);
-            }
-            this.emit('notice', `Phụ đề: ${item.html}`);
-            return item.html;
-          },
-        },
-        // Show/Hide subtitle switch
-        {
-          name: 'show-subtitle',
-          html: 'Hiển thị phụ đề',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
-          tooltip: showSubtitleOverlay ? 'Bật' : 'Tắt',
-          switch: showSubtitleOverlay,
-          onSwitch: function (item) {
-            const nextState = !item.switch;
-            if (setShowSubtitleOverlayRef.current) {
-              setShowSubtitleOverlayRef.current(nextState);
-            }
-            this.emit('notice', `Phụ đề: ${nextState ? 'Bật' : 'Tắt'}`);
-            return nextState;
-          },
-        },
-      ],
+      settings: [],
       controls: [
         {
           position: "left",
@@ -859,42 +810,6 @@ const Player = ({
       artInstanceRef.current.switchUrl(effectiveSource, posterUrl);
     }
   }, [effectiveSource, posterUrl, canUseIframe]);
-
-  // Synchronize subtitle setting in Artplayer when state changes externally
-  useEffect(() => {
-    const art = artInstanceRef.current;
-    if (!art || !art.setting) return;
-
-    try {
-      art.setting.update({
-        name: 'original-subtitle',
-        tooltip: selectedSubLanguage === 'zh' ? 'Trung' : selectedSubLanguage === 'en' ? 'Anh' : 'Nhật',
-        selector: [
-          { default: selectedSubLanguage === 'zh', html: 'Trung 🇨🇳', value: 'zh' },
-          { default: selectedSubLanguage === 'en', html: 'Anh 🇬🇧', value: 'en' },
-          { default: selectedSubLanguage === 'ja', html: 'Nhật 🇯🇵', value: 'ja' },
-        ]
-      });
-    } catch (err) {
-      console.warn("Lỗi đồng bộ settings phụ đề Artplayer:", err);
-    }
-  }, [selectedSubLanguage]);
-
-  // Synchronize subtitle display switch in Artplayer when state changes externally
-  useEffect(() => {
-    const art = artInstanceRef.current;
-    if (!art || !art.setting) return;
-
-    try {
-      art.setting.update({
-        name: 'show-subtitle',
-        tooltip: showSubtitleOverlay ? 'Bật' : 'Tắt',
-        switch: showSubtitleOverlay,
-      });
-    } catch (err) {
-      console.warn("Lỗi đồng bộ switch phụ đề Artplayer:", err);
-    }
-  }, [showSubtitleOverlay]);
 
   // Update dynamic UI elements (header, next episode overlay, tooltips, control visibility)
   useEffect(() => {

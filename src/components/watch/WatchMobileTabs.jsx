@@ -3,7 +3,6 @@ import React, { memo } from "react";
 const WatchMobileTabs = memo(({ activeTab, onTabChange, hasRoom }) => {
   const tabs = [
     { key: "episodes", label: "Tập phim" },
-    { key: "subtitles", label: "Phụ đề gốc" },
     ...(hasRoom ? [{ key: "chat", label: "Trò chuyện" }] : []),
     { key: "actors", label: "Diễn viên" },
   ];
