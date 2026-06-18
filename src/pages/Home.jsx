@@ -6,7 +6,6 @@ import MovieCard from "../components/MovieCard.jsx";
 import Section from "../components/Section.jsx";
 import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
-import { useTmdbPopular } from "../hooks/useTmdbPopular.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
 import { useHoatHinhMerged } from "../hooks/useHoatHinhMerged.js";
 import LoginBanner from "../components/LoginBanner.jsx";
@@ -122,7 +121,6 @@ const Home = () => {
   const [refSeries, showSeries] = useSectionVisibility();
   // const [refSingle, showSingle] = useSectionVisibility();
   const [refAnime, showAnime] = useSectionVisibility();
-  const [, showPopular] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
 
@@ -144,10 +142,6 @@ const Home = () => {
   //   undefined,
   //   { enabled: showSingle, ...commonQueryOpts }
   // );
-  const { data: popular = [] } = useTmdbPopular(1, {
-    enabled: showPopular,
-    ...commonQueryOpts,
-  });
 
   const { data: kkSeries = [], isLoading: loadingKKSeries } = useKKphimMovies(
     "series",
@@ -158,8 +152,7 @@ const Home = () => {
     { enabled: showKKSingle, ...commonQueryOpts }
   );
 
-  const heroSource = latest && latest.length >= 4 ? latest : popular;
-  const heroMovies = heroSource.slice(0, 4);
+  const heroMovies = latest.slice(0, 4);
   const cap = (list) => list.slice(0, 7);
 
   return (
@@ -247,25 +240,6 @@ const Home = () => {
           )}
         </Section>
       </div>
-
-      {/* <div ref={refPopular}>
-        <Section
-          title="Phim thịnh hành (Poster)"
-          action={
-            <Link className="text-sm text-emerald-300" to="/category/phim-moi">
-              Xem thêm
-            </Link>
-          }
-        >
-          {loadingPopular ? (
-            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
-              <div className="loader-orbit loader-orbit-md"></div>
-            </div>
-          ) : (
-            <Grid items={cap(popular)} priorityCount={4} />
-          )}
-        </Section>
-      </div> */}
 
       <div ref={refAnime}>
         <Section

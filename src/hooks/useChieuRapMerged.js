@@ -49,12 +49,17 @@ const mergeChieuRap = (kkList = [], ophimList = []) => {
 
 export const useChieuRapMerged = (
   page = 1,
-  { country = "", ...options } = {}
+  { country = "", year = "", movieType = "", ...options } = {}
 ) => {
-  const extraParams = country ? { country } : {};
+  const queryKey = ["merged", "chieu-rap", page, country, year, movieType];
   return useQuery({
-    queryKey: ["merged", "chieu-rap", page, country],
+    queryKey,
     queryFn: async () => {
+      const extraParams = {};
+      if (country) extraParams.country = country;
+      if (year) extraParams.year = year;
+      if (movieType) extraParams.type = movieType;
+
       const [kk, op] = await Promise.all([
         getKKphimChieuRap(page, extraParams).catch(() => []),
         getOphimChieuRap(page, extraParams).catch(() => []),

@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 
-const COUNTRY_OPTIONS = [
-  { label: "Tất cả quốc gia", value: "" },
-  { label: "Việt Nam", value: "viet-nam" },
-  { label: "Hàn Quốc", value: "han-quoc" },
-  { label: "Nhật Bản", value: "nhat-ban" },
-  { label: "Trung Quốc", value: "trung-quoc" },
-  { label: "Mỹ", value: "my" },
-  { label: "Anh", value: "anh" },
-  { label: "Thái Lan", value: "thai-lan" },
-];
-
-const CountryFilter = ({ value, onChange }) => {
+const YearFilter = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  const selectedOption =
-    COUNTRY_OPTIONS.find((opt) => opt.value === value) || COUNTRY_OPTIONS[0];
+  const currentYear = new Date().getFullYear();
+  const startYear = 1995;
+  const years = [];
+  for (let y = currentYear; y >= startYear; y--) {
+    years.push(y.toString());
+  }
+
+  const options = [
+    { label: "Tất cả năm", value: "" },
+    ...years.map((year) => ({ label: year, value: year })),
+  ];
+
+  const selectedOption = options.find((opt) => opt.value === value) || options[0];
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -31,8 +31,8 @@ const CountryFilter = ({ value, onChange }) => {
 
   return (
     <div className="flex items-center gap-2 text-sm text-slate-200" ref={containerRef}>
-      <span className="text-slate-400">Quốc gia:</span>
-      <div className="relative min-w-[140px]">
+      <span className="text-slate-400">Năm:</span>
+      <div className="relative min-w-[120px]">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
@@ -43,8 +43,8 @@ const CountryFilter = ({ value, onChange }) => {
         </button>
 
         {isOpen && (
-          <div className="absolute left-0 top-full z-50 mt-1.5 w-full max-h-48 overflow-y-auto rounded-lg border border-white/10 bg-slate-950/95 p-1 shadow-2xl backdrop-blur-xl custom-scrollbar">
-            {COUNTRY_OPTIONS.map((opt) => (
+          <div className="absolute right-0 top-full z-50 mt-1.5 w-full max-h-48 overflow-y-auto rounded-lg border border-white/10 bg-slate-950/95 p-1 shadow-2xl backdrop-blur-xl custom-scrollbar">
+            {options.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
@@ -66,4 +66,4 @@ const CountryFilter = ({ value, onChange }) => {
   );
 };
 
-export default CountryFilter;
+export default YearFilter;

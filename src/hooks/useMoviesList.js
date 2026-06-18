@@ -10,10 +10,14 @@ const map = {
 export const useMoviesList = (
   type = "latest",
   category,
-  { page = 1, country = "", ...options } = {}
+  { page = 1, country = "", year = "", movieType = "", ...options } = {}
 ) => {
-  const queryKey = ["movies", type, category, page, country].filter(Boolean);
-  const extraParams = country ? { country } : {};
+  const queryKey = ["movies", type, category, page, country, year, movieType].filter(Boolean);
+  const extraParams = {};
+  if (country) extraParams.country = country;
+  if (year) extraParams.year = year;
+  if (movieType) extraParams.type = movieType;
+
   const queryFn = category
     ? () => getCategory(category, page, extraParams)
     : () => (map[type] || getLatest)(page, extraParams);

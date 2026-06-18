@@ -81,6 +81,7 @@ const normalizeMovie = (raw = {}) => {
     lang: raw.lang,
     time: raw.time,
     country: raw.country,
+    type: raw.type || "",
     origin_name: decodeHtmlEntities(raw.origin_name || ""),
     category: raw.category || raw.genres || [],
     content: raw.content || raw.description || "",
@@ -396,10 +397,10 @@ export const getCategory = (category, page = 1, extraParams = {}) =>
     return mapOrFallback(uniqueBySlug(unwrapItems(data)));
   }, []);
 
-export const getCountry = (country, page = 1) =>
+export const getCountry = (country, page = 1, extraParams = {}) =>
   withFallback(async () => {
     const { data } = await client.get(`/quoc-gia/${country}`, {
-      params: { page },
+      params: { page, ...extraParams },
     });
     return mapOrFallback(uniqueBySlug(unwrapItems(data)));
   }, []);

@@ -15,10 +15,13 @@ const apiMap = {
 
 export const useKKphimMovies = (
   type = "latest",
-  { page = 1, country = "", ...options } = {}
+  { page = 1, country = "", year = "", movieType = "", ...options } = {}
 ) => {
-  const queryKey = ["kkphim", type, page, country].filter(Boolean);
-  const extraParams = country ? { country } : {};
+  const queryKey = ["kkphim", type, page, country, year, movieType].filter(Boolean);
+  const extraParams = {};
+  if (country) extraParams.country = country;
+  if (year) extraParams.year = year;
+  if (movieType) extraParams.type = movieType;
   const queryFn = () => (apiMap[type] || getKKphimLatest)(page, extraParams);
   return useQuery({
     queryKey,
@@ -32,10 +35,13 @@ export const useKKphimMovies = (
 
 export const useKKphimByCategory = (
   slug,
-  { page = 1, country = "", ...options } = {}
+  { page = 1, country = "", year = "", movieType = "", ...options } = {}
 ) => {
-  const queryKey = ["kkphim", "category", slug, page, country].filter(Boolean);
-  const extraParams = country ? { country } : {};
+  const queryKey = ["kkphim", "category", slug, page, country, year, movieType].filter(Boolean);
+  const extraParams = {};
+  if (country) extraParams.country = country;
+  if (year) extraParams.year = year;
+  if (movieType) extraParams.type = movieType;
   const queryFn = () => getKKphimByCategory(slug, page, extraParams);
   return useQuery({
     queryKey,
@@ -48,9 +54,15 @@ export const useKKphimByCategory = (
   });
 };
 
-export const useKKphimByCountry = (slug, { page = 1, ...options } = {}) => {
-  const queryKey = ["kkphim", "country", slug, page];
-  const queryFn = () => getKKphimByCountry(slug, page);
+export const useKKphimByCountry = (
+  slug,
+  { page = 1, year = "", movieType = "", ...options } = {}
+) => {
+  const queryKey = ["kkphim", "country", slug, page, year, movieType].filter(Boolean);
+  const extraParams = {};
+  if (year) extraParams.year = year;
+  if (movieType) extraParams.type = movieType;
+  const queryFn = () => getKKphimByCountry(slug, page, extraParams);
   return useQuery({
     queryKey,
     queryFn,

@@ -1,6 +1,8 @@
 import { useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import CountryFilter from "../components/CountryFilter.jsx";
+import YearFilter from "../components/YearFilter.jsx";
+import TypeFilter from "../components/TypeFilter.jsx";
 import MovieCard from "../components/MovieCard.jsx";
 import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
@@ -20,6 +22,9 @@ const countryLabels = {
 
 const Country = () => {
   const { country, page: pageParam } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearParam = searchParams.get("year") || "";
+  const typeParam = searchParams.get("type") || "";
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
   const page = pageFromUrl;
@@ -27,16 +32,28 @@ const Country = () => {
 
   const goToPage = (nextPage) => {
     const safePage = Math.max(1, nextPage);
-    navigate(`/country/${country}${safePage > 1 ? `/${safePage}` : ""}`);
+    const queryString = searchParams.toString();
+    const query = queryString ? `?${queryString}` : "";
+    navigate(`/country/${country}${safePage > 1 ? `/${safePage}` : ""}${query}`);
   };
 
   const { data: ophim = [], isLoading: loadingOphim } = useMoviesByCountry(
     country || "",
-    { page, enabled: Boolean(country) }
+    {
+      page,
+      enabled: Boolean(country),
+      year: yearParam,
+      movieType: typeParam,
+    }
   );
   const { data: kkphim = [], isLoading: loadingKK } = useKKphimByCountry(
     country || "",
-    { page, enabled: Boolean(country) }
+    {
+      page,
+      enabled: Boolean(country),
+      year: yearParam,
+      movieType: typeParam,
+    }
   );
 
   const movies = useMemo(() => {
@@ -45,8 +62,22 @@ const Country = () => {
       if (!m || !m.slug) return;
       if (!map.has(m.slug)) map.set(m.slug, m);
     });
-    return Array.from(map.values());
-  }, [kkphim, ophim]);
+    let result = Array.from(map.values());
+
+    if (yearParam) {
+      result = result.filter(
+        (m) => m.year && String(m.year) === String(yearParam)
+      );
+    }
+
+    if (typeParam) {
+      result = result.filter(
+        (m) => m.type && String(m.type) === String(typeParam)
+      );
+    }
+
+    return result;
+  }, [kkphim, ophim, yearParam, typeParam]);
 
   const pagedData = useMemo(() => {
     const limited = movies.slice(0, pageSize);
@@ -63,6 +94,26 @@ const Country = () => {
     navigate(`/country/${value}`);
   };
 
+  const handleYearChange = (value) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set("year", value);
+    } else {
+      newParams.delete("year");
+    }
+    setSearchParams(newParams);
+  };
+
+  const handleTypeChange = (value) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set("type", value);
+    } else {
+      newParams.delete("type");
+    }
+    setSearchParams(newParams);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -72,7 +123,11 @@ const Country = () => {
           </p>
           <h1 className="text-2xl font-bold text-white">{heading}</h1>
         </div>
-        <CountryFilter value={country || ""} onChange={handleChange} />
+        <div className="flex flex-wrap items-center gap-4">
+          <CountryFilter value={country || ""} onChange={handleChange} />
+          <YearFilter value={yearParam} onChange={handleYearChange} />
+          <TypeFilter value={typeParam} onChange={handleTypeChange} />
+        </div>
       </div>
 
       {isLoading ? (

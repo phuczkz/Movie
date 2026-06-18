@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
 import GridSkeleton from "../components/GridSkeleton.jsx";
 import CountryFilter from "../components/CountryFilter.jsx";
+import YearFilter from "../components/YearFilter.jsx";
+import TypeFilter from "../components/TypeFilter.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import Pagination from "../components/Pagination.jsx";
 import {
@@ -27,6 +29,8 @@ const Category = () => {
   const { category, page: pageParam } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const countryParam = searchParams.get("country") || "";
+  const yearParam = searchParams.get("year") || "";
+  const typeParam = searchParams.get("type") || "";
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
   const page = pageFromUrl;
@@ -34,7 +38,8 @@ const Category = () => {
 
   const goToPage = (nextPage) => {
     const safePage = Math.max(1, nextPage);
-    const query = countryParam ? `?country=${countryParam}` : "";
+    const queryString = searchParams.toString();
+    const query = queryString ? `?${queryString}` : "";
     navigate(
       `/category/${category}${safePage > 1 ? `/${safePage}` : ""}${query}`
     );
@@ -52,10 +57,18 @@ const Category = () => {
       enabled: isSeries,
       page,
       country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
     });
   const { data: seriesKK = [], isLoading: loadingSeriesKK } = useKKphimMovies(
     "series",
-    { enabled: isSeries, page, country: countryParam }
+    {
+      enabled: isSeries,
+      page,
+      country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
+    }
   );
 
   const { data: singleOphim = [], isLoading: loadingSingleOphim } =
@@ -63,10 +76,18 @@ const Category = () => {
       enabled: isSingle,
       page,
       country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
     });
   const { data: singleKK = [], isLoading: loadingSingleKK } = useKKphimMovies(
     "single",
-    { enabled: isSingle, page, country: countryParam }
+    {
+      enabled: isSingle,
+      page,
+      country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
+    }
   );
 
   const { data: latestOphim = [], isLoading: loadingLatestOphim } =
@@ -74,28 +95,54 @@ const Category = () => {
       enabled: isLatest,
       page,
       country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
     });
   const { data: latestKK = [], isLoading: loadingLatestKK } = useKKphimMovies(
     "latest",
-    { enabled: isLatest, page, country: countryParam }
+    {
+      enabled: isLatest,
+      page,
+      country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
+    }
   );
 
   const { data: mergedChieuRap = [], isLoading: loadingChieuRap } =
-    useChieuRapMerged(page, { enabled: isChieuRap, country: countryParam });
+    useChieuRapMerged(page, {
+      enabled: isChieuRap,
+      country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
+    });
 
   const { data: mergedHoatHinh = [], isLoading: loadingHoatHinh } =
-    useHoatHinhMerged(page, { enabled: isHoatHinh, country: countryParam });
+    useHoatHinhMerged(page, {
+      enabled: isHoatHinh,
+      country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
+    });
 
   const { data: byCategory = [], isLoading: loadingCategory } = useMoviesList(
     "category",
     category,
-    { enabled: isCategory, page, country: countryParam }
+    {
+      enabled: isCategory,
+      page,
+      country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
+    }
   );
   const { data: kkCategory = [], isLoading: loadingKKCategory } =
     useKKphimByCategory(category, {
       enabled: isCategory,
       page,
       country: countryParam,
+      year: yearParam,
+      movieType: typeParam,
     });
 
   const heading = useMemo(() => {
@@ -136,24 +183,38 @@ const Category = () => {
       });
     }
 
+    if (yearParam) {
+      result = result.filter(
+        (m) => m.year && String(m.year) === String(yearParam)
+      );
+    }
+
+    if (typeParam) {
+      result = result.filter(
+        (m) => m.type && String(m.type) === String(typeParam)
+      );
+    }
+
     return result;
   }, [
-    isSeries,
-    seriesKK,
-    seriesOphim,
-    isSingle,
-    singleKK,
-    singleOphim,
+    isChieuRap,
+    isHoatHinh,
     isLatest,
+    isSeries,
+    isSingle,
     latestKK,
     latestOphim,
-    isChieuRap,
     mergedChieuRap,
-    isHoatHinh,
     mergedHoatHinh,
+    seriesKK,
+    seriesOphim,
+    singleKK,
+    singleOphim,
     byCategory,
     kkCategory,
     countryParam,
+    yearParam,
+    typeParam,
   ]);
 
   const isLoading = useMemo(() => {
@@ -188,12 +249,33 @@ const Category = () => {
   }, [mergedData, pageSize]);
 
   const handleCountryChange = (value) => {
+    const newParams = new URLSearchParams(searchParams);
     if (value) {
-      setSearchParams({ country: value });
+      newParams.set("country", value);
     } else {
-      searchParams.delete("country");
-      setSearchParams(searchParams);
+      newParams.delete("country");
     }
+    setSearchParams(newParams);
+  };
+
+  const handleYearChange = (value) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set("year", value);
+    } else {
+      newParams.delete("year");
+    }
+    setSearchParams(newParams);
+  };
+
+  const handleTypeChange = (value) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value) {
+      newParams.set("type", value);
+    } else {
+      newParams.delete("type");
+    }
+    setSearchParams(newParams);
   };
 
   return (
@@ -205,9 +287,13 @@ const Category = () => {
           </p>
           <h1 className="text-2xl font-bold text-white">{heading}</h1>
         </div>
-        {category !== "hoat-hinh" && (
+        <div className="flex flex-wrap items-center gap-4">
           <CountryFilter value={countryParam} onChange={handleCountryChange} />
-        )}
+          <YearFilter value={yearParam} onChange={handleYearChange} />
+          {isCategory && (
+            <TypeFilter value={typeParam} onChange={handleTypeChange} />
+          )}
+        </div>
       </div>
 
       {isLoading ? (

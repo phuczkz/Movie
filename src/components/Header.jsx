@@ -25,14 +25,7 @@ const moviePrimaryNav = [
   { label: "Yêu Thích", to: "/favorites" },
 ];
 
-const movieYearOptions = [
-  { label: "2026", to: "/search?q=2026" },
-  { label: "2025", to: "/search?q=2025" },
-  { label: "2024", to: "/search?q=2024" },
-  { label: "2023", to: "/search?q=2023" },
-  { label: "2022", to: "/search?q=2022" },
-  // { label: "Trước 2022", to: "/search?q=2010-2021" },
-];
+
 
 const movieGenreOptions = [
   { label: "Hành Động", to: "/category/hanh-dong" },
@@ -397,7 +390,7 @@ const Header = () => {
                 {item.label}
               </NavLink>
             ))}
-            {!isComicMode && <Dropdown label="Năm" options={movieYearOptions} />}
+
             <Dropdown
               label="Thể Loại"
               options={genreOptions}
@@ -601,13 +594,7 @@ const Header = () => {
             <div className="space-y-4">
               <h3 className="px-2 mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Lọc & Phân loại</h3>
               <div className="space-y-3.5">
-                {!isComicMode && (
-                  <MobileDropdown
-                    label="Năm phát hành"
-                    options={movieYearOptions}
-                    onNavigate={closeAll}
-                  />
-                )}
+
                 <MobileDropdown
                   label="Thể Loại"
                   options={genreOptions}
