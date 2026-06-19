@@ -11,6 +11,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useAppMode } from "../context/AppModeContext";
 import { comicApi } from "../api/comicApi";
@@ -222,7 +223,6 @@ function headerReducer(state, action) {
 const Header = () => {
   const [headerState, dispatch] = useReducer(headerReducer, initialHeaderState);
   const { menuOpen, searchOpen, scrolled, isHidden } = headerState;
-  const [apiGenreOptions, setApiGenreOptions] = useState([]);
   const location = useLocation();
   const { user, userProfile, logout } = useAuth();
   const { appMode, setAppMode } = useAppMode();
@@ -235,24 +235,22 @@ const Header = () => {
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
 
-
-  useEffect(() => {
-    const fetchGenres = async () => {
-      try {
-        const data = await comicApi.getCategoryList();
-        if (data.status === "success" && data.data && data.data.items) {
-          const formatted = data.data.items.map((item) => ({
-            label: item.name,
-            to: `/comics/the-loai/${item.slug}`,
-          }));
-          setApiGenreOptions(formatted);
-        }
-      } catch (err) {
-        console.error("Failed to fetch genres:", err);
+  const { data: apiGenreOptionsData } = useQuery({
+    queryKey: ["comic-genres"],
+    queryFn: async () => {
+      const data = await comicApi.getCategoryList();
+      if (data?.status === "success" && data?.data?.items) {
+        return data.data.items.map((item) => ({
+          label: item.name,
+          to: `/comics/the-loai/${item.slug}`,
+        }));
       }
-    };
-    fetchGenres();
-  }, []);
+      return [];
+    },
+    staleTime: 60 * 60 * 1000, // 1 hour cache
+  });
+
+  const apiGenreOptions = apiGenreOptionsData || [];
 
   const closeAll = () => {
     dispatch({ type: "CLOSE_ALL" });

@@ -103,8 +103,8 @@ export default function ComicHome() {
         </div>
         
         <div className="grid-movies">
-          {items.map((comic) => (
-            <ComicCard key={comic._id} comic={comic} />
+          {items.map((comic, idx) => (
+            <ComicCard key={comic._id} comic={comic} priority={idx < 6} />
           ))}
         </div>
 

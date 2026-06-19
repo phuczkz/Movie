@@ -16,7 +16,7 @@ const fallbackLandscape =
 /**
  * ComicCard component for displaying a comic with a frame synchronized with MovieCard.
  */
-const ComicCard = ({ comic }) => {
+const ComicCard = ({ comic, priority = false }) => {
   const cardRef = useRef(null);
   const [hovered, setHovered] = useState(false);
   const { isSaved, toggleSave, loading: favLoading } = useSavedComic(comic);
@@ -107,8 +107,9 @@ const ComicCard = ({ comic }) => {
           <img
             src={posterSrc}
             alt={comic.name || "Comic"}
-            className="absolute h-full w-full object-cover transition duration-500 lg:group-hover:scale-105"
-            loading="lazy"
+            className="absolute h-full w-full object-cover transition duration-300 lg:group-hover:scale-105"
+            loading={priority ? "eager" : "lazy"}
+            {...(priority ? { fetchPriority: "high" } : { fetchPriority: "low" })}
             onError={(e) => {
               const currentSrc = e.currentTarget.src;
               if (currentSrc.includes("wsrv.nl")) {

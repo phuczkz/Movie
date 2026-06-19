@@ -140,7 +140,7 @@ const HoverCard = ({ movie, thumbSrc, audioBadges, alignment }) => {
 const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const imgRef = useRef(null);
   const cardRef = useRef(null);
-  const [shouldLoad, setShouldLoad] = useState(false);
+  const [isInView, setIsInView] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [alignment, setAlignment] = useState("center");
@@ -196,7 +196,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const { data: episodeList = [], isFetched } = useQuery({
     queryKey: ["movie_episodes_v2", slug],
     queryFn: () => getEpisodes(slug),
-    enabled: (apiReady || shouldLoad || priority) && !!slug,
+    enabled: (apiReady || isInView || priority) && !!slug,
     staleTime: 1000 * 60 * 15, // 15 mins
   });
 
@@ -288,30 +288,29 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   }, [episodeList, episodeCurrentText, movieLang, movie.status, movie.episode_total, movie.episode_current, isFetched]);
 
   useEffect(() => {
-    if (!imgRef.current || shouldLoad) return undefined;
+    if (!cardRef.current || isInView) return undefined;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setShouldLoad(true);
+          setIsInView(true);
           observer.disconnect();
         }
       },
-      { rootMargin: "900px", threshold: 0.01 }
+      { rootMargin: "500px", threshold: 0.01 }
     );
-    observer.observe(imgRef.current);
+    observer.observe(cardRef.current);
     return () => observer.disconnect();
-  }, [shouldLoad, slug]);
+  }, [isInView, slug]);
 
   const isMobileSize = isMobile();
   const basePoster = movie.poster_url || movie.thumb_url;
-  const posterSrc =
-    shouldLoad || priority
-      ? getOptimizedPoster(
-          basePoster,
-          priority ? (isMobileSize ? 300 : 480) : (isMobileSize ? 200 : 360),
-          isMobileSize ? 70 : 80
-        ) || fallbackPoster
-      : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+  
+  // Directly calculate poster source without waiting for IntersectionObserver
+  const posterSrc = getOptimizedPoster(
+    basePoster,
+    priority ? (isMobileSize ? 300 : 480) : (isMobileSize ? 200 : 360),
+    isMobileSize ? 70 : 80
+  ) || fallbackPoster;
 
   const thumbSrc =
     getOptimizedPoster(
@@ -341,7 +340,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
             ref={imgRef}
             src={posterSrc}
             alt={movie.name}
-            className={`absolute h-full w-full object-cover transition-opacity duration-500 lg:group-hover:scale-105 ${
+            className={`absolute h-full w-full object-cover transition-opacity duration-300 lg:group-hover:scale-105 ${
               loaded ? "opacity-100 scale-100" : "opacity-0"
             }`}
             loading={priority ? "eager" : "lazy"}
