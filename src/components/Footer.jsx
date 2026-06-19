@@ -27,7 +27,7 @@ const Footer = () => {
           ]
         })}
       </script>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-[18px] pb-[6px]">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12 mb-10 md:mb-12">
           {/* Brand & Description */}
           <div className="space-y-5 md:space-y-6 sm:col-span-2 lg:col-span-1">
@@ -129,7 +129,7 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Bottom Bar */}
+        {/* Bottom Bar
         <div className="pt-6 md:pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 text-xs text-slate-500">
           <p className="text-center md:text-left">© {currentYear} MovieSpace. All rights reserved.</p>
           <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
@@ -138,7 +138,7 @@ const Footer = () => {
               Server Status: Online
             </span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Decorative background element */}

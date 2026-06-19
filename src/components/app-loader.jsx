@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Film } from "lucide-react";
+import { Play } from "lucide-react";
 
 export default function AppLoader() {
   const [progress, setProgress] = useState(0);
@@ -31,7 +31,7 @@ export default function AppLoader() {
       <div className="relative z-10 flex flex-col items-center gap-8 text-center px-4 max-w-md w-full">
         {/* Glowing Emerald Logo Icon */}
         <div className="relative flex items-center justify-center size-20 sm:size-24 rounded-3xl bg-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)] border border-emerald-400/30">
-          <Film className="size-10 sm:size-12 text-slate-950" fill="currentColor" />
+          <Play className="size-10 sm:size-12 text-slate-950" fill="currentColor" />
           <div className="absolute inset-0 rounded-3xl ring-4 ring-emerald-500/20 animate-pulse" />
         </div>
 
