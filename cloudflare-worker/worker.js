@@ -247,7 +247,18 @@ function isMediaSegment(pathname) {
   );
 }
 
-async function handleTmdb(request, env, corsHeaders) {
+async function handleTmdb(request, env, corsHeaders, ctx) {
+  if (request.method === "GET") {
+    const cache = caches.default;
+    const cacheKey = new Request(request.url, { method: "GET" });
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+      const headers = new Headers(cachedResponse.headers);
+      Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+      return new Response(cachedResponse.body, { status: cachedResponse.status, headers });
+    }
+  }
+
   const url = new URL(request.url);
   const tmdbPath = url.pathname.replace(/^\/tmdb\/?/, "");
 
@@ -289,7 +300,18 @@ async function handleTmdb(request, env, corsHeaders) {
 
     const headers = new Headers(corsHeaders);
     headers.set("Content-Type", "application/json; charset=utf-8");
-    headers.set("Cache-Control", "public, max-age=300");
+    headers.set("Cache-Control", "public, max-age=14400");
+
+    const response = new Response(tmdbRes.body, {
+      status: tmdbRes.status,
+      headers,
+    });
+
+    if (request.method === "GET" && tmdbRes.status === 200 && ctx) {
+      const cache = caches.default;
+      const cacheKey = new Request(request.url, { method: "GET" });
+      ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    }
 
     if (request.method === "HEAD") {
       return new Response(null, {
@@ -298,10 +320,7 @@ async function handleTmdb(request, env, corsHeaders) {
       });
     }
 
-    return new Response(tmdbRes.body, {
-      status: tmdbRes.status,
-      headers,
-    });
+    return response;
   } catch {
     return jsonResponse(
       { error: "TMDB proxy failed" },
@@ -333,7 +352,7 @@ export default {
     const requestUrl = new URL(request.url);
 
     if (requestUrl.pathname.startsWith("/tmdb")) {
-      return handleTmdb(request, env, corsHeaders);
+      return handleTmdb(request, env, corsHeaders, ctx);
     }
 
     const targetUrl = requestUrl.searchParams.get("url");
@@ -376,6 +395,14 @@ export default {
     if (isBlockedPrivateHost(parsedTarget.hostname)) {
       return jsonResponse(
         { error: "Blocked private host" },
+        403,
+        corsHeaders
+      );
+    }
+
+    if (parsedTarget.hostname === "image.tmdb.org") {
+      return jsonResponse(
+        { error: "Do not proxy TMDB images through Worker. Use direct URL in your frontend." },
         403,
         corsHeaders
       );
