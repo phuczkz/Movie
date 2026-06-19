@@ -128,17 +128,6 @@ const Footer = () => {
             </address>
           </div>
         </div>
-
-        {/* Bottom Bar
-        <div className="pt-6 md:pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 text-xs text-slate-500">
-          <p className="text-center md:text-left">© {currentYear} MovieSpace. All rights reserved.</p>
-          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-6">
-            <span className="flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-green-500/50 animate-pulse"></span>
-              Server Status: Online
-            </span>
-          </div>
-        </div> */}
       </div>
 
       {/* Decorative background element */}
