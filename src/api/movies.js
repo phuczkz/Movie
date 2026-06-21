@@ -56,11 +56,31 @@ const normalizeMovie = (raw = {}) => {
   let rawPoster = raw.poster_url || "";
   let rawThumb = raw.thumb_url || "";
 
-  const isRelativeOphim = (url) => url && !url.startsWith("http");
+  // Check if either URL belongs to Ophim (either relative path or contains ophim domain)
+  const isOphim = (url) =>
+    url &&
+    (!url.startsWith("http") ||
+      url.includes("ophim.live") ||
+      url.includes("ophim1.com"));
 
-  if (isRelativeOphim(rawPoster) && isRelativeOphim(rawThumb)) {
-    // Swap: Ophim's thumb_url is actually portrait, poster_url is actually landscape
-    [rawPoster, rawThumb] = [rawThumb, rawPoster];
+  if (isOphim(rawPoster) || isOphim(rawThumb)) {
+    // Ophim's raw data has:
+    // - thumb_url = usually contains "-thumb" -> vertical (portrait)
+    // - poster_url = usually contains "-poster" -> horizontal (landscape)
+    // We want the portrait image in rawPoster and the landscape image in rawThumb.
+    const isRawPosterLandscape =
+      rawPoster.includes("poster") ||
+      rawPoster.includes("-poster") ||
+      rawPoster.includes("_poster");
+    const isRawThumbPortrait =
+      rawThumb.includes("thumb") ||
+      rawThumb.includes("-thumb") ||
+      rawThumb.includes("_thumb");
+
+    if (isRawPosterLandscape || isRawThumbPortrait) {
+      // Swap them to align with our standard format (poster = portrait, thumb = landscape)
+      [rawPoster, rawThumb] = [rawThumb, rawPoster];
+    }
   }
 
   const poster = rawPoster || raw.poster || rawThumb || raw.banner || "";

@@ -195,25 +195,25 @@ const Player = ({
           // Measure time to first frame
           const onCanPlay = () => {
             const elapsed = (performance.now() - t0).toFixed(0);
-            console.log(
-              `%c[Perf] ▶ Video ready in ${elapsed}ms`,
-              elapsed <= 200
-                ? "color: #10b981; font-weight: bold; font-size: 13px;"
-                : elapsed <= 500
-                  ? "color: #f59e0b; font-weight: bold; font-size: 13px;"
-                  : "color: #ef4444; font-weight: bold; font-size: 13px;"
-            );
+            // console.log(
+            //   `%c[Perf] ▶ Video ready in ${elapsed}ms`,
+            //   elapsed <= 200
+            //     ? "color: #10b981; font-weight: bold; font-size: 13px;"
+            //     : elapsed <= 500
+            //       ? "color: #f59e0b; font-weight: bold; font-size: 13px;"
+            //       : "color: #ef4444; font-weight: bold; font-size: 13px;"
+            // );
             videoEl.removeEventListener("canplay", onCanPlay);
           };
           videoEl.addEventListener("canplay", onCanPlay);
 
           hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
             const manifestTime = (performance.now() - t0).toFixed(0);
-            console.log(
-              `%c[Perf] 📋 Manifest parsed in ${manifestTime}ms (${data?.levels?.length || 0
-              } levels)`,
-              "color: #8b5cf6; font-weight: bold;"
-            );
+            // console.log(
+            //   `%c[Perf] 📋 Manifest parsed in ${manifestTime}ms (${data?.levels?.length || 0
+            //   } levels)`,
+            //   "color: #8b5cf6; font-weight: bold;"
+            // );
 
             const art = artObj || artInstanceRef.current;
 
@@ -246,10 +246,10 @@ const Player = ({
             if (art) {
               const qualityConfig = {
                 name: "quality",
-                width: 180,
+                width: 185,
                 html: "Chất lượng",
                 icon: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
-                tooltip: "Chất lượng",
+                tooltip: "Tự động",
                 selector: [
                   { default: true, html: "Tự động", level: -1 },
                   ...unique,
@@ -262,17 +262,24 @@ const Player = ({
 
               const addQuality = () => {
                 if (!art.setting) return;
-                const existing = art.setting.settings?.find(
-                  (s) => s.name === "quality"
-                );
-                if (existing) art.setting.update(qualityConfig);
-                else art.setting.add(qualityConfig);
+
+                // Cập nhật width cho option Tốc độ mặc định của Artplayer
+                try {
+                  art.setting.update({ name: "playback-rate", width: 185 });
+                } catch (e) { }
+
+                if (art.qualityConfigAdded) {
+                  art.setting.update(qualityConfig);
+                } else {
+                  art.setting.add(qualityConfig);
+                  art.qualityConfigAdded = true;
+                }
               };
 
-            if (art.isReady) addQuality();
-            else art.on("ready", addQuality);
-          }
-        });
+              if (art.isReady) addQuality();
+              else art.on("ready", addQuality);
+            }
+          });
 
           hls.on(Hls.Events.ERROR, (_, data) => {
             // ── Handle non-fatal errors that can cause A/V desync ──
@@ -675,7 +682,7 @@ const Player = ({
 
     // Cơ chế Watchdog cực mạnh để ép seek bằng mọi giá (trị dứt điểm mọi bug reset 0:00)
     let forceSeekInterval = null;
-    
+
     const applyForceSeek = () => {
       const seekTarget = pendingSeekRef.current;
       if (seekTarget > 0 && artInstanceRef.current?.video) {
@@ -685,7 +692,7 @@ const Player = ({
           try {
             video.currentTime = seekTarget;
             if (artInstanceRef.current.seek) artInstanceRef.current.seek = seekTarget;
-          } catch(e) { console.warn("Seek error", e); }
+          } catch (e) { console.warn("Seek error", e); }
         } else if (video.currentTime >= seekTarget - 2) {
           // Đã seek thành công
           pendingSeekRef.current = 0;
@@ -706,7 +713,7 @@ const Player = ({
       if (pendingSeekRef.current > 0 && !forceSeekInterval) {
         forceSeekInterval = setInterval(applyForceSeek, 500);
         setTimeout(() => {
-           if (forceSeekInterval) { clearInterval(forceSeekInterval); forceSeekInterval = null; }
+          if (forceSeekInterval) { clearInterval(forceSeekInterval); forceSeekInterval = null; }
         }, 5000); // Tự hủy sau 5s để không gây lag
       }
     });
@@ -785,7 +792,7 @@ const Player = ({
   useEffect(() => {
     playbackIssueReportedRef.current = false;
     const currentVidTime = artInstanceRef.current?.video?.currentTime;
-    
+
     if (episodeSlug === currentEpSlugRef.current && currentVidTime > 0) {
       // Đang xem giữa chừng, CHỈ chuyển server/nguồn (cùng tập): giữ vị trí hiện tại
       lastPositionRef.current = currentVidTime;

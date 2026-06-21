@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { getTmdbLogo } from "../api/tmdb";
 
 const LOGO_CACHE_KEY = "tmdb_logo_cache_v1";
@@ -74,59 +74,52 @@ export const useMovieLogo = (movie) => {
  */
 export const useMovieLogos = (movies = []) => {
   const list = movies.filter(Boolean);
-  const listKey = list.map((m) => m.slug).join(",");
 
-  const { data: logoMap = new Map(), isLoading } = useQuery({
-    queryKey: ["movie-logos", listKey],
-    queryFn: async () => {
-      const results = await Promise.allSettled(
-        list.map(async (m, index) => {
+  const queryResults = useQueries({
+    queries: list.map((m, index) => {
+      const name = m.name || "";
+      const originName = m.origin_name || "";
+      const year = m.year;
+      const slug = m.slug;
+
+      return {
+        queryKey: ["movie-logo", name, originName, year],
+        queryFn: async () => {
           if (index > 0) {
             // Delay fetching logos for subsequent slides to prioritize the first slide's assets
-            await new Promise((resolve) => setTimeout(resolve, 2000 + index * 500));
+            await new Promise((resolve) => setTimeout(resolve, 1500 + index * 500));
           }
-          const name = m.name || "";
-          const originName = m.origin_name || "";
-          const year = m.year;
           const logo = await getTmdbLogo(name, originName, year);
-          return { slug: m.slug, logo };
-        })
-      );
-
-      const map = new Map();
-      const toPersist = [];
-      results.forEach((r) => {
-        if (r.status === "fulfilled" && r.value) {
-          map.set(r.value.slug, r.value.logo);
-          if (typeof r.value.logo === "string" && r.value.logo) {
-            toPersist.push(r.value);
+          if (slug && typeof logo === "string" && logo) {
+            persistLogos([{ slug, logo }]);
           }
-        }
-      });
-      persistLogos(toPersist);
-      return map;
-    },
-    enabled: list.length > 0,
-    staleTime: 60 * 60 * 1000,
-    gcTime: 24 * 60 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    retry: 1,
-    initialData: () => {
-      if (!list.length) return undefined;
-      const cache = getPersistedLogos();
-      const map = new Map();
-      let hasAny = false;
-      list.forEach((m) => {
-        const cachedLogo = cache[m.slug];
-        if (typeof cachedLogo === "string" && cachedLogo) {
-          map.set(m.slug, cachedLogo);
-          hasAny = true;
-        }
-      });
-      return hasAny ? map : undefined;
-    },
+          return logo || null;
+        },
+        enabled: !!(name || originName),
+        staleTime: 60 * 60 * 1000,
+        gcTime: 24 * 60 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        retry: 1,
+        initialData: () => {
+          if (!slug) return undefined;
+          const cache = getPersistedLogos();
+          const cachedLogo = cache[slug];
+          return typeof cachedLogo === "string" && cachedLogo ? cachedLogo : undefined;
+        },
+      };
+    }),
   });
+
+  const logoMap = new Map();
+  list.forEach((m, idx) => {
+    const res = queryResults[idx];
+    if (res && res.data) {
+      logoMap.set(m.slug, res.data);
+    }
+  });
+
+  const isLoading = queryResults.some((res) => res.isLoading);
 
   return { logoMap, isLoading };
 };

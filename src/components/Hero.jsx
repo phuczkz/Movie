@@ -53,7 +53,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
 
   if (!activeMovie) {
     return (
-      <section className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-900/40 h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px] animate-pulse">
+      <section className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-900/40 h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px] animate-pulse">
         <div className="absolute inset-0 bg-slate-800/50" />
         <div className="relative z-10 flex h-full flex-col justify-end px-4 pb-14 md:px-10 md:pb-24 lg:px-16 lg:pb-12 gap-6">
           <div className="h-12 w-1/3 bg-slate-700/50 rounded-lg" />
@@ -116,7 +116,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   return (
     <LazyMotion features={domAnimation}>
     <section
-      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none md:rounded-[28px] bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px]"
+      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px]"
     >
       <div className="absolute inset-0">
         <AnimatePresence mode="popLayout">
@@ -135,6 +135,11 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
             decoding="async"
             fetchPriority="high"
             aria-hidden="true"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = background;
+              e.currentTarget.srcset = "";
+            }}
           />
         </AnimatePresence>
         {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin */}

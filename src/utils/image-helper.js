@@ -1,10 +1,4 @@
 const DIRECT_CDN_HOSTS = [
-  "img.ophim.live",
-  "ophim.live",
-  "img.ophim1.com",
-  "ophim1.com",
-  "phimimg.com",
-  "img.phimapi.com",
   "img.otruyenapi.com",
   "otruyenapi.com",
 ];

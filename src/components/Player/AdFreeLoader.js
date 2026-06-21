@@ -40,13 +40,13 @@ export const buildAdFreeLoader = (BaseLoader, sourceUrl) => {
                   filtered.includes("#EXTINF")
                 ) {
                   if (filtered.length < text.length) {
-                    console.log(
-                      "%c[BlockADS] ✓ Đã lọc quảng cáo (%d → %d bytes, -%d bytes)",
-                      "color: #10b981; font-weight: bold;",
-                      text.length,
-                      filtered.length,
-                      text.length - filtered.length
-                    );
+                    // console.log(
+                    //   "%c[BlockADS] ✓ Đã lọc quảng cáo (%d → %d bytes, -%d bytes)",
+                    //   "color: #10b981; font-weight: bold;",
+                    //   text.length,
+                    //   filtered.length,
+                    //   text.length - filtered.length
+                    // );
                   }
                   nextResponse = { ...response, data: filtered };
                 }
