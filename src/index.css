@@ -708,6 +708,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ─── Premium Artplayer Settings Panel Styling ───────────────────────────── */
+
+/* Outer container: override Artplayer's fixed height calculation to fit our custom padding */
+.art-setting {
+  height: auto !important;
+  overflow: hidden !important;
+}
+
 .art-setting-panel {
   background: rgba(15, 23, 42, 0.85) !important;
   backdrop-filter: blur(20px) !important;
@@ -717,6 +724,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
   padding: 8px !important;
   font-family: inherit !important;
+  height: auto !important;
+  overflow: hidden !important;
 }
 
 /* Individual setting items */
@@ -771,8 +780,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 @media (max-width: 768px) {
   .art-setting-panel {
     width: 220px !important;
-    max-height: 280px !important;
-    overflow-y: auto !important;
   }
 
   .art-setting-item {

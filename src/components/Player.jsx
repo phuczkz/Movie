@@ -262,11 +262,12 @@ const Player = ({
 
               const addQuality = () => {
                 if (!art.setting) return;
-                const existing = art.setting.settings?.find(
-                  (s) => s.name === "quality"
-                );
-                if (existing) art.setting.update(qualityConfig);
-                else art.setting.add(qualityConfig);
+                const existing = art.setting.find("quality");
+                if (existing) {
+                  art.setting.update(qualityConfig);
+                } else {
+                  art.setting.add(qualityConfig);
+                }
               };
 
             if (art.isReady) addQuality();
@@ -402,30 +403,30 @@ const Player = ({
             const frameDelta = totalFrames - lastTotalFrames;
 
             // 1. Detect Video Decoder Freeze (Audio playing, video frame frozen)
-            // Increased threshold to 2000ms to allow modern browser decoders to recover naturally.
+            // Nới rộng thời gian chờ đóng băng nếu người dùng đang tăng tốc độ phát video (playbackRate > 1.0)
+            const playbackRate = videoEl.playbackRate || 1;
+            const freezeTimeout = playbackRate > 1 ? 5000 : 2500;
+
             if (totalFrames > 0 && lastTotalFrames > 0 && timeDelta > 0.05 && frameDelta === 0) {
               if (desyncFreezeStartTime === 0) {
                 desyncFreezeStartTime = now;
-              } else if (now - desyncFreezeStartTime > 2000) {
+              } else if (now - desyncFreezeStartTime > freezeTimeout) {
                 desyncRecoveryAttempts += 1;
                 console.warn(
-                  `[Player] Silent video freeze detected at ${currentTime.toFixed(1)}s. Recovery attempt #${desyncRecoveryAttempts}...`
+                  `[Player] Silent video freeze detected at ${currentTime.toFixed(1)}s (rate: ${playbackRate}x). Recovery attempt #${desyncRecoveryAttempts}...`
                 );
 
                 desyncFreezeStartTime = 0;
 
                 if (hlsInstanceRef.current) {
                   if (desyncRecoveryAttempts <= 1) {
-                    // Level 1: Recover media pipeline error directly (much safer than seek nudge)
                     console.warn("[Player] Attempting recoverMediaError...");
                     hlsInstanceRef.current.recoverMediaError();
                   } else if (desyncRecoveryAttempts <= 2) {
-                    // Level 2: Swap audio codec + recover media error
                     console.warn("[Player] Swapping audio codec and recovering...");
                     hlsInstanceRef.current.swapAudioCodec();
                     hlsInstanceRef.current.recoverMediaError();
                   } else {
-                    // Level 3: Full reload
                     console.error("[Player] Silent freeze recovery failed. Reloading source completely...");
                     desyncRecoveryAttempts = 0;
                     hlsInstanceRef.current.loadSource(url);
@@ -435,6 +436,12 @@ const Player = ({
                     }
                     videoEl.play().catch(() => { });
                   }
+
+                  // Quan trọng: Reset trạng thái theo dõi để tránh luồng khôi phục chạy liên tục (gây kẹt tải mạng)
+                  lastWatchdogTime = videoEl.currentTime;
+                  lastTotalFrames = totalFrames;
+                  desyncFreezeStartTime = 0;
+                  lastCheckRealTime = performance.now();
                 }
               }
             } else {
@@ -680,11 +687,18 @@ const Player = ({
       const seekTarget = pendingSeekRef.current;
       if (seekTarget > 0 && artInstanceRef.current?.video) {
         const video = artInstanceRef.current.video;
+        // Nếu trình duyệt đang thực hiện seek, KHÔNG can thiệp tiếp để tránh hủy các request tải segment (.ts)
+        if (video.seeking) {
+          return;
+        }
         if (video.currentTime < 5 && seekTarget > 10) {
           console.log(`[Player Watchdog] Đang ép video nhảy tới ${seekTarget}s...`);
           try {
-            video.currentTime = seekTarget;
-            if (artInstanceRef.current.seek) artInstanceRef.current.seek = seekTarget;
+            if (typeof artInstanceRef.current.seek === "function") {
+              artInstanceRef.current.seek(seekTarget);
+            } else {
+              video.currentTime = seekTarget;
+            }
           } catch(e) { console.warn("Seek error", e); }
         } else if (video.currentTime >= seekTarget - 2) {
           // Đã seek thành công
@@ -807,7 +821,18 @@ const Player = ({
     if (artInstanceRef.current && effectiveSource && !canUseIframe) {
       // Avoid redundant switches if the URL is the same
       if (artInstanceRef.current.url === effectiveSource) return;
-      artInstanceRef.current.switchUrl(effectiveSource, posterUrl);
+
+      const art = artInstanceRef.current;
+      // Reset setting panel về menu gốc (2 option) khi chuyển tập
+      // Dùng art.setting.render() không tham số để ép hiển thị lại root menu
+      if (art.setting) {
+        art.setting.show = false;
+        try {
+          art.setting.render();
+        } catch (e) { /* ignore */ }
+      }
+
+      art.switchUrl(effectiveSource, posterUrl);
     }
   }, [effectiveSource, posterUrl, canUseIframe]);
 
