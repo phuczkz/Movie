@@ -52,7 +52,6 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
 
   const lines = text.split(/\r?\n/);
   const out = [];
-  let adsRemoved = 0;
   let i = 0;
   let accumulatedTime = 0; // track time in seconds
 
@@ -92,7 +91,6 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
       ) {
         i = nextDiscontinuityIndex + 1;
         accumulatedTime += blockDuration;
-        adsRemoved++;
         continue;
       }
     }
@@ -113,7 +111,6 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
       const nextLine = (lines[i + 1] || "").trim();
       if (nextLine && isAdSegment(nextLine)) {
         if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
-          adsRemoved++;
           i += 2;
           accumulatedTime += segmentDuration;
           continue;
@@ -125,7 +122,6 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
     // ── Skip bare ad segment URLs (safety net) ──
     if (line && !line.startsWith("#") && isAdSegment(line)) {
       if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
-        adsRemoved++;
         i++;
         continue;
       }
@@ -182,14 +178,7 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
     cleaned.push(curr);
   }
 
-  // Log results
-  // if (adsRemoved > 0) {
-  //   console.log(
-  //     "%c[BlockADS] ✓ Đã lọc %d đoạn chứa quảng cáo",
-  //     "color: #10b981; font-weight: bold;",
-  //     adsRemoved
-  //   );
-  // }
+  // Log results omitted
 
   const result = cleaned.join("\n") + "\n";
 

@@ -29,7 +29,7 @@ window.addEventListener(
       if (src.includes("phimimg.com/upload/") || src.includes("phiming.com/upload/")) {
         if (!e.target.dataset.fallbackApplied) {
           e.target.dataset.fallbackApplied = "true";
-          const ophimCdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "https://img.ophim.live/uploads/movies/";
+          const ophimCdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
           const path = src.split(/phim(?:im)?g\.com\/upload\//)[1];
           e.target.src = `${ophimCdn}${path}`;
         }

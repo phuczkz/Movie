@@ -832,7 +832,7 @@ const Player = ({
         art.setting.show = false;
         try {
           art.setting.render();
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
       }
 
       art.switchUrl(effectiveSource, posterUrl);

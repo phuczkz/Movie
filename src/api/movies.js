@@ -60,8 +60,7 @@ const normalizeMovie = (raw = {}) => {
   const isOphim = (url) =>
     url &&
     (!url.startsWith("http") ||
-      url.includes("ophim.live") ||
-      url.includes("ophim1.com"));
+      url.includes("ophim"));
 
   if (isOphim(rawPoster) || isOphim(rawThumb)) {
     // Ophim's raw data has:

@@ -1,8 +1,6 @@
 import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Twitter, Film } from "lucide-react";
 
 const Footer = () => {
-  const currentYear = new Date().getFullYear();
-
   return (
     <footer className="relative z-10 border-t border-white/5 bg-slate-950/40 backdrop-blur-2xl">
       {/* SEO Structured Data */}
