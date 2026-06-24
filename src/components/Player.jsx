@@ -287,7 +287,10 @@ const Player = ({
                 data.details === Hls.ErrorDetails.FRAG_PARSING_ERROR
               ) {
                 console.debug("[HLS] Non-fatal recovery:", data.details);
-                hls.startLoad();
+                // KHÔNG GỌI hls.startLoad() Ở ĐÂY.
+                // Nếu gọi startLoad() lúc mạng đang chậm, nó sẽ hủy (cancel) segment đang tải dở
+                // và bắt tải lại từ đầu (0%), gây ra tình trạng delay rất lâu và request bị canceled!
+                // hls.js sẽ tự động tiếp tục tải.
               }
               return;
             }
@@ -475,9 +478,10 @@ const Player = ({
             desyncFreezeStartTime = 0;
             lastCheckRealTime = 0;
 
-            if (hlsInstanceRef.current) {
-              hlsInstanceRef.current.startLoad(videoEl.currentTime);
-            }
+            // KHÔNG GỌI hlsInstanceRef.current.startLoad() Ở ĐÂY NỮA.
+            // Khi hls.js xử lý gap đệm (nudge playhead), nó tự động phát ra event 'seeked'.
+            // Việc gọi startLoad() ở đây sẽ hủy bỏ segment đang tải dở, dẫn tới vòng lặp cancel!
+            // hls.js tự quản lý tiến trình tải khi seek.
           };
 
           videoEl.addEventListener("seeked", onSeeked);
@@ -685,6 +689,9 @@ const Player = ({
 
     // Cơ chế Watchdog cực mạnh để ép seek bằng mọi giá (trị dứt điểm mọi bug reset 0:00)
     let forceSeekInterval = null;
+    // Guard: ngăn onSeeked gọi startLoad khi seeked được fire bởi chính applyForceSeek.
+    // Nếu thiếu guard này → forceSeek → seeked → startLoad → restart pipeline → chậm segment.
+    let isForceSeekActive = false;
 
     const applyForceSeek = () => {
       const seekTarget = pendingSeekRef.current;
@@ -696,6 +703,7 @@ const Player = ({
         }
         if (video.currentTime < 5 && seekTarget > 10) {
           console.log(`[Player Watchdog] Đang ép video nhảy tới ${seekTarget}s...`);
+          isForceSeekActive = true; // Đánh dấu: seeked event tiếp theo là do forceSeek
           try {
             if (typeof artInstanceRef.current.seek === "function") {
               artInstanceRef.current.seek(seekTarget);
@@ -703,9 +711,12 @@ const Player = ({
               video.currentTime = seekTarget;
             }
           } catch (e) { console.warn("Seek error", e); }
+          // Reset flag sau khi browser xử lý xong seek (seeked event fire xong)
+          setTimeout(() => { isForceSeekActive = false; }, 300);
         } else if (video.currentTime >= seekTarget - 2) {
           // Đã seek thành công
           pendingSeekRef.current = 0;
+          isForceSeekActive = false;
           if (forceSeekInterval) {
             clearInterval(forceSeekInterval);
             forceSeekInterval = null;
@@ -714,6 +725,7 @@ const Player = ({
       } else if (forceSeekInterval && seekTarget <= 0) {
         clearInterval(forceSeekInterval);
         forceSeekInterval = null;
+        isForceSeekActive = false;
       }
     };
 

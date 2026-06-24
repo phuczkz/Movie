@@ -285,6 +285,7 @@ async function handleTmdb(request, env, corsHeaders) {
       headers: {
         Accept: "application/json",
       },
+      signal: request.signal, // Hủy tải từ TMDB nếu client hủy
     });
 
     const headers = new Headers(corsHeaders);
@@ -432,6 +433,7 @@ export default {
         method: request.method,
         headers: upstreamHeaders,
         redirect: "follow",
+        signal: request.signal, // QUAN TRỌNG: Hủy tải từ server gốc (ophim, kkphim) nếu người dùng tua video
       });
 
       if (

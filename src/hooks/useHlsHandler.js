@@ -113,18 +113,19 @@ export const useHlsHandler = (source, isHls) => {
 
     const config = {
       // ── FORWARD BUFFER ──
-      // Conservative buffer sizes to prevent network queue congestion.
-      // Optimized: Reduced to 10s (mobile) / 15s (desktop) to avoid loading too many
-      // heavy segments in parallel, which would congest the connection pool.
+      // Giữ buffer ở mức vừa đủ để prefetch liên tục mà không làm ngập connection pool.
+      // 20s (desktop) / 12s (mobile) = ~4–10 segment prefetch đồng thời.
+      // Quá lớn (60s+) sẽ gửi quá nhiều request cùng lúc → mỗi .ts chờ nhau → chậm.
+      // hls.js tự scale lên maxMaxBufferLength khi mạng cho phép.
       maxBufferLength: isMobile ? 30 : 60,
       maxMaxBufferLength: isMobile ? 60 : 120,
       maxBufferSize: isMobile ? 60_000_000 : 120_000_000,
 
       // ── BACK BUFFER ──
-      // Keep 2 minutes of played video in memory for instant backward seeking.
-      // NEVER use Infinity — it causes unbounded memory growth that triggers
-      // browser garbage collection, which mass-cancels pending network requests.
-      backBufferLength: isMobile ? 90 : 180,
+      // Giữ vừa đủ để backward seek mà không chiếm quá nhiều RAM.
+      // RAM quá lớn → browser GC → hủy pending network requests → .ts chậm.
+      // 60s (desktop) / 30s (mobile) = đủ rewind 1 phút mà không gây leak.
+      backBufferLength: isMobile ? 30 : 60,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
@@ -137,9 +138,9 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── ABR ──
       startLevel: -1,
-      // Optimized: Start with a lower default estimate (1Mbps desktop, 500Kbps mobile)
-      // to quickly load a smaller first segment (instant start) and then dynamically scale up.
-      abrEwmaDefaultEstimate: isMobile ? 500_000 : 1_000_000,
+      // Estimate băng thông ban đầu cao hơn để hls.js chọn quality tốt ngay từ segment đầu.
+      // 3Mbps (desktop) / 1.5Mbps (mobile) → tránh bị kẹt ở quality thấp rồi mới scale lên.
+      abrEwmaDefaultEstimate: isMobile ? 1_500_000 : 3_000_000,
       abrBandWidthFactor: 0.95,
       abrBandWidthUpFactor: 0.7,
       testBandwidth: true,
@@ -170,17 +171,20 @@ export const useHlsHandler = (source, isHls) => {
       // "omit" credentials = browser never attaches cookies to CDN requests,
       // which would otherwise force a costly OPTIONS preflight on every fragment.
       fetchSetup: (context, initParams) => {
+        // Truyền lại tín hiệu abort (signal) để hls.js có thể ngắt kết nối tải thừa khi tua
         return new Request(context.url, {
           ...initParams,
+          signal: initParams.signal,
           credentials: "omit",
           mode: "cors",
-          cache: "default",  // re-use browser cache for repeated segment fetches
+          cache: "default",
         });
       },
 
       // ── EARLY PLAYBACK TRIGGER ──
-      // Reduce how much buffer hls.js requires before un-stalling playback.
-      maxStarvationDelay: 2,        // Optimized: Reduced from 4s to 2s to resume faster after stall
+      // maxStarvationDelay: thời gian tối đa chờ buffer đủ trước khi un-stall.
+      // 4s (tăng từ 2s) — tránh stall/unstall liên tục khi .ts tải mất 2-3s.
+      maxStarvationDelay: 2,
       highBufferWatchdogPeriod: 2,  // check buffer health every 2s (default: 3)
       liveSyncDurationCount: 3,     // keep sync in live streams
     };
