@@ -3,7 +3,7 @@ import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 import { parseSeasonInfo } from "../utils/episodes";
 
 // Using the Proxy URL to keep the API Key secret on the server
-const baseURL = "https://stream.khophim.io.vn/tmdb/";
+const baseURL = import.meta.env.VITE_TMDB_PROXY;
 const posterBase = import.meta.env.VITE_TMDB_IMAGE_BASE;
 const backdropBase = import.meta.env.VITE_TMDB_BACKDROP_BASE;
 const profileBase = import.meta.env.VITE_TMDB_PROFILE_BASE;

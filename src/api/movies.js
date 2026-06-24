@@ -6,7 +6,7 @@ import {
   getTmdbFullEpisodes,
 } from "./tmdb";
 
-import { getKKphimDetail, searchKKphim } from "./kkphim";
+import { getKKphimDetail, searchKKphim } from "./movies2";
 import { filterAdultMovies, isAdultMovie } from "../utils/filter";
 
 // Helpers to escape and decode HTML entities for search queries and display names

@@ -106,6 +106,7 @@ const normalizeKKphimMovie = (raw = {}) => {
     episode_current: raw.episode_current || raw.status || "",
     episode_total: raw.episode_total || "",
     quality: raw.quality || "",
+    style: raw.style || "",
     lang: raw.lang || "",
     time: raw.time || "",
     category: raw.category || [],
@@ -135,8 +136,8 @@ const uniqueBySlug = (items = []) => {
 const fetchList = async (path, page = 1, extraParams = {}) => {
   const config = { params: { page, ...extraParams } };
   if (path === "/danh-sach/phim-moi-cap-nhat") {
-    // This endpoint is hosted directly under phimapi.com without the /v1/api prefix
-    config.baseURL = "https://phimapi.com";
+    // This endpoint is hosted directly under the API base URL without the /v1/api prefix
+    config.baseURL = import.meta.env.VITE_KKPHIM_API_BASE;
   }
   const { data } = await kkphim.get(path, config);
   const items = data?.data?.items || data?.items || [];

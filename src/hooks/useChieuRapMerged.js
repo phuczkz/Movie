@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getKKphimChieuRap } from "../api/kkphim";
+import { getKKphimChieuRap } from "../api/movies2";
 import { getOphimChieuRap } from "../api/movies";
 
 const parseEp = (epStr) => {

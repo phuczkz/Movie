@@ -11,7 +11,7 @@ import Layout from "./components/Layout.jsx";
 import ComicLayout from "./components/comics/ComicLayout.jsx";
 import { useAppMode } from "./context/AppModeContext";
 import { cancelAllPendingRequests } from "./api/client";
-import { cancelAllKKphimRequests } from "./api/kkphim";
+import { cancelAllKKphimRequests } from "./api/movies2";
 
 import Home from "./pages/Home.jsx";
 import Category from "./pages/Category.jsx";

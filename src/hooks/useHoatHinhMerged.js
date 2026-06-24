@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getOphimHoatHinh } from "../api/movies";
-import { getKKphimHoatHinh } from "../api/kkphim";
+import { getKKphimHoatHinh } from "../api/movies2";
 
 const parseEpisodeNumber = (value) => {
   if (!value) return 0;

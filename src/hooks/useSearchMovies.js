@@ -5,7 +5,7 @@ import {
   getKKphimByCountry,
   searchKKphim,
   getKKphimByYear,
-} from "../api/kkphim";
+} from "../api/movies2";
 import { comicApi } from "../api/comicApi";
 import { filterAdultMovies } from "../utils/filter";
 

@@ -5,7 +5,7 @@ import {
   getKKphimSingle,
   getKKphimByCategory,
   getKKphimByCountry,
-} from "../api/kkphim";
+} from "../api/movies2";
 
 const apiMap = {
   latest: getKKphimLatest,

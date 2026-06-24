@@ -100,9 +100,12 @@ const Player = ({
           const urlObj = new URL(targetUrl);
           const hostname = urlObj.hostname.toLowerCase();
 
-          // phim1280.tv and kkphimplayer CDN domains block Cloudflare Workers but allow direct CORS (*).
-          // Playing directly from the browser avoids the Worker 404/403 blocks.
-          if (hostname.endsWith("phim1280.tv") || hostname.includes("kkphimplayer")) {
+          if (
+            hostname.endsWith("phim1280.tv") ||
+            hostname.includes("kkphimplayer") ||
+            hostname.includes("opstream") ||
+            hostname.includes("ophim")
+          ) {
             return targetUrl;
           }
         } catch { /* Ignore invalid URL formats */ }
@@ -270,10 +273,10 @@ const Player = ({
                 }
               };
 
-            if (art.isReady) addQuality();
-            else art.on("ready", addQuality);
-          }
-        });
+              if (art.isReady) addQuality();
+              else art.on("ready", addQuality);
+            }
+          });
 
           hls.on(Hls.Events.ERROR, (_, data) => {
             // ── Handle non-fatal errors that can cause A/V desync ──
@@ -682,7 +685,7 @@ const Player = ({
 
     // Cơ chế Watchdog cực mạnh để ép seek bằng mọi giá (trị dứt điểm mọi bug reset 0:00)
     let forceSeekInterval = null;
-    
+
     const applyForceSeek = () => {
       const seekTarget = pendingSeekRef.current;
       if (seekTarget > 0 && artInstanceRef.current?.video) {
@@ -699,7 +702,7 @@ const Player = ({
             } else {
               video.currentTime = seekTarget;
             }
-          } catch(e) { console.warn("Seek error", e); }
+          } catch (e) { console.warn("Seek error", e); }
         } else if (video.currentTime >= seekTarget - 2) {
           // Đã seek thành công
           pendingSeekRef.current = 0;
@@ -720,7 +723,7 @@ const Player = ({
       if (pendingSeekRef.current > 0 && !forceSeekInterval) {
         forceSeekInterval = setInterval(applyForceSeek, 500);
         setTimeout(() => {
-           if (forceSeekInterval) { clearInterval(forceSeekInterval); forceSeekInterval = null; }
+          if (forceSeekInterval) { clearInterval(forceSeekInterval); forceSeekInterval = null; }
         }, 5000); // Tự hủy sau 5s để không gây lag
       }
     });
@@ -799,7 +802,7 @@ const Player = ({
   useEffect(() => {
     playbackIssueReportedRef.current = false;
     const currentVidTime = artInstanceRef.current?.video?.currentTime;
-    
+
     if (episodeSlug === currentEpSlugRef.current && currentVidTime > 0) {
       // Đang xem giữa chừng, CHỈ chuyển server/nguồn (cùng tập): giữ vị trí hiện tại
       lastPositionRef.current = currentVidTime;
