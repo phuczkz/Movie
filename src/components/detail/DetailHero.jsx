@@ -41,7 +41,15 @@ const DetailHero = ({
           {/* Banner chỉ kéo dài xuống khoảng 25% phía dưới spacer (tương đương 1/3 khung thông tin đầu tiên) */}
           <div className="absolute top-0 left-0 w-full h-[125%] bg-[#0b0b15] z-0 pointer-events-none overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full">
-              {!bannerLoaded && (
+              {/* Blurred poster placeholder — loads instantly from browser cache */}
+              {!bannerLoaded && (passedMovie?.poster_url || movie?.poster_url) && (
+                <img
+                  src={getOptimizedImage(passedMovie?.poster_url || movie?.poster_url, 360)}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover object-[50%_15%] blur-2xl opacity-40 scale-[1.15]"
+                />
+              )}
+              {!bannerLoaded && !(passedMovie?.poster_url || movie?.poster_url) && (
                 <div className="absolute inset-0 bg-slate-900/60 animate-pulse" />
               )}
               <img

@@ -6,6 +6,8 @@ const DIRECT_CDN_HOSTS = [
   "phimimg.com",
 ];
 
+const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || "").trim().replace(/\/$/, "");
+
 /**
  * Check if a URL belongs to a known Vietnamese CDN that should be loaded directly.
  * @param {string} url - The image URL to check.
@@ -60,7 +62,7 @@ const resizeTmdb = (url, w = 342) => {
  * Get an optimized poster URL for movie/comic cards.
  *
  * - TMDB: resize via TMDB path.
- * - Vietnamese CDNs: return the original URL directly (fast, no proxy needed).
+ * - Vietnamese CDNs: proxy through stream proxy then wsrv.nl to convert to WebP.
  * - Other: proxy through wsrv.nl for WebP conversion and resize.
  *
  * @param {string} url - Original image URL.
@@ -77,8 +79,14 @@ export const getOptimizedPoster = (url, w = 360, q = 80) => {
       return resizeTmdb(url, w);
     }
 
-    // Vietnamese CDNs: load directly, no proxy needed
+    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
     if (isDirectCdnUrl(url)) {
+      if (STREAM_PROXY) {
+        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
+        return `https://wsrv.nl/?url=${encodeURIComponent(
+          proxied
+        )}&output=webp&w=${w}&fit=cover&q=${q}`;
+      }
       return url;
     }
 
@@ -109,8 +117,14 @@ export const getOptimizedBanner = (url, w = 1280, q = 75) => {
       return resizeTmdb(url, w);
     }
 
-    // Vietnamese CDNs: load directly
+    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
     if (isDirectCdnUrl(url)) {
+      if (STREAM_PROXY) {
+        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
+        return `https://wsrv.nl/?url=${encodeURIComponent(
+          proxied
+        )}&output=webp&w=${w}&fit=cover&q=${q}`;
+      }
       return url;
     }
 
@@ -134,8 +148,18 @@ export const getOptimizedPlayerPoster = (url) => {
   if (!url.startsWith("http")) return url;
 
   try {
-    // TMDB or Vietnamese CDN: load directly
-    if (isTmdbUrl(url) || isDirectCdnUrl(url)) {
+    if (isTmdbUrl(url)) {
+      return url;
+    }
+
+    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
+    if (isDirectCdnUrl(url)) {
+      if (STREAM_PROXY) {
+        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
+        return `https://wsrv.nl/?url=${encodeURIComponent(
+          proxied
+        )}&w=800&output=webp&q=75`;
+      }
       return url;
     }
 
@@ -171,8 +195,18 @@ export const toOptimizedHeroImage = (url, w = 640, q = 85) => {
       return parsed.toString();
     }
 
-    // TMDB or Vietnamese CDN: load directly
-    if (isTmdbUrl(url) || isDirectCdnUrl(url)) {
+    if (isTmdbUrl(url)) {
+      return url;
+    }
+
+    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
+    if (isDirectCdnUrl(url)) {
+      if (STREAM_PROXY) {
+        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
+        return `https://wsrv.nl/?url=${encodeURIComponent(
+          proxied
+        )}&w=${w}&output=webp&q=${q}`;
+      }
       return url;
     }
 
