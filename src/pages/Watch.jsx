@@ -715,7 +715,7 @@ const Watch = () => {
       <div className="space-y-3">
         <p className="text-white font-bold text-xl">{isTmdb ? "Dữ liệu nguồn phim đang gặp sự cố" : "Phim này chưa có nguồn phát"}</p>
         <div className="pt-4">
-          <Link to={`/movie/${slug}`} className="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold group transition-all">
+          <Link to={`/movie/${slug}`} state={{ movie }} className="inline-flex items-center gap-2 text-emerald-400 hover:text-emerald-300 font-bold group transition-all">
             <Info className="size-5 group-hover:scale-110 transition-transform" />
             Quay lại trang chi tiết
           </Link>

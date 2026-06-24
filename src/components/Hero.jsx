@@ -219,6 +219,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
 
                 <Link
                   to={primaryLink}
+                  state={{ movie: activeMovie }}
                   className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30 transition hover:-translate-y-[1px] hover:border-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                 >
                   <Info className="size-4" />
@@ -231,6 +232,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
         {/* Lớp phủ click cho mobile */}
         <Link
           to={primaryLink}
+          state={{ movie: activeMovie }}
           className="absolute inset-0 z-[5] md:hidden"
           aria-label={`Xem chi tiết ${activeMovie.name}`}
         />

@@ -88,9 +88,11 @@ const SearchBar = ({
     setOpen(false);
   };
 
-  const handleSelect = (slug) => {
-    if (!slug) return;
-    navigate(isComicMode ? `/comics/${slug}` : `/movie/${slug}`);
+  const handleSelect = (movieObj) => {
+    if (!movieObj || !movieObj.slug) return;
+    navigate(isComicMode ? `/comics/${movieObj.slug}` : `/movie/${movieObj.slug}`, {
+      state: { movie: movieObj }
+    });
     setOpen(false);
   };
 
@@ -141,7 +143,7 @@ const SearchBar = ({
                 <button
                   key={movie.slug}
                   type="button"
-                  onClick={() => handleSelect(movie.slug)}
+                  onClick={() => handleSelect(movie)}
                   className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-700/70 transition-colors"
                 >
                   <img

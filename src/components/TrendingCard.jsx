@@ -143,6 +143,7 @@ const TrendingCard = ({ movie, index }) => {
   return (
     <Link
       to={`/movie/${movie.slug}`}
+      state={{ movie }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className="group relative flex flex-col min-w-[200px] sm:min-w-[240px] max-w-[240px] transition-all duration-300 lg:hover:z-30 snap-start"

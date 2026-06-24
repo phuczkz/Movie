@@ -1,4 +1,4 @@
-﻿import React, { memo } from "react";
+import React, { memo } from "react";
 import { Link } from "react-router-dom";
 import { Info } from "lucide-react";
 
@@ -65,6 +65,7 @@ const WatchSidebar = memo(
             <div className="pt-2">
               <Link
                 to={`/movie/${movie?.slug}`}
+                state={{ movie }}
                 className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold transition-all group"
               >
                 <div className="size-5 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">

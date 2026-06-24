@@ -4,7 +4,7 @@ import {
   ChevronDown,
   Film,
 } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { getOptimizedImage } from "./detailUtils.js";
 
 const Rating = lazy(() => import("../Rating.jsx"));
@@ -29,6 +29,8 @@ const DetailHero = ({
   mobileSection,
   setMobileSection,
 }) => {
+  const [bannerLoaded, setBannerLoaded] = useState(false);
+  const [posterLoaded, setPosterLoaded] = useState(false);
   return (
     <>
       {heroImage ? (
@@ -39,11 +41,22 @@ const DetailHero = ({
           {/* Banner chỉ kéo dài xuống khoảng 25% phía dưới spacer (tương đương 1/3 khung thông tin đầu tiên) */}
           <div className="absolute top-0 left-0 w-full h-[125%] bg-[#0b0b15] z-0 pointer-events-none overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full">
+              {!bannerLoaded && (
+                <div className="absolute inset-0 bg-slate-900/60 animate-pulse" />
+              )}
               <img
                 src={getOptimizedImage(heroImage, 1200)}
                 alt={movie?.name || "Banner"}
-                className="w-full h-full object-cover object-[50%_15%]"
+                className={`w-full h-full object-cover object-[50%_15%] transition-opacity duration-700 ease-out ${
+                  bannerLoaded ? "opacity-100" : "opacity-0"
+                }`}
                 fetchPriority="high"
+                onLoad={() => setBannerLoaded(true)}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = heroImage;
+                  setBannerLoaded(true);
+                }}
               />
               {/* Lớp phủ tối ở trên để bảo vệ Header (Search, Menu, Logo) */}
               <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-[#0b0b15] via-[#0b0b15]/40 to-transparent" />
@@ -67,14 +80,25 @@ const DetailHero = ({
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-center lg:items-end -mt-24 sm:-mt-32 md:-mt-40 lg:-mt-52 xl:-mt-64 relative z-20">
           <div className="mx-auto lg:mx-0 w-32 sm:w-40 md:w-44 lg:w-64 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 lg:border-4 lg:border-slate-900 shadow-[0_30px_60px_rgba(0,0,0,0.9)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30 transition-transform duration-500 hover:scale-[1.02]">
+            {!posterLoaded && (
+              <div className="absolute inset-0 bg-slate-800/60 animate-pulse" />
+            )}
             <img
               src={getOptimizedImage(
                 passedMovie?.poster_url || movie?.poster_url,
                 500
               )}
               alt={movie?.name || passedMovie?.name}
-              className="h-full w-full object-cover"
+              className={`h-full w-full object-cover transition-opacity duration-500 ease-out ${
+                posterLoaded ? "opacity-100" : "opacity-0"
+              }`}
               fetchPriority="high"
+              onLoad={() => setPosterLoaded(true)}
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = passedMovie?.poster_url || movie?.poster_url;
+                setPosterLoaded(true);
+              }}
             />
           </div>
 

@@ -1,6 +1,9 @@
 const DIRECT_CDN_HOSTS = [
   "img.otruyenapi.com",
   "otruyenapi.com",
+  "ophim.live",
+  "ophim1.com",
+  "phimimg.com",
 ];
 
 /**
@@ -42,7 +45,14 @@ const isTmdbUrl = (url) => {
  */
 const resizeTmdb = (url, w = 342) => {
   if (!url) return url;
-  const size = w > 400 ? "w500" : "w342";
+  let size = "w342";
+  if (w > 1000) {
+    size = "w1280";
+  } else if (w > 700) {
+    size = "w780";
+  } else if (w > 400) {
+    size = "w500";
+  }
   return url.replace(/\/w(92|154|185|300|342|500|780|original)\//, `/${size}/`);
 };
 
@@ -96,7 +106,7 @@ export const getOptimizedBanner = (url, w = 1280, q = 75) => {
   try {
     // TMDB images: use their own CDN resize
     if (isTmdbUrl(url)) {
-      return url; // TMDB banners are already at good resolution
+      return resizeTmdb(url, w);
     }
 
     // Vietnamese CDNs: load directly

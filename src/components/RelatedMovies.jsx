@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { searchMovies } from "../api/movies";
 import { Play, Star } from "lucide-react";
@@ -95,7 +95,7 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             {related.map((m) => (
               <div key={m.slug} className="group relative">
-                <Link to={`/movie/${m.slug}`} className="block">
+                <Link to={`/movie/${m.slug}`} state={{ movie: m }} className="block">
                   <div className="relative aspect-[2/3] rounded-2xl overflow-hidden border border-white/5 bg-slate-900 shadow-lg group-hover:shadow-emerald-500/10 transition-all duration-500 group-hover:-translate-y-1">
                     <img
                       src={m.poster_url}
@@ -214,6 +214,7 @@ const RelatedMovies = ({ movie, variant = "list" }) => {
               <Link
                 key={m.slug}
                 to={`/movie/${m.slug}`}
+                state={{ movie: m }}
                 className="flex gap-3 group/item hover:bg-white/5 p-2 rounded-xl transition-colors"
               >
                 <div className="relative w-16 h-24 shrink-0 rounded-lg overflow-hidden border border-white/10 shadow-md">
