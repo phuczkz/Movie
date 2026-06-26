@@ -8,8 +8,11 @@ import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesList } from "../hooks/useMoviesList.js";
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
 import { useHoatHinhMerged } from "../hooks/useHoatHinhMerged.js";
+import { useChieuRapMerged } from "../hooks/useChieuRapMerged.js";
 import LoginBanner from "../components/LoginBanner.jsx";
 import TrendingSection from "../components/TrendingSection.jsx";
+import TheaterShowcase from "../components/TheaterShowcase.jsx";
+import WeeklyRanking from "../components/WeeklyRanking.jsx";
 
 const quickFocusCards = [
   {
@@ -118,11 +121,11 @@ const Home = () => {
     refetchOnMount: false,
   };
 
-  const [refSeries, showSeries] = useSectionVisibility();
-  // const [refSingle, showSingle] = useSectionVisibility();
   const [refAnime, showAnime] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
+  const [refTheater, showTheater] = useSectionVisibility();
+  const [refRanking, showRanking] = useSectionVisibility();
 
   const { data: latest = [] } = useMoviesList("latest", undefined, {
     enabled: true,
@@ -132,16 +135,7 @@ const Home = () => {
     enabled: showAnime,
     ...commonQueryOpts,
   });
-  const { data: series = [], isLoading: loadingSeries } = useMoviesList(
-    "series",
-    undefined,
-    { enabled: showSeries, ...commonQueryOpts }
-  );
-  // const { data: single = [], isLoading: loadingSingle } = useMoviesList(
-  //   "single",
-  //   undefined,
-  //   { enabled: showSingle, ...commonQueryOpts }
-  // );
+
 
   const { data: kkSeries = [], isLoading: loadingKKSeries } = useKKphimMovies(
     "series",
@@ -152,11 +146,21 @@ const Home = () => {
     { enabled: showKKSingle, ...commonQueryOpts }
   );
 
+  const { data: chieuRap = [], isLoading: loadingChieuRap } =
+    useChieuRapMerged(1, {
+      enabled: showTheater,
+      ...commonQueryOpts,
+    });
+
+  // For weekly ranking, reuse the latest movies data (sorted by recency ≈ popularity)
+  const rankingMovies = latest.slice(0, 10);
+
   const heroMovies = latest.slice(0, 4);
+  // On desktop with sidebar, we have less horizontal space → show fewer items
   const cap = (list) => list.slice(0, 7);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 sm:space-y-10 lg:space-y-12">
       <LoginBanner />
 
       <Hero movies={heroMovies} />
@@ -169,14 +173,14 @@ const Home = () => {
           </h2>
         </div>
 
-        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar px-4 sm:px-6 xl:grid xl:grid-cols-8 xl:gap-4 xl:pb-6">
+        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar px-4 sm:px-6 md:grid md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 md:gap-4 md:pb-6">
           {quickFocusCards.map((item) => (
             <Link
               key={item.title}
               to={item.to}
               title={`Khám phá ngay ${item.title}`}
               aria-label={`Xem danh sách phim ${item.title} - ${item.subtitle}`}
-              className="group relative flex-shrink-0 w-[150px] sm:w-[170px] xl:w-auto overflow-hidden rounded-2xl border border-white/10 p-5 min-h-[110px] sm:min-h-[130px] transition-all duration-500 hover:border-white/25 hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/20"
+              className="group relative flex-shrink-0 w-[140px] sm:w-[160px] md:w-auto overflow-hidden rounded-2xl border border-white/10 p-4 sm:p-5 min-h-[100px] sm:min-h-[120px] transition-all duration-500 hover:border-white/25 hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/20"
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-80 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110`}
@@ -203,50 +207,71 @@ const Home = () => {
         loading={loadingKKSeries}
       />
 
-      <div ref={refKKSeries}>
-        <Section
-          title="Phim bộ (1)"
-          action={
-            <Link className="text-sm text-amber-300" to="/category/phim-bo">
-              Xem thêm
-            </Link>
-          }
-        >
-          {loadingKKSeries ? (
-            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
-              <div className="loader-orbit loader-orbit-md"></div>
-            </div>
-          ) : (
-            <Grid items={cap(kkSeries)} priorityCount={4} />
-          )}
-        </Section>
+      {/* Phim chiếu rạp — landscape cards (MotChill "Đề Cử" pattern) */}
+      <div ref={refTheater}>
+        <TheaterShowcase
+          movies={chieuRap.slice(0, 10)}
+          loading={loadingChieuRap}
+        />
       </div>
 
-      <div ref={refKKSingle}>
-        <Section
-          title="Phim lẻ (1)"
-          action={
-            <Link className="text-sm text-amber-300" to="/category/phim-le">
-              Xem thêm
-            </Link>
-          }
-        >
-          {loadingKKSingle ? (
-            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
-              <div className="loader-orbit loader-orbit-md"></div>
-            </div>
-          ) : (
-            <Grid items={cap(kkSingle)} priorityCount={4} />
-          )}
-        </Section>
+      {/* Main content + Sidebar ranking layout (MotChill pattern) */}
+      <div className="xl:grid xl:grid-cols-[1fr_300px] xl:gap-6 2xl:grid-cols-[1fr_320px] 2xl:gap-8 space-y-10 xl:space-y-0">
+        {/* Left: Movie grid sections */}
+        <div className="space-y-8 sm:space-y-10 lg:space-y-12">
+          <div ref={refKKSeries}>
+            <Section
+              title="Phim bộ mới cập nhật"
+              action={
+                <Link className="text-sm text-amber-300 hover:text-amber-200 transition-colors" to="/category/phim-bo">
+                  Xem tất cả
+                </Link>
+              }
+            >
+              {loadingKKSeries ? (
+                <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
+                  <div className="loader-orbit loader-orbit-md"></div>
+                </div>
+              ) : (
+                <Grid items={cap(kkSeries)} priorityCount={4} />
+              )}
+            </Section>
+          </div>
+
+          <div ref={refKKSingle}>
+            <Section
+              title="Phim lẻ mới"
+              action={
+                <Link className="text-sm text-amber-300 hover:text-amber-200 transition-colors" to="/category/phim-le">
+                  Xem tất cả
+                </Link>
+              }
+            >
+              {loadingKKSingle ? (
+                <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
+                  <div className="loader-orbit loader-orbit-md"></div>
+                </div>
+              ) : (
+                <Grid items={cap(kkSingle)} priorityCount={4} />
+              )}
+            </Section>
+          </div>
+        </div>
+
+        {/* Right: Weekly ranking sidebar (MotChill "Phim Hot Trong Tuần") */}
+        <div ref={refRanking} className="xl:relative">
+          <div className="xl:absolute xl:inset-0 w-full h-full">
+            <WeeklyRanking movies={rankingMovies} />
+          </div>
+        </div>
       </div>
 
       <div ref={refAnime}>
         <Section
-          title="Phim hoạt hình"
+          title="Hoạt hình"
           action={
-            <Link className="text-sm text-emerald-300" to="category/hoat-hinh">
-              Xem thêm
+            <Link className="text-sm text-emerald-300 hover:text-emerald-200 transition-colors" to="category/hoat-hinh">
+              Xem tất cả
             </Link>
           }
         >
@@ -265,24 +290,6 @@ const Home = () => {
         </Section>
       </div>
 
-      <div ref={refSeries}>
-        <Section
-          title="Phim bộ (2)"
-          action={
-            <Link className="text-sm text-emerald-300" to="/category/phim-bo">
-              Xem thêm
-            </Link>
-          }
-        >
-          {loadingSeries ? (
-            <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
-              <div className="loader-orbit loader-orbit-md"></div>
-            </div>
-          ) : (
-            <Grid items={cap(series)} priorityCount={3} />
-          )}
-        </Section>
-      </div>
 
     </div>
   );

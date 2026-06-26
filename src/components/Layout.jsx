@@ -23,7 +23,7 @@ const Layout = ({ children }) => {
       />
       <Header />
       <main
-        className={`relative z-10 mx-auto w-full max-w-[1680px] px-4 md:px-4 lg:px-6 ${
+        className={`relative z-10 mx-auto w-full max-w-[1680px] px-4 sm:px-5 md:px-6 lg:px-6 xl:px-8 2xl:px-10 ${
           isHome ? "pt-0 md:pt-0 lg:pt-24" : "pt-20 md:pt-24"
         } pb-16`}
       >

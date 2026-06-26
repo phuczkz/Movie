@@ -46,14 +46,6 @@ const movieCountryOptions = [
   { label: "Thái Lan", to: "/country/thai-lan" },
 ];
 
-const movieMoreOptions = [
-  { label: "Phim Mới", to: "/category/phim-moi" },
-  { label: "TV Show", to: "/search?q=tv-show" },
-  { label: "Phim Sắp Chiếu", to: "/search?q=sap-chieu" },
-  { label: "Thuyết Minh", to: "/search?q=thuyet-minh" },
-  { label: "Phim Yêu Thích", to: "/favorites" },
-];
-
 const comicPrimaryNav = [
   { label: "MangaHub", to: "/comics" },
   { label: "Đang phát hành", to: "/comics/danh-sach/dang-phat-hanh" },
@@ -322,10 +314,12 @@ const Header = () => {
               dispatch({ type: "SET_MENU_OPEN", payload: !menuOpen });
               dispatch({ type: "SET_SEARCH_OPEN", payload: false });
             }}
-            className="size-10 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+            className="size-10 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
+
+          {/* Removed Mobile Logo as per user request to only show in sidebar and desktop */}
 
           <div className="flex items-center gap-2">
             <button
@@ -366,16 +360,22 @@ const Header = () => {
 
         {/* Desktop / tablet bar */}
         <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
-          <div className="flex-1 min-w-0">
+          {/* Desktop Logo */}
+          <Link to={isComicMode ? "/comics" : "/"} className="flex flex-shrink-0 items-center mr-2 xl:mr-4">
+            <img src="/icons/icon-192x192.png" alt="Logo" className="size-11 object-contain drop-shadow-md" />
+          </Link>
+
+          {/* SearchBar wrapper with specific widths per device */}
+          <div className="flex-1 min-w-0 max-w-[200px] lg:max-w-[240px] xl:max-w-[320px] 2xl:max-w-[400px] mr-auto">
             <SearchBar
               placeholder={
-                isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
+                isComicMode ? "Tìm kiếm truyện..." : "Tìm phim, diễn viên..."
               }
-              className="max-w-[180px] lg:max-w-[220px] xl:max-w-xl"
+              className="w-full"
             />
           </div>
 
-          <nav className="flex items-center gap-0.5 xl:gap-1 text-white">
+          <nav className="flex flex-shrink-0 items-center gap-0.5 xl:gap-1 text-white">
             {primaryNav.map((item) => (
               <NavLink
                 key={item.to}
@@ -397,10 +397,9 @@ const Header = () => {
             {!isComicMode && (
               <Dropdown label="Quốc Gia" options={movieCountryOptions} />
             )}
-            {!isComicMode && <Dropdown label="Thêm" options={movieMoreOptions} />}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             {/* Desktop Toggle Button */}
             <button
               type="button"
@@ -493,13 +492,8 @@ const Header = () => {
           {/* Sidebar Header (Profile Section) */}
           <div className="p-6 border-b border-white/5 bg-white/[0.02]">
             <div className="flex items-center justify-between mb-6">
-              <Link to={isComicMode ? "/comics" : "/"} onClick={closeAll} className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-slate-800/80 border border-white/10 flex items-center justify-center">
-                  {isComicMode ? <BookOpen className="size-4 text-purple-400" /> : <Film className="size-4 text-blue-400" />}
-                </div>
-                <span className="text-lg font-semibold text-white tracking-tight">
-                  {isComicMode ? "MangaHub" : "KhoPhim"}
-                </span>
+              <Link to={isComicMode ? "/comics" : "/"} onClick={closeAll} className="flex items-center">
+                <img src="/icons/icon-192x192.png" alt="Logo" className="size-10 object-contain" />
               </Link>
               <button
                 type="button"
@@ -602,13 +596,6 @@ const Header = () => {
                   <MobileDropdown
                     label="Quốc Gia"
                     options={movieCountryOptions}
-                    onNavigate={closeAll}
-                  />
-                )}
-                {!isComicMode && (
-                  <MobileDropdown
-                    label="Khác"
-                    options={movieMoreOptions}
                     onNavigate={closeAll}
                   />
                 )}
