@@ -13,6 +13,7 @@ import {
   limit,
   where,
   orderBy,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useAuth } from "../../context/AuthContext";
@@ -471,11 +472,34 @@ export default function AdminComments() {
 
     setConfirmModal((prev) => ({ ...prev, loading: true }));
     try {
-      // 1. Delete the comment
-      await deleteDoc(doc(db, "comments", targetSlug, "items", commentId));
+      const batch = writeBatch(db);
+      
+      // 1. Delete main comment
+      const mainRef = doc(db, "comments", targetSlug, "items", commentId);
+      batch.delete(mainRef);
 
-      // 2. Find the next most recent comment to update the index timestamp
-      const remaining = allComments.filter((calc) => calc.id !== commentId);
+      const idsToDelete = [commentId];
+
+      // 2. Delete replies (if any)
+      const replies = allComments.filter(c => c.parentId === commentId);
+      replies.forEach(r => {
+        const rRef = doc(db, "comments", targetSlug, "items", r.id);
+        batch.delete(rRef);
+        idsToDelete.push(r.id);
+      });
+
+      // 3. Delete associated notifications (limit 30 chunks)
+      for (let i = 0; i < idsToDelete.length; i += 30) {
+        const chunk = idsToDelete.slice(i, i + 30);
+        const notifQ = query(collection(db, "notifications"), where("commentId", "in", chunk));
+        const notifSnap = await getDocs(notifQ);
+        notifSnap.forEach(d => batch.delete(d.ref));
+      }
+
+      await batch.commit();
+
+      // 4. Find the next most recent comment to update the index timestamp
+      const remaining = allComments.filter((calc) => !idsToDelete.includes(calc.id));
       if (viewMode === "by-movie") {
         if (remaining.length > 0) {
           remaining.sort(
