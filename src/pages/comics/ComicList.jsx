@@ -26,7 +26,7 @@ export default function ComicList() {
     queryKey: ["comics", isCategory ? "the-loai" : "danh-sach", currentSlug, page],
     queryFn: async () => {
       // Fetch multiple API pages to fill up filtered results
-      const pagesToFetch = 5;
+      const pagesToFetch = 1;
       const startPage = (page - 1) * pagesToFetch + 1;
       
       const responses = await Promise.allSettled(
@@ -55,9 +55,6 @@ export default function ComicList() {
 
       const filteredItems = items.filter((comic) => {
         const hasChapters = comic.chaptersLatest && comic.chaptersLatest.length > 0;
-        if (currentSlug === "sap-ra-mat") {
-          return !hasChapters;
-        }
         return hasChapters;
       });
 

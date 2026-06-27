@@ -13,8 +13,8 @@ export default function ComicHome() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["comicHome", page],
     queryFn: async () => {
-      // Fetch 5 API pages to consolidate into 1 UI page to ensure we have enough content with chapters
-      const pagesToFetch = 5;
+      // Fetch 1 API page (24 items) which results in roughly 3-4 rows of comics on desktop
+      const pagesToFetch = 1;
       const startPage = (page - 1) * pagesToFetch + 1;
       
       const responses = await Promise.allSettled(

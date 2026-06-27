@@ -51,7 +51,6 @@ const comicPrimaryNav = [
   { label: "MangaHub", to: "/comics" },
   { label: "Đang phát hành", to: "/comics/danh-sach/dang-phat-hanh" },
   { label: "Hoàn thành", to: "/comics/danh-sach/hoan-thanh" },
-  { label: "Sắp ra mắt", to: "/comics/danh-sach/sap-ra-mat" },
   { label: "Yêu Thích", to: "/comics/favorites" },
 ];
 

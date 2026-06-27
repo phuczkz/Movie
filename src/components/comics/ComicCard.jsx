@@ -123,24 +123,28 @@ const ComicCard = ({ comic, priority = false }) => {
 
           {/* Status badges */}
           <div className="absolute top-3 right-3 flex flex-col gap-2 z-10 items-end">
-            {(!comic.chaptersLatest || comic.chaptersLatest.length === 0) && (
+            {(!comic.chaptersLatest || comic.chaptersLatest.length === 0) && comic.status !== "coming_soon" && (
               <div className="px-2 py-0.5 rounded text-[10px] font-bold shadow-lg uppercase backdrop-blur-md bg-orange-500/90 text-white">
                 Trailer
               </div>
             )}
-            {comic.status &&
-              comic.chaptersLatest &&
-              comic.chaptersLatest.length > 0 && (
-                <div
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold shadow-lg uppercase backdrop-blur-md ${
-                    comic.status === "completed"
-                      ? "bg-emerald-500/90 text-slate-950"
-                      : "bg-purple-600/90 text-white"
-                  }`}
-                >
-                  {comic.status === "completed" ? "Full" : "Ongoing"}
-                </div>
-              )}
+            {comic.status && (
+              <div
+                className={`px-2 py-0.5 rounded text-[10px] font-bold shadow-lg uppercase backdrop-blur-md ${
+                  comic.status === "completed"
+                    ? "bg-emerald-500/90 text-slate-950"
+                    : comic.status === "coming_soon"
+                    ? "bg-orange-500/90 text-white"
+                    : "bg-purple-600/90 text-white"
+                }`}
+              >
+                {comic.status === "completed"
+                  ? "Full"
+                  : comic.status === "coming_soon"
+                  ? "Sắp ra mắt"
+                  : "Ongoing"}
+              </div>
+            )}
           </div>
 
           {/* Latest chapter badge */}
@@ -233,8 +237,18 @@ const ComicCard = ({ comic, priority = false }) => {
                 </span>
               )}
               {comic.status && (
-                <span className={`hc-meta-badge ${comic.status === "completed" ? "hc-meta-badge--green" : "hc-meta-badge--purple"}`}>
-                  {comic.status === "completed" ? "Full" : "Ongoing"}
+                <span className={`hc-meta-badge ${
+                  comic.status === "completed" 
+                    ? "hc-meta-badge--green" 
+                    : comic.status === "coming_soon"
+                    ? "hc-meta-badge--orange"
+                    : "hc-meta-badge--purple"
+                }`}>
+                  {comic.status === "completed" 
+                    ? "Full" 
+                    : comic.status === "coming_soon" 
+                    ? "Sắp ra mắt" 
+                    : "Ongoing"}
                 </span>
               )}
             </div>
