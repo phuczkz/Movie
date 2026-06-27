@@ -11,6 +11,8 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  getDocs,
+  where,
 } from "firebase/firestore";
 import {
   Send,
@@ -41,11 +43,27 @@ const formatTime = (timestamp) => {
 
 const EMPTY_REPLIES = [];
 
+const renderTextWithMentions = (text) => {
+  const mentionRegex = /(@\S+)/g;
+  const parts = text.split(mentionRegex);
+  return parts.map((part, index) => {
+    if (part.startsWith("@")) {
+      return (
+        <span key={index} className="text-sky-400 font-semibold">
+          {part}
+        </span>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
 const CommentContent = ({ content }) => {
   const segments = getProfanitySegments(content).map((segment, idx) => ({
     ...segment,
     keyId: `segment-${idx}-${segment.isProfane}`
   }));
+
   return segments.map((segment) =>
     segment.isProfane ? (
       <span
@@ -56,7 +74,7 @@ const CommentContent = ({ content }) => {
         {segment.text}
       </span>
     ) : (
-      <span key={segment.keyId}>{segment.text}</span>
+      <span key={segment.keyId}>{renderTextWithMentions(segment.text)}</span>
     )
   );
 };
@@ -69,6 +87,7 @@ function CommentRow({
   isReply = false,
   replies = EMPTY_REPLIES,
   onReplySubmitted,
+  allDocs,
 }) {
   const { user, userProfile } = useAuth();
   const currentUserAvatar =
@@ -153,11 +172,22 @@ function CommentRow({
       const mainRef = doc(db, `comments/${movieSlug}/items/${comment.id}`);
       batch.delete(mainRef);
 
+      const idsToDelete = [comment.id];
+
       if (!isReply && replies.length > 0) {
         replies.forEach((r) => {
           const rRef = doc(db, `comments/${movieSlug}/items/${r.id}`);
           batch.delete(rRef);
+          idsToDelete.push(r.id);
         });
+      }
+
+      // Xoá các thông báo liên quan (limit 30 per chunk cho 'in' query)
+      for (let i = 0; i < idsToDelete.length; i += 30) {
+        const chunk = idsToDelete.slice(i, i + 30);
+        const notifQ = query(collection(db, "notifications"), where("commentId", "in", chunk));
+        const notifSnap = await getDocs(notifQ);
+        notifSnap.forEach(d => batch.delete(d.ref));
       }
 
       await batch.commit();
@@ -185,7 +215,7 @@ function CommentRow({
     setSubmittingReply(true);
     try {
       // Lưu reply vào cùng collection items, dùng parentId để liên kết
-      await addDoc(collection(db, `comments/${movieSlug}/items`), {
+      const newReplyRef = await addDoc(collection(db, `comments/${movieSlug}/items`), {
         userId: user.uid,
         displayName:
           userProfile?.displayName ||
@@ -221,6 +251,46 @@ function CommentRow({
         );
       }
 
+      // Notification Logic
+      const mentions = [];
+      const mentionRegex = /@(\S+)/g;
+      let match;
+      while ((match = mentionRegex.exec(replyText)) !== null) {
+        mentions.push(match[1].toLowerCase());
+      }
+
+      const userIdsToNotify = new Set();
+      if (comment.userId && comment.userId !== user.uid) {
+        userIdsToNotify.add(comment.userId);
+      }
+
+      mentions.forEach(m => {
+        if (m === "admin") {
+          userIdsToNotify.add("admin");
+        } else if (allDocs) {
+          const found = allDocs.find(d => d.displayName && d.displayName.replace(/\s+/g, "").toLowerCase() === m);
+          if (found && found.userId !== user.uid) {
+            userIdsToNotify.add(found.userId);
+          }
+        }
+      });
+
+      for (const uid of userIdsToNotify) {
+        await addDoc(collection(db, "notifications"), {
+          userId: uid,
+          senderId: user.uid,
+          senderName: userProfile?.displayName || user.displayName || user.email?.split("@")[0] || "Ẩn danh",
+          senderAvatar: currentUserAvatar || null,
+          type: uid === comment.userId ? "reply" : "tag",
+          movieSlug: movieSlug,
+          movieName: finalMovieName,
+          content: replyText.trim(),
+          isRead: false,
+          createdAt: serverTimestamp(),
+          commentId: newReplyRef.id,
+        });
+      }
+
       setReplyText("");
       setShowReplyInput(false);
       setShowReplies(true);
@@ -247,9 +317,8 @@ function CommentRow({
       <div className="flex gap-3 sm:gap-4">
         {/* Avatar */}
         <div
-          className={`shrink-0 overflow-hidden rounded-full border border-white/5 bg-white/5 ${
-            isReply ? "size-8" : "size-10"
-          }`}
+          className={`shrink-0 overflow-hidden rounded-full border border-white/5 bg-white/5 ${isReply ? "size-8" : "size-10"
+            }`}
         >
           {proxiedAvatarSrc ? (
             <img
@@ -286,11 +355,10 @@ function CommentRow({
             <button
               type="button"
               onClick={() => handleReaction("like")}
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${
-                myReaction === "like"
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${myReaction === "like"
                   ? "text-emerald-400 bg-emerald-500/10"
                   : "text-slate-400 hover:text-emerald-400 hover:bg-white/5"
-              }`}
+                }`}
             >
               <ThumbsUp className="size-3.5" />
               {likeCount > 0 && (
@@ -302,11 +370,10 @@ function CommentRow({
             <button
               type="button"
               onClick={() => handleReaction("dislike")}
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${
-                myReaction === "dislike"
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${myReaction === "dislike"
                   ? "text-rose-400 bg-rose-500/10"
                   : "text-slate-400 hover:text-rose-400 hover:bg-white/5"
-              }`}
+                }`}
             >
               <ThumbsDown className="size-3.5" />
               {dislikeCount > 0 && (
@@ -320,6 +387,10 @@ function CommentRow({
                 type="button"
                 onClick={() => {
                   if (!user) return alert("Vui lòng đăng nhập để trả lời.");
+                  if (!showReplyInput) {
+                    const tagObj = displayName ? displayName.replace(/\s+/g, "") : "User";
+                    setReplyText(`@${tagObj} `);
+                  }
                   setShowReplyInput((v) => !v);
                 }}
                 className="flex items-center gap-1 rounded-lg px-2 py-1 text-slate-400 hover:text-sky-400 hover:bg-white/5 transition-colors"
@@ -384,15 +455,29 @@ function CommentRow({
                   type="text"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Viết phản hồi..."
+                  placeholder=""
                   aria-label="Viết phản hồi"
                   ref={(input) => input && input.focus()}
-                  className="w-full rounded-full border border-white/10 bg-white/5 pl-3.5 pr-10 py-2 text-[13px] text-white placeholder-slate-400 focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                  className="w-full rounded-full border border-white/10 bg-white/5 pl-3.5 pr-10 py-2 text-[13px] text-transparent caret-white focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all relative z-10"
+                  onScroll={(e) => {
+                    const overlay = document.getElementById(`reply-overlay-${comment.id}`);
+                    if (overlay) overlay.scrollLeft = e.target.scrollLeft;
+                  }}
                 />
+                <div
+                  id={`reply-overlay-${comment.id}`}
+                  className="absolute inset-0 pointer-events-none pl-3.5 pr-10 py-2 text-[13px] text-white overflow-hidden whitespace-pre z-20"
+                >
+                  {!replyText ? (
+                    <span className="text-slate-400">Viết phản hồi... (Gõ @admin để tag quản trị viên)</span>
+                  ) : (
+                    renderTextWithMentions(replyText)
+                  )}
+                </div>
                 <button
                   type="submit"
                   disabled={submittingReply || !replyText.trim()}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 transition-colors"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 transition-colors z-30"
                 >
                   <Send className="size-3.5" />
                 </button>
@@ -432,6 +517,7 @@ function CommentRow({
                   movieName={movieName}
                   isReply
                   replies={[]}
+                  allDocs={allDocs}
                 />
               ))}
             </div>
@@ -532,7 +618,7 @@ export default function Comments({ movieSlug, movieName }) {
 
     setSubmitting(true);
     try {
-      await addDoc(collection(db, `comments/${movieSlug}/items`), {
+      const newDocRef = await addDoc(collection(db, `comments/${movieSlug}/items`), {
         userId: user.uid,
         displayName:
           userProfile?.displayName ||
@@ -566,6 +652,42 @@ export default function Comments({ movieSlug, movieName }) {
           },
           { merge: true }
         );
+      }
+
+      // Notification Logic
+      const mentions = [];
+      const mentionRegex = /@(\S+)/g;
+      let match;
+      while ((match = mentionRegex.exec(newComment)) !== null) {
+        mentions.push(match[1].toLowerCase());
+      }
+
+      const userIdsToNotify = new Set();
+      mentions.forEach(m => {
+        if (m === "admin") {
+          userIdsToNotify.add("admin");
+        } else if (allDocs) {
+          const found = allDocs.find(d => d.displayName && d.displayName.replace(/\s+/g, "").toLowerCase() === m);
+          if (found && found.userId !== user.uid) {
+            userIdsToNotify.add(found.userId);
+          }
+        }
+      });
+
+      for (const uid of userIdsToNotify) {
+        await addDoc(collection(db, "notifications"), {
+          userId: uid,
+          senderId: user.uid,
+          senderName: userProfile?.displayName || user.displayName || user.email?.split("@")[0] || "Ẩn danh",
+          senderAvatar: currentUserAvatar || null,
+          type: "tag",
+          movieSlug: movieSlug,
+          movieName: finalMovieName,
+          content: newComment.trim(),
+          isRead: false,
+          createdAt: serverTimestamp(),
+          commentId: newDocRef.id,
+        });
       }
 
       setNewComment("");
@@ -612,14 +734,28 @@ export default function Comments({ movieSlug, movieName }) {
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Bạn nghĩ gì về bộ phim này?"
+              placeholder=""
               aria-label="Nhập bình luận của bạn"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 pl-4 pr-14 py-3 sm:py-3.5 text-sm text-white placeholder-slate-400 focus:border-emerald-500/50 focus:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 pl-4 pr-14 py-3 sm:py-3.5 text-sm text-transparent caret-white focus:border-emerald-500/50 focus:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all relative z-10"
+              onScroll={(e) => {
+                const overlay = document.getElementById('main-overlay');
+                if (overlay) overlay.scrollLeft = e.target.scrollLeft;
+              }}
             />
+            <div
+              id="main-overlay"
+              className="absolute inset-0 pointer-events-none pl-4 pr-14 py-3 sm:py-3.5 text-sm text-white overflow-hidden whitespace-pre z-20"
+            >
+              {!newComment ? (
+                <span className="text-slate-400">Bạn nghĩ gì về phim này? (Gõ @admin để tag admin)</span>
+              ) : (
+                renderTextWithMentions(newComment)
+              )}
+            </div>
             <button
               type="submit"
               disabled={submitting || !newComment.trim()}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl p-2 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl p-2 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors z-30"
             >
               <Send className="size-[18px]" />
             </button>
@@ -646,6 +782,7 @@ export default function Comments({ movieSlug, movieName }) {
             movieSlug={movieSlug}
             movieName={movieName}
             replies={repliesMap[comment.id] || []}
+            allDocs={allDocs}
           />
         ))}
         {allDocs === null && (

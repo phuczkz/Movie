@@ -125,7 +125,7 @@ const Home = () => {
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
   const [refTheater, showTheater] = useSectionVisibility();
-  const [refRanking, showRanking] = useSectionVisibility();
+  const [refRanking] = useSectionVisibility();
 
   const { data: latest = [] } = useMoviesList("latest", undefined, {
     enabled: true,
@@ -166,14 +166,14 @@ const Home = () => {
       <Hero movies={heroMovies} />
 
       <section className="!mt-0 rounded-3xl p-0 overflow-hidden relative">
-        <div className="mb-4 flex items-center gap-3 pt-6 px-4 sm:px-6 sm:mb-5">
+        <div className="mb-4 flex items-center gap-3 pt-6 pr-4 sm:pr-6 pl-0 sm:pl-0 sm:mb-5">
           <span className="h-7 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
           <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
             Bạn đang quan tâm gì?
           </h2>
         </div>
 
-        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar px-4 sm:px-6 md:grid md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 md:gap-4 md:pb-6">
+        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar pr-4 sm:pr-6 pl-0 sm:pl-0 md:grid md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 md:gap-4 md:pb-6">
           {quickFocusCards.map((item) => (
             <Link
               key={item.title}
@@ -282,7 +282,6 @@ const Home = () => {
           ) : (
             <Grid
               items={cap(anime)}
-              variant="landscape"
               className=""
               priorityCount={4}
             />

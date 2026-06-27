@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useAppMode } from "../context/AppModeContext";
 import { comicApi } from "../api/comicApi";
 import SearchBar from "./SearchBar.jsx";
+import Notifications from "./Notifications";
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 const moviePrimaryNav = [
@@ -321,7 +322,8 @@ const Header = () => {
 
           {/* Removed Mobile Logo as per user request to only show in sidebar and desktop */}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Notifications />
             <button
               type="button"
               aria-label="Open search"
@@ -424,10 +426,12 @@ const Header = () => {
             </button>
 
             {user ? (
-              <Link
-                to={isComicMode ? "/comics/profile" : "/profile"}
-                className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
-              >
+              <div className="flex items-center gap-2">
+                <Notifications />
+                <Link
+                  to={isComicMode ? "/comics/profile" : "/profile"}
+                  className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
+                >
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -442,6 +446,7 @@ const Header = () => {
                   </div>
                 )}
               </Link>
+              </div>
             ) : (
               <Link
                 to="/login"

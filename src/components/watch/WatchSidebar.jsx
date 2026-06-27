@@ -37,14 +37,6 @@ const WatchSidebar = memo(
                 </span>
               </div>
             )}
-            {movie?.quality && (
-              <div>
-                Chất lượng:{" "}
-                <span className="text-slate-100 font-semibold ml-1">
-                  {movie.quality}
-                </span>
-              </div>
-            )}
             {countryText && (
               <div className="truncate">
                 Quốc gia:{" "}
@@ -62,22 +54,23 @@ const WatchSidebar = memo(
               </div>
             )}
 
-            <div className="pt-2">
-              <Link
-                to={`/movie/${movie?.slug}`}
-                state={{ movie }}
-                className="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 font-bold transition-all group"
-              >
-                <div className="size-5 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
-                  <Info className="size-3" />
-                </div>
-                <span className="border-b border-emerald-500/0 group-hover:border-emerald-400/50 transition-all">
-                  Xem thông tin phim
-                </span>
-              </Link>
-            </div>
           </div>
         </div>
+
+        <div className="rounded-3xl border border-white/5 bg-slate-900/60 p-5 space-y-3 text-left mt-2 xl:hidden">
+          <div className="flex items-center gap-3">
+            <p className="text-sm uppercase tracking-[0.14em] text-slate-300">
+              Giới thiệu
+            </p>
+          </div>
+          <div
+            className="text-slate-300 leading-relaxed text-[15px] prose prose-invert prose-sm max-w-none prose-a:text-emerald-400 hover:prose-a:text-emerald-300"
+            dangerouslySetInnerHTML={{
+              __html: movie?.content || "Chưa có mô tả.",
+            }}
+          />
+        </div>
+
       </div>
     );
   }

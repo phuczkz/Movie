@@ -5,6 +5,13 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
+  getCountFromServer,
+  query,
+  collection,
+  orderBy,
+  limit,
+  getDocs,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -83,6 +90,18 @@ export const useWatchProgress = () => {
           },
           { merge: true }
         );
+
+        // Kiểm tra và dọn dẹp lịch sử nếu vượt quá 50 phim
+        const coll = collection(db, "users", user.uid, "WatchProgress");
+        const snapshotCount = await getCountFromServer(coll);
+        if (snapshotCount.data().count > 50) {
+          // Xoá 20 phim cũ nhất (tính theo updatedAt tăng dần)
+          const q = query(coll, orderBy("updatedAt", "asc"), limit(20));
+          const oldDocs = await getDocs(q);
+          const batch = writeBatch(db);
+          oldDocs.forEach((d) => batch.delete(d.ref));
+          await batch.commit();
+        }
       } catch (err) {
         console.warn("[WatchProgress] force save failed:", err.message);
       }

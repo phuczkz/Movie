@@ -691,7 +691,6 @@ const Player = ({
     let forceSeekInterval = null;
     // Guard: ngăn onSeeked gọi startLoad khi seeked được fire bởi chính applyForceSeek.
     // Nếu thiếu guard này → forceSeek → seeked → startLoad → restart pipeline → chậm segment.
-    let isForceSeekActive = false;
 
     const applyForceSeek = () => {
       const seekTarget = pendingSeekRef.current;
@@ -703,7 +702,6 @@ const Player = ({
         }
         if (video.currentTime < 5 && seekTarget > 10) {
           console.log(`[Player Watchdog] Đang ép video nhảy tới ${seekTarget}s...`);
-          isForceSeekActive = true; // Đánh dấu: seeked event tiếp theo là do forceSeek
           try {
             if (typeof artInstanceRef.current.seek === "function") {
               artInstanceRef.current.seek(seekTarget);
@@ -711,12 +709,9 @@ const Player = ({
               video.currentTime = seekTarget;
             }
           } catch (e) { console.warn("Seek error", e); }
-          // Reset flag sau khi browser xử lý xong seek (seeked event fire xong)
-          setTimeout(() => { isForceSeekActive = false; }, 300);
         } else if (video.currentTime >= seekTarget - 2) {
           // Đã seek thành công
           pendingSeekRef.current = 0;
-          isForceSeekActive = false;
           if (forceSeekInterval) {
             clearInterval(forceSeekInterval);
             forceSeekInterval = null;
@@ -725,7 +720,6 @@ const Player = ({
       } else if (forceSeekInterval && seekTarget <= 0) {
         clearInterval(forceSeekInterval);
         forceSeekInterval = null;
-        isForceSeekActive = false;
       }
     };
 

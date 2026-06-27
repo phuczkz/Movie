@@ -677,7 +677,9 @@ const Watch = () => {
     });
   }, [movie, baseMovie]);
 
-  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors);
+  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors, {
+    enabled: (!isDesktop && mobileTab === "actors") || (isDesktop && sidebarTab === "info"),
+  });
 
   // 1. Initial Loading State
   if (isReallyLoading || (!deferLoad && !movie)) return (
@@ -750,9 +752,11 @@ const Watch = () => {
         hasActiveRoom={Boolean(roomId)}
       />
 
-      {/* Row 1: Player & Information/Actors */}
-      <div className="grid gap-8 items-stretch transition-all duration-500 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
-        <div className="w-full">
+      {/* Main Content Layout */}
+      <div className="grid gap-8 items-start transition-all duration-500 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
+        
+        {/* Left Column: Player & Main Content */}
+        <div className="w-full space-y-8 min-w-0">
           <PlayerSection
             playerRef={playerRef} movieOverride={movieOverride} activeSource={activeSource} movie={movie}
             activeEpisode={activeEpisode} episodes={displayEpisodes} activeServer={activeServer} activeProviderLabel={activeProviderLabel}
@@ -770,60 +774,13 @@ const Watch = () => {
             onReady={setPlayer}
             player={player}
           />
-        </div>
 
-        {isDesktop && (
-          <div className="hidden xl:flex flex-col gap-6 h-full min-h-0 overflow-hidden">
-            <div className="flex gap-6 border-b border-white/10 pb-1 px-2">
-              <button
-                type="button"
-                onClick={() => setSidebarTab("info")}
-                className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "info"
-                  ? "border-emerald-500 text-emerald-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-                  }`}
-              >
-                Thông tin phim
-              </button>
-              {roomId && (
-                <button
-                  type="button"
-                  onClick={() => setSidebarTab("chat")}
-                  className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
-                    ? "border-emerald-500 text-emerald-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
-                    }`}
-                >
-                  Trò chuyện
-                </button>
-              )}
-            </div>
+          {/* Mobile/Tablet Tabs */}
+          {!isDesktop && (
+            <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} hasRoom={Boolean(roomId)} />
+          )}
 
-            {sidebarTab === "info" && (
-              <>
-                <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
-                <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
-              </>
-            )}
-
-            {sidebarTab === "chat" && roomId && (
-              <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>
-                <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
-              </Suspense>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Mobile/Tablet Tabs */}
-      {!isDesktop && (
-        <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} hasRoom={Boolean(roomId)} />
-      )}
-
-      {/* Row 2: Grid/Comments & Related Movies */}
-      <div className="grid gap-8 items-start xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
-        <div className="space-y-8">
-          {/* Desktop: always show all sections */}
+          {/* Desktop: always show all sections below player */}
           {isDesktop && (
             <div className="hidden xl:block space-y-8">
               {isSeries && (
@@ -867,13 +824,16 @@ const Watch = () => {
                     episodesForServer={episodesForServer} activeEpisode={activeEpisode} slug={slug}
                     activeProvider={activeProvider} handleProviderChange={handleProviderChange} availableProviders={availableProviders}
                   />
-                  <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
                   {movie?.slug && (
                     <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải bình luận...</div>}>
                       <Comments movieSlug={movie.slug} movieName={movie.name} />
                     </Suspense>
                   )}
                 </>
+              )}
+
+              {mobileTab === "info" && (
+                <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
               )}
 
               {mobileTab === "chat" && roomId && (
@@ -885,10 +845,52 @@ const Watch = () => {
               {mobileTab === "actors" && (
                 <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
               )}
-
             </div>
           )}
         </div>
+
+        {/* Right Column: Desktop Sidebar */}
+        {isDesktop && (
+          <div className="hidden xl:flex flex-col gap-6 h-full min-h-0 overflow-hidden">
+            <div className="flex gap-6 border-b border-white/10 pb-1 px-2">
+              <button
+                type="button"
+                onClick={() => setSidebarTab("info")}
+                className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "info"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
+              >
+                Thông tin phim
+              </button>
+              {roomId && (
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab("chat")}
+                  className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
+                    ? "border-emerald-500 text-emerald-400"
+                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    }`}
+                >
+                  Trò chuyện
+                </button>
+              )}
+            </div>
+
+            {sidebarTab === "info" && (
+              <>
+                <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+                <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
+              </>
+            )}
+
+            {sidebarTab === "chat" && roomId && (
+              <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>
+                <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+              </Suspense>
+            )}
+          </div>
+        )}
       </div>
 
       <Suspense fallback={null}>
