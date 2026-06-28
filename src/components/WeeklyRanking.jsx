@@ -51,10 +51,10 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
               i === 0
                 ? "text-amber-400"
                 : i === 1
-                ? "text-slate-300"
-                : i === 2
-                ? "text-amber-700"
-                : "text-slate-500";
+                  ? "text-slate-300"
+                  : i === 2
+                    ? "text-amber-700"
+                    : "text-slate-500";
 
             return (
               <Link
@@ -106,11 +106,11 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
                         {episodeText}
                       </span>
                     )}
-                    {movie.quality && (
+                    {/* {movie.quality && (
                       <span className="text-[10px] font-bold text-amber-500 uppercase">
                         {movie.quality}
                       </span>
-                    )}
+                    )} */}
                   </div>
                 </div>
               </Link>

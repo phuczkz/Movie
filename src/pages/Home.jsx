@@ -258,7 +258,7 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Right: Weekly ranking sidebar (MotChill "Phim Hot Trong Tuần") */}
+        {/* Right: Weekly ranking sidebar ("Phim Hot Trong Tuần") */}
         <div ref={refRanking} className="xl:relative">
           <div className="xl:absolute xl:inset-0 w-full h-full">
             <WeeklyRanking movies={rankingMovies} />
