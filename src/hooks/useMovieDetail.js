@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getDetail } from "../api/movies";
 
-export const useMovieDetail = (slug) =>
+export const useMovieDetail = (slug, options = {}) =>
   useQuery({
     queryKey: ["movie", slug],
     queryFn: () => getDetail(slug),
@@ -12,4 +12,5 @@ export const useMovieDetail = (slug) =>
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: true,
+    ...options,
   });

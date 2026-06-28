@@ -37,6 +37,8 @@ const Detail = () => {
 
   // Thừa hưởng dữ liệu cơ bản từ card (poster, name) nếu có, để tránh "Chưa có tên"
   const passedMovie = location.state?.movie;
+  const passedPoster = location.state?.posterSrc;
+  const passedThumb = location.state?.thumbSrc;
 
   const [resumeData, setResumeData] = useState(null);
   const [showResumeModal, setShowResumeModal] = useState(false);
@@ -601,6 +603,8 @@ const Detail = () => {
         <DetailHero
           movie={movie}
           passedMovie={passedMovie}
+          passedPoster={passedPoster}
+          passedThumb={passedThumb}
           heroImage={heroImage}
           slug={slug}
           isMovie={isMovie}

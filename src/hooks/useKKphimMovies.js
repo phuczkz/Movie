@@ -6,11 +6,25 @@ import {
   getKKphimByCategory,
   getKKphimByCountry,
 } from "../api/movies2";
+import { getLatest, getSeries, getSingle, getCategory, getCountry } from "../api/movies";
 
 const apiMap = {
   latest: getKKphimLatest,
   series: getKKphimSeries,
   single: getKKphimSingle,
+};
+
+const fallbackMap = {
+  latest: getLatest,
+  series: getSeries,
+  single: getSingle,
+};
+
+const withFastTimeout = (promiseFn, ms = 2000) => {
+  return Promise.race([
+    promiseFn(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Primary API Timeout")), ms))
+  ]);
 };
 
 export const useKKphimMovies = (
@@ -22,7 +36,19 @@ export const useKKphimMovies = (
   if (country) extraParams.country = country;
   if (year) extraParams.year = year;
   if (movieType) extraParams.type = movieType;
-  const queryFn = () => (apiMap[type] || getKKphimLatest)(page, extraParams);
+  
+  const queryFn = async () => {
+    try {
+      const primaryFn = apiMap[type] || getKKphimLatest;
+      const res = await withFastTimeout(() => primaryFn(page, extraParams));
+      if (!res || res.length === 0) throw new Error("Empty from KKPhim");
+      return res;
+    } catch (e) {
+      console.warn(`[useKKphimMovies] KKPhim failed for ${type}, falling back to Ophim`, e);
+      const fallbackFn = fallbackMap[type] || getLatest;
+      return fallbackFn(page, extraParams).catch(() => []);
+    }
+  };
   return useQuery({
     queryKey,
     queryFn,
@@ -42,7 +68,16 @@ export const useKKphimByCategory = (
   if (country) extraParams.country = country;
   if (year) extraParams.year = year;
   if (movieType) extraParams.type = movieType;
-  const queryFn = () => getKKphimByCategory(slug, page, extraParams);
+  const queryFn = async () => {
+    try {
+      const res = await withFastTimeout(() => getKKphimByCategory(slug, page, extraParams));
+      if (!res || res.length === 0) throw new Error("Empty from KKPhim");
+      return res;
+    } catch (e) {
+      console.warn(`[useKKphimByCategory] KKPhim failed, falling back to Ophim`, e);
+      return getCategory(slug, page, extraParams).catch(() => []);
+    }
+  };
   return useQuery({
     queryKey,
     queryFn,
@@ -62,7 +97,16 @@ export const useKKphimByCountry = (
   const extraParams = {};
   if (year) extraParams.year = year;
   if (movieType) extraParams.type = movieType;
-  const queryFn = () => getKKphimByCountry(slug, page, extraParams);
+  const queryFn = async () => {
+    try {
+      const res = await withFastTimeout(() => getKKphimByCountry(slug, page, extraParams));
+      if (!res || res.length === 0) throw new Error("Empty from KKPhim");
+      return res;
+    } catch (e) {
+      console.warn(`[useKKphimByCountry] KKPhim failed, falling back to Ophim`, e);
+      return getCountry(slug, page, extraParams).catch(() => []);
+    }
+  };
   return useQuery({
     queryKey,
     queryFn,

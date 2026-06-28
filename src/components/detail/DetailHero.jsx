@@ -12,6 +12,8 @@ const Rating = lazy(() => import("../Rating.jsx"));
 const DetailHero = ({
   movie,
   passedMovie,
+  passedPoster,
+  passedThumb,
   heroImage,
   slug,
   isMovie,
@@ -42,14 +44,14 @@ const DetailHero = ({
           <div className="absolute top-0 left-0 w-full h-[125%] bg-[#0b0b15] z-0 pointer-events-none overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full">
               {/* Blurred poster placeholder — loads instantly from browser cache */}
-              {!bannerLoaded && (passedMovie?.poster_url || movie?.poster_url) && (
+              {!bannerLoaded && (passedThumb || passedPoster) && (
                 <img
-                  src={getOptimizedImage(passedMovie?.poster_url || movie?.poster_url, 360)}
+                  src={passedThumb || passedPoster}
                   alt=""
                   className="absolute inset-0 w-full h-full object-cover object-[50%_15%] blur-2xl opacity-40 scale-[1.15]"
                 />
               )}
-              {!bannerLoaded && !(passedMovie?.poster_url || movie?.poster_url) && (
+              {!bannerLoaded && !(passedThumb || passedPoster) && (
                 <div className="absolute inset-0 bg-slate-900/60 animate-pulse" />
               )}
               <img
@@ -88,7 +90,14 @@ const DetailHero = ({
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-center lg:items-end -mt-24 sm:-mt-32 md:-mt-40 lg:-mt-52 xl:-mt-64 relative z-20">
           <div className="mx-auto lg:mx-0 w-32 sm:w-40 md:w-44 lg:w-64 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 lg:border-4 lg:border-slate-900 shadow-[0_30px_60px_rgba(0,0,0,0.9)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30 transition-transform duration-500 hover:scale-[1.02]">
-            {!posterLoaded && (
+            {!posterLoaded && passedPoster && (
+              <img
+                src={passedPoster}
+                className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-50"
+                alt=""
+              />
+            )}
+            {!posterLoaded && !passedPoster && (
               <div className="absolute inset-0 bg-slate-800/60 animate-pulse" />
             )}
             <img

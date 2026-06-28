@@ -487,7 +487,7 @@ export const getDetail = (slug) =>
         return tmdbData;
       }
       const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), 8000); // 8 seconds global timeout for detail
+      const timeoutId = setTimeout(() => abortController.abort(), 3000); // 3 seconds global timeout for detail
 
       // Parallel fetch from both sources to avoid sequential timeout delays
       const [kkResultSettled, ophimResultSettled] = await Promise.allSettled([

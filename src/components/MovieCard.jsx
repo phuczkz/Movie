@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Play, Calendar, Film, Globe, Heart, Info, ChevronDown } from "lucide-react";
 
 import { useSavedMovie } from "../hooks/useSavedMovie.js";
-import { getEpisodes } from "../api/movies.js";
+import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { normalizeServerLabel, parseEpisodeNumber } from "../utils/episodes.js";
 import { isMobile } from "../utils/responsive.js";
 import { getOptimizedPoster } from "../utils/image-helper.js";
@@ -193,12 +192,10 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     setHovered(false);
   };
 
-  const { data: episodeList = [], isFetched } = useQuery({
-    queryKey: ["movie_episodes_v2", slug],
-    queryFn: () => getEpisodes(slug),
+  const { data: detailData, isFetched } = useMovieDetail(slug, {
     enabled: (apiReady || isInView || priority) && !!slug,
-    staleTime: 1000 * 60 * 15, // 15 mins
   });
+  const episodeList = useMemo(() => detailData?.episodes || [], [detailData?.episodes]);
 
   const audioBadges = useMemo(() => {
     // Helper to compute episode text for a given list of episodes
@@ -328,7 +325,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     >
       <Link
         to={`/movie/${movie.slug}`}
-        state={{ movie }}
+        state={{ movie, posterSrc, thumbSrc }}
         className="relative flex flex-col"
       >
         <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg lg:group-hover:shadow-emerald-500/20 transition-all duration-300">
