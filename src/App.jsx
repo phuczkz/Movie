@@ -13,10 +13,10 @@ import { useAppMode } from "./context/AppModeContext";
 import { cancelAllPendingRequests } from "./api/client";
 import { cancelAllKKphimRequests } from "./api/movies2";
 
-import Home from "./pages/Home.jsx";
-import Category from "./pages/Category.jsx";
-import Country from "./pages/Country.jsx";
-import Detail from "./pages/Detail.jsx";
+const Home = lazy(() => import("./pages/Home.jsx"));
+const Category = lazy(() => import("./pages/Category.jsx"));
+const Country = lazy(() => import("./pages/Country.jsx"));
+const Detail = lazy(() => import("./pages/Detail.jsx"));
 const Watch = lazy(() => import("./pages/Watch.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Register = lazy(() => import("./pages/Register.jsx"));
