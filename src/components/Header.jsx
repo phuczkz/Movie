@@ -362,8 +362,8 @@ const Header = () => {
         {/* Desktop / tablet bar */}
         <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
           {/* Desktop Logo */}
-          <Link to={isComicMode ? "/comics" : "/"} className="flex flex-shrink-0 items-center mr-2 xl:mr-4">
-            <img src="/icons/icon-192x192.png" alt="Logo" className="size-11 object-contain drop-shadow-md" />
+          <Link to={isComicMode ? "/comics" : "/"} className="flex flex-shrink-0 items-center">
+            <img src="/icons/logo.webp" alt="Logo" className="h-[56px] lg:h-[76px] -my-4 lg:-my-6 w-auto object-contain drop-shadow-md" />
           </Link>
 
           {/* SearchBar wrapper with specific widths per device */}
@@ -431,20 +431,20 @@ const Header = () => {
                   to={isComicMode ? "/comics/profile" : "/profile"}
                   className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
                 >
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt="avatar"
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-emerald-950 font-semibold text-sm">
-                    {(user.email || "").charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </Link>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="avatar"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-emerald-950 font-semibold text-sm">
+                      {(user.email || "").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </Link>
               </div>
             ) : (
               <Link
@@ -497,7 +497,7 @@ const Header = () => {
           <div className="p-6 border-b border-white/5 bg-white/[0.02]">
             <div className="flex items-center justify-between mb-6">
               <Link to={isComicMode ? "/comics" : "/"} onClick={closeAll} className="flex items-center">
-                <img src="/icons/icon-192x192.png" alt="Logo" className="size-10 object-contain" />
+                <img src="/icons/logo.webp" alt="Logo" className="h-[48px] md:h-[56px] -my-3 w-auto object-contain" />
               </Link>
               <button
                 type="button"
