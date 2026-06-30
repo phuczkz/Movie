@@ -1,19 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { buildAdFreeLoader } from "../components/Player/AdFreeLoader";
 
-/**
- * Hook to handle HLS library loading and ad-stripping configuration.
- *
- * Performance optimizations for sub-200ms TTFF:
- * 1. Module-level hls.js preload (starts loading BEFORE component mount)
- * 2. Preconnect + DNS prefetch to CDN (eliminates ~100-300ms connection setup)
- * 3. Back buffer = Infinity (instant backward seeking, no re-download)
- * 4. progressive: true + stopLoad/startLoad flush on seek (fast start + clean buffer)
- * 5. fetchSetup (Fetch API, no preflight, HTTP/2 streaming — replaces xhrSetup)
- * 6. startFragPrefetch + low starvation delay (playback fires at first bytes)
- * 7. pLoader for ad-stripping (zero overhead on fragment loading)
- * 8. Optimistic ABR estimate for immediate quality selection
- */
 
 // ── Module-level HLS.js preload ──
 // Start loading hls.js immediately when this module is first imported,
@@ -119,7 +106,7 @@ export const useHlsHandler = (source, isHls) => {
       // hls.js tự scale lên maxMaxBufferLength khi mạng cho phép.
       maxBufferLength: isMobile ? 30 : 60,
       maxMaxBufferLength: isMobile ? 60 : 120,
-      maxBufferSize: isMobile ? 150_000_000 : 300_000_000,
+      maxBufferSize: isMobile ? 60_000_000 : 120_000_000,
 
       // ── BACK BUFFER ──
       // Giữ vừa đủ để backward seek mà không chiếm quá nhiều RAM.
