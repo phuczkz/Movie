@@ -117,9 +117,9 @@ export const useHlsHandler = (source, isHls) => {
       // 20s (desktop) / 12s (mobile) = ~4–10 segment prefetch đồng thời.
       // Quá lớn (60s+) sẽ gửi quá nhiều request cùng lúc → mỗi .ts chờ nhau → chậm.
       // hls.js tự scale lên maxMaxBufferLength khi mạng cho phép.
-      maxBufferLength: isMobile ? 30 : 60,
-      maxMaxBufferLength: isMobile ? 60 : 120,
-      maxBufferSize: isMobile ? 60_000_000 : 120_000_000,
+      maxBufferLength: isMobile ? 45 : 90,
+      maxMaxBufferLength: isMobile ? 90 : 180,
+      maxBufferSize: isMobile ? 90_000_000 : 180_000_000,
 
       // ── BACK BUFFER ──
       // Giữ vừa đủ để backward seek mà không chiếm quá nhiều RAM.
@@ -184,7 +184,7 @@ export const useHlsHandler = (source, isHls) => {
       // ── EARLY PLAYBACK TRIGGER ──
       // maxStarvationDelay: thời gian tối đa chờ buffer đủ trước khi un-stall.
       // 4s (tăng từ 2s) — tránh stall/unstall liên tục khi .ts tải mất 2-3s.
-      maxStarvationDelay: 2,
+      maxStarvationDelay: 4,
       highBufferWatchdogPeriod: 2,  // check buffer health every 2s (default: 3)
       liveSyncDurationCount: 3,     // keep sync in live streams
     };
