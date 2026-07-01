@@ -24,7 +24,6 @@ import {
 } from "../utils/episodes.js";
 
 // Sub-components
-import WatchHeader from "../components/watch/WatchHeader.jsx";
 import PlayerSection from "../components/watch/PlayerSection.jsx";
 import WatchSidebar from "../components/watch/WatchSidebar.jsx";
 import WatchEpisodeGrid from "../components/watch/WatchEpisodeGrid.jsx";
@@ -97,7 +96,7 @@ const Watch = () => {
   // nhưng đồng thời đảm bảo chuyển sang tập mới thì initialTime = 0 chứ không kế thừa tập cũ.
   const currentEpisodeSlug = params.get("episode") || "default";
   const episodeInitialTimeRef = useRef({ slug: null, episode: null, time: 0 });
-  
+
   if (episodeInitialTimeRef.current.slug !== slug || episodeInitialTimeRef.current.episode !== currentEpisodeSlug) {
     episodeInitialTimeRef.current = {
       slug,
@@ -165,13 +164,17 @@ const Watch = () => {
   const isMember = Boolean(user && roomData && roomData.hostUid !== user.uid);
 
   const [sidebarTab, setSidebarTab] = useState("info");
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Keep mobile tab on "chat" if mobile active tab changes and we enter room
+  // Switch to watch_together tab once when a room is joined/created
+  const prevRoomIdRef = useRef(roomId);
   useEffect(() => {
-    if (roomId && mobileTab === "episodes") {
-      setMobileTab("chat");
+    if (roomId && !prevRoomIdRef.current) {
+      setMobileTab("watch_together");
+      setSidebarTab("watch_together");
     }
-  }, [roomId, mobileTab, setMobileTab]);
+    prevRoomIdRef.current = roomId;
+  }, [roomId]);
 
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
@@ -233,6 +236,18 @@ const Watch = () => {
   const autoProviderOverride = autoProviderState.key === playbackScopeKey ? autoProviderState.provider : null;
   const autoProviderNotice = autoProviderState.key === playbackScopeKey ? autoProviderState.notice : "";
   const episodeProviders = buildEpisodeProviders(activeEpisode);
+
+  const [toastMessage, setToastMessage] = useState("");
+
+  useEffect(() => {
+    if (autoProviderNotice) {
+      setToastMessage(autoProviderNotice);
+      const timer = setTimeout(() => {
+        setToastMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [autoProviderNotice]);
 
   const prevScopeKeyRef = useRef(playbackScopeKey);
   const prevProviderRef = useRef(selectedProviderParam);
@@ -745,16 +760,18 @@ const Watch = () => {
         `}</style>
       )}
 
-      <WatchHeader
-        movie={movie}
-        autoProviderNotice={autoProviderNotice}
-        onOpenWatchTogether={() => setIsWatchTogetherModalOpen(true)}
-        hasActiveRoom={Boolean(roomId)}
-      />
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-right-8 fade-in duration-300">
+          <div className="bg-amber-500/90 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-lg border border-amber-400/20 text-sm max-w-[300px] backdrop-blur-md">
+            {toastMessage}
+          </div>
+        </div>
+      )}
 
       {/* Main Content Layout */}
       <div className="grid gap-8 items-start transition-all duration-500 xl:grid-cols-[1fr,380px] 2xl:grid-cols-[1fr,420px]">
-        
+
         {/* Left Column: Player & Main Content */}
         <div className="w-full space-y-8 min-w-0">
           <PlayerSection
@@ -775,10 +792,9 @@ const Watch = () => {
             player={player}
           />
 
-          {/* Mobile/Tablet Tabs */}
-          {!isDesktop && (
-            <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} hasRoom={Boolean(roomId)} />
-          )}
+          <div className="flex xl:hidden items-center justify-between w-full">
+            <WatchMobileTabs activeTab={mobileTab} onTabChange={setMobileTab} hasRoom={Boolean(roomId)} unreadCount={unreadCount} />
+          </div>
 
           {/* Desktop: always show all sections below player */}
           {isDesktop && (
@@ -833,18 +849,44 @@ const Watch = () => {
               )}
 
               {mobileTab === "info" && (
-                <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+                <div className="flex flex-col gap-6">
+                  <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
+                  <div className="border-t border-white/10 pt-4 mt-2">
+                    <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
+                  </div>
+                </div>
               )}
 
-              {mobileTab === "chat" && roomId && (
-                <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>
-                  <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+
+
+              <div className={mobileTab === "watch_together" ? "block" : "hidden"}>
+                <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải...</div>}>
+                  {roomId ? (
+                    <div className="relative">
+                      <WatchChat
+                        roomId={roomId}
+                        roomHostId={roomData?.hostId}
+                        onInfoClick={isHost ? () => setIsWatchTogetherModalOpen(true) : undefined}
+                        isActive={mobileTab === "watch_together" || isDesktop}
+                        onUnreadChange={setUnreadCount}
+                      />
+                    </div>
+                  ) : (
+                    <WatchTogetherModal
+                      isOpen={true}
+                      onClose={() => setMobileTab("episodes")}
+                      roomId={roomId}
+                      setRoomId={setRoomId}
+                      isHost={isHost}
+                      movie={movie}
+                      activeEpisode={activeEpisode}
+                      activeServer={activeServer}
+                      activeProvider={activeProvider}
+                      inline={true}
+                    />
+                  )}
                 </Suspense>
-              )}
-
-              {mobileTab === "actors" && (
-                <ActorSection actorsWithImages={actorsWithImages} isMobile={true} />
-              )}
+              </div>
             </div>
           )}
         </div>
@@ -852,7 +894,7 @@ const Watch = () => {
         {/* Right Column: Desktop Sidebar */}
         {isDesktop && (
           <div className="hidden xl:flex flex-col gap-6 h-full min-h-0 overflow-hidden">
-            <div className="flex gap-6 border-b border-white/10 pb-1 px-2">
+            <div className="flex gap-6 border-b border-white/10 pb-1 px-2 pt-2">
               <button
                 type="button"
                 onClick={() => setSidebarTab("info")}
@@ -863,32 +905,61 @@ const Watch = () => {
               >
                 Thông tin phim
               </button>
-              {roomId && (
-                <button
-                  type="button"
-                  onClick={() => setSidebarTab("chat")}
-                  className={`pb-2.5 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${sidebarTab === "chat"
-                    ? "border-emerald-500 text-emerald-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
-                    }`}
-                >
-                  Trò chuyện
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setSidebarTab("watch_together")}
+                className={`relative pb-2.5 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 border-b-2 ${sidebarTab === "watch_together"
+                  ? "border-emerald-500 text-emerald-400"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  } ${sidebarTab !== "watch_together" && roomId ? "text-emerald-400" : ""}`}
+              >
+                Xem chung
+                {roomId && (
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+                {roomId && unreadCount > 0 && sidebarTab !== "watch_together" && (
+                  <span className="absolute -top-1.5 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-slate-950">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
             </div>
 
             {sidebarTab === "info" && (
-              <>
+              <div className="flex flex-col gap-6 overflow-y-auto custom-scrollbar flex-1 min-h-0 pr-2 pb-6">
                 <WatchSidebar movie={movie} episodes={displayEpisodes} countryText={countryText} categoriesText={categoriesText} />
                 <ActorSection actorsWithImages={actorsWithImages} variant="sidebar" />
-              </>
+              </div>
             )}
 
-            {sidebarTab === "chat" && roomId && (
-              <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải cuộc trò chuyện...</div>}>
-                <WatchChat roomId={roomId} roomHostId={roomData?.hostId} />
+            <div className={`flex flex-col flex-1 min-h-0 ${sidebarTab === "watch_together" ? "block" : "hidden"}`}>
+              <Suspense fallback={<div className="text-slate-400 text-sm p-4">Đang tải...</div>}>
+                {roomId ? (
+                  <div className="relative h-[500px]">
+                    <WatchChat
+                      roomId={roomId}
+                      roomHostId={roomData?.hostId}
+                      onInfoClick={isHost ? () => setIsWatchTogetherModalOpen(true) : undefined}
+                      isActive={sidebarTab === "watch_together" || !isDesktop}
+                      onUnreadChange={setUnreadCount}
+                    />
+                  </div>
+                ) : (
+                  <WatchTogetherModal
+                    isOpen={true}
+                    onClose={() => setSidebarTab("info")}
+                    roomId={roomId}
+                    setRoomId={setRoomId}
+                    isHost={isHost}
+                    movie={movie}
+                    activeEpisode={activeEpisode}
+                    activeServer={activeServer}
+                    activeProvider={activeProvider}
+                    inline={true}
+                  />
+                )}
               </Suspense>
-            )}
+            </div>
           </div>
         )}
       </div>

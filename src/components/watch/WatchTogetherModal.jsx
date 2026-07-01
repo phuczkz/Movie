@@ -14,6 +14,7 @@ export default function WatchTogetherModal({
   activeEpisode,
   activeServer,
   activeProvider,
+  inline = false,
 }) {
   const { user, userProfile } = useAuth();
   const [copied, setCopied] = useState(false);
@@ -122,12 +123,10 @@ export default function WatchTogetherModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300">
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-md">
-        {/* Close Button */}
+  const content = (
+    <div className={`relative w-full ${inline ? "" : "max-w-md"} overflow-hidden rounded-3xl border border-white/10 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-md`}>
+      {/* Close Button */}
+      {!inline && (
         <button
           type="button"
           onClick={onClose}
@@ -135,6 +134,7 @@ export default function WatchTogetherModal({
         >
           <X className="size-5" />
         </button>
+      )}
 
         <div className="flex flex-col items-center text-center gap-4">
           <div className="rounded-2xl bg-emerald-500/10 p-3.5 border border-emerald-500/20">
@@ -262,6 +262,14 @@ export default function WatchTogetherModal({
           )}
         </div>
       </div>
+  );
+
+  if (inline) return content;
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300">
+      {content}
     </div>
   );
 }

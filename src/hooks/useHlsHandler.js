@@ -104,15 +104,15 @@ export const useHlsHandler = (source, isHls) => {
       // 20s (desktop) / 12s (mobile) = ~4–10 segment prefetch đồng thời.
       // Quá lớn (60s+) sẽ gửi quá nhiều request cùng lúc → mỗi .ts chờ nhau → chậm.
       // hls.js tự scale lên maxMaxBufferLength khi mạng cho phép.
-      maxBufferLength: isMobile ? 30 : 60,
-      maxMaxBufferLength: isMobile ? 60 : 120,
-      maxBufferSize: isMobile ? 60_000_000 : 120_000_000,
+      maxBufferLength: isMobile ? 25 : 50,
+      maxMaxBufferLength: isMobile ? 50 : 100,
+      maxBufferSize: isMobile ? 50_000_000 : 100_000_000,
 
       // ── BACK BUFFER ──
       // Giữ vừa đủ để backward seek mà không chiếm quá nhiều RAM.
       // RAM quá lớn → browser GC → hủy pending network requests → .ts chậm.
       // 60s (desktop) / 30s (mobile) = đủ rewind 1 phút mà không gây leak.
-      backBufferLength: isMobile ? 30 : 60,
+      backBufferLength: isMobile ? 20 : 40,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
@@ -127,14 +127,14 @@ export const useHlsHandler = (source, isHls) => {
       startLevel: -1,
       // Estimate băng thông ban đầu cao hơn để hls.js chọn quality tốt ngay từ segment đầu.
       // 3Mbps (desktop) / 1.5Mbps (mobile) → tránh bị kẹt ở quality thấp rồi mới scale lên.
-      abrEwmaDefaultEstimate: isMobile ? 1_500_000 : 3_000_000,
-      abrBandWidthFactor: 0.95,
-      abrBandWidthUpFactor: 0.7,
+      abrEwmaDefaultEstimate: isMobile ? 1_000_000 : 3_000_000,
+      abrBandWidthFactor: 0.8,
+      abrBandWidthUpFactor: 0.6,
       testBandwidth: true,
 
       // ── LOADING — balanced timeouts for stable failure recovery ──
-      fragLoadingTimeOut: 10000,
-      fragLoadingMaxRetry: 5,
+      fragLoadingTimeOut: 30000,
+      fragLoadingMaxRetry: 10,
       fragLoadingRetryDelay: 1000,
       fragLoadingMaxRetryTimeout: 20000,
       manifestLoadingTimeOut: 10000,
@@ -171,7 +171,7 @@ export const useHlsHandler = (source, isHls) => {
       // ── EARLY PLAYBACK TRIGGER ──
       // maxStarvationDelay: thời gian tối đa chờ buffer đủ trước khi un-stall.
       // 4s (tăng từ 2s) — tránh stall/unstall liên tục khi .ts tải mất 2-3s.
-      maxStarvationDelay: 2,
+      maxStarvationDelay: 4,
       highBufferWatchdogPeriod: 2,  // check buffer health every 2s (default: 3)
       liveSyncDurationCount: 3,     // keep sync in live streams
     };

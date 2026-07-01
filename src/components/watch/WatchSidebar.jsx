@@ -6,9 +6,6 @@ const WatchSidebar = memo(
   ({ movie, episodes, countryText, categoriesText }) => {
     return (
       <div className="flex flex-col gap-6">
-        <h3 className="font-semibold text-white/90 uppercase tracking-[0.15em] text-xs flex justify-between">
-          <span>Thông tin phim</span>
-        </h3>
         <div className="flex gap-5">
           {movie?.poster_url && (
             <div className="w-24 xl:w-28 shrink-0 aspect-[2/3] rounded-xl overflow-hidden border border-white/10 shadow-lg bg-slate-900">
@@ -21,6 +18,14 @@ const WatchSidebar = memo(
             </div>
           )}
           <div className="flex flex-col gap-2.5 text-[13px] text-slate-400 min-w-0">
+            {movie?.name && (
+              <div>
+                Tên:{" "}
+                <span className="text-slate-100 font-semibold ml-1">
+                  {movie.name}
+                </span>
+              </div>
+            )}
             {movie?.year && (
               <div>
                 Năm:{" "}

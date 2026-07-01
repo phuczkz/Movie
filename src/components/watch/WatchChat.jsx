@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Send, UserCircle, Users } from "lucide-react";
+import { Send, UserCircle, Users, Info } from "lucide-react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebase.config";
 import { useAuth } from "../../context/AuthContext";
 
-export default function WatchChat({ roomId, roomHostId }) {
+export default function WatchChat({ roomId, roomHostId, onInfoClick, isActive = true, onUnreadChange }) {
   const { user, userProfile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -12,6 +12,9 @@ export default function WatchChat({ roomId, roomHostId }) {
   const chatContainerRef = useRef(null);
   const [activeMembers, setActiveMembers] = useState([]);
   const [showMembersList, setShowMembersList] = useState(false);
+
+  const initialLoadRef = useRef(true);
+  const lastReadCountRef = useRef(0);
 
   useEffect(() => {
     if (!db || !roomId) return;
@@ -26,13 +29,36 @@ export default function WatchChat({ roomId, roomHostId }) {
         id: doc.id,
         ...doc.data(),
       }));
+
+      if (initialLoadRef.current) {
+        lastReadCountRef.current = list.length;
+        initialLoadRef.current = false;
+        setMessages(list);
+        return;
+      }
+
       setMessages(list);
+
+      if (!isActive) {
+        const unread = list.length - lastReadCountRef.current;
+        if (unread > 0) onUnreadChange?.(unread);
+      } else {
+        lastReadCountRef.current = list.length;
+        onUnreadChange?.(0);
+      }
     }, (error) => {
       console.error("Lỗi lắng nghe tin nhắn chat:", error);
     });
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, isActive, onUnreadChange]);
+
+  useEffect(() => {
+    if (isActive) {
+      lastReadCountRef.current = messages.length;
+      onUnreadChange?.(0);
+    }
+  }, [isActive, messages.length, onUnreadChange]);
 
   useEffect(() => {
     if (!db || !roomId) return;
@@ -121,17 +147,23 @@ export default function WatchChat({ roomId, roomHostId }) {
           </h4>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded-md shrink-0">
-            {messages.length} tin nhắn
-          </span>
-          <button 
+          {onInfoClick && (
+            <button
+              type="button"
+              onClick={onInfoClick}
+              className="flex items-center justify-center size-6 rounded-full bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+              title="Thông tin phòng"
+            >
+              <Info className="size-3.5" />
+            </button>
+          )}
+          <button
             type="button"
             onClick={() => setShowMembersList(!showMembersList)}
-            className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md transition-all shrink-0 ${
-              showMembersList 
-                ? "bg-emerald-500 text-slate-950" 
-                : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-            }`}
+            className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md transition-all shrink-0 ${showMembersList
+              ? "bg-emerald-500 text-slate-950"
+              : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+              }`}
             aria-label="Danh sách thành viên"
           >
             <Users className="size-3" />
@@ -145,7 +177,7 @@ export default function WatchChat({ roomId, roomHostId }) {
         <div className="absolute inset-x-0 top-[45px] bottom-0 bg-slate-950/95 backdrop-blur-md z-20 flex flex-col p-4">
           <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
             <span className="text-xs font-bold text-slate-300">Đang xem chung ({activeMembers.length})</span>
-            <button 
+            <button
               type="button"
               onClick={() => setShowMembersList(false)}
               className="text-[11px] text-slate-400 hover:text-white transition-colors"
@@ -186,9 +218,8 @@ export default function WatchChat({ roomId, roomHostId }) {
           return (
             <div
               key={msg.id}
-              className={`flex items-start gap-2.5 max-w-[85%] ${
-                isMe ? "ml-auto flex-row-reverse" : "mr-auto"
-              }`}
+              className={`flex items-start gap-2.5 max-w-[85%] ${isMe ? "ml-auto flex-row-reverse" : "mr-auto"
+                }`}
             >
               {/* Avatar */}
               {!isMe && (
@@ -214,11 +245,10 @@ export default function WatchChat({ roomId, roomHostId }) {
                   </span>
                 )}
                 <div
-                  className={`rounded-2xl px-3 py-2 text-xs leading-relaxed break-words ${
-                    isMe
-                      ? "bg-emerald-500 text-slate-950 font-medium rounded-tr-none"
-                      : "bg-white/[0.06] text-slate-200 rounded-tl-none"
-                  }`}
+                  className={`rounded-2xl px-3 py-2 text-xs leading-relaxed break-words ${isMe
+                    ? "bg-emerald-500 text-slate-950 font-medium rounded-tr-none"
+                    : "bg-white/[0.06] text-slate-200 rounded-tl-none"
+                    }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
