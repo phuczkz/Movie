@@ -13,6 +13,8 @@ import LoginBanner from "../components/LoginBanner.jsx";
 import TrendingSection from "../components/TrendingSection.jsx";
 import TheaterShowcase from "../components/TheaterShowcase.jsx";
 import WeeklyRanking from "../components/WeeklyRanking.jsx";
+import VietnamBanner from "../components/VietnamBanner.jsx";
+
 
 const quickFocusCards = [
   {
@@ -164,6 +166,8 @@ const Home = () => {
       <LoginBanner />
 
       <Hero movies={heroMovies} />
+
+      <VietnamBanner />
 
       <section className="!mt-0 rounded-3xl p-0 overflow-hidden relative">
         <div className="mb-4 flex items-center gap-3 pt-6 pr-4 sm:pr-6 pl-0 sm:pl-0 sm:mb-5">
