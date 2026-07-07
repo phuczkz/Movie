@@ -150,7 +150,21 @@ const normalizePeople = (peoples = []) => {
 
 const parseEpisodeNumber = (value) => {
   if (!value) return null;
-  const match = String(value).match(/(\d+)/);
+  const str = String(value).toLowerCase();
+  
+  // Do not extract numbers from special episodes so they don't overwrite main episodes
+  if (
+    str.includes("bts") ||
+    str.includes("trailer") ||
+    str.includes("teaser") ||
+    str.includes("preview") ||
+    str.includes("ngoại truyện") ||
+    str.includes("special")
+  ) {
+    return null;
+  }
+  
+  const match = str.match(/(\d+)/);
   return match ? Number(match[1]) : null;
 };
 
@@ -311,8 +325,8 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
       ep._preferredProvider || Object.keys(sources || {})[0] || ep._provider,
   }));
   merged.sort((a, b) => {
-    const na = parseEpisodeNumber(a.name || a.slug) ?? -1;
-    const nb = parseEpisodeNumber(b.name || b.slug) ?? -1;
+    const na = parseEpisodeNumber(a.name || a.slug) ?? Infinity;
+    const nb = parseEpisodeNumber(b.name || b.slug) ?? Infinity;
     if (na !== nb) return na - nb;
     return (a.server_name || "").localeCompare(b.server_name || "");
   });

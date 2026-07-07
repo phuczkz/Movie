@@ -1,6 +1,19 @@
 export const parseEpisodeNumber = (value) => {
   if (!value) return null;
-  const match = String(value).match(/(\d+)/);
+  const str = String(value).toLowerCase();
+  
+  if (
+    str.includes("bts") ||
+    str.includes("trailer") ||
+    str.includes("teaser") ||
+    str.includes("preview") ||
+    str.includes("ngoại truyện") ||
+    str.includes("special")
+  ) {
+    return null;
+  }
+  
+  const match = str.match(/(\d+)/);
   return match ? Number(match[1]) : null;
 };
 

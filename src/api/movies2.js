@@ -28,6 +28,7 @@ const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
   /\/$/,
   ""
 );
+const proxyUrl = import.meta.env.VITE_STREAM_PROXY;
 const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
 // ── Request cancellation system (mirrors client.js) ──
@@ -46,6 +47,27 @@ kkphim.interceptors.request.use((config) => {
     config._abortController = controller;
     _pendingControllers.add(controller);
   }
+
+  if (proxyUrl) {
+    let fullUrl = config.url;
+    if (!fullUrl.startsWith("http")) {
+      const base = config.baseURL || "";
+      fullUrl = `${base.replace(/\/$/, "")}/${fullUrl.replace(/^\//, "")}`;
+    }
+    if (config.params) {
+      const urlObj = new URL(fullUrl);
+      Object.keys(config.params).forEach((key) => {
+        if (config.params[key] !== undefined && config.params[key] !== null) {
+          urlObj.searchParams.append(key, config.params[key]);
+        }
+      });
+      fullUrl = urlObj.toString();
+      config.params = {}; 
+    }
+    config.baseURL = "";
+    config.url = `${proxyUrl.replace(/\/$/, "")}/?url=${encodeURIComponent(fullUrl)}`;
+  }
+
   return config;
 });
 
@@ -54,6 +76,31 @@ kkphim.interceptors.response.use(
     if (response.config._abortController) {
       _pendingControllers.delete(response.config._abortController);
     }
+    
+    // Patch image paths for KKPhim Format 2 API which omits the date folder in poster_url
+    const data = response.data;
+    if (data?.data?.items && data?.data?.seoOnPage?.og_image) {
+      const items = data.data.items;
+      const ogImages = Array.isArray(data.data.seoOnPage.og_image) ? data.data.seoOnPage.og_image : [];
+      const cdn = data.data.APP_DOMAIN_CDN_IMAGE || "https://img.phimapi.com";
+      
+      items.forEach((item) => {
+        if (!item.poster_url || item.poster_url.startsWith("http")) return;
+        
+        const p_file = item.poster_url.split('/').pop();
+        const t_file = (item.thumb_url || '').split('/').pop();
+        
+        const p_full = ogImages.find(img => typeof img === "string" && img.endsWith('/' + p_file));
+        if (p_full) {
+           item.poster_url = `${cdn}/${p_full}`;
+           if (t_file) {
+             const folder = p_full.substring(0, p_full.lastIndexOf('/'));
+             item.thumb_url = `${cdn}/${folder}/${t_file}`;
+           }
+        }
+      });
+    }
+
     return response;
   },
   (error) => {

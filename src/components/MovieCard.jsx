@@ -347,8 +347,12 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
               : { fetchPriority: "low" })}
             onLoad={() => setLoaded(true)}
             onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = basePoster || fallbackPoster;
+              if (e.currentTarget.src !== basePoster && basePoster) {
+                e.currentTarget.src = basePoster;
+              } else {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = fallbackPoster;
+              }
               setLoaded(true);
             }}
           />
