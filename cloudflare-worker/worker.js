@@ -286,6 +286,10 @@ async function handleTmdb(request, env, corsHeaders) {
         Accept: "application/json",
       },
       signal: request.signal, // Hủy tải từ TMDB nếu client hủy
+      cf: {
+        cacheEverything: true,
+        cacheTtl: 14400 // Cache 4 hours
+      }
     });
 
     const headers = new Headers(corsHeaders);
@@ -428,12 +432,14 @@ export default {
 
     try {
       const upstreamHeaders = buildUpstreamHeaders(request, targetUrl);
+      const isMedia = isMediaSegment(parsedTarget.pathname);
 
       const upstream = await fetch(targetUrl, {
         method: request.method,
         headers: upstreamHeaders,
         redirect: "follow",
         signal: request.signal, // QUAN TRỌNG: Hủy tải từ server gốc (ophim, kkphim) nếu người dùng tua video
+        cf: isMedia ? { cacheEverything: true, cacheTtl: 86400 } : {}
       });
 
       if (
