@@ -6,6 +6,7 @@ import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { AppModeProvider } from "./context/AppModeContext.jsx";
 import MaintenanceGuard from "./components/MaintenanceGuard.jsx";
+import { HelmetProvider } from 'react-helmet-async';
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -41,16 +42,18 @@ window.addEventListener(
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <AppModeProvider>
-            <MaintenanceGuard>
-              <App />
-            </MaintenanceGuard>
-          </AppModeProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <AppModeProvider>
+              <MaintenanceGuard>
+                <App />
+              </MaintenanceGuard>
+            </AppModeProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </HelmetProvider>
   </StrictMode>
 );

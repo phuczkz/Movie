@@ -2,6 +2,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { usePersonDetail } from "../hooks/usePersonDetail";
 import MovieCard from "../components/MovieCard";
 import { MoveLeft, User } from "lucide-react";
+import SEO from "../components/SEO.jsx";
 
 const Actor = () => {
   const { id } = useParams();
@@ -38,6 +39,12 @@ const Actor = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
+      <SEO 
+        title={`Tuyển tập phim của diễn viên ${person.name}`} 
+        description={person.biography ? person.biography.substring(0, 160) : undefined}
+        image={person.profile_path}
+        type="profile"
+      />
       <button
         type="button"
         onClick={() => navigate(-1)}

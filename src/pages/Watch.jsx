@@ -34,6 +34,7 @@ import { useSeries } from "../hooks/useSeries.js";
 const Comments = lazy(() => import("../components/Comments.jsx"));
 const WatchTogetherModal = lazy(() => import("../components/watch/WatchTogetherModal.jsx"));
 const WatchChat = lazy(() => import("../components/watch/WatchChat.jsx"));
+import SEO from "../components/SEO.jsx";
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
@@ -746,6 +747,12 @@ const Watch = () => {
 
   return (
     <div className="space-y-8 pb-12">
+      <SEO 
+        title={`Xem phim ${movie?.name || movie?.title || 'Đang tải...'} Tập ${activeEpisode?.name || 'Mới Nhất'}`}
+        description={movie?.content ? movie.content.replace(/<[^>]*>?/gm, '').substring(0, 160) : undefined}
+        image={movie?.poster_url || movie?.thumb_url || movie?.backdrop_url}
+        type="video.other"
+      />
       {isMember && (
         <style>{`
           .art-progress,

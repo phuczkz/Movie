@@ -13,6 +13,7 @@ import {
 } from "../hooks/useKKphimMovies.js";
 import { useChieuRapMerged } from "../hooks/useChieuRapMerged.js";
 import { useHoatHinhMerged } from "../hooks/useHoatHinhMerged.js";
+import SEO from "../components/SEO.jsx";
 
 const categoryLabels = {
   "hoat-hinh": "Hoạt hình",
@@ -280,6 +281,7 @@ const Category = () => {
 
   return (
     <div className="space-y-6">
+      <SEO title={`${heading} hay nhất ${countryParam} ${yearParam}`} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">

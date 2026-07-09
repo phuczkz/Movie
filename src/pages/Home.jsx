@@ -14,6 +14,7 @@ import TrendingSection from "../components/TrendingSection.jsx";
 import TheaterShowcase from "../components/TheaterShowcase.jsx";
 import WeeklyRanking from "../components/WeeklyRanking.jsx";
 import VietnamBanner from "../components/VietnamBanner.jsx";
+import SEO from "../components/SEO.jsx";
 
 
 const quickFocusCards = [
@@ -163,6 +164,7 @@ const Home = () => {
 
   return (
     <div className="space-y-8 sm:space-y-10 lg:space-y-12">
+      <SEO />
       <LoginBanner />
 
       <Hero movies={heroMovies} />

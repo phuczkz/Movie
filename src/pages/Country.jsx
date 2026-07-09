@@ -8,6 +8,7 @@ import GridSkeleton from "../components/GridSkeleton.jsx";
 import { useMoviesByCountry } from "../hooks/useMoviesByCountry.js";
 import { useKKphimByCountry } from "../hooks/useKKphimMovies.js";
 import Pagination from "../components/Pagination.jsx";
+import SEO from "../components/SEO.jsx";
 
 const countryLabels = {
   "viet-nam": "Việt Nam",
@@ -116,6 +117,7 @@ const Country = () => {
 
   return (
     <div className="space-y-6">
+      <SEO title={`Tuyển tập Phim ${heading} hay nhất`} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">

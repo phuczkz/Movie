@@ -25,6 +25,7 @@ import DetailHero from "../components/detail/DetailHero.jsx";
 import DetailMobileContent from "../components/detail/DetailMobileContent.jsx";
 import DetailDesktopContent from "../components/detail/DetailDesktopContent.jsx";
 import DetailResumeModal from "../components/detail/DetailResumeModal.jsx";
+import SEO from "../components/SEO.jsx";
 
 const Detail = () => {
   const { slug } = useParams();
@@ -599,6 +600,12 @@ const Detail = () => {
 
   return (
     <div className="relative">
+      <SEO 
+        title={movie?.name || movie?.title || passedMovie?.name || 'Đang tải...'} 
+        description={movie?.content ? movie.content.replace(/<[^>]*>?/gm, '').substring(0, 160) : undefined}
+        image={heroImage}
+        type="video.movie"
+      />
       <div className="relative z-10 flex flex-col gap-y-8 lg:gap-y-12 pb-16">
         <DetailHero
           movie={movie}
