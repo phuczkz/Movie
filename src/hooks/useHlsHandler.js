@@ -104,9 +104,9 @@ export const useHlsHandler = (source, isHls) => {
       // 20s (desktop) / 12s (mobile) = ~4–10 segment prefetch đồng thời.
       // Quá lớn (60s+) sẽ gửi quá nhiều request cùng lúc → mỗi .ts chờ nhau → chậm.
       // hls.js tự scale lên maxMaxBufferLength khi mạng cho phép.
-      maxBufferLength: isMobile ? 25 : 50,
-      maxMaxBufferLength: isMobile ? 50 : 100,
-      maxBufferSize: isMobile ? 50_000_000 : 100_000_000,
+      maxBufferLength: isMobile ? 30 : 60,
+      maxMaxBufferLength: isMobile ? 60 : 120,
+      maxBufferSize: isMobile ? 60_000_000 : 120_000_000,
 
       // ── BACK BUFFER ──
       // Giữ vừa đủ để backward seek mà không chiếm quá nhiều RAM.

@@ -84,7 +84,7 @@ const Player = ({
 
   const effectiveSource = useMemo(() => {
     const streamProxy = import.meta.env.VITE_STREAM_PROXY;
-    if (source && streamProxy && !source.includes("iframe") && !source.includes("embed")) {
+    if (source && streamProxy && !source.includes("iframe") && !source.includes("embed") && !source.includes("phimapi.com/player")) {
       const cleanProxy = streamProxy.trim().replace(/\/$/, "");
       if (!source.includes(cleanProxy)) {
         // Upgrade http to https to prevent Mixed Content blocks on production
@@ -117,7 +117,7 @@ const Player = ({
   }, [source]);
 
   const canUseIframe = useMemo(
-    () => source && (source.includes("iframe") || source.includes("embed")),
+    () => source && (source.includes("iframe") || source.includes("embed") || source.includes("phimapi.com/player")),
     [source]
   );
 

@@ -747,8 +747,8 @@ const Watch = () => {
 
   return (
     <div className="space-y-8 pb-12">
-      <SEO 
-        title={`Xem phim ${movie?.name || movie?.title || 'Đang tải...'} Tập ${activeEpisode?.name || 'Mới Nhất'}`}
+      <SEO
+        title={`${movie?.name || movie?.title || 'Đang tải...'}${activeEpisode?.name ? ' - ' + activeEpisode.name : ''}`}
         description={movie?.content ? movie.content.replace(/<[^>]*>?/gm, '').substring(0, 160) : undefined}
         image={movie?.poster_url || movie?.thumb_url || movie?.backdrop_url}
         type="video.other"

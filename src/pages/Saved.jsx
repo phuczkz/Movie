@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import MovieCard from "../components/MovieCard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useSavedMoviesList } from "../hooks/useSavedMoviesList.js";
+import SEO from "../components/SEO.jsx";
 
 const Saved = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const Saved = () => {
 
   return (
     <div className="space-y-6">
+      <SEO title={`Danh sách phim yêu thích`} />
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold text-white">Phim yêu thích</h1>
         <p className="text-slate-300 text-sm">

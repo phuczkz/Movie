@@ -117,7 +117,7 @@ const Country = () => {
 
   return (
     <div className="space-y-6">
-      <SEO title={`Tuyển tập Phim ${heading} hay nhất`} />
+      <SEO title={`Danh sách phim ${heading} ${typeParam} ${yearParam}`} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">
@@ -144,7 +144,7 @@ const Country = () => {
             ))}
           </div>
           {(pagedData.hasNext || page > 1) && (
-            <Pagination 
+            <Pagination
               currentPage={page}
               hasNext={pagedData.hasNext}
               onPageChange={goToPage}

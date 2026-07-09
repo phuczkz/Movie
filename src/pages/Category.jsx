@@ -281,7 +281,7 @@ const Category = () => {
 
   return (
     <div className="space-y-6">
-      <SEO title={`${heading} hay nhất ${countryParam} ${yearParam}`} />
+      <SEO title={`Danh sách ${heading.toLowerCase().startsWith('phim') ? heading : 'Phim ' + heading} ${countryParam} ${yearParam}`.trim()} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">
