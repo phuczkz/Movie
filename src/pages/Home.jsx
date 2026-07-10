@@ -15,6 +15,10 @@ import TheaterShowcase from "../components/TheaterShowcase.jsx";
 import WeeklyRanking from "../components/WeeklyRanking.jsx";
 import VietnamBanner from "../components/VietnamBanner.jsx";
 import SEO from "../components/SEO.jsx";
+import { db } from "../firebase.config.js";
+import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { useAuth } from "../context/AuthContext.jsx";
+import AnnouncementModal from "../components/AnnouncementModal.jsx";
 
 
 const quickFocusCards = [
@@ -124,6 +128,41 @@ const Home = () => {
     refetchOnMount: false,
   };
 
+  const { userProfile, markAnnouncementAsRead } = useAuth();
+  const [activeAnnouncement, setActiveAnnouncement] = useState(null);
+
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      if (!userProfile || !userProfile.isWhitelisted || !db) return;
+      try {
+        const q = query(
+          collection(db, "announcements"),
+          orderBy("createdAt", "desc"),
+          limit(10)
+        );
+        const snapshot = await getDocs(q);
+        const activeDoc = snapshot.docs.find(doc => doc.data().active === true);
+        
+        if (activeDoc) {
+          const data = { id: activeDoc.id, ...activeDoc.data() };
+          if (!userProfile.readAnnouncements?.includes(data.id)) {
+            setActiveAnnouncement(data);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching announcement:", err);
+      }
+    };
+    fetchAnnouncement();
+  }, [userProfile]);
+
+  const handleConfirmAnnouncement = async () => {
+    if (activeAnnouncement) {
+      await markAnnouncementAsRead(activeAnnouncement.id);
+      setActiveAnnouncement(null);
+    }
+  };
+
   const [refAnime, showAnime] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
@@ -165,6 +204,13 @@ const Home = () => {
   return (
     <div className="space-y-8 sm:space-y-10 lg:space-y-12">
       <SEO />
+      
+      <AnnouncementModal 
+        announcement={activeAnnouncement}
+        onConfirm={handleConfirmAnnouncement}
+        onClose={() => setActiveAnnouncement(null)}
+      />
+
       <LoginBanner />
 
       <Hero movies={heroMovies} />

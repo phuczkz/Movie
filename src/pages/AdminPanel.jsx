@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   BarChart3,
+  Bell,
 } from "lucide-react";
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
@@ -19,9 +20,11 @@ const AdminComments = lazy(() => import("./admin/AdminComments"));
 const AdminMaintenance = lazy(() => import("./admin/AdminMaintenance"));
 const AdminMovieStatus = lazy(() => import("./admin/AdminMovieStatus"));
 const AdminReports = lazy(() => import("./admin/AdminReports"));
+const AdminAnnouncements = lazy(() => import("./admin/AdminAnnouncements"));
 
 const NAV_ITEMS = [
   { id: "reports", label: "Báo cáo", icon: BarChart3 },
+  { id: "announcements", label: "Thông báo", icon: Bell },
   { id: "users", label: "Người dùng", icon: Users },
   { id: "comments", label: "Bình luận", icon: MessageSquare },
   { id: "maintenance", label: "Bảo trì", icon: Construction },
@@ -30,6 +33,7 @@ const NAV_ITEMS = [
 
 const PAGE_MAP = {
   reports: AdminReports,
+  announcements: AdminAnnouncements,
   users: AdminUsers,
   comments: AdminComments,
   maintenance: AdminMaintenance,

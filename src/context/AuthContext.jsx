@@ -55,6 +55,7 @@ const AuthContext = createContext({
   deleteUserByAdmin: async () => { },
   toggleMaintenanceMode: async () => { },
   toggleUserWhitelist: async () => { },
+  markAnnouncementAsRead: async () => { },
 });
 
 const rejectIfMissing = () => {
@@ -70,6 +71,7 @@ const buildDefaultProfile = (currentUser, serverTimestamp) => ({
   birthday: "",
   photoURL: currentUser.photoURL || "",
   isWhitelisted: false,
+  readAnnouncements: [],
   createdAt: serverTimestamp(),
   updatedAt: serverTimestamp(),
 });
@@ -205,6 +207,7 @@ export const AuthProvider = ({ children }) => {
                     : "",
                 birthday: normalizeDate(data.birthday),
                 isWhitelisted: data.isWhitelisted === true,
+                readAnnouncements: data.readAnnouncements || [],
                 photoURL: data.photoURL || currentUser.photoURL || "",
                 createdAt:
                   data.createdAt || (Timestamp ? Timestamp.now() : undefined),
@@ -569,6 +572,22 @@ export const AuthProvider = ({ children }) => {
           isWhitelisted: whitelisted,
           updatedAt: firestoreMod.serverTimestamp(),
         });
+      },
+      markAnnouncementAsRead: async (announcementId) => {
+        const { config, firestoreMod } = await loadFirebaseSdk();
+        if (!config.db) return;
+        const currentUser = await ensureCurrentUser();
+        const userRef = firestoreMod.doc(config.db, "users", currentUser.uid);
+        
+        await firestoreMod.updateDoc(userRef, {
+          readAnnouncements: firestoreMod.arrayUnion(announcementId),
+          updatedAt: firestoreMod.serverTimestamp(),
+        });
+        
+        setUserProfile((prev) => ({
+          ...prev,
+          readAnnouncements: [...(prev?.readAnnouncements || []), announcementId],
+        }));
       },
     }),
     [user, loading, userProfile, profileLoading, maintenance, ensureCurrentUser]
