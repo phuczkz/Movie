@@ -1,15 +1,10 @@
-import { Suspense, lazy, useEffect } from "react";
+import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { LogOut } from "lucide-react";
 import { useAppMode } from "../context/AppModeContext";
 import SelectionScreen from "./SelectionScreen.jsx";
 import MaintenanceNew from "./MaintenanceNew.jsx";
 import AppLoader from "./app-loader.jsx";
-
-const MaintenanceIllustration = lazy(() =>
-  import("./MaintenanceIllustration.jsx")
-);
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 

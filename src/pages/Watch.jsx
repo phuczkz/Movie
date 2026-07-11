@@ -182,7 +182,6 @@ const Watch = () => {
   const selectedProviderParam = normalizeProviderParam(params.get("provider"));
 
   const [autoProviderState, setAutoProviderState] = useState({ key: "", provider: null, notice: "" });
-  const [useEmbedFallback, setUseEmbedFallback] = useState(false);
   const { data, isLoading } = useMovieDetail(slug);
   const { groups, currentSeason, nextSeason, isSeries } = useSeries(data?.movie);
 
@@ -255,7 +254,6 @@ const Watch = () => {
   if (playbackScopeKey !== prevScopeKeyRef.current || selectedProviderParam !== prevProviderRef.current) {
     prevScopeKeyRef.current = playbackScopeKey;
     prevProviderRef.current = selectedProviderParam;
-    setUseEmbedFallback(false);
     // Clear failed providers when scope or selected provider changes to ensure a fresh start
     failedProvidersRef.current.clear();
   }
@@ -265,7 +263,7 @@ const Watch = () => {
   const activeProvider = (selectedProviderParam && episodeProviders[selectedProviderParam]?.link ? selectedProviderParam : null) || (autoProviderOverride && episodeProviders[autoProviderOverride]?.link ? autoProviderOverride : null) || preferredProvider;
   const activeProviderLabel = PROVIDER_LABELS[activeProvider] || "Mặc định";
 
-  const activeSource = useEmbedFallback ? activeEpisode?.link_embed || activeEpisode?.embed || "" : (activeProvider ? episodeProviders[activeProvider]?.link : "") || activeEpisode?.link_m3u8 || activeEpisode?.embed || "";
+  const activeSource = (activeProvider ? episodeProviders[activeProvider]?.link : "") || activeEpisode?.link_m3u8 || activeEpisode?.embed || "";
 
   const currentIndex = activeEpisode ? episodesForServer.findIndex((ep) => ep.slug === activeEpisode.slug) : -1;
   const nextEpisode = currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
@@ -285,7 +283,7 @@ const Watch = () => {
     setParams(nextParams, { replace: true });
   }, [params, playbackScopeKey, setParams, setAutoProviderState]);
 
-  const handlePlaybackIssue = useCallback((reason) => {
+  const handlePlaybackIssue = useCallback(() => {
     if (!activeProvider) return;
 
     // Mark the current provider as failed
@@ -307,24 +305,12 @@ const Watch = () => {
       // If we already have a notice for this specific playback scope, skip updating to avoid UI flickering
       if (prev.key === playbackScopeKey && prev.notice) return prev;
 
-      const isDeadSource = ["manifest-error", "fatal-hls", "network-error", "network-timeout"].includes(reason);
-
       // If a working fallback provider is found
       if (fallbackProvider) {
         return {
           key: playbackScopeKey,
           provider: fallbackProvider,
           notice: `Nguồn ${activeProviderLabel} đang gặp sự cố. Hệ thống tự động chuyển sang Nguồn ${PROVIDER_LABELS[fallbackProvider] || fallbackProvider}.`
-        };
-      }
-
-      // If all main sources failed, try embed fallback iframe
-      if (isDeadSource && activeEpisode?.link_embed && !useEmbedFallback) {
-        setUseEmbedFallback(true);
-        return {
-          key: playbackScopeKey,
-          provider: prev.provider || null,
-          notice: `Các nguồn chính gặp sự cố kỹ thuật. Hệ thống tự động chuyển sang Trình phát dự phòng.`
         };
       }
 
@@ -335,7 +321,7 @@ const Watch = () => {
         notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.`
       };
     });
-  }, [activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, activeEpisode?.link_embed, useEmbedFallback, setAutoProviderState, setUseEmbedFallback, params, setParams]);
+  }, [activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, setAutoProviderState, params, setParams]);
 
   const handleServerChange = useCallback((serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);

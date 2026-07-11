@@ -17,8 +17,11 @@ const persistLogos = (items) => {
     const cache = getPersistedLogos();
     let changed = false;
     items.forEach(({ slug, logo }) => {
-      if (!slug || typeof logo !== "string" || !logo) return;
-      if (cache[slug] !== logo) {
+      // logo is now an object { url, lang } or a string (for old cache)
+      if (!slug || !logo) return;
+      const cached = cache[slug];
+      // Compare based on JSON stringification to detect changes
+      if (JSON.stringify(cached) !== JSON.stringify(logo)) {
         cache[slug] = logo;
         changed = true;
       }
@@ -45,11 +48,11 @@ export const useMovieLogo = (movie) => {
   const { data: logoUrl = null, isLoading } = useQuery({
     queryKey: ["movie-logo", name, originName, year],
     queryFn: async () => {
-      const url = await getTmdbLogo(name, originName, year);
-      if (slug && typeof url === "string" && url) {
-        persistLogos([{ slug, logo: url }]);
+      const logoObj = await getTmdbLogo(name, originName, year);
+      if (slug && logoObj && logoObj.url) {
+        persistLogos([{ slug, logo: logoObj }]);
       }
-      return url;
+      return logoObj;
     },
     enabled: !!(name || originName),
     staleTime: 60 * 60 * 1000,
@@ -61,7 +64,13 @@ export const useMovieLogo = (movie) => {
       if (!slug) return undefined;
       const cache = getPersistedLogos();
       const cachedLogo = cache[slug];
-      return typeof cachedLogo === "string" && cachedLogo ? cachedLogo : undefined;
+      if (typeof cachedLogo === "string" && cachedLogo) {
+        return { url: cachedLogo, lang: "other" }; // Migrate old cache
+      }
+      if (cachedLogo && cachedLogo.url) {
+        return cachedLogo;
+      }
+      return undefined;
     },
   });
 
@@ -89,11 +98,11 @@ export const useMovieLogos = (movies = []) => {
             // Delay fetching logos for subsequent slides to prioritize the first slide's assets
             await new Promise((resolve) => setTimeout(resolve, 1500 + index * 500));
           }
-          const logo = await getTmdbLogo(name, originName, year);
-          if (slug && typeof logo === "string" && logo) {
-            persistLogos([{ slug, logo }]);
+          const logoObj = await getTmdbLogo(name, originName, year);
+          if (slug && logoObj && logoObj.url) {
+            persistLogos([{ slug, logo: logoObj }]);
           }
-          return logo || null;
+          return logoObj || null;
         },
         enabled: !!(name || originName),
         staleTime: 60 * 60 * 1000,
@@ -105,7 +114,13 @@ export const useMovieLogos = (movies = []) => {
           if (!slug) return undefined;
           const cache = getPersistedLogos();
           const cachedLogo = cache[slug];
-          return typeof cachedLogo === "string" && cachedLogo ? cachedLogo : undefined;
+          if (typeof cachedLogo === "string" && cachedLogo) {
+            return { url: cachedLogo, lang: "other" }; // Migrate old cache
+          }
+          if (cachedLogo && cachedLogo.url) {
+            return cachedLogo;
+          }
+          return undefined;
         },
       };
     }),
@@ -122,4 +137,91 @@ export const useMovieLogos = (movies = []) => {
   const isLoading = queryResults.some((res) => res.isLoading);
 
   return { logoMap, isLoading };
+};
+
+const BACKDROP_CACHE_KEY = "tmdb_backdrop_cache_v1";
+
+const getPersistedBackdrops = () => {
+  try {
+    const raw = localStorage.getItem(BACKDROP_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const persistBackdrops = (items) => {
+  try {
+    const cache = getPersistedBackdrops();
+    let changed = false;
+    items.forEach(({ slug, backdrop }) => {
+      if (!slug || typeof backdrop !== "string" || !backdrop) return;
+      if (cache[slug] !== backdrop) {
+        cache[slug] = backdrop;
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem(BACKDROP_CACHE_KEY, JSON.stringify(cache));
+    }
+  } catch (e) {
+    console.warn("Failed to persist backdrops", e);
+  }
+};
+
+import { getTmdbBackdrop } from "../api/tmdb";
+
+/**
+ * Fetches backdrop URLs for multiple movies (used by Hero carousel).
+ * Returns a Map<slug, backdropUrl | null>.
+ */
+export const useMovieBackdrops = (movies = []) => {
+  const list = movies.filter(Boolean);
+
+  const queryResults = useQueries({
+    queries: list.map((m, index) => {
+      const name = m.name || "";
+      const originName = m.origin_name || "";
+      const year = m.year;
+      const slug = m.slug;
+
+      return {
+        queryKey: ["movie-backdrop", name, originName, year],
+        queryFn: async () => {
+          if (index > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 1500 + index * 500));
+          }
+          const backdrop = await getTmdbBackdrop(name, originName, year);
+          if (slug && typeof backdrop === "string" && backdrop) {
+            persistBackdrops([{ slug, backdrop }]);
+          }
+          return backdrop || null;
+        },
+        enabled: !!(name || originName),
+        staleTime: 60 * 60 * 1000,
+        gcTime: 24 * 60 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        retry: 1,
+        initialData: () => {
+          if (!slug) return undefined;
+          const cache = getPersistedBackdrops();
+          const cachedBg = cache[slug];
+          return typeof cachedBg === "string" && cachedBg ? cachedBg : undefined;
+        },
+      };
+    }),
+  });
+
+  const backdropMap = new Map();
+  list.forEach((m, idx) => {
+    const res = queryResults[idx];
+    if (res && res.data) {
+      backdropMap.set(m.slug, res.data);
+    }
+  });
+
+  const isLoading = queryResults.some((res) => res.isLoading);
+
+  return { backdropMap, isLoading };
 };

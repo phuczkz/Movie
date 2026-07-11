@@ -33,6 +33,48 @@ const DetailHero = ({
 }) => {
   const [bannerLoaded, setBannerLoaded] = useState(false);
   const [posterLoaded, setPosterLoaded] = useState(false);
+
+  const detailBadgeText = (() => {
+    const type = movie?.type || "";
+    const totalEps = movie?.episode_total ? String(movie.episode_total).trim() : "";
+    const currentEps = movie?.episode_current ? String(movie.episode_current).trim() : "";
+    
+    if (isMovie || type === "single" || type === "phimle") {
+      return "Full";
+    } else {
+      // Series, TV Shows, Hoat Hinh
+      const getEpisodeNum = (str) => {
+        if (!str) return null;
+        const match = String(str).match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+      };
+
+      const totalNum = getEpisodeNum(totalEps) || (epTotal > 0 ? epTotal : null);
+      let currNum = getEpisodeNum(currentEps) || (latestEpisodeNumber >= 0 ? latestEpisodeNumber : null);
+      
+      const isCompleted = currentEps.toLowerCase().includes("hoàn tất") || currentEps.toLowerCase().includes("full");
+      if (currNum === null && isCompleted && totalNum !== null) {
+        currNum = totalNum;
+      }
+      
+      if (currNum !== null && totalNum !== null) {
+        return `Tập ${currNum}/${totalNum}`;
+      } else if (currNum !== null) {
+        return `Tập ${currNum}`;
+      } else if (totalNum !== null) {
+        return `Tập ${totalNum}/${totalNum}`;
+      } else {
+        if (isCompleted) {
+          return "Hoàn Tất";
+        } else {
+          return currentEps || "Đang Cập Nhật";
+        }
+      }
+    }
+  })();
+
+  const showQuality = movie?.quality && movie.quality.toUpperCase() !== "HD";
+  const showLang = movie?.lang && movie.lang.toLowerCase() !== "vietsub";
   return (
     <>
       {heroImage ? (
@@ -146,27 +188,15 @@ const DetailHero = ({
                 </span>
               )}
               <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
-                {isMovie
-                  ? "Full"
-                  : latestEpisodeNumber >= 0
-                  ? `Tập ${latestEpisodeNumber}${
-                      epTotal ? `/${epTotal}` : ""
-                    }`
-                  : movie?.episode_current
-                  ? epTotal && !movie.episode_current.includes("/")
-                    ? `${movie.episode_current}/${epTotal}`
-                    : movie.episode_current
-                  : isTrailer
-                  ? "Trailer"
-                  : "HD"}
+                {detailBadgeText}
               </span>
 
-              {movie?.quality && (
+              {showQuality && (
                 <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                   {movie.quality}
                 </span>
               )}
-              {movie?.lang && (
+              {showLang && (
                 <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                   {movie.lang}
                 </span>
@@ -201,27 +231,15 @@ const DetailHero = ({
                   </span>
                 )}
                 <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
-                  {isMovie
-                    ? "Full"
-                    : latestEpisodeNumber >= 0
-                    ? `Tập ${latestEpisodeNumber}${
-                        epTotal ? `/${epTotal}` : ""
-                      }`
-                    : movie?.episode_current
-                    ? epTotal && !movie.episode_current.includes("/")
-                      ? `${movie.episode_current}/${epTotal}`
-                      : movie.episode_current
-                    : isTrailer
-                    ? "Trailer"
-                    : "HD"}
+                  {detailBadgeText}
                 </span>
 
-                {movie?.quality && (
+                {showQuality && (
                   <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                     {movie.quality}
                   </span>
                 )}
-                {movie?.lang && (
+                {showLang && (
                   <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                     {movie.lang}
                   </span>

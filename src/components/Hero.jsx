@@ -3,8 +3,9 @@ import { Info, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
-import { useEpisodeLabel } from "../hooks/useEpisodeLabel";
-import { useMovieLogos } from "../hooks/useMovieLogo";
+// removed useEpisodeLabel import as it was unused
+import { useMovieLogos, useMovieBackdrops } from "../hooks/useMovieLogo";
+import { useMovieDetail } from "../hooks/useMovieDetail.js";
 import { isMobile } from "../utils/responsive.js";
 import { toOptimizedHeroImage } from "../utils/image-helper.js";
 
@@ -39,9 +40,58 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
 
   const safeIndex = slideCount ? Math.min(activeIndex, slideCount - 1) : 0;
   const activeMovie = slides[safeIndex] || slides[0];
-  const episodeLabel = useEpisodeLabel(activeMovie);
+  const { data: detailData } = useMovieDetail(activeMovie?.slug);
+  const displayMovie = detailData?.movie || activeMovie;
+
+  // removed unused episodeLabel declaration
   const { logoMap } = useMovieLogos(slides);
-  const activeLogo = logoMap.get(activeMovie?.slug) || null;
+  const { backdropMap } = useMovieBackdrops(slides);
+  
+  const activeLogoObj = logoMap.get(activeMovie?.slug) || null;
+  const activeLogo = activeLogoObj?.url || null;
+  const activeLogoLang = activeLogoObj?.lang || "other";
+  const activeTmdbBackdrop = backdropMap.get(activeMovie?.slug) || null;
+
+  let heroBadgeText = "";
+  if (displayMovie) {
+    const type = displayMovie.type || "";
+    const totalEps = displayMovie.episode_total ? String(displayMovie.episode_total).trim() : "";
+    const currentEps = displayMovie.episode_current ? String(displayMovie.episode_current).trim() : "";
+    
+    // Some sources use 'phimle' instead of 'single'
+    if (type === "single" || type === "phimle") {
+      heroBadgeText = "Full";
+    } else {
+      // Series, TV Shows, Hoat Hinh
+      const getEpisodeNum = (str) => {
+        if (!str) return null;
+        const match = String(str).match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+      };
+
+      const totalNum = getEpisodeNum(totalEps);
+      let currNum = getEpisodeNum(currentEps);
+      
+      const isCompleted = currentEps.toLowerCase().includes("hoàn tất") || currentEps.toLowerCase().includes("full");
+      if (currNum === null && isCompleted && totalNum !== null) {
+        currNum = totalNum;
+      }
+      
+      if (currNum !== null && totalNum !== null) {
+        heroBadgeText = `Tập ${currNum}/${totalNum}`;
+      } else if (currNum !== null) {
+        heroBadgeText = `Tập ${currNum}`;
+      } else if (totalNum !== null) {
+        heroBadgeText = `Tập ${totalNum}/${totalNum}`;
+      } else {
+        if (isCompleted) {
+          heroBadgeText = "Hoàn Tất";
+        } else {
+          heroBadgeText = currentEps || "Đang Cập Nhật";
+        }
+      }
+    }
+  }
 
   useEffect(() => {
     if (slideCount <= 1) return undefined;
@@ -53,7 +103,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
 
   if (!activeMovie) {
     return (
-      <section className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-900/40 h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px] animate-pulse">
+      <section className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-900/40 h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px] animate-pulse">
         <div className="absolute inset-0 bg-slate-800/50" />
         <div className="relative z-10 flex h-full flex-col justify-end px-4 pb-14 md:px-10 md:pb-24 lg:px-16 lg:pb-12 gap-6">
           <div className="h-12 w-1/3 bg-slate-700/50 rounded-lg" />
@@ -75,6 +125,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   // const categories = normalizeList(activeMovie.category);
   // const countries = normalizeList(activeMovie.country);
   const rawBackground =
+    activeTmdbBackdrop ||
     activeMovie.backdrop_url ||
     activeMovie.thumb_url ||
     activeMovie.poster_url ||
@@ -116,7 +167,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   return (
     <LazyMotion features={domAnimation}>
     <section
-      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[52vh] sm:h-[56vh] md:h-[60vh] lg:h-[78vh] xl:h-[82vh] 2xl:h-[85vh] min-h-[400px] sm:min-h-[450px] md:min-h-[500px] lg:min-h-[700px] max-h-[500px] sm:max-h-[580px] md:max-h-[650px] lg:max-h-[920px] xl:max-h-[1050px] 2xl:max-h-[1200px]"
+      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px]"
     >
       <div className="absolute inset-0">
         <AnimatePresence mode="popLayout">
@@ -136,9 +187,15 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
             fetchPriority="high"
             aria-hidden="true"
             onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = background;
-              e.currentTarget.srcset = "";
+              if (!e.currentTarget.dataset.fallback) {
+                e.currentTarget.dataset.fallback = 'true';
+                e.currentTarget.src = `https://img.ophim.live/uploads/movies/${activeMovie?.slug}-thumb.jpg`;
+                e.currentTarget.srcset = "";
+              } else {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = background;
+                e.currentTarget.srcset = "";
+              }
             }}
           />
         </AnimatePresence>
@@ -174,11 +231,20 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                     {activeMovie.name}
                   </h1>
                 )}
-                {activeMovie.origin_name && (
-                  <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left">
-                    {activeMovie.origin_name}
-                  </h2>
-                )}
+                {(() => {
+                  let subText = null;
+                  if (activeLogo) {
+                    subText = activeLogoLang !== "vi" ? activeMovie.name : activeMovie.origin_name;
+                  } else {
+                    subText = activeMovie.origin_name;
+                  }
+                  if (!subText || subText === activeMovie.name && !activeLogo) return null;
+                  return (
+                    <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left line-clamp-1">
+                      {subText}
+                    </h2>
+                  );
+                })()}
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[14px] font-medium text-white">
@@ -192,14 +258,14 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                     {partString}
                   </span>
                 ) : null}
-                {episodeLabel ? (
+                {heroBadgeText ? (
                   <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
-                    {episodeLabel}
+                    {heroBadgeText}
                   </span>
                 ) : null}
-                {activeMovie.time ? (
+                {displayMovie.time ? (
                   <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
-                    {activeMovie.time}
+                    {displayMovie.time}
                   </span>
                 ) : null}
               </div>
@@ -209,10 +275,10 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
               <div className="hidden md:flex flex-wrap items-center justify-center md:justify-start gap-3 pt-1">
                 <Link
                   to={secondaryLink}
-                  className="group hidden md:inline-flex items-center gap-2.5 sm:gap-3 rounded-full bg-[rgb(16,185,129)] px-4 sm:px-5 md:px-6 py-2 md:py-3 text-[12px] sm:text-[13px] md:text-sm font-semibold text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
+                  className="group hidden md:inline-flex items-center justify-center gap-2.5 sm:gap-3 rounded-full bg-[rgb(16,185,129)] pl-2 pr-5 md:pl-2.5 md:pr-6 h-12 md:h-[52px] text-[13px] md:text-sm font-bold text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
                 >
-                  <span className="flex size-8 sm:h-9 sm:w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
-                    <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" fill="currentColor" />
+                  <span className="flex size-8 md:size-[38px] shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950/90 shadow-inner shadow-[rgba(16,185,129,0.4)] transition group-hover:scale-105">
+                    <Play className="size-4 md:size-[18px]" fill="currentColor" />
                   </span>
                   {primaryLabel}
                 </Link>
@@ -220,9 +286,9 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                 <Link
                   to={primaryLink}
                   state={{ movie: activeMovie }}
-                  className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/30 transition hover:-translate-y-[1px] hover:border-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  className="hidden md:inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 h-12 md:h-[52px] text-[13px] md:text-sm font-bold text-white shadow-lg shadow-black/30 transition hover:-translate-y-[1px] hover:border-white/35 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
                 >
-                  <Info className="size-4" />
+                  <Info className="size-4 md:size-[18px]" />
                   Thông tin
                 </Link>
               </div>
@@ -271,6 +337,14 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                       alt={item.name}
                       className={`h-full w-full ${fitClass} transition duration-500 group-hover:scale-105`}
                       loading="lazy"
+                      onError={(e) => {
+                        if (!e.target.dataset.fallback) {
+                          e.target.dataset.fallback = 'true';
+                          e.target.src = `https://img.ophim.live/uploads/movies/${item.slug}-thumb.jpg`;
+                        } else {
+                          e.target.src = '/apple-touch-icon.png';
+                        }
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
                     {isActive ? (

@@ -248,10 +248,44 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
   const canMergeOphimIntoKk =
     !kkList.length || areEpisodeRangesCompatible(kkRange, ophimRange);
 
+  const isEndEpisodeName = (name = "") => {
+    const clean = name.toLowerCase();
+    return (
+      /\b(end|tập cuối|tap cuoi|hoàn tất|hoan tat)\b/.test(clean) ||
+      /\.end\b/.test(clean) ||
+      /[-_]end\b/.test(clean)
+    );
+  };
+
+  const getEndEpisodeNumber = (list) => {
+    for (const ep of list) {
+      if (!ep) continue;
+      const name = ep.name || ep.slug || "";
+      if (isEndEpisodeName(name)) {
+        const num = parseEpisodeNumber(ep.name || ep.slug);
+        if (num !== null) return num;
+      }
+    }
+    return null;
+  };
+
+  const primaryEndNum = getEndEpisodeNumber(kkList);
+
   const add = (list, priority, providerHint) => {
+    const listEndNum = getEndEpisodeNumber(list);
+    
     list.forEach((ep) => {
       if (!ep) return;
       const epNum = parseEpisodeNumber(ep.name || ep.slug);
+      
+      // Prevent merging incorrect extra episodes beyond the END marker
+      if (primaryEndNum !== null && epNum !== null && epNum > primaryEndNum) {
+        return;
+      }
+      if (listEndNum !== null && epNum !== null && epNum > listEndNum) {
+        return;
+      }
+
       const provider = normalizeProvider(
         ep._provider || ep.provider || providerHint
       );
@@ -265,7 +299,6 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
       const current = map.get(key);
       const prefers = !current || priority < current.priority;
       const playableLink = getEpisodePlayableLink(ep);
-      // Prefer entries that have a playable link
       const hasLink = Boolean(playableLink);
       const nextSources = {
         ...(current?.sources || {}),
@@ -312,7 +345,6 @@ const mergeEpisodes = (kkList = [], ophimList = []) => {
     });
   };
 
-  // priority: 0 = KKphim, 1 = Ophim
   add(kkList, 0, "kkphim");
   if (canMergeOphimIntoKk) {
     add(ophimList, 1, "ophim");
@@ -623,18 +655,36 @@ export const getDetail = (slug) =>
             const kkName = norm(kkMovie.name);
             const kkOrg = norm(kkMovie.origin_name);
 
+            const targetYear = kkMovie.year;
+            
+            const getSeason = (nameStr) => {
+              const match = String(nameStr).toLowerCase().match(/(phần\s+(\d+)|season\s+(\d+)|mùa\s+(\d+)|ss\s+(\d+)|part\s+(\d+))/i);
+              return match ? parseInt(match[2] || match[3] || match[4] || match[5] || match[6], 10) : 1;
+            };
+            const kkSeason = getSeason(kkMovie.name);
+
             const altItem = altItems.find((m) => {
               if (!m?.slug || m.slug === slug) return false;
               const mName = norm(m.name);
               const mOrg = norm(m.origin_name);
-              return (
+              
+              const nameHit =
                 (kkName && (mName === kkName || mOrg === kkName)) ||
                 (kkOrg &&
                   mOrg &&
                   (mOrg === kkOrg ||
                     mOrg.includes(kkOrg) ||
-                    kkOrg.includes(mOrg)))
-              );
+                    kkOrg.includes(mOrg)));
+              if (!nameHit) return false;
+
+              // Season guard
+              const altSeason = getSeason(m.name || m.slug);
+              if (kkSeason !== altSeason) return false;
+
+              // Year guard: avoid false-positive matches across different release years
+              const mYear = m.year || m.publishYear || m.released;
+              const yearHit = targetYear && mYear ? String(mYear) === String(targetYear) : true;
+              return yearHit;
             });
 
             if (altItem?.slug) {

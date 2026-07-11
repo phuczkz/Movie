@@ -339,10 +339,40 @@ export const getTmdbLogo = async (name, originName, year) => {
 
     if (!pick?.file_path) return null;
 
-    // Use original for maximum sharpness on all devices
-    return `https://image.tmdb.org/t/p/original${pick.file_path}`;
+    return {
+      url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
+      lang: pick.iso_639_1 || "other"
+    };
   } catch (error) {
     console.warn("[tmdb] logo fetch failed", error.message);
+    return null;
+  }
+};
+
+/**
+ * Search TMDB for a movie/TV and return its high-res backdrop image URL.
+ */
+export const getTmdbBackdrop = async (name, originName, year) => {
+  if (!name && !originName) return null;
+
+  const { baseName: cleanName } = parseSeasonInfo(name || "");
+  const { baseName: cleanOrigin } = parseSeasonInfo(originName || "");
+
+  try {
+    let match = cleanName ? await searchTmdbMovie(cleanName, year) : null;
+    if (!match && cleanName) {
+      match = await searchTmdbMovie(cleanName);
+    }
+    if (!match && cleanOrigin && cleanOrigin !== cleanName) {
+      match = await searchTmdbMovie(cleanOrigin, year);
+      if (!match) match = await searchTmdbMovie(cleanOrigin);
+    }
+    
+    if (!match || !match.backdrop_path) return null;
+    
+    return `https://image.tmdb.org/t/p/original${match.backdrop_path}`;
+  } catch (error) {
+    console.warn("[tmdb] backdrop fetch failed", error.message);
     return null;
   }
 };

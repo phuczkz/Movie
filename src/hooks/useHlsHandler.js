@@ -98,6 +98,8 @@ export const useHlsHandler = (source, isHls) => {
       /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       window.innerWidth <= 768;
 
+    const isKkphim = source && (source.includes("kkphim") || source.includes("phimapi"));
+
     const config = {
       // ── FORWARD BUFFER ──
       // Giữ buffer ở mức vừa đủ để prefetch liên tục mà không làm ngập connection pool.
@@ -133,7 +135,9 @@ export const useHlsHandler = (source, isHls) => {
       testBandwidth: true,
 
       // ── LOADING — balanced timeouts for stable failure recovery ──
-      fragLoadingTimeOut: 30000,
+      // Kiến trúc hệ thống: Chỉ áp dụng ngắt sớm (12s) cho KKphim vì server này có cơ chế bóp băng thông.
+      // Với Ophim và các nguồn khác, giữ nguyên 30s (chuẩn HLS) để tránh việc tự ngắt liên tục khi mạng người dùng yếu.
+      fragLoadingTimeOut: isKkphim ? 12000 : 30000,
       fragLoadingMaxRetry: 10,
       fragLoadingRetryDelay: 1000,
       fragLoadingMaxRetryTimeout: 20000,
@@ -182,7 +186,7 @@ export const useHlsHandler = (source, isHls) => {
     }
 
     return config;
-  }, [AdFreeLoaderClass]);
+  }, [AdFreeLoaderClass, source]);
 
   return {
     Hls,

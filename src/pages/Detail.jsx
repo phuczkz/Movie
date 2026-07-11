@@ -26,6 +26,7 @@ import DetailMobileContent from "../components/detail/DetailMobileContent.jsx";
 import DetailDesktopContent from "../components/detail/DetailDesktopContent.jsx";
 import DetailResumeModal from "../components/detail/DetailResumeModal.jsx";
 import SEO from "../components/SEO.jsx";
+import { useMovieBackdrops } from "../hooks/useMovieLogo.js";
 
 const Detail = () => {
   const { slug } = useParams();
@@ -35,11 +36,15 @@ const Detail = () => {
   const { user } = useAuth();
   const { loadProgress, clearProgress } = useWatchProgress();
   const { groups, currentSeason } = useSeries(data?.movie);
-
+  
   // Thừa hưởng dữ liệu cơ bản từ card (poster, name) nếu có, để tránh "Chưa có tên"
   const passedMovie = location.state?.movie;
   const passedPoster = location.state?.posterSrc;
   const passedThumb = location.state?.thumbSrc;
+
+  const movieToQuery = data?.movie || passedMovie;
+  const { backdropMap } = useMovieBackdrops(movieToQuery ? [movieToQuery] : []);
+  const activeTmdbBackdrop = movieToQuery ? backdropMap.get(movieToQuery.slug) : null;
 
   const [resumeData, setResumeData] = useState(null);
   const [showResumeModal, setShowResumeModal] = useState(false);
@@ -589,6 +594,7 @@ const Detail = () => {
       : null;
 
   const heroImage = getHiRes(
+    activeTmdbBackdrop ||
     passedMovie?.thumb_url ||
     passedMovie?.backdrop_url ||
     movie?.backdrop_url ||

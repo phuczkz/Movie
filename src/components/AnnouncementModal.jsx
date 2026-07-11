@@ -44,9 +44,9 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
 
           <div className="relative p-6 sm:p-10 overflow-y-auto flex-1 custom-scrollbar">
             {/* Header: Avatar & Logo */}
-            <div className="flex flex-wrap items-center gap-6 sm:gap-10 mb-8 sm:mb-10 pb-8 border-b border-white/5">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-5 sm:gap-10 mb-8 sm:mb-10 pb-8 border-b border-white/5">
               {/* Avatar Image (Fallback to a random cute avatar if no local image) */}
-              <div className="w-28 h-28 sm:w-24 sm:h-24 rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl shrink-0 bg-[#0f0f0f] flex items-center justify-center">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl sm:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl shrink-0 bg-[#0f0f0f] flex items-center justify-center">
                 <img
                   src="/apple-touch-icon.png"
                   alt="Admin Avatar"
@@ -75,7 +75,7 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6 tracking-tight leading-snug">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6 tracking-tight leading-snug text-center sm:text-left">
               {announcement.title || "Thông báo từ Ban quản trị"}
             </h1>
 
@@ -94,17 +94,17 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
           </div>
 
           {/* Footer Actions */}
-          <div className="relative px-6 sm:px-10 py-5 sm:py-6 bg-[#0f0f0f] border-t border-white/5 flex flex-wrap items-center justify-end gap-4">
+          <div className="relative px-6 sm:px-10 py-5 sm:py-6 bg-[#0f0f0f] border-t border-white/5 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4">
             <button
               onClick={onClose}
-              className="px-6 py-3 text-sm font-semibold text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              className="w-full sm:w-auto px-6 py-3 text-sm font-semibold text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors text-center"
             >
               Đóng (Nhắc lại sau)
             </button>
             <button
               onClick={handleConfirm}
               disabled={isConfirming}
-              className="flex items-center gap-2 px-8 py-3 text-sm font-bold text-white bg-red-600 hover:bg-red-500 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed rounded-xl transition-all shadow-[0_0_15px_rgba(220,38,38,0.3)] hover:shadow-[0_0_25px_rgba(220,38,38,0.4)]"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 text-sm font-bold text-white bg-red-600 hover:bg-red-500 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed rounded-xl transition-all shadow-[0_0_15px_rgba(220,38,38,0.3)] hover:shadow-[0_0_25px_rgba(220,38,38,0.4)]"
             >
               {isConfirming ? (
                 <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

@@ -4,7 +4,6 @@ import { useAuth } from "../context/AuthContext";
 import {
   Users,
   MessageSquare,
-  Construction,
   Film,
   ArrowLeft,
   Menu,
@@ -17,7 +16,7 @@ const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 const AdminUsers = lazy(() => import("./admin/AdminUsers"));
 const AdminComments = lazy(() => import("./admin/AdminComments"));
-const AdminMaintenance = lazy(() => import("./admin/AdminMaintenance"));
+// AdminMaintenance has been removed as it is no longer needed
 const AdminMovieStatus = lazy(() => import("./admin/AdminMovieStatus"));
 const AdminReports = lazy(() => import("./admin/AdminReports"));
 const AdminAnnouncements = lazy(() => import("./admin/AdminAnnouncements"));
@@ -27,7 +26,6 @@ const NAV_ITEMS = [
   { id: "announcements", label: "Thông báo", icon: Bell },
   { id: "users", label: "Người dùng", icon: Users },
   { id: "comments", label: "Bình luận", icon: MessageSquare },
-  { id: "maintenance", label: "Bảo trì", icon: Construction },
   { id: "moviestatus", label: "Trạng thái phim", icon: Film },
 ];
 
@@ -36,12 +34,11 @@ const PAGE_MAP = {
   announcements: AdminAnnouncements,
   users: AdminUsers,
   comments: AdminComments,
-  maintenance: AdminMaintenance,
   moviestatus: AdminMovieStatus,
 };
 
 export default function AdminPanel() {
-  const { user, loading, maintenance } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState("reports");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -129,9 +126,6 @@ export default function AdminPanel() {
             >
               <item.icon className="size-4 shrink-0" />
               <span className="flex-1 text-left">{item.label}</span>
-              {item.id === "maintenance" && maintenance?.enabled && (
-                <span className="flex size-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse" />
-              )}
             </button>
           ))}
         </nav>

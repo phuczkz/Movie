@@ -5,7 +5,7 @@ import Hero from "../components/Hero.jsx";
 import MovieCard from "../components/MovieCard.jsx";
 import Section from "../components/Section.jsx";
 import GridSkeleton from "../components/GridSkeleton.jsx";
-import { useMoviesList } from "../hooks/useMoviesList.js";
+// removed useMoviesList import as it was unused
 import { useKKphimMovies } from "../hooks/useKKphimMovies.js";
 import { useHoatHinhMerged } from "../hooks/useHoatHinhMerged.js";
 import { useChieuRapMerged } from "../hooks/useChieuRapMerged.js";
@@ -169,7 +169,7 @@ const Home = () => {
   const [refTheater, showTheater] = useSectionVisibility();
   const [refRanking] = useSectionVisibility();
 
-  const { data: latest = [] } = useMoviesList("latest", undefined, {
+  const { data: latest = [] } = useKKphimMovies("latest", {
     enabled: true,
     ...commonQueryOpts,
   });
@@ -225,14 +225,14 @@ const Home = () => {
           </h2>
         </div>
 
-        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar pr-4 sm:pr-6 pl-0 sm:pl-0 md:grid md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 md:gap-4 md:pb-6">
+        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar pr-4 sm:pr-6 pl-0 sm:pl-0 lg:grid lg:grid-cols-4 xl:grid-cols-8 lg:gap-4 lg:pb-6">
           {quickFocusCards.map((item) => (
             <Link
               key={item.title}
               to={item.to}
               title={`Khám phá ngay ${item.title}`}
               aria-label={`Xem danh sách phim ${item.title} - ${item.subtitle}`}
-              className="group relative flex-shrink-0 w-[140px] sm:w-[160px] md:w-auto overflow-hidden rounded-2xl border border-white/10 p-4 sm:p-5 min-h-[100px] sm:min-h-[120px] transition-all duration-500 hover:border-white/25 hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/20"
+              className="group relative flex-shrink-0 w-[140px] sm:w-[160px] md:w-[180px] lg:w-auto overflow-hidden rounded-2xl border border-white/10 p-4 sm:p-5 min-h-[100px] sm:min-h-[120px] transition-all duration-500 hover:border-white/25 hover:-translate-y-1 hover:shadow-2xl hover:shadow-indigo-500/20"
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-80 transition-all duration-500 group-hover:opacity-100 group-hover:scale-110`}
