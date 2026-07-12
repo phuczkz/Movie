@@ -1,9 +1,9 @@
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useSearchMovies } from "../hooks/useSearchMovies.js";
-import { useAppMode } from "../context/AppModeContext";
-import { getOptimizedPoster } from "../utils/image-helper.js";
+import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
+import { useAppMode } from '@/context/AppModeContext';
+import { getOptimizedPoster } from '@/utils/image-helper.js';
 
 const MOBILE_WIDTH = 640;
 const FALLBACK_POSTER =

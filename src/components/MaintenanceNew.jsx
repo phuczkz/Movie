@@ -1,5 +1,5 @@
 import React from 'react';
-import { useKKphimMovies } from '../hooks/useKKphimMovies.js';
+import { useKKphimMovies } from '@/features/movies/hooks/useKKphimMovies.js';
 
 const MaintenanceNew = () => {
     // Fetch latest movies for the 3D gallery

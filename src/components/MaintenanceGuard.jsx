@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from '@/features/auth/context/AuthContext';
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { useAppMode } from "../context/AppModeContext";
-import SelectionScreen from "./SelectionScreen.jsx";
-import MaintenanceNew from "./MaintenanceNew.jsx";
-import AppLoader from "./app-loader.jsx";
+import { useAppMode } from '@/context/AppModeContext';
+import SelectionScreen from '@/components/SelectionScreen.jsx';
+import MaintenanceNew from '@/components/MaintenanceNew.jsx';
+import AppLoader from '@/components/app-loader.jsx';
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 

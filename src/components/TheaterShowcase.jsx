@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import { useRef, useState, useEffect } from "react";
 import { Play, ChevronLeft, ChevronRight } from "lucide-react";
-import { getOptimizedPoster } from "../utils/image-helper.js";
-import { isMobile } from "../utils/responsive.js";
+import { getOptimizedPoster } from '@/utils/image-helper.js';
+import { isMobile } from '@/utils/responsive.js';
 
 const fallbackThumb =
   "https://placehold.co/1280x720/0f172a/94a3b8?text=No+Image";

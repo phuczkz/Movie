@@ -4,10 +4,10 @@ import { Link } from "react-router-dom";
 // eslint-disable-next-line no-unused-vars
 import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 // removed useEpisodeLabel import as it was unused
-import { useMovieLogos, useMovieBackdrops } from "../hooks/useMovieLogo";
-import { useMovieDetail } from "../hooks/useMovieDetail.js";
-import { isMobile } from "../utils/responsive.js";
-import { toOptimizedHeroImage } from "../utils/image-helper.js";
+import { useMovieLogos, useMovieBackdrops } from '@/features/movies/hooks/useMovieLogo';
+import { useMovieDetail } from '@/features/movies/hooks/useMovieDetail.js';
+import { isMobile } from '@/utils/responsive.js';
+import { toOptimizedHeroImage } from '@/utils/image-helper.js';
 
 const withWidthParam = (url, w = 640) => {
   if (!url) return url;

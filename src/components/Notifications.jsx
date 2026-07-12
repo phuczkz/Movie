@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { collection, query, where, onSnapshot, updateDoc, doc, writeBatch, deleteDoc } from "firebase/firestore";
 import { Bell, Trash2, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { db } from "../firebase.config";
-import { useAuth } from "../context/AuthContext";
+import { db } from '@/firebase.config.js';
+import { useAuth } from '@/features/auth/context/AuthContext';
 
 export default function Notifications() {
   const { user } = useAuth();

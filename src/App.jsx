@@ -6,32 +6,32 @@ import {
   useNavigationType,
 } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import PageTransition from "./components/PageTransition.jsx";
-import Layout from "./components/Layout.jsx";
-import ComicLayout from "./components/comics/ComicLayout.jsx";
-import { useAppMode } from "./context/AppModeContext";
-import { cancelAllPendingRequests } from "./api/client";
-import { cancelAllKKphimRequests } from "./api/movies2";
+import PageTransition from '@/components/PageTransition.jsx';
+import Layout from '@/components/Layout.jsx';
+import ComicLayout from '@/features/comics/components/ComicLayout.jsx';
+import { useAppMode } from '@/context/AppModeContext';
+import { cancelAllPendingRequests } from '@/api/client';
+import { cancelAllKKphimRequests } from '@/features/movies/api/movies2';
 
-const Home = lazy(() => import("./pages/Home.jsx"));
-const Category = lazy(() => import("./pages/Category.jsx"));
-const Country = lazy(() => import("./pages/Country.jsx"));
-const Detail = lazy(() => import("./pages/Detail.jsx"));
-const Watch = lazy(() => import("./pages/Watch.jsx"));
-const Login = lazy(() => import("./pages/Login.jsx"));
-const Register = lazy(() => import("./pages/Register.jsx"));
-const Profile = lazy(() => import("./pages/Profile.jsx"));
-const Saved = lazy(() => import("./pages/Saved.jsx"));
-const Search = lazy(() => import("./pages/Search.jsx"));
-const Actor = lazy(() => import("./pages/Actor.jsx"));
-const AdminPanel = lazy(() => import("./pages/AdminPanel.jsx"));
+const Home = lazy(() => import('@/features/movies/pages/Home.jsx'));
+const Category = lazy(() => import('@/features/movies/pages/Category.jsx'));
+const Country = lazy(() => import('@/features/movies/pages/Country.jsx'));
+const Detail = lazy(() => import('@/features/movies/pages/Detail.jsx'));
+const Watch = lazy(() => import('@/features/movies/pages/Watch.jsx'));
+const Login = lazy(() => import('@/features/auth/pages/Login.jsx'));
+const Register = lazy(() => import('@/features/auth/pages/Register.jsx'));
+const Profile = lazy(() => import('@/features/auth/pages/Profile.jsx'));
+const Saved = lazy(() => import('@/features/movies/pages/Saved.jsx'));
+const Search = lazy(() => import('@/features/movies/pages/Search.jsx'));
+const Actor = lazy(() => import('@/features/movies/pages/Actor.jsx'));
+const AdminPanel = lazy(() => import('@/features/admin/pages/AdminPanel.jsx'));
 
 // Comics
-const ComicHome = lazy(() => import("./pages/comics/ComicHome.jsx"));
-const ComicDetail = lazy(() => import("./pages/comics/ComicDetail.jsx"));
-const ComicReader = lazy(() => import("./pages/comics/ComicReader.jsx"));
-const ComicList = lazy(() => import("./pages/comics/ComicList.jsx"));
-const ComicFavorites = lazy(() => import("./pages/comics/ComicFavorites.jsx"));
+const ComicHome = lazy(() => import('@/features/comics/pages/ComicHome.jsx'));
+const ComicDetail = lazy(() => import('@/features/comics/pages/ComicDetail.jsx'));
+const ComicReader = lazy(() => import('@/features/comics/pages/ComicReader.jsx'));
+const ComicList = lazy(() => import('@/features/comics/pages/ComicList.jsx'));
+const ComicFavorites = lazy(() => import('@/features/comics/pages/ComicFavorites.jsx'));
 
 function App() {
   const location = useLocation();

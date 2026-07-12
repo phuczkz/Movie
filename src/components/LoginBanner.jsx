@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 
 const UNSPLASH_BG_RAW =
   "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1000&auto=format&fit=crop";

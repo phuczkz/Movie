@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { X, Upload, Check } from "lucide-react";
-import { useAuth } from "../context/AuthContext.jsx";
+import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 
 const PRESET_AVATARS = [
   { id: "cha", name: "Cha Hae-In", url: "/avatars/cha_hae_in.png" },

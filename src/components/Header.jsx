@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../context/AuthContext.jsx";
-import { useAppMode } from "../context/AppModeContext";
-import { comicApi } from "../api/comicApi";
-import SearchBar from "./SearchBar.jsx";
-import Notifications from "./Notifications";
+import { useAuth } from '@/features/auth/context/AuthContext.jsx';
+import { useAppMode } from '@/context/AppModeContext';
+import { comicApi } from '@/features/comics/api/comicApi';
+import SearchBar from '@/components/SearchBar.jsx';
+import Notifications from '@/components/Notifications.jsx';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 const moviePrimaryNav = [

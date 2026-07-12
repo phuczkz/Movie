@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { getOptimizedPoster } from "../utils/image-helper.js";
+import { getOptimizedPoster } from '@/utils/image-helper.js';
 
 const fallbackPoster =
   "https://placehold.co/120x180/0f172a/94a3b8?text=N/A";

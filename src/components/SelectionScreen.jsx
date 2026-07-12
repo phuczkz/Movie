@@ -1,5 +1,5 @@
 import { Film, BookOpen } from "lucide-react";
-import { useAppMode } from "../context/AppModeContext";
+import { useAppMode } from '@/context/AppModeContext';
 import { useNavigate } from "react-router-dom";
 
 export default function SelectionScreen() {

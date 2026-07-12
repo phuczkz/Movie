@@ -1,0 +1,926 @@
+import client from "@/api/client";
+import {
+  getTmdbDetailBySlug,
+  searchTmdbPerson,
+  getTmdbPersonCredits,
+  getTmdbFullEpisodes,
+} from "./tmdb";
+
+import { getKKphimDetail, searchKKphim } from "./movies2";
+import { filterAdultMovies, isAdultMovie } from '@/utils/filter';
+
+// Helpers to escape and decode HTML entities for search queries and display names
+const decodeHtmlEntities = (str = "") => {
+  if (!str) return "";
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'");
+};
+
+const escapeHtmlSearch = (str = "") => {
+  if (!str) return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/'/g, "&#039;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+};
+
+const fallbackPortrait =
+  "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
+const fallbackLandscape =
+  "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
+
+const tmdbProfileBase = import.meta.env.VITE_TMDB_PROFILE_BASE;
+
+const normalizePoster = (url = "") => {
+  if (!url) return fallbackPortrait;
+  if (url.startsWith("http")) return url;
+  const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
+  return cdn ? `${cdn}${url}` : url;
+};
+
+const normalizeLandscape = (url = "") => {
+  if (!url) return fallbackLandscape;
+  if (url.startsWith("http")) return url;
+  const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
+  return cdn ? `${cdn}${url}` : url;
+};
+
+const normalizeMovie = (raw = {}) => {
+  let rawPoster = raw.poster_url || "";
+  let rawThumb = raw.thumb_url || "";
+
+  // Check if either URL belongs to Ophim (either relative path or contains ophim domain)
+  const isOphim = (url) =>
+    url &&
+    (!url.startsWith("http") ||
+      url.includes("ophim.live") ||
+      url.includes("ophim1.com"));
+
+  if (isOphim(rawPoster) || isOphim(rawThumb)) {
+    // Ophim's raw data has:
+    // - thumb_url = usually contains "-thumb" -> vertical (portrait)
+    // - poster_url = usually contains "-poster" -> horizontal (landscape)
+    // We want the portrait image in rawPoster and the landscape image in rawThumb.
+    const isRawPosterLandscape =
+      rawPoster.includes("poster") ||
+      rawPoster.includes("-poster") ||
+      rawPoster.includes("_poster");
+    const isRawThumbPortrait =
+      rawThumb.includes("thumb") ||
+      rawThumb.includes("-thumb") ||
+      rawThumb.includes("_thumb");
+
+    if (isRawPosterLandscape || isRawThumbPortrait) {
+      // Swap them to align with our standard format (poster = portrait, thumb = landscape)
+      [rawPoster, rawThumb] = [rawThumb, rawPoster];
+    }
+  }
+
+  const poster = rawPoster || raw.poster || rawThumb || raw.banner || "";
+  const backdrop =
+    raw.banner || raw.backdrop_url || rawThumb || rawPoster || "";
+  const posterNormalized = normalizePoster(poster);
+  const thumbNormalized = normalizeLandscape(backdrop);
+
+  return {
+    slug: raw.slug || raw._id || raw.id || "unknown",
+    name: decodeHtmlEntities(raw.name || raw.title || raw.origin_name || null),
+    poster_url: posterNormalized,
+    thumb_url: thumbNormalized,
+    year: raw.year || raw.released || raw.publishYear,
+    episode_current: raw.episode_current || raw.episodeCurrent || raw.status,
+    episode_total: raw.episode_total || raw.episodeTotal,
+    quality: raw.quality,
+    lang: raw.lang,
+    time: raw.time,
+    country: raw.country,
+    type: raw.type || "",
+    origin_name: decodeHtmlEntities(raw.origin_name || ""),
+    category: raw.category || raw.genres || [],
+    content: raw.content || raw.description || "",
+    origin: raw,
+  };
+};
+
+const normalizePeople = (peoples = []) => {
+  if (!Array.isArray(peoples)) return [];
+  const seen = new Set();
+
+  const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
+
+  const pickImage = (p) => {
+    const raw =
+      p?.profile_path ||
+      p?.avatar ||
+      p?.image ||
+      p?.photo ||
+      p?.thumbnail ||
+      p?.thumb ||
+      "";
+    if (!raw) return null;
+    if (raw.startsWith("http")) return raw;
+    if (raw.startsWith("/")) return `${tmdbProfileBase}${raw}`;
+    return cdn ? `${cdn}${raw}` : raw;
+  };
+
+  const list = peoples.flatMap((p) => {
+    const name = p?.name || p?.original_name || p?.full_name || "";
+    if (!name) return [];
+    const image = pickImage(p);
+    return [{
+      name,
+      image,
+      character: p?.character,
+    }];
+  });
+
+  return list.filter((item) => {
+    if (seen.has(item.name)) return false;
+    seen.add(item.name);
+    return true;
+  });
+};
+
+const parseEpisodeNumber = (value) => {
+  if (!value) return null;
+  const str = String(value).toLowerCase();
+  
+  // Do not extract numbers from special episodes so they don't overwrite main episodes
+  if (
+    str.includes("bts") ||
+    str.includes("trailer") ||
+    str.includes("teaser") ||
+    str.includes("preview") ||
+    str.includes("ngoại truyện") ||
+    str.includes("special")
+  ) {
+    return null;
+  }
+  
+  const match = str.match(/(\d+)/);
+  return match ? Number(match[1]) : null;
+};
+
+const stripDiacritics = (text = "") =>
+  text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const normalizeServerName = (name) => {
+  const raw = (name || "").toString().trim();
+  const plain = stripDiacritics(raw).toLowerCase();
+
+  if (!raw) return "Vietsub";
+  if (plain.includes("subteam")) return "Vietsub";
+  if (plain.includes("thuyet") || plain.includes("thuy minh"))
+    return "Thuyết Minh";
+  if (plain.includes("long") && plain.includes("tieng")) return "Lồng Tiếng";
+  if (plain.includes("viet")) return "Vietsub";
+  return raw;
+};
+
+const normalizeProvider = (provider) => {
+  const value = (provider || "").toString().trim().toLowerCase();
+  return value === "ophim" ? "ophim" : "kkphim";
+};
+
+const getEpisodePlayableLink = (ep = {}) => {
+  const link = ep.link_m3u8 || ep.m3u8 || ep.linkplay || ep.link || "";
+  if (
+    !link ||
+    link.includes("iframe") ||
+    link.includes("embed") ||
+    link.includes("phimapi.com/player")
+  ) {
+    return "";
+  }
+  return link;
+};
+
+const getEpisodeSourceKind = (ep = {}) => {
+  const link = getEpisodePlayableLink(ep);
+  if (link) return "m3u8";
+  return "unknown";
+};
+
+const normalizeEpisodeSlug = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "") || "ep-unknown";
+
+const getNumericEpisodeRange = (list = []) => {
+  const nums = Array.from(
+    new Set(
+      list
+        .map((ep) => parseEpisodeNumber(ep?.name || ep?.slug))
+        .filter((n) => Number.isFinite(n))
+    )
+  ).sort((a, b) => a - b);
+
+  if (!nums.length) return null;
+  return {
+    min: nums[0],
+    max: nums[nums.length - 1],
+    nums,
+  };
+};
+
+const areEpisodeRangesCompatible = (primaryRange, secondaryRange) => {
+  if (!primaryRange || !secondaryRange) return true;
+
+  const overlap =
+    Math.max(primaryRange.min, secondaryRange.min) <=
+    Math.min(primaryRange.max, secondaryRange.max);
+  if (overlap) return true;
+
+  const distance = Math.min(
+    Math.abs(secondaryRange.min - primaryRange.max),
+    Math.abs(primaryRange.min - secondaryRange.max)
+  );
+
+  // Allow minor gaps (e.g. primary has 1-5 and secondary has 6-10),
+  // but reject clearly different numbering schemes (e.g. 1-6 vs 36-49).
+  return distance <= 2;
+};
+
+const mergeEpisodes = (kkList = [], ophimList = []) => {
+  const map = new Map();
+
+  const kkRange = getNumericEpisodeRange(kkList);
+  const ophimRange = getNumericEpisodeRange(ophimList);
+  const canMergeOphimIntoKk =
+    !kkList.length || areEpisodeRangesCompatible(kkRange, ophimRange);
+
+  const isEndEpisodeName = (name = "") => {
+    const clean = name.toLowerCase();
+    return (
+      /\b(end|tập cuối|tap cuoi|hoàn tất|hoan tat)\b/.test(clean) ||
+      /\.end\b/.test(clean) ||
+      /[-_]end\b/.test(clean)
+    );
+  };
+
+  const getEndEpisodeNumber = (list) => {
+    for (const ep of list) {
+      if (!ep) continue;
+      const name = ep.name || ep.slug || "";
+      if (isEndEpisodeName(name)) {
+        const num = parseEpisodeNumber(ep.name || ep.slug);
+        if (num !== null) return num;
+      }
+    }
+    return null;
+  };
+
+  const primaryEndNum = getEndEpisodeNumber(kkList);
+
+  const add = (list, priority, providerHint) => {
+    const listEndNum = getEndEpisodeNumber(list);
+    
+    list.forEach((ep) => {
+      if (!ep) return;
+      const epNum = parseEpisodeNumber(ep.name || ep.slug);
+      
+      // Prevent merging incorrect extra episodes beyond the END marker
+      if (primaryEndNum !== null && epNum !== null && epNum > primaryEndNum) {
+        return;
+      }
+      if (listEndNum !== null && epNum !== null && epNum > listEndNum) {
+        return;
+      }
+
+      const provider = normalizeProvider(
+        ep._provider || ep.provider || providerHint
+      );
+      const serverLabel = normalizeServerName(
+        ep.server_name || ep.server || ep.serverName
+      );
+      const baseKey = epNum !== null ? `ep-${epNum}` : ep.slug || ep.name;
+      const key = `${serverLabel || "default"}__${baseKey}`;
+      if (!baseKey) return;
+
+      const current = map.get(key);
+      const prefers = !current || priority < current.priority;
+      const playableLink = getEpisodePlayableLink(ep);
+      const hasLink = Boolean(playableLink);
+      const nextSources = {
+        ...(current?.sources || {}),
+      };
+      if (hasLink) {
+        nextSources[provider] = {
+          link: playableLink,
+          kind: getEpisodeSourceKind(ep),
+        };
+      }
+
+      const currentHasLink = Boolean(
+        Object.values(nextSources).some((item) => item?.link) ||
+          current?.ep?.link_m3u8 ||
+          current?.ep?.m3u8 ||
+          current?.ep?.linkplay ||
+          current?.ep?.link ||
+          current?.ep?.embed
+      );
+
+      if (prefers || (!currentHasLink && hasLink)) {
+        map.set(key, {
+          ep: {
+            ...ep,
+            server_name: serverLabel,
+            _provider: provider,
+            _preferredProvider: provider,
+            _providers: nextSources,
+          },
+          priority,
+          epNum: epNum ?? -1,
+          sources: nextSources,
+        });
+      } else if (hasLink && current) {
+        map.set(key, {
+          ...current,
+          sources: nextSources,
+          ep: {
+            ...current.ep,
+            _providers: nextSources,
+          },
+        });
+      }
+    });
+  };
+
+  add(kkList, 0, "kkphim");
+  if (canMergeOphimIntoKk) {
+    add(ophimList, 1, "ophim");
+  }
+
+  const merged = Array.from(map.values()).map(({ ep, sources }) => ({
+    ...ep,
+    _providers: sources || ep._providers || {},
+    _preferredProvider:
+      ep._preferredProvider || Object.keys(sources || {})[0] || ep._provider,
+  }));
+  merged.sort((a, b) => {
+    const na = parseEpisodeNumber(a.name || a.slug) ?? Infinity;
+    const nb = parseEpisodeNumber(b.name || b.slug) ?? Infinity;
+    if (na !== nb) return na - nb;
+    return (a.server_name || "").localeCompare(b.server_name || "");
+  });
+  return merged;
+};
+
+const unwrapItems = (data) =>
+  data?.data?.items ||
+  data?.items ||
+  data?.movie ||
+  data?.result ||
+  data?.data?.item ||
+  [];
+
+const mapOrFallback = (items = [], fallback = []) =>
+  items && items.length
+    ? filterAdultMovies(items.map(normalizeMovie))
+    : fallback;
+
+const uniqueBySlug = (items = []) => {
+  const seen = new Set();
+  const out = [];
+  for (const item of items) {
+    const key = item?.slug || item?._id || item?.id;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+};
+
+const withFallback = async (fn, fallback = null) => {
+  try {
+    if (!client.defaults.baseURL) throw new Error("Missing baseURL");
+    return await fn();
+  } catch (error) {
+    if (
+      error?.response?.status !== 404 &&
+      error?.code !== "ERR_CANCELED" &&
+      error?.name !== "CanceledError" &&
+      error?.name !== "AbortError"
+    ) {
+      console.warn("[movie-api] Fallback data used:", error.message);
+    }
+    return fallback;
+  }
+};
+
+export const getLatest = (page = 1, extraParams = {}) =>
+  withFallback(async () => {
+    const { data } = await client.get("/danh-sach/phim-moi", {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
+
+export const getSeries = (page = 1, extraParams = {}) =>
+  withFallback(async () => {
+    const { data } = await client.get("/danh-sach/phim-bo", {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
+
+export const getSingle = (page = 1, extraParams = {}) =>
+  withFallback(async () => {
+    const { data } = await client.get("/danh-sach/phim-le", {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
+
+export const getOphimChieuRap = (page = 1, extraParams = {}) =>
+  withFallback(async () => {
+    const { data } = await client.get("/danh-sach/phim-chieu-rap", {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
+
+export const getOphimHoatHinh = (page = 1, extraParams = {}) =>
+  withFallback(async () => {
+    const { data } = await client.get("/danh-sach/hoat-hinh", {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(unwrapItems(data));
+  }, []);
+
+export const getCategory = (category, page = 1, extraParams = {}) =>
+  withFallback(async () => {
+
+    if (category === "phim-thuyet-minh") {
+      const { data } = await client.get("/danh-sach/phim-thuyet-minh", {
+        params: { page, ...extraParams },
+      });
+      return mapOrFallback(uniqueBySlug(unwrapItems(data)));
+    }
+
+    const { data } = await client.get(`/the-loai/${category}`, {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(uniqueBySlug(unwrapItems(data)));
+  }, []);
+
+export const getCountry = (country, page = 1, extraParams = {}) =>
+  withFallback(async () => {
+    const { data } = await client.get(`/quoc-gia/${country}`, {
+      params: { page, ...extraParams },
+    });
+    return mapOrFallback(uniqueBySlug(unwrapItems(data)));
+  }, []);
+
+export const getDetail = (slug) =>
+  withFallback(
+    async () => {
+      if (slug?.startsWith("tmdb-")) {
+        const tmdbData = await getTmdbDetailBySlug(slug);
+        if (!tmdbData.movie) return tmdbData;
+
+        try {
+          const q = tmdbData.movie.name;
+          if (q) {
+            const res = await client
+              .get("/tim-kiem", { params: { keyword: q } })
+              .catch(() => null);
+            const rawItems =
+              res?.data?.data?.items ||
+              res?.data?.items ||
+              res?.data?.movie ||
+              res?.data?.result ||
+              [];
+            const items = Array.isArray(rawItems) ? rawItems : [];
+
+            const normalized = (text) => (text || "").toLowerCase().trim();
+            const namesToMatch = [
+              tmdbData.movie.name,
+              tmdbData.movie.origin_name,
+            ]
+              .map(normalized)
+              .filter(Boolean);
+            const targetYear = tmdbData.movie.year;
+
+            const bestMatch = items.find((m) => {
+              const mYear = m.year || m.publishYear || m.released;
+              const nameHit =
+                namesToMatch.includes(normalized(m.name)) ||
+                namesToMatch.includes(normalized(m.origin_name));
+              const yearHit =
+                targetYear && mYear
+                  ? String(mYear) === String(targetYear)
+                  : true;
+              return nameHit && yearHit;
+            });
+
+            if (bestMatch && bestMatch.slug && bestMatch.slug !== slug) {
+              const altDetail = await getDetail(bestMatch.slug);
+              if (altDetail && altDetail.episodes?.length) {
+                tmdbData.episodes = altDetail.episodes;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[getDetail] Error resolving alt tmdb episodes", e);
+        }
+
+        if (!tmdbData.episodes || tmdbData.episodes.length === 0) {
+          tmdbData.movie.episode_current = "Trailer";
+          tmdbData.movie.quality = "Trailer";
+          tmdbData.movie.lang = "Trailer";
+        }
+
+        return tmdbData;
+      }
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 8000); // 8 seconds global timeout for detail
+
+      // Parallel fetch from both sources to avoid sequential timeout delays
+      const [kkResultSettled, ophimResultSettled] = await Promise.allSettled([
+        getKKphimDetail(slug, { signal: abortController.signal }).catch(
+          (err) => {
+            if (
+              err.name === "CanceledError" ||
+              err.code === "ERR_CANCELED" ||
+              err.name === "AbortError"
+            )
+              throw new Error("KKphim aborted");
+            throw err;
+          }
+        ),
+        client
+          .get(`/phim/${slug}`, { signal: abortController.signal })
+          .catch((err) => {
+            if (
+              err.name === "CanceledError" ||
+              err.code === "ERR_CANCELED" ||
+              err.name === "AbortError"
+            )
+              throw new Error("Ophim aborted");
+            throw err;
+          }),
+      ]);
+      clearTimeout(timeoutId);
+
+      let kkResult = null;
+      if (kkResultSettled.status === "fulfilled") {
+        kkResult = kkResultSettled.value;
+      } else {
+        const error = kkResultSettled.reason;
+        if (
+          error.response?.status !== 404 &&
+          error.status !== 404 &&
+          !error.message.includes("aborted")
+        ) {
+          console.warn("[getDetail] KKphim failed", error.message);
+        }
+      }
+
+      const { movie: kkMovie, episodes: kkEpisodes = [] } = kkResult || {};
+
+      let ophimMovie = null;
+      let ophimEpisodes = [];
+      if (ophimResultSettled.status === "fulfilled") {
+        const { data } = ophimResultSettled.value;
+        const payload = data?.data?.item || data?.movie || data?.data || data;
+        ophimMovie = normalizeMovie(payload);
+        const ophimActors = normalizePeople(
+          payload?.peoples ||
+            payload?.people ||
+            payload?.actor ||
+            payload?.cast ||
+            payload?.actors
+        );
+        if (ophimMovie && ophimActors.length) {
+          ophimMovie.actor = ophimActors;
+        }
+
+        const rawEpisodes =
+          payload?.episodes || data?.data?.episodes || data?.episodes || [];
+        ophimEpisodes = Array.isArray(rawEpisodes)
+          ? rawEpisodes.flatMap((server, serverIdx) => {
+              const serverName =
+                server?.server_name || server?.name || server?.server || "";
+              const list = server?.server_data || server || [];
+              return Array.isArray(list)
+                ? list.map((ep, idx) => ({
+                    ...ep,
+                    server_name: serverName,
+                    _serverIndex: serverIdx,
+                    _epIndex: idx,
+                    _provider: "ophim",
+                  }))
+                : [];
+            })
+          : [];
+      } else {
+        const error = ophimResultSettled.reason;
+        if (
+          error.response?.status !== 404 &&
+          error.status !== 404 &&
+          !error.message.includes("aborted")
+        ) {
+          console.warn("[getDetail] Ophim failed", error.message);
+        }
+      }
+
+      // ── Ophim alt-slug fallback ──────────────────────────────────────────
+      // If Ophim returned 0 episodes (slug mismatch) but KKphim has episodes,
+      // search Ophim by name to find its actual slug and fetch from there.
+      if (ophimEpisodes.length === 0 && kkEpisodes.length > 0 && kkMovie?.name) {
+        try {
+          // Simplify name: remove parenthetical part for better search hit
+          const searchKeyword = (kkMovie.name || "")
+            .replace(/\s*\([^)]*\)/g, "")
+            .trim();
+          const altSearch = await client
+            .get("/tim-kiem", {
+              params: { keyword: searchKeyword || kkMovie.name },
+            })
+            .catch(() => null);
+
+          const altItems =
+            altSearch?.data?.data?.items ||
+            altSearch?.data?.items ||
+            altSearch?.data?.result ||
+            [];
+
+          if (Array.isArray(altItems) && altItems.length) {
+            const norm = (s) =>
+              (s || "")
+                .toLowerCase()
+                .trim()
+                .replace(/\s*\([^)]*\)/g, "")
+                .trim();
+            const kkName = norm(kkMovie.name);
+            const kkOrg = norm(kkMovie.origin_name);
+
+            const targetYear = kkMovie.year;
+            
+            const getSeason = (nameStr) => {
+              const match = String(nameStr).toLowerCase().match(/(phần\s+(\d+)|season\s+(\d+)|mùa\s+(\d+)|ss\s+(\d+)|part\s+(\d+))/i);
+              return match ? parseInt(match[2] || match[3] || match[4] || match[5] || match[6], 10) : 1;
+            };
+            const kkSeason = getSeason(kkMovie.name);
+
+            const altItem = altItems.find((m) => {
+              if (!m?.slug || m.slug === slug) return false;
+              const mName = norm(m.name);
+              const mOrg = norm(m.origin_name);
+              
+              const nameHit =
+                (kkName && (mName === kkName || mOrg === kkName)) ||
+                (kkOrg &&
+                  mOrg &&
+                  (mOrg === kkOrg ||
+                    mOrg.includes(kkOrg) ||
+                    kkOrg.includes(mOrg)));
+              if (!nameHit) return false;
+
+              // Season guard
+              const altSeason = getSeason(m.name || m.slug);
+              if (kkSeason !== altSeason) return false;
+
+              // Year guard: avoid false-positive matches across different release years
+              const mYear = m.year || m.publishYear || m.released;
+              const yearHit = targetYear && mYear ? String(mYear) === String(targetYear) : true;
+              return yearHit;
+            });
+
+            if (altItem?.slug) {
+              const altRes = await client
+                .get(`/phim/${altItem.slug}`)
+                .catch(() => null);
+              if (altRes) {
+                const altPayload =
+                  altRes.data?.data?.item ||
+                  altRes.data?.movie ||
+                  altRes.data?.data ||
+                  altRes.data;
+                const altRaw =
+                  altPayload?.episodes ||
+                  altRes.data?.data?.episodes ||
+                  altRes.data?.episodes ||
+                  [];
+                if (Array.isArray(altRaw) && altRaw.length) {
+                  ophimEpisodes = altRaw.flatMap((server, serverIdx) => {
+                    const serverName =
+                      server?.server_name ||
+                      server?.name ||
+                      server?.server ||
+                      "";
+                    const list = server?.server_data || server || [];
+                    return Array.isArray(list)
+                      ? list.map((ep, idx) => ({
+                          ...ep,
+                          server_name: serverName,
+                          _serverIndex: serverIdx,
+                          _epIndex: idx,
+                          _provider: "ophim",
+                        }))
+                      : [];
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[getDetail] Ophim alt-slug fallback failed", e);
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // ── KKphim alt-slug fallback ─────────────────────────────────────────
+      // Symmetric counterpart: if the current URL slug is recognized by Ophim
+      // but NOT by KKphim (e.g. user navigated to the English origin-name slug
+      // like "whiplash" while KKphim stores it under the Vietnamese slug
+      // "khat-vong-nhip-dieu"), search KKphim by name and fetch its episodes
+      // so that Source 1 (KKphim) is also available.
+      if (kkEpisodes.length === 0 && ophimEpisodes.length > 0 && ophimMovie?.name) {
+        try {
+          const searchKeyword = (ophimMovie.name || ophimMovie.origin_name || "")
+            .replace(/\s*\([^)]*\)/g, "")
+            .trim();
+          // Search KKphim by the Ophim movie name to find its Vietnamese slug
+          const kkSearchRes = await searchKKphim(searchKeyword || ophimMovie.name).catch(() => []);
+
+          if (Array.isArray(kkSearchRes) && kkSearchRes.length) {
+            const norm = (s) =>
+              (s || "")
+                .toLowerCase()
+                .trim()
+                .replace(/\s*\([^)]*\)/g, "")
+                .trim();
+            const opName = norm(ophimMovie.name);
+            const opOrg = norm(ophimMovie.origin_name);
+
+            const targetYear = ophimMovie.year;
+            const kkAltItem = kkSearchRes.find((m) => {
+              if (!m?.slug || m.slug === slug) return false;
+              const mName = norm(m.name);
+              const mOrg = norm(m.origin_name);
+              const nameHit =
+                (opName && (mName === opName || mOrg === opName)) ||
+                (opOrg &&
+                  mOrg &&
+                  (mOrg === opOrg ||
+                    mOrg.includes(opOrg) ||
+                    opOrg.includes(mOrg)));
+              if (!nameHit) return false;
+              // Year guard: avoid false-positive matches across different release years
+              const yearHit = targetYear && m.year ? String(m.year) === String(targetYear) : true;
+              return yearHit;
+            });
+
+            if (kkAltItem?.slug) {
+              const kkAltDetail = await getKKphimDetail(kkAltItem.slug).catch(() => null);
+              if (kkAltDetail?.episodes?.length) {
+                const { movie: kkAltMovie, episodes: kkAltEps } = kkAltDetail;
+                const mergedWithKK = mergeEpisodes(kkAltEps, ophimEpisodes);
+                // Since the current slug belongs to Ophim, prefer Ophim as the default
+                // playback source. KKphim (alt-slug) is kept as a backup Source 1.
+                // Without this, _preferredProvider defaults to "kkphim" (priority 0),
+                // causing KKphim m3u8 to be tried first — often failing for Ophim-native
+                // slugs and triggering the error cascade notice unnecessarily.
+                const episodesOut = mergedWithKK.map((ep) => ({
+                  ...ep,
+                  slug: ep.slug || normalizeEpisodeSlug(ep.name),
+                  // Only override if Ophim has a working link for this episode
+                  _preferredProvider: ep._providers?.ophim?.link ? "ophim" : ep._preferredProvider,
+                }));
+                const movieOut = kkAltMovie?.name ? kkAltMovie : ophimMovie;
+                if (!isAdultMovie(movieOut)) {
+                  return { movie: movieOut, episodes: episodesOut };
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[getDetail] KKphim alt-slug fallback failed", e);
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      const mergedEpisodes = mergeEpisodes(kkEpisodes, ophimEpisodes);
+
+
+      const episodes = (mergedEpisodes.length ? mergedEpisodes : []).map(
+        (ep) => ({
+          ...ep,
+          slug: ep.slug || normalizeEpisodeSlug(ep.name),
+        })
+      );
+
+      // Prefer KKPhim as the primary source for basic metadata (Poster, Banner, Title)
+      // to avoid 'slug collisions' where Ophim provides the wrong movie details.
+      const movie = kkMovie?.name
+        ? kkMovie
+        : ophimMovie?.name
+        ? ophimMovie
+        : null;
+
+      if (isAdultMovie(movie)) {
+        return { movie: null, episodes: [] };
+      }
+
+      // Smart enrichment: complement KKPhim data with additional details from Ophim (like actors)
+      if (movie && movie === kkMovie && ophimMovie) {
+        const kkName = (movie.name || "").toLowerCase().trim();
+        const kkOrg = (movie.origin_name || "").toLowerCase().trim();
+        const opName = (ophimMovie.name || "").toLowerCase().trim();
+        const opOrg = (ophimMovie.origin_name || "").toLowerCase().trim();
+
+        // Check if movies are likely the same
+        const isSameMovie =
+          kkName === opName ||
+          kkOrg === opOrg ||
+          (kkOrg && opOrg && (kkOrg.includes(opOrg) || opOrg.includes(kkOrg)));
+
+        if (isSameMovie) {
+          if (!movie.content && ophimMovie.content)
+            movie.content = ophimMovie.content;
+          if ((!movie.actor || !movie.actor.length) && ophimMovie.actor) {
+            movie.actor = ophimMovie.actor;
+          }
+        }
+      }
+
+      // Enrichment (Optional & Non-blocking):
+      // We no longer block the main fetch for TMDB enrichment to ensure fast loading.
+      // Actors and other enhanced meta will be handled by asynchronous hooks in the UI.
+      if (movie && !movie.slug?.startsWith("tmdb-")) {
+        // You could fire enrichment here without await if mutation is acceptable,
+        // but it's cleaner to let the useActorsWithTmdbImages hook handle it.
+      }
+
+      return { movie, episodes };
+    },
+    { movie: null, episodes: [] }
+  );
+
+export const searchMovies = (query, page = 1) =>
+  withFallback(async () => {
+    const q = (query || "").trim();
+    if (!q) return [];
+
+    const escapedQ = escapeHtmlSearch(q);
+
+    // Parallel search: don't let one source failure block the other
+    const ophimPromise = client
+      .get("/tim-kiem", { params: { keyword: escapedQ, page } })
+      .then((res) => mapOrFallback(unwrapItems(res.data)))
+      .catch((err) => {
+        console.warn("[searchMovies] Ophim failed", err.message);
+        return [];
+      });
+
+    const actorPromise = searchTmdbPerson(q)
+      .then(async (person) => {
+        if (!person) return [];
+        return await getTmdbPersonCredits(person.id);
+      })
+      .catch((err) => {
+        console.warn("[searchMovies] Actor search failed", err.message);
+        return [];
+      });
+
+    const [ophimMovies, actorMovies] = await Promise.all([
+      ophimPromise,
+      actorPromise,
+    ]);
+
+    // 3. Merge and deduplicate (Prioritize actor results)
+    return uniqueBySlug([...actorMovies, ...ophimMovies]);
+  }, []);
+
+export const getByYear = (year, page = 1) =>
+  withFallback(async () => {
+    const [le, bo] = await Promise.all([
+      client
+        .get("/danh-sach/phim-le", { params: { year, page } })
+        .catch(() => ({ data: null })),
+      client
+        .get("/danh-sach/phim-bo", { params: { year, page } })
+        .catch(() => ({ data: null })),
+    ]);
+    const items = [...unwrapItems(le?.data), ...unwrapItems(bo?.data)];
+    return mapOrFallback(uniqueBySlug(items));
+  }, []);
+
+export const getEpisodes = (slug) =>
+  withFallback(async () => {
+    const detail = await getDetail(slug);
+    return detail.episodes || [];
+  }, []);
+export const getTmdbEpisodes = (id, mediaType, seasons) =>
+  getTmdbFullEpisodes(id, mediaType, seasons);

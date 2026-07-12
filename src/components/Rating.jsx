@@ -1,8 +1,8 @@
 import { useReducer, useEffect, useRef } from "react";
 import { Star } from "lucide-react";
 import { doc, setDoc, onSnapshot, collection } from "firebase/firestore";
-import { db } from "../firebase.config";
-import { useAuth } from "../context/AuthContext";
+import { db } from '@/firebase.config.js';
+import { useAuth } from '@/features/auth/context/AuthContext';
 
 const initialState = {
   hovered: 0,

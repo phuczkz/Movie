@@ -1,5 +1,5 @@
-import TrendingCard from "./TrendingCard.jsx";
-import Section from "./Section.jsx";
+import TrendingCard from '@/features/movies/components/TrendingCard.jsx';
+import Section from '@/components/Section.jsx';
 
 const EMPTY_MOVIES = [];
 

@@ -1,4 +1,4 @@
-import MovieCardSkeleton from "./MovieCardSkeleton.jsx";
+import MovieCardSkeleton from '@/features/movies/components/MovieCardSkeleton.jsx';
 
 export default function GridSkeleton({
   count = 4,

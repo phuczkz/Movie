@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { parseEpisodeNumber, normalizeServerLabel } from "../utils/episodes";
+import { parseEpisodeNumber, normalizeServerLabel } from '@/utils/episodes';
 
 const formatEpisodeName = (name = "") => {
   const trimmed = String(name).trim();

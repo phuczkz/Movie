@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import Header from "./Header.jsx";
-import Footer from "./Footer.jsx";
+import Header from '@/components/Header.jsx';
+import Footer from '@/components/Footer.jsx';
 import { AnimatePresence } from "framer-motion";
-import PageTransition from "./PageTransition.jsx";
+import PageTransition from '@/components/PageTransition.jsx';
 
 const Layout = ({ children }) => {
   const location = useLocation();
