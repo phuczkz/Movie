@@ -114,7 +114,7 @@ export const useHlsHandler = (source, isHls) => {
       // Giữ vừa đủ để backward seek mà không chiếm quá nhiều RAM.
       // RAM quá lớn → browser GC → hủy pending network requests → .ts chậm.
       // 60s (desktop) / 30s (mobile) = đủ rewind 1 phút mà không gây leak.
-      backBufferLength: isMobile ? 20 : 40,
+      backBufferLength: isMobile ? 10 : 20,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
@@ -140,11 +140,15 @@ export const useHlsHandler = (source, isHls) => {
       fragLoadingTimeOut: isKkphim ? 12000 : 30000,
       fragLoadingMaxRetry: 10,
       fragLoadingRetryDelay: 1000,
-      fragLoadingMaxRetryTimeout: 20000,
+      // Timeout tối đa giữa 2 lần thử lại (Exponential backoff).
+      // Giới hạn ở 64s (chuẩn gốc) để tránh việc dồn dập gọi lại server khi mạng đang chết hẳn.
+      fragLoadingMaxRetryTimeout: 64000,
+      
       manifestLoadingTimeOut: 10000,
-      manifestLoadingMaxRetry: 3,
+      manifestLoadingMaxRetry: 5, // Tăng từ 3 lên 5 để chống rớt mạng tạm thời lúc mới vào phim
       levelLoadingTimeOut: 10000,
-      levelLoadingMaxRetry: 3,
+      levelLoadingMaxRetry: 5, // Tăng từ 3 lên 5
+      appendErrorMaxRetry: 5, // Thêm mới: Cho phép thử lại nhiều lần hơn khi SourceBuffer gặp lỗi giải mã
 
       // ── PERFORMANCE CORE ──
       enableWorker: true,
@@ -154,6 +158,8 @@ export const useHlsHandler = (source, isHls) => {
       progressive: true,
       startFragPrefetch: true,
       stretchShortVideoTrack: true,
+      forceKeyFrameOnDiscontinuity: true, // Fix: Tránh kẹt hình (video freeze) khi seek backward
+      maxAudioFramesDrift: 1, // Fix: Giữ đồng bộ chặt chẽ audio/video sau khi seek
 
       // ── FETCH API — replaces xhrSetup ──
       // Benefits of fetchSetup over xhrSetup:
