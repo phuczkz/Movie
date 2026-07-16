@@ -15,8 +15,10 @@ const fallbackLandscape =
 
 
 // ─── Hover Preview Card ──────────────────────────────────────────────────────
-const HoverCard = ({ movie, thumbSrc, audioBadges, alignment }) => {
+const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) => {
   const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(movie);
+  const [thumbLoaded, setThumbLoaded] = useState(false);
+  const thumbRetryIndex = useRef(0);
 
   const categories = useMemo(() => {
     const cats = movie?.category || [];
@@ -43,17 +45,43 @@ const HoverCard = ({ movie, thumbSrc, audioBadges, alignment }) => {
 
   const alignmentClass = alignment === "left" ? "hc-popup--left" : alignment === "right" ? "hc-popup--right" : "";
 
+  // Build a unique, ordered list of fallback URLs to try on error
+  const fallbackChain = useMemo(() => {
+    const seen = new Set();
+    const chain = [];
+    for (const src of (thumbFallbacks || [])) {
+      if (src && !seen.has(src)) {
+        seen.add(src);
+        chain.push(src);
+      }
+    }
+    if (!seen.has(fallbackLandscape)) chain.push(fallbackLandscape);
+    return chain;
+  }, [thumbFallbacks]);
+
+  const handleThumbError = (e) => {
+    const idx = thumbRetryIndex.current;
+    if (idx < fallbackChain.length) {
+      thumbRetryIndex.current = idx + 1;
+      e.currentTarget.src = fallbackChain[idx];
+    } else {
+      e.currentTarget.onerror = null;
+      e.currentTarget.src = fallbackLandscape;
+      setThumbLoaded(true);
+    }
+  };
+
   return (
     <div className={`hc-popup ${alignmentClass}`} onClick={(e) => e.stopPropagation()}>
       {/* ── Landscape image ── */}
       <div className="hc-thumb">
+        {!thumbLoaded && <div className="absolute inset-0 mc-img-skeleton" />}
         <img
           src={thumbSrc}
           alt={movie.name}
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = fallbackLandscape;
-          }}
+          loading="eager"
+          onLoad={() => setThumbLoaded(true)}
+          onError={handleThumbError}
         />
         <div className="hc-thumb-gradient" />
       </div>
@@ -309,12 +337,44 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     isMobileSize ? 70 : 80
   ) || fallbackPoster;
 
+  // Determine the best landscape image for the hover popup.
+  // For movies from the API list, thumb_url = landscape, poster_url = portrait (already normalized).
+  // For saved/favorites movies, thumb_url may be missing or same as poster_url (both portrait).
+  // When API detail data is available (from useMovieDetail), prefer its thumb_url as the
+  // definitive landscape source since normalizeMovie() in movies.js correctly swaps
+  // Ophim's confusing poster/thumb naming.
+  const detailMovie = detailData?.movie;
+  const bestLandscape =
+    (detailMovie?.thumb_url && detailMovie.thumb_url !== detailMovie?.poster_url
+      ? detailMovie.thumb_url
+      : null) ||
+    (movie.thumb_url && movie.thumb_url !== movie.poster_url
+      ? movie.thumb_url
+      : null) ||
+    movie.thumb_url ||
+    movie.poster_url;
+
+  // Primary: optimized proxy URL for the thumb
   const thumbSrc =
     getOptimizedPoster(
-      movie.thumb_url || movie.poster_url,
+      bestLandscape,
       isMobileSize ? 400 : 640,
       isMobileSize ? 70 : 80
     ) || fallbackLandscape;
+
+  // Fallback chain for popup thumb: direct CDN URL → detail API URL → poster URL
+  const thumbFallbacks = useMemo(() => {
+    const sources = [];
+    // 1st fallback: the raw landscape URL (skip all proxies)
+    if (bestLandscape) sources.push(bestLandscape);
+    // 2nd fallback: detail API thumb_url if different
+    if (detailMovie?.thumb_url && detailMovie.thumb_url !== bestLandscape) {
+      sources.push(detailMovie.thumb_url);
+    }
+    // 3rd fallback: the raw poster_url (different image, but better than nothing)
+    if (movie.poster_url && movie.poster_url !== bestLandscape) sources.push(movie.poster_url);
+    return sources;
+  }, [bestLandscape, detailMovie?.thumb_url, movie.poster_url]);
 
   return (
     <div
@@ -400,6 +460,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
         <HoverCard
           movie={movie}
           thumbSrc={thumbSrc}
+          thumbFallbacks={thumbFallbacks}
           audioBadges={audioBadges}
           alignment={alignment}
         />

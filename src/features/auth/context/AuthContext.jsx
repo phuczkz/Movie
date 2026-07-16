@@ -434,11 +434,16 @@ export const AuthProvider = ({ children }) => {
         const payload = {
           slug: movie.slug,
           name: movie.name || "Phim chưa đặt tên",
+          origin_name: movie.origin_name || "",
           poster_url: movie.poster_url || movie.thumb_url || "",
+          thumb_url: movie.thumb_url || movie.poster_url || "",
           year: movie.year || null,
           quality: movie.quality || null,
           lang: movie.lang || movie.language || null,
           type: movie.type || null,
+          episode_current: movie.episode_current || null,
+          episode_total: movie.episode_total || null,
+          content: (movie.content || "").slice(0, 300) || null,
           createdAt: firestoreMod.serverTimestamp(),
           updatedAt: firestoreMod.serverTimestamp(),
         };
