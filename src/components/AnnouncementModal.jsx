@@ -24,7 +24,7 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm"
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -74,23 +74,39 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
               </div>
             </div>
 
-            {/* Title */}
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6 tracking-tight leading-snug text-center sm:text-left">
-              {announcement.title || "Thông báo từ Ban quản trị"}
-            </h1>
+            {/* Main Content Area */}
+            <div className={`flex flex-col gap-8 ${announcement.image ? 'lg:flex-row lg:items-start' : ''}`}>
+              {/* Left Column (Title + Content) */}
+              <div className={`flex-1 ${announcement.image ? 'lg:w-1/2 xl:w-3/5' : 'w-full'}`}>
+                {/* Title */}
+                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6 tracking-tight leading-snug text-center sm:text-left">
+                  {announcement.title || "Thông báo từ Ban quản trị"}
+                </h1>
 
-            {/* Content (Rich Text) */}
-            <div
-              className="prose prose-invert prose-lg max-w-none break-words
-                         prose-p:text-[#b3b3b3] prose-p:leading-relaxed prose-p:mb-5 prose-p:text-base sm:prose-p:text-lg
-                         prose-strong:text-white prose-strong:font-bold
-                         prose-a:text-red-500 hover:prose-a:text-red-400
-                         prose-img:rounded-xl prose-img:shadow-lg
-                         [&>*:last-child]:mb-0 [&>*:first-child]:mt-0
-                         overflow-x-hidden"
-              style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
-              dangerouslySetInnerHTML={{ __html: announcement.content }}
-            />
+                {/* Content (Rich Text) */}
+                <div
+                  className="prose prose-invert prose-lg max-w-none break-words
+                             prose-p:text-[#b3b3b3] prose-p:leading-relaxed prose-p:mb-5 prose-p:text-base sm:prose-p:text-lg
+                             prose-strong:text-white prose-strong:font-bold
+                             prose-a:text-red-500 hover:prose-a:text-red-400
+                             prose-img:rounded-xl prose-img:shadow-lg
+                             [&>*:last-child]:mb-0 [&>*:first-child]:mt-0
+                             overflow-x-hidden"
+                  dangerouslySetInnerHTML={{ __html: announcement.content }}
+                />
+              </div>
+
+              {/* Right Column (Image) */}
+              {announcement.image && (
+                <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col justify-center rounded-2xl overflow-hidden bg-black/40 border border-white/5 p-2 shadow-inner mt-4 lg:mt-0">
+                  <img 
+                    src={announcement.image} 
+                    alt="Hình ảnh đính kèm" 
+                    className="w-full h-auto max-h-[500px] object-contain rounded-xl"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Footer Actions */}
