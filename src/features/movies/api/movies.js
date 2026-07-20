@@ -639,21 +639,28 @@ export const getDetail = (slug) =>
       // search Ophim by name to find its actual slug and fetch from there.
       if (ophimEpisodes.length === 0 && kkEpisodes.length > 0 && kkMovie?.name) {
         try {
-          // Simplify name: remove parenthetical part for better search hit
           const searchKeyword = (kkMovie.name || "")
             .replace(/\s*\([^)]*\)/g, "")
             .trim();
-          const altSearch = await client
+          let altSearch = await client
             .get("/tim-kiem", {
               params: { keyword: searchKeyword || kkMovie.name },
             })
             .catch(() => null);
 
-          const altItems =
+          let altItems =
             altSearch?.data?.data?.items ||
             altSearch?.data?.items ||
             altSearch?.data?.result ||
             [];
+
+          if ((!altItems || altItems.length === 0) && kkMovie.origin_name) {
+             const originKeyword = (kkMovie.origin_name || "").replace(/\s*\([^)]*\)/g, "").trim();
+             if (originKeyword) {
+               altSearch = await client.get("/tim-kiem", { params: { keyword: originKeyword } }).catch(() => null);
+               altItems = altSearch?.data?.data?.items || altSearch?.data?.items || altSearch?.data?.result || [];
+             }
+          }
 
           if (Array.isArray(altItems) && altItems.length) {
             const norm = (s) =>
@@ -752,7 +759,14 @@ export const getDetail = (slug) =>
             .replace(/\s*\([^)]*\)/g, "")
             .trim();
           // Search KKphim by the Ophim movie name to find its Vietnamese slug
-          const kkSearchRes = await searchKKphim(searchKeyword || ophimMovie.name).catch(() => []);
+          let kkSearchRes = await searchKKphim(searchKeyword || ophimMovie.name).catch(() => []);
+
+          if ((!kkSearchRes || kkSearchRes.length === 0) && ophimMovie.origin_name) {
+              const originKeyword = (ophimMovie.origin_name || "").replace(/\s*\([^)]*\)/g, "").trim();
+              if (originKeyword) {
+                  kkSearchRes = await searchKKphim(originKeyword).catch(() => []);
+              }
+          }
 
           if (Array.isArray(kkSearchRes) && kkSearchRes.length) {
             const norm = (s) =>
@@ -861,6 +875,17 @@ export const getDetail = (slug) =>
       if (movie && !movie.slug?.startsWith("tmdb-")) {
         // You could fire enrichment here without await if mutation is acceptable,
         // but it's cleaner to let the useActorsWithTmdbImages hook handle it.
+      }
+
+      if (movie && episodes && episodes.length > 0) {
+        let maxEpNum = -1;
+        for (const ep of episodes) {
+          const num = parseEpisodeNumber(ep.name || ep.slug);
+          if (num !== null && num > maxEpNum) maxEpNum = num;
+        }
+        if (maxEpNum > 0 && String(movie.episode_current).toLowerCase() !== "full") {
+          movie.episode_current = `Tập ${maxEpNum}`;
+        }
       }
 
       return { movie, episodes };

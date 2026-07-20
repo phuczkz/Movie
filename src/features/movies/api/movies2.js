@@ -28,7 +28,6 @@ const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
   /\/$/,
   ""
 );
-const proxyUrl = import.meta.env.VITE_STREAM_PROXY;
 const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
 
 // ── Request cancellation system (mirrors client.js) ──
@@ -46,26 +45,6 @@ kkphim.interceptors.request.use((config) => {
     config.signal = controller.signal;
     config._abortController = controller;
     _pendingControllers.add(controller);
-  }
-
-  if (proxyUrl) {
-    let fullUrl = config.url;
-    if (!fullUrl.startsWith("http")) {
-      const base = config.baseURL || "";
-      fullUrl = `${base.replace(/\/$/, "")}/${fullUrl.replace(/^\//, "")}`;
-    }
-    if (config.params) {
-      const urlObj = new URL(fullUrl);
-      Object.keys(config.params).forEach((key) => {
-        if (config.params[key] !== undefined && config.params[key] !== null) {
-          urlObj.searchParams.append(key, config.params[key]);
-        }
-      });
-      fullUrl = urlObj.toString();
-      config.params = {}; 
-    }
-    config.baseURL = "";
-    config.url = `${proxyUrl.replace(/\/$/, "")}/?url=${encodeURIComponent(fullUrl)}`;
   }
 
   return config;

@@ -9,6 +9,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://www.khophim.io.vn",
   "http://localhost:5173",
   "https://hlsjs.video-dev.org",
+  "https://movie-dev-78f25.web.app",
 ];
 
 const DEFAULT_ALLOWED_HOSTS = [
