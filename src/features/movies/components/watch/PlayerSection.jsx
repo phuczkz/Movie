@@ -95,7 +95,7 @@ const PlayerSection = memo(
           <div className="relative">
             <Player
               source={activeSource}
-              poster="/player_poster.png"
+              poster={movie?.thumb_url || movie?.poster_url || "/player_poster.png"}
               title={movie?.name}
               subtitle={
                 activeEpisode?.name

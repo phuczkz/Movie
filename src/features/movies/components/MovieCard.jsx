@@ -123,6 +123,7 @@ const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) 
             to={`/movie/${movie.slug}`}
             className="hc-icon-btn"
             aria-label="Chi tiết"
+            title="Chi tiết"
             onClick={(e) => e.stopPropagation()}
           >
             <ChevronDown size={18} />

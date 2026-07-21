@@ -158,7 +158,7 @@ export const getOptimizedPlayerPoster = (url) => {
         const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
         return `https://wsrv.nl/?url=${encodeURIComponent(
           proxied
-        )}&w=800&output=webp&q=75`;
+        )}&w=1920&output=webp&q=90`;
       }
       return url;
     }
@@ -166,7 +166,7 @@ export const getOptimizedPlayerPoster = (url) => {
     // Others: proxy through wsrv.nl
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
-    )}&w=800&output=webp&q=75`;
+    )}&w=1920&output=webp&q=90`;
   } catch {
     return url;
   }
