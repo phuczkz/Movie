@@ -8,6 +8,7 @@ import {
 } from '@/features/movies/api/movies2';
 import { comicApi } from '@/features/comics/api/comicApi';
 import { filterAdultMovies } from '@/utils/filter';
+import { parseSeasonInfo } from '@/utils/episodes';
 
 const slugify = (text = "") =>
   text
@@ -51,12 +52,24 @@ const buildKeys = (item) => {
   const vName = nameVariants(item.name || "");
   const vOrigin = nameVariants(item.origin_name || "");
 
+  const originInfo = parseSeasonInfo(item.origin_name || "");
+  const nameInfo = parseSeasonInfo(item.name || "");
+  const tmdbSeason = item.tmdb?.season;
+  
+  const s = originInfo.season !== null ? originInfo.season : nameInfo.season !== null ? nameInfo.season : tmdbSeason || null;
+
   const addPair = (prefix, value) => {
     if (!value || value.length <= 2) return;
+    
+    let baseKey = `${prefix}:${value}`;
+    if (s !== null) {
+      baseKey += `|S${s}`;
+    }
+    
     // Key with year (preferred — avoids false positives across different years)
-    if (year) keys.add(`${prefix}:${value}|${year}`);
+    if (year) keys.add(`${baseKey}|${year}`);
     // Key without year (fallback — catches when one API lacks year data)
-    keys.add(`${prefix}:${value}`);
+    keys.add(baseKey);
   };
 
   // Canonical keys

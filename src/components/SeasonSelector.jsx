@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Film } from 'lucide-react';
+import { Layers } from 'lucide-react';
 
 /**
  * Individual section within the SeasonSelector.
  */
-const SeasonSection = ({ title, items, icon, isSeason = false, currentSeason, currentSlug }) => {
+const SeasonSection = ({ title, items, icon, currentSeason }) => {
   if (items.length === 0) return null;
 
   return (
@@ -18,9 +18,7 @@ const SeasonSection = ({ title, items, icon, isSeason = false, currentSeason, cu
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
         {items.map((item) => {
-          const isActive = isSeason 
-            ? item.season === currentSeason 
-            : item.slug === currentSlug;
+          const isActive = item.season === currentSeason;
             
           return (
             <Link
@@ -32,7 +30,7 @@ const SeasonSection = ({ title, items, icon, isSeason = false, currentSeason, cu
                   : 'bg-white/[0.03] border-white/5 text-slate-400 hover:bg-white/[0.08] hover:border-emerald-500/30 hover:text-slate-100 hover:-translate-y-[1px]'
               }`}
             >
-              {isSeason ? `Phần ${item.season}` : (item.name || "N/A").split(/[:(]/)[0].trim()}
+              {`Phần ${item.season}`}
             </Link>
           );
         })}
@@ -43,15 +41,14 @@ const SeasonSection = ({ title, items, icon, isSeason = false, currentSeason, cu
 
 /**
  * Corporate Season Selector component.
- * @param {Object} groups - Grouped items { seasons: [], movies: [], series: [] }
+ * @param {Object} groups - Grouped items { seasons: [] }
  * @param {number} currentSeason - The number of the currently active season
- * @param {string} currentSlug - The slug of the currently active movie
  */
-const SeasonSelector = ({ groups, currentSeason, currentSlug }) => {
+const SeasonSelector = ({ groups, currentSeason }) => {
   if (!groups) return null;
-  const { seasons = [], movies = [] } = groups;
+  const { seasons = [] } = groups;
 
-  const hasAny = seasons.length > 0 || movies.length > 0;
+  const hasAny = seasons.length > 0;
   if (!hasAny) return null;
 
   return (
@@ -60,17 +57,7 @@ const SeasonSelector = ({ groups, currentSeason, currentSlug }) => {
         title="Mùa phim"
         items={seasons}
         icon={<Layers className="size-4" />}
-        isSeason={true}
         currentSeason={currentSeason}
-        currentSlug={currentSlug}
-      />
-      <SeasonSection
-        title="Bản điện ảnh"
-        items={movies}
-        icon={<Film className="size-4" />}
-        isSeason={false}
-        currentSeason={currentSeason}
-        currentSlug={currentSlug}
       />
     </div>
   );

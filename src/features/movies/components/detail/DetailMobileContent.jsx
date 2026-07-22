@@ -19,7 +19,7 @@ const DetailMobileContent = ({
         <div className="space-y-6">
           <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 space-y-5">
             {groups && (
-              <SeasonSelector groups={groups} currentSeason={currentSeason} currentSlug={movie?.slug} />
+              <SeasonSelector groups={groups} currentSeason={currentSeason} />
             )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">

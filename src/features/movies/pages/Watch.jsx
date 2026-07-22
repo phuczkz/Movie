@@ -798,13 +798,12 @@ const Watch = () => {
 
           {/* Desktop: always show all sections below player */}
           {isDesktop && (
-            <div className="hidden xl:block space-y-8">
+            <div className="hidden xl:block space-y-[14px]">
               {isSeries && (
                 <div className="pb-4">
                   <SeasonSelector
                     groups={groups}
                     currentSeason={currentSeason}
-                    currentSlug={slug}
                   />
                 </div>
               )}
@@ -823,7 +822,7 @@ const Watch = () => {
 
           {/* Mobile/Tablet: tab-based content */}
           {!isDesktop && (
-            <div className="xl:hidden space-y-8">
+            <div className="xl:hidden space-y-[14px]">
               {mobileTab === "episodes" && (
                 <>
                   {isSeries && (
@@ -831,7 +830,6 @@ const Watch = () => {
                       <SeasonSelector
                         groups={groups}
                         currentSeason={currentSeason}
-                        currentSlug={slug}
                       />
                     </div>
                   )}

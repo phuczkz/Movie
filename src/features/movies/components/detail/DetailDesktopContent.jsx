@@ -30,7 +30,7 @@ const DetailDesktopContent = ({
       <div className="hidden lg:block lg:col-start-2 lg:row-start-1 lg:row-span-2 space-y-6 min-w-0">
         <div className="self-start rounded-3xl border border-white/5 bg-slate-900/70 shadow-xl p-6 lg:p-8 space-y-5">
           {/* Season Selector (Desktop) */}
-          {groups && (<SeasonSelector groups={groups} currentSeason={currentSeason} currentSlug={movie?.slug} />)}
+          {groups && (<SeasonSelector groups={groups} currentSeason={currentSeason} />)}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">

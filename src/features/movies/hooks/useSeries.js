@@ -2,46 +2,113 @@ import { useMemo } from "react";
 import { useSearchMovies } from "./useSearchMovies";
 import { parseSeasonInfo } from '@/utils/episodes';
 
+const getRootTitle = (title = "") => {
+  if (!title) return "";
+  let clean = title.replace(/\s*\([^)]*\)/g, "").trim();
+  clean = clean.split(/[:(]/)[0].trim();
+  clean = clean.replace(/\s+[-–—]\s+.*$/, "").trim();
+  clean = clean.replace(/[-–—:]\s*$/, "").trim();
+  return clean;
+};
+
 /**
  * Hook to discover and manage seasons of a movie series.
- * Groups results by TMDB ID (primary) or baseName (fallback).
+ * Groups results by TMDB ID (primary) or baseName/rootTitle (fallback).
  * @param {Object} currentMovie - The current movie object
  * @returns {Object} { groups, currentSeason, nextSeason, isLoading, isSeries, baseName }
  */
 export const useSeries = (currentMovie) => {
-  const { baseName, season: currentSeasonNumber } = useMemo(
+  const originInfo = useMemo(
+    () => parseSeasonInfo(currentMovie?.origin_name || ""),
+    [currentMovie?.origin_name]
+  );
+  const nameInfo = useMemo(
     () => parseSeasonInfo(currentMovie?.name || ""),
     [currentMovie?.name]
   );
 
-  // Search with full movie name (including "Phần X") so API can match via alternative_names
-  const searchQuery = currentMovie?.name || "";
+  const baseName = originInfo.baseName || nameInfo.baseName || "";
+
+  const originRoot = useMemo(
+    () => getRootTitle(originInfo.baseName || currentMovie?.origin_name || ""),
+    [originInfo.baseName, currentMovie?.origin_name]
+  );
+  const nameRoot = useMemo(
+    () => getRootTitle(nameInfo.baseName || currentMovie?.name || ""),
+    [nameInfo.baseName, currentMovie?.name]
+  );
+
+  // Determine current movie's season number
+  let currentSeasonNumber =
+    originInfo.season !== null
+      ? originInfo.season
+      : nameInfo.season !== null
+      ? nameInfo.season
+      : currentMovie?.tmdb?.season || null;
+
+  // Search query: Use root title of origin_name first (e.g. "Blue Lock"), fallback to nameRoot or name
+  const searchQuery = originRoot || nameRoot || currentMovie?.origin_name || currentMovie?.name || "";
   const { data: searchResults = [], isLoading } = useSearchMovies(searchQuery);
 
   // Extract TMDB ID of current movie for primary grouping
   const currentTmdbId = currentMovie?.tmdb?.id || currentMovie?.origin?.tmdb?.id || null;
 
   const groups = useMemo(() => {
-    if (!baseName || !searchResults.length) return { seasons: [], movies: [], series: [] };
+    if ((!baseName && !currentMovie?.name) || !searchResults.length) {
+      return { seasons: [] };
+    }
 
-    const normalizedBase = baseName.toLowerCase().trim();
+    const normOriginRoot = originRoot.toLowerCase().trim();
+    const normNameRoot = nameRoot.toLowerCase().trim();
 
-    // Categorize: match by TMDB ID (primary) or baseName (fallback)
+    // Categorize: match by TMDB ID (primary), origin root, or name root
     const categorized = searchResults.flatMap((m) => {
-      const info = parseSeasonInfo(m.name);
-      const normalizedMBase = info.baseName.toLowerCase().trim();
+      const mOriginInfo = parseSeasonInfo(m.origin_name || "");
+      const mNameInfo = parseSeasonInfo(m.name || "");
+
+      const mOriginRoot = getRootTitle(mOriginInfo.baseName || m.origin_name).toLowerCase().trim();
+      const mNameRoot = getRootTitle(mNameInfo.baseName || m.name).toLowerCase().trim();
 
       const tmdbId = m.tmdb?.id || m.origin?.tmdb?.id || null;
       // Primary: same TMDB series ID
       const matchByTmdb = currentTmdbId && tmdbId && String(currentTmdbId) === String(tmdbId);
-      // Fallback: baseName comparison
-      const matchByName = normalizedMBase === normalizedBase ||
-                          normalizedMBase.includes(normalizedBase) ||
-                          normalizedBase.includes(normalizedMBase);
 
-      if (!matchByTmdb && !matchByName) return [];
+      // Match by origin root title
+      const matchByOrigin =
+        normOriginRoot &&
+        mOriginRoot &&
+        (mOriginRoot === normOriginRoot ||
+          mOriginRoot.includes(normOriginRoot) ||
+          normOriginRoot.includes(mOriginRoot));
 
-      return [{ ...m, ...info }];
+      // Match by name root title
+      const matchByName =
+        normNameRoot &&
+        mNameRoot &&
+        (mNameRoot === normNameRoot ||
+          mNameRoot.includes(normNameRoot) ||
+          normNameRoot.includes(mNameRoot));
+
+      if (!matchByTmdb && !matchByOrigin && !matchByName) return [];
+
+      const season =
+        mOriginInfo.season !== null
+          ? mOriginInfo.season
+          : mNameInfo.season !== null
+          ? mNameInfo.season
+          : m.tmdb?.season || null;
+
+      const type =
+        mOriginInfo.type && mOriginInfo.type !== "series"
+          ? mOriginInfo.type
+          : mNameInfo.type || "series";
+
+      return [{
+        ...m,
+        baseName: mOriginInfo.baseName || mNameInfo.baseName,
+        type: season !== null ? "season" : type,
+        season,
+      }];
     });
 
     // Deduplicate by slug
@@ -52,24 +119,46 @@ export const useSeries = (currentMovie) => {
       return true;
     });
 
-    const seasons = unique
-      .filter((m) => m.type === "season")
-      .sort((a, b) => a.season - b.season);
+    let seasons = unique.filter((m) => m.type === "season" && m.season !== null);
+    const seriesItems = unique.filter((m) => m.type === "series" || m.season === null);
 
-    // Deduplicate seasons by season number (keep the first one encountered)
+    // If explicit seasons exist (e.g. Season 2) and unnumbered series exist, promote unnumbered to Season 1
+    if (seasons.length > 0 && seriesItems.length > 0) {
+      const hasSeason1 = seasons.some((s) => s.season === 1);
+      if (!hasSeason1) {
+        seriesItems.forEach((item) => {
+          seasons.push({ ...item, type: "season", season: 1 });
+        });
+      }
+    }
+    // If no explicit season numbers exist at all, but 2+ series items share the same root title,
+    // promote all series items to seasons based on release year / order!
+    else if (seasons.length === 0 && seriesItems.length >= 2) {
+      const sorted = [...seriesItems].sort((a, b) => (a.year || 0) - (b.year || 0));
+      seasons = sorted.map((m, idx) => ({
+        ...m,
+        type: "season",
+        season: idx + 1,
+      }));
+    }
+
+    // Sort seasons by season number
+    seasons.sort((a, b) => (a.season || 0) - (b.season || 0));
+
+    // Deduplicate seasons by season number
     const uniqueSeasons = [];
     const seenSeasonNums = new Set();
-    seasons.forEach(s => {
-      if (!seenSeasonNums.has(s.season)) {
+    seasons.forEach((s) => {
+      if (s.season !== null && !seenSeasonNums.has(s.season)) {
         seenSeasonNums.add(s.season);
         uniqueSeasons.push(s);
       }
     });
 
-    // If no "Phần X" patterns found but all results share same TMDB ID,
-    // promote them as seasons using tmdb.season field
     let finalSeasons = uniqueSeasons;
-    if (uniqueSeasons.length === 0 && currentTmdbId) {
+
+    // TMDB fallback if no explicit seasons found
+    if (finalSeasons.length === 0 && currentTmdbId) {
       const tmdbGrouped = unique
         .filter((m) => {
           const tmdbId = m.tmdb?.id || m.origin?.tmdb?.id || null;
@@ -84,7 +173,7 @@ export const useSeries = (currentMovie) => {
           season: m.tmdb?.season || idx + 1,
         }));
         const seen2 = new Set();
-        finalSeasons = mapped.filter(s => {
+        finalSeasons = mapped.filter((s) => {
           if (seen2.has(s.season)) return false;
           seen2.add(s.season);
           return true;
@@ -92,13 +181,11 @@ export const useSeries = (currentMovie) => {
       }
     }
 
-    const movies = unique.filter((m) => m.type === "movie");
-    const series = unique.filter((m) => m.type === "series" && m.slug !== currentMovie?.slug);
-
-    // Inject the current movie into seasons if its season number is not already in the list
-    // (API search may not return the current movie itself)
+    // Inject currentMovie into finalSeasons if missing
     if (currentMovie && currentSeasonNumber !== null && finalSeasons.length > 0) {
-      const alreadyIncluded = finalSeasons.some(s => s.season === currentSeasonNumber);
+      const alreadyIncluded = finalSeasons.some(
+        (s) => s.season === currentSeasonNumber || s.slug === currentMovie.slug
+      );
       if (!alreadyIncluded) {
         const currentEntry = {
           ...currentMovie,
@@ -110,19 +197,28 @@ export const useSeries = (currentMovie) => {
       }
     }
 
-    return { seasons: finalSeasons, movies, series };
-  }, [baseName, searchResults, currentMovie, currentTmdbId, currentSeasonNumber]);
+    return { seasons: finalSeasons };
+  }, [baseName, searchResults, currentMovie, currentTmdbId, currentSeasonNumber, originRoot, nameRoot]);
 
-  const nextSeason = groups.seasons.find(
-    (s) => currentSeasonNumber !== null && s.season === currentSeasonNumber + 1
-  ) || null;
+  // Infer currentSeasonNumber if it was null but currentMovie ended up in finalSeasons
+  let finalSeasonNumber = currentSeasonNumber;
+  if (finalSeasonNumber === null && currentMovie?.slug && groups.seasons.length > 0) {
+    const foundInSeasons = groups.seasons.find((s) => s.slug === currentMovie.slug);
+    if (foundInSeasons) {
+      finalSeasonNumber = foundInSeasons.season;
+    }
+  }
 
-  // isSeries = true if there are at least 2 season entries, or spinoffs/related series exist
-  const isSeries = groups.seasons.length >= 2 || groups.movies.length > 0 || groups.series.length > 0;
+  const nextSeason =
+    groups.seasons.find(
+      (s) => finalSeasonNumber !== null && s.season === finalSeasonNumber + 1
+    ) || null;
+
+  const isSeries = groups.seasons.length >= 1;
 
   return {
     groups,
-    currentSeason: currentSeasonNumber,
+    currentSeason: finalSeasonNumber,
     nextSeason,
     isLoading,
     isSeries,
