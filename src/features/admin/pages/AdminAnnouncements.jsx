@@ -13,7 +13,9 @@ import {
   doc,
   deleteDoc,
 } from "firebase/firestore";
-import { Plus, Trash2, Edit, CheckCircle2, XCircle, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Edit, CheckCircle2, XCircle, Image as ImageIcon, Search } from "lucide-react";
+import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
+import { getOptimizedPoster } from '@/utils/image-helper.js';
 
 export default function AdminAnnouncements() {
   const [announcements, setAnnouncements] = useState([]);
@@ -25,8 +27,38 @@ export default function AdminAnnouncements() {
   const [isActive, setIsActive] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [imageUrl, setImageUrl] = useState("");
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef(null);
+
+  const [movieSlug, setMovieSlug] = useState("");
+  const [movieQuery, setMovieQuery] = useState("");
+  const [debouncedMovieQuery, setDebouncedMovieQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchContainerRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMovieQuery(movieQuery.trim());
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [movieQuery]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!searchContainerRef.current) return;
+      if (!searchContainerRef.current.contains(event.target)) setIsSearchOpen(false);
+    };
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
+  }, []);
+
+  const { data: searchResults = [], isFetching: isSearching } = useSearchMovies(debouncedMovieQuery, "movie");
+
+  const handleSelectMovie = (movie) => {
+    setMovieSlug(movie.slug);
+    const poster = getOptimizedPoster(movie.poster_url || movie.thumb_url, 360);
+    if (poster) setImageUrl(poster);
+    setIsSearchOpen(false);
+    setMovieQuery("");
+  };
 
   useEffect(() => {
     if (!db) return;
@@ -46,66 +78,6 @@ export default function AdminAnnouncements() {
     return () => unsubscribe();
   }, []);
 
-  const resizeImage = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new window.Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/webp", 0.8));
-        };
-        img.onerror = () => reject(new Error("Failed to load image"));
-        img.src = e.target.result;
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Ảnh quá lớn. Vui lòng chọn ảnh dưới 5MB.");
-      return;
-    }
-
-    setUploadingImage(true);
-    try {
-      const resizedBase64 = await resizeImage(file);
-      setImageUrl(resizedBase64);
-    } catch (error) {
-      console.error("Error resizing image:", error);
-      alert("Lỗi khi xử lý ảnh.");
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,6 +89,7 @@ export default function AdminAnnouncements() {
           title,
           content,
           image: imageUrl,
+          movieSlug,
           active: isActive,
           updatedAt: serverTimestamp(),
         });
@@ -125,6 +98,7 @@ export default function AdminAnnouncements() {
           title: title || "Thông báo hệ thống",
           content,
           image: imageUrl,
+          movieSlug,
           active: isActive,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -142,6 +116,7 @@ export default function AdminAnnouncements() {
     setTitle(item.title || "");
     setContent(item.content);
     setImageUrl(item.image || "");
+    setMovieSlug(item.movieSlug || "");
     setIsActive(item.active);
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -174,6 +149,7 @@ export default function AdminAnnouncements() {
     setTitle("");
     setContent("");
     setImageUrl("");
+    setMovieSlug("");
     setIsActive(true);
   };
 
@@ -242,54 +218,84 @@ export default function AdminAnnouncements() {
               {/* Right Column - Image Upload */}
               <div className="space-y-4">
                 <label className="block text-sm font-medium text-slate-400 mb-1">
-                  Hình ảnh đính kèm (tuỳ chọn)
+                  Hình ảnh / Phim đính kèm (tuỳ chọn)
                 </label>
-                <div className="bg-slate-950 rounded-lg border border-white/10 overflow-hidden relative group h-48 lg:h-[calc(100%-1.75rem)] min-h-[200px] flex flex-col items-center justify-center">
+
+                {/* Search Movie Input */}
+                <div className="relative z-10" ref={searchContainerRef}>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={movieQuery}
+                      onChange={(e) => {
+                        setMovieQuery(e.target.value);
+                        setIsSearchOpen(true);
+                      }}
+                      onFocus={() => setIsSearchOpen(true)}
+                      placeholder="Tìm phim để lấy ảnh..."
+                      className="w-full rounded-lg bg-slate-950 border border-white/10 pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  
+                  {isSearchOpen && debouncedMovieQuery && (
+                    <div className="absolute left-0 right-0 mt-1 rounded-lg border border-white/10 bg-slate-800 shadow-xl max-h-60 overflow-y-auto">
+                      {isSearching ? (
+                        <div className="p-3 text-sm text-slate-400 text-center flex items-center justify-center gap-2">
+                          <div className="loader-orbit loader-orbit-sm" />
+                        </div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="p-3 text-sm text-slate-400 text-center">Không tìm thấy phim</div>
+                      ) : (
+                        <div className="divide-y divide-white/5">
+                          {searchResults.slice(0, 5).map(movie => (
+                            <button
+                              key={movie.slug}
+                              type="button"
+                              onClick={() => handleSelectMovie(movie)}
+                              className="w-full p-2 flex items-center gap-3 hover:bg-slate-700/50 transition-colors text-left"
+                            >
+                              <img
+                                src={getOptimizedPoster(movie.poster_url || movie.thumb_url, 92)}
+                                alt={movie.name}
+                                className="w-10 h-14 rounded object-cover flex-shrink-0 bg-slate-950"
+                              />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-white line-clamp-1">{movie.name}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{movie.year || "Đang cập nhật"}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-slate-950 rounded-lg border border-white/10 overflow-hidden relative group h-48 lg:h-[calc(100%-5rem)] min-h-[200px] flex flex-col items-center justify-center">
                   {imageUrl ? (
                     <>
                       <img src={imageUrl} alt="Preview" className="w-full h-full object-contain p-2" />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setImageUrl("")}
+                          onClick={() => {
+                            setImageUrl("");
+                            setMovieSlug("");
+                          }}
                           className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium w-32 justify-center"
                         >
                           <Trash2 className="size-4" /> Xóa ảnh
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium w-32 justify-center"
-                        >
-                          <Edit className="size-4" /> Đổi ảnh
-                        </button>
                       </div>
                     </>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingImage}
-                      className="w-full h-full flex flex-col items-center justify-center text-slate-500 hover:text-white hover:bg-white/5 transition-all gap-2 p-4"
-                    >
-                      {uploadingImage ? (
-                        <div className="loader-orbit loader-orbit-sm" />
-                      ) : (
-                        <>
-                          <ImageIcon className="size-10 opacity-40 mb-2" />
-                          <span className="text-sm font-medium text-center text-slate-400">Nhấn để tải lên hình ảnh</span>
-                          <span className="text-xs opacity-50 text-center px-4 mt-2">Ảnh sẽ được tự động nén. Nội dung sẽ hiển thị bên trái, ảnh hiển thị bên phải (nếu có).</span>
-                        </>
-                      )}
-                    </button>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-2 p-4">
+                      <ImageIcon className="size-10 opacity-40 mb-2" />
+                      <span className="text-sm font-medium text-center text-slate-400">Chưa có ảnh/phim nào được chọn</span>
+                      <span className="text-xs opacity-50 text-center px-4 mt-2">Nội dung sẽ hiển thị bên trái, ảnh hiển thị bên phải (nếu có). Sử dụng thanh tìm kiếm phía trên để lấy ảnh phim.</span>
+                    </div>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
                 </div>
               </div>
             </div>

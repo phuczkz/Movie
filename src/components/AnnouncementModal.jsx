@@ -2,10 +2,20 @@
 import { motion, AnimatePresence } from "framer-motion";
 /* eslint-enable no-unused-vars */
 import { Check, Play } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 export default function AnnouncementModal({ announcement, onConfirm, onClose }) {
   const [isConfirming, setIsConfirming] = useState(false);
+
+  useEffect(() => {
+    if (announcement) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [announcement]);
 
   if (!announcement) return null;
 
@@ -24,7 +34,7 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm"
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-md"
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -42,9 +52,9 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
             }}
           />
 
-          <div className="relative p-6 sm:p-10 overflow-y-auto flex-1 custom-scrollbar">
+          <div className="relative p-6 overflow-y-auto flex-1 custom-scrollbar">
             {/* Header: Avatar & Logo */}
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-5 sm:gap-10 mb-8 sm:mb-10 pb-8 border-b border-white/5">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-5 sm:gap-10 mb-2 pb-5 border-b border-white/5">
               {/* Avatar Image (Fallback to a random cute avatar if no local image) */}
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl sm:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl shrink-0 bg-[#0f0f0f] flex items-center justify-center">
                 <img
@@ -99,11 +109,32 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
               {/* Right Column (Image) */}
               {announcement.image && (
                 <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col justify-center rounded-2xl overflow-hidden bg-black/40 border border-white/5 p-2 shadow-inner mt-4 lg:mt-0">
-                  <img 
-                    src={announcement.image} 
-                    alt="Hình ảnh đính kèm" 
-                    className="w-full h-auto max-h-[500px] object-contain rounded-xl"
-                  />
+                  {announcement.movieSlug ? (
+                    <Link
+                      to={`/watch/${announcement.movieSlug}`}
+                      onClick={handleConfirm}
+                      className="group relative block rounded-xl overflow-hidden"
+                      title="Click để xem phim ngay"
+                    >
+                      <img 
+                        src={announcement.image} 
+                        alt="Hình ảnh đính kèm" 
+                        className="w-full h-auto max-h-[500px] object-contain transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3">
+                        <div className="size-16 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.5)]">
+                          <Play className="size-8 ml-1" fill="currentColor" strokeWidth={0} />
+                        </div>
+                        <span className="font-bold text-white text-lg drop-shadow-md">Xem phim ngay</span>
+                      </div>
+                    </Link>
+                  ) : (
+                    <img 
+                      src={announcement.image} 
+                      alt="Hình ảnh đính kèm" 
+                      className="w-full h-auto max-h-[500px] object-contain rounded-xl"
+                    />
+                  )}
                 </div>
               )}
             </div>
