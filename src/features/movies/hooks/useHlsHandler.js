@@ -111,10 +111,9 @@ export const useHlsHandler = (source, isHls) => {
       maxBufferSize: isMobile ? 60_000_000 : 120_000_000,
 
       // ── BACK BUFFER ──
-      // Giữ vừa đủ để backward seek mà không chiếm quá nhiều RAM.
-      // RAM quá lớn → browser GC → hủy pending network requests → .ts chậm.
-      // 60s (desktop) / 30s (mobile) = đủ rewind 1 phút mà không gây leak.
-      backBufferLength: isMobile ? 10 : 20,
+      // Retain buffer for smooth backward seeking without excessive memory usage.
+      // 90s (desktop) / 30s (mobile) allows instant rewinding within recent minutes.
+      backBufferLength: isMobile ? 30 : 90,
 
       // ── GAP & STALL HANDLING ──
       // After ad segments are stripped, there may be small gaps in the
@@ -158,8 +157,7 @@ export const useHlsHandler = (source, isHls) => {
       progressive: true,
       startFragPrefetch: true,
       stretchShortVideoTrack: true,
-      forceKeyFrameOnDiscontinuity: true, // Fix: Tránh kẹt hình (video freeze) khi seek backward
-      maxAudioFramesDrift: 1, // Fix: Giữ đồng bộ chặt chẽ audio/video sau khi seek
+      forceKeyFrameOnDiscontinuity: false, // Allow smooth decoding across seek discontinuities
 
       // ── FETCH API — replaces xhrSetup ──
       // Benefits of fetchSetup over xhrSetup:
@@ -180,9 +178,9 @@ export const useHlsHandler = (source, isHls) => {
 
       // ── EARLY PLAYBACK TRIGGER ──
       // maxStarvationDelay: thời gian tối đa chờ buffer đủ trước khi un-stall.
-      // 4s (tăng từ 2s) — tránh stall/unstall liên tục khi .ts tải mất 2-3s.
-      maxStarvationDelay: 4,
-      highBufferWatchdogPeriod: 2,  // check buffer health every 2s (default: 3)
+      // 1.5s — khôi phục phát lại nhanh hơn sau khi tua
+      maxStarvationDelay: 1.5,
+      highBufferWatchdogPeriod: 1,  // check buffer health every 1s (default: 3)
       liveSyncDurationCount: 3,     // keep sync in live streams
     };
 

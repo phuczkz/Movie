@@ -39,14 +39,22 @@ export const usePlayerHotkeys = (artInstanceRef) => {
       // Handle Seek Backward
       else if (e.code === "ArrowLeft" || e.key === "ArrowLeft") {
         e.preventDefault();
-        art.backward = 10;
-        art.emit('notice', "Lùi 10 giây");
+        if (typeof art.smartSeekByOffset === "function") {
+          art.smartSeekByOffset(-10);
+        } else {
+          art.backward = 10;
+          art.emit('notice', "Lùi 10 giây");
+        }
       }
       // Handle Seek Forward
       else if (e.code === "ArrowRight" || e.key === "ArrowRight") {
         e.preventDefault();
-        art.forward = 10;
-        art.emit('notice', "Tiến 10 giây");
+        if (typeof art.smartSeekByOffset === "function") {
+          art.smartSeekByOffset(10);
+        } else {
+          art.forward = 10;
+          art.emit('notice', "Tiến 10 giây");
+        }
       }
       // Handle Volume Up
       else if (e.code === "ArrowUp" || e.key === "ArrowUp") {

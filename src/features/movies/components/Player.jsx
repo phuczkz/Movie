@@ -367,24 +367,30 @@ const Player = ({
           let lastTotalFrames = 0;
           let lastCheckRealTime = 0;
           let desyncFreezeStartTime = 0;
+          let lastSeekTime = 0;
 
           if (videoEl && videoEl._desyncWatchdog) {
             clearInterval(videoEl._desyncWatchdog);
           }
 
           const desyncWatchdog = setInterval(() => {
+            const now = performance.now();
+
+            // Ignore watchdog checks if video is seeking, paused, ended, tab hidden,
+            // within 4 seconds of a seek operation, or still buffering (readyState < 3)
             if (
               !videoEl ||
               videoEl.paused ||
               videoEl.ended ||
               videoEl.seeking ||
-              document.hidden
+              videoEl.readyState < 3 ||
+              document.hidden ||
+              now - lastSeekTime < 4000
             ) {
               desyncFreezeStartTime = 0;
               return;
             }
 
-            const now = performance.now();
             const currentTime = videoEl.currentTime;
 
             // Get frame count if supported by browser (with webkit fallback)
@@ -412,7 +418,7 @@ const Player = ({
             // 1. Detect Video Decoder Freeze (Audio playing, video frame frozen)
             // Nới rộng thời gian chờ đóng băng nếu người dùng đang tăng tốc độ phát video (playbackRate > 1.0)
             const playbackRate = videoEl.playbackRate || 1;
-            const freezeTimeout = playbackRate > 1 ? 5000 : 2500;
+            const freezeTimeout = playbackRate > 1 ? 5000 : 3500;
 
             if (totalFrames > 0 && lastTotalFrames > 0 && timeDelta > 0.05 && frameDelta === 0) {
               if (desyncFreezeStartTime === 0) {
@@ -458,11 +464,6 @@ const Player = ({
               }
             }
 
-            // 2. Detect Stuck Buffer (Neither audio nor video advancing, stuck loading)
-            // Note: Removed custom stuck buffer watchdog because it interferes with normal initial buffering/loading
-            // and triggers premature reloads/error states, causing infinite loading loops. Hls.js native error
-            // handling and stall detection are sufficient.
-
             lastWatchdogTime = currentTime;
             lastTotalFrames = totalFrames;
             lastCheckRealTime = now;
@@ -471,22 +472,21 @@ const Player = ({
           // Store cleanup ref for the watchdog
           videoEl._desyncWatchdog = desyncWatchdog;
 
-          // ── Simple, robust seek handler ──
-          // With progressive: false, we no longer append partial GOPs to SourceBuffer.
-          // Thus, seek corruption does not occur. We simply need to instruct hls.js
-          // to start loading at the new playhead.
+          // ── Simple, robust seek handlers ──
+          const onSeeking = () => {
+            lastSeekTime = performance.now();
+            desyncFreezeStartTime = 0;
+          };
           const onSeeked = () => {
+            lastSeekTime = performance.now();
             desyncFreezeStartTime = 0;
             lastCheckRealTime = 0;
-
-            // KHÔNG GỌI hlsInstanceRef.current.startLoad() Ở ĐÂY NỮA.
-            // Khi hls.js xử lý gap đệm (nudge playhead), nó tự động phát ra event 'seeked'.
-            // Việc gọi startLoad() ở đây sẽ hủy bỏ segment đang tải dở, dẫn tới vòng lặp cancel!
-            // hls.js tự quản lý tiến trình tải khi seek.
           };
 
+          videoEl.addEventListener("seeking", onSeeking);
           videoEl.addEventListener("seeked", onSeeked);
           videoEl._seekCleanup = () => {
+            videoEl.removeEventListener("seeking", onSeeking);
             videoEl.removeEventListener("seeked", onSeeked);
           };
 
@@ -533,8 +533,12 @@ const Player = ({
           html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path style="fill:transparent!important;" d="M3 3v5h5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
           tooltip: "Lùi 10 giây",
           click() {
-            this.backward = 10;
-            this.emit("notice", "Lùi 10 giây");
+            if (typeof this.smartSeekByOffset === "function") {
+              this.smartSeekByOffset(-10);
+            } else {
+              this.backward = 10;
+              this.emit("notice", "Lùi 10 giây");
+            }
           },
         },
         {
@@ -543,8 +547,12 @@ const Player = ({
           html: `<div class="custom-10s-btn" style="display:flex;align-items:center;justify-content:center;position:relative;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill:transparent!important;"><path style="fill:transparent!important;" d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path style="fill:transparent!important;" d="M21 3v5h-5"/></svg><span style="position:absolute;font-size:9px;font-weight:700;top:50%;left:50%;transform:translate(-50%,-50%);margin-top:1px;">10</span></div>`,
           tooltip: "Tiến 10 giây",
           click() {
-            this.forward = 10;
-            this.emit("notice", "Tiến 10 giây");
+            if (typeof this.smartSeekByOffset === "function") {
+              this.smartSeekByOffset(10);
+            } else {
+              this.forward = 10;
+              this.emit("notice", "Tiến 10 giây");
+            }
           },
         },
         // Theater mode button (desktop only)
@@ -650,6 +658,103 @@ const Player = ({
       mountedRef.current = false;
       return;
     }
+
+    // Attach ultra-robust spam-proof smartSeekByOffset to ArtPlayer instance
+    let seekTimer = null;
+    let accumulatedSeekOffset = 0;
+    let baseSeekStartTime = null;
+
+    artInstanceRef.current.smartSeekByOffset = (offsetSeconds) => {
+      const art = artInstanceRef.current;
+      if (!art || !art.video) return;
+
+      const video = art.video;
+
+      // Capture base playback timestamp when starting a spam/multi-click sequence
+      if (baseSeekStartTime === null) {
+        baseSeekStartTime = video.currentTime || 0;
+      }
+
+      accumulatedSeekOffset += offsetSeconds;
+      const totalOffset = accumulatedSeekOffset;
+      const absOffset = Math.abs(totalOffset);
+      const directionStr = totalOffset < 0 ? "Lùi" : "Tiến";
+
+      art.emit("notice", `${directionStr} ${absOffset} giây`);
+
+      if (seekTimer) {
+        clearTimeout(seekTimer);
+      }
+
+      // 350ms window to accumulate all rapid spam clicks into a SINGLE seek request
+      seekTimer = setTimeout(() => {
+        const finalOffset = accumulatedSeekOffset;
+        const startPos = baseSeekStartTime !== null ? baseSeekStartTime : (video.currentTime || 0);
+
+        // Reset state for next sequence
+        accumulatedSeekOffset = 0;
+        baseSeekStartTime = null;
+        seekTimer = null;
+
+        if (!art || !art.video || finalOffset === 0) return;
+
+        const duration = video.duration || 0;
+        let targetTime = Math.max(0, startPos + finalOffset);
+        if (duration > 0) {
+          targetTime = Math.min(targetTime, duration - 0.5);
+        }
+
+        // Check if targetTime is already in buffered range
+        let isBuffered = false;
+        if (video.buffered && video.buffered.length > 0) {
+          for (let i = 0; i < video.buffered.length; i++) {
+            if (targetTime >= video.buffered.start(i) && targetTime <= video.buffered.end(i)) {
+              isBuffered = true;
+              break;
+            }
+          }
+        }
+
+        // If unbuffered and video was playing, hold audio/video playback during seek
+        // so audio does not play alone before video keyframe is decoded and rendered
+        const wasPlaying = !video.paused;
+        if (!isBuffered && wasPlaying) {
+          try { video.pause(); } catch { /* ignore */ }
+
+          const onDataReady = () => {
+            video.removeEventListener("canplay", onDataReady);
+            video.removeEventListener("playing", onDataReady);
+            video.removeEventListener("seeked", onDataReady);
+            if (wasPlaying) {
+              video.play().catch(() => { });
+            }
+          };
+
+          video.addEventListener("canplay", onDataReady);
+          video.addEventListener("playing", onDataReady);
+          video.addEventListener("seeked", onDataReady);
+
+          setTimeout(() => {
+            video.removeEventListener("canplay", onDataReady);
+            video.removeEventListener("playing", onDataReady);
+            video.removeEventListener("seeked", onDataReady);
+            if (wasPlaying && video.paused) {
+              video.play().catch(() => { });
+            }
+          }, 3000);
+        }
+
+        try {
+          if (typeof art.seek === "function") {
+            art.seek(targetTime);
+          } else {
+            video.currentTime = targetTime;
+          }
+        } catch (e) {
+          console.warn("Seek error:", e);
+        }
+      }, 350);
+    };
 
     artInstanceRef.current.on("ready", () => {
       if (onReady) onReady(artInstanceRef.current);
