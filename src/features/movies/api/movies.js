@@ -40,16 +40,24 @@ const tmdbProfileBase = import.meta.env.VITE_TMDB_PROFILE_BASE;
 
 const normalizePoster = (url = "") => {
   if (!url) return fallbackPortrait;
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http")) {
+    return url.replace("/uploads/movies/uploads/movies/", "/uploads/movies/");
+  }
   const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
-  return cdn ? `${cdn}${url}` : url;
+  const cleanUrl = url.replace(/^\/?(uploads\/movies\/|uploads\/)?/, "");
+  const cleanCdn = cdn.endsWith("/") ? cdn : `${cdn}/`;
+  return cdn ? `${cleanCdn}${cleanUrl}` : url;
 };
 
 const normalizeLandscape = (url = "") => {
   if (!url) return fallbackLandscape;
-  if (url.startsWith("http")) return url;
+  if (url.startsWith("http")) {
+    return url.replace("/uploads/movies/uploads/movies/", "/uploads/movies/");
+  }
   const cdn = import.meta.env.VITE_MOVIE_IMAGE_CDN || "";
-  return cdn ? `${cdn}${url}` : url;
+  const cleanUrl = url.replace(/^\/?(uploads\/movies\/|uploads\/)?/, "");
+  const cleanCdn = cdn.endsWith("/") ? cdn : `${cdn}/`;
+  return cdn ? `${cleanCdn}${cleanUrl}` : url;
 };
 
 const normalizeMovie = (raw = {}) => {

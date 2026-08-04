@@ -75,6 +75,8 @@ kkphim.interceptors.response.use(
            if (t_file) {
              const folder = p_full.substring(0, p_full.lastIndexOf('/'));
              item.thumb_url = `${cdn}/${folder}/${t_file}`;
+           } else {
+             item.thumb_url = item.poster_url;
            }
         }
       });
