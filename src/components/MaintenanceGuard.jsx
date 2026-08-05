@@ -61,8 +61,11 @@ export default function MaintenanceGuard({ children }) {
     };
   }, [isActive]);
 
-  // Modified to load the App in parallel during Firebase initialization to improve UX/speed and to use the unified orbital loader design.
-  const showInitialLoading = loading || !maintenance.isLoaded;
+  // Only block on Firebase Auth resolving (loading).
+  // maintenance.isLoaded loads in parallel — we do not wait for it to show the app.
+  // If maintenance is enabled, the UI switches to the maintenance screen as soon as
+  // isLoaded becomes true (typically 200–500ms after auth resolves).
+  const showInitialLoading = loading;
 
   return (
     <>

@@ -471,8 +471,8 @@ const Player = ({
 
           // Store cleanup ref for the watchdog
           videoEl._desyncWatchdog = desyncWatchdog;
+          // ── Seek tracking handlers ──
 
-          // ── Simple, robust seek handlers ──
           const onSeeking = () => {
             lastSeekTime = performance.now();
             desyncFreezeStartTime = 0;
@@ -480,7 +480,7 @@ const Player = ({
           const onSeeked = () => {
             lastSeekTime = performance.now();
             desyncFreezeStartTime = 0;
-            lastCheckRealTime = 0;
+            lastCheckRealTime = 0; // reset watchdog baseline after seek settles
           };
 
           videoEl.addEventListener("seeking", onSeeking);
@@ -704,54 +704,49 @@ const Player = ({
           targetTime = Math.min(targetTime, duration - 0.5);
         }
 
-        // Check if targetTime is already in buffered range
+        const hls = hlsInstanceRef.current;
+
         let isBuffered = false;
         if (video.buffered && video.buffered.length > 0) {
           for (let i = 0; i < video.buffered.length; i++) {
-            if (targetTime >= video.buffered.start(i) && targetTime <= video.buffered.end(i)) {
+            if (targetTime >= video.buffered.start(i) && targetTime <= video.buffered.end(i) - 0.1) {
               isBuffered = true;
               break;
             }
           }
         }
 
-        // If unbuffered and video was playing, hold audio/video playback during seek
-        // so audio does not play alone before video keyframe is decoded and rendered
-        const wasPlaying = !video.paused;
-        if (!isBuffered && wasPlaying) {
-          try { video.pause(); } catch { /* ignore */ }
+        if (!isBuffered && hls) {
+          // Stop the stale in-flight segment so it doesn't block the new fetch.
+          hls.stopLoad();
 
-          const onDataReady = () => {
-            video.removeEventListener("canplay", onDataReady);
-            video.removeEventListener("playing", onDataReady);
-            video.removeEventListener("seeked", onDataReady);
-            if (wasPlaying) {
-              video.play().catch(() => { });
+          // Move the playhead — this is what triggers hls.js's internal seek handling.
+          try { video.currentTime = targetTime; } catch (e) {
+            console.warn("[Player] Seek currentTime error:", e);
+          }
+
+          // After the browser confirms the new position, explicitly tell hls.js where
+          // to start loading. This ensures the pipeline fetches the correct .ts segment
+          // without waiting for hls.js's own timer-based seek detection.
+          const onSeekedRestart = () => {
+            video.removeEventListener("seeked", onSeekedRestart);
+            if (hlsInstanceRef.current === hls) {
+              hls.startLoad(targetTime);
             }
           };
+          video.addEventListener("seeked", onSeekedRestart);
 
-          video.addEventListener("canplay", onDataReady);
-          video.addEventListener("playing", onDataReady);
-          video.addEventListener("seeked", onDataReady);
-
-          setTimeout(() => {
-            video.removeEventListener("canplay", onDataReady);
-            video.removeEventListener("playing", onDataReady);
-            video.removeEventListener("seeked", onDataReady);
-            if (wasPlaying && video.paused) {
-              video.play().catch(() => { });
+        } else {
+          // Buffered seek or no hls instance — instant, no pipeline intervention needed.
+          try {
+            if (typeof art.seek === "function") {
+              art.seek(targetTime);
+            } else {
+              video.currentTime = targetTime;
             }
-          }, 3000);
-        }
-
-        try {
-          if (typeof art.seek === "function") {
-            art.seek(targetTime);
-          } else {
-            video.currentTime = targetTime;
+          } catch (e) {
+            console.warn("[Player] Seek error:", e);
           }
-        } catch (e) {
-          console.warn("Seek error:", e);
         }
       }, 350);
     };

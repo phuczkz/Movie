@@ -148,9 +148,22 @@ export const AuthProvider = ({ children }) => {
         );
       }
 
+      // Hard timeout: if Firebase Auth does not respond within 3 seconds
+      // (slow network, cold start, Firebase outage), force-dismiss the loader
+      // so users are never permanently stuck on the splash screen.
+      // Cleared immediately when onAuthStateChanged fires normally.
+      const loadingTimeout = setTimeout(() => {
+        console.warn("[Auth] Firebase Auth timeout — dismissing loader after 3s.");
+        setLoading(false);
+        setMaintenance((prev) => ({ ...prev, isLoaded: true }));
+      }, 3000);
+
       cleanup.unsubscribeAuth = authMod.onAuthStateChanged(
         config.auth,
         async (currentUser) => {
+          // Auth responded — cancel the safety timeout
+          clearTimeout(loadingTimeout);
+
           setUser(currentUser);
 
           if (cleanup.profileUnsubscribe) {
