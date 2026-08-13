@@ -25,6 +25,7 @@ const Saved = lazy(() => import('@/features/movies/pages/Saved.jsx'));
 const Search = lazy(() => import('@/features/movies/pages/Search.jsx'));
 const Actor = lazy(() => import('@/features/movies/pages/Actor.jsx'));
 const AdminPanel = lazy(() => import('@/features/admin/pages/AdminPanel.jsx'));
+const NotFound = lazy(() => import('@/components/NotFound.jsx'));
 
 // Comics
 const ComicHome = lazy(() => import('@/features/comics/pages/ComicHome.jsx'));
@@ -107,7 +108,7 @@ function App() {
                   <Route path="/favorites" element={<ComicFavorites />} />
                   <Route path="/search" element={<Search />} />
                   <Route path="/profile" element={<Profile />} />
-                  <Route path="*" element={<ComicHome />} />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </ComicLayout>
             }
@@ -135,7 +136,7 @@ function App() {
                   <Route path="/favorites" element={<Saved />} />
                   <Route path="/search" element={<Search />} />
                   <Route path="/actor/:id" element={<Actor />} />
-                  <Route path="*" element={<Home />} />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </Layout>
             }

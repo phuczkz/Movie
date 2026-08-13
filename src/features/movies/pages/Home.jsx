@@ -19,6 +19,7 @@ import { db } from '@/firebase.config.js';
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import AnnouncementModal from '@/components/AnnouncementModal.jsx';
+import ContinueWatching from '@/components/ContinueWatching.jsx';
 
 
 const quickFocusCards = [
@@ -214,6 +215,8 @@ const Home = () => {
       <LoginBanner />
 
       <Hero movies={heroMovies} />
+
+      <ContinueWatching />
 
       <VietnamBanner />
 

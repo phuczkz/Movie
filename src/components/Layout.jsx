@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import Header from '@/components/Header.jsx';
 import Footer from '@/components/Footer.jsx';
+import BackToTop from '@/components/BackToTop.jsx';
 import { AnimatePresence } from "framer-motion";
 import PageTransition from '@/components/PageTransition.jsx';
 
@@ -34,6 +35,7 @@ const Layout = ({ children }) => {
         </AnimatePresence>
       </main>
       <Footer />
+      <BackToTop />
     </div>
   );
 };

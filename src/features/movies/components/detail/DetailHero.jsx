@@ -8,6 +8,7 @@ import { lazy, Suspense, useState } from "react";
 import { getOptimizedImage } from "./detailUtils.js";
 
 const Rating = lazy(() => import('@/components/Rating.jsx'));
+import ShareButton from '@/components/ShareButton.jsx';
 
 const DetailHero = ({
   movie,
@@ -330,6 +331,12 @@ const DetailHero = ({
                   {error.message || "Không thể cập nhật Yêu thích."}
                 </span>
               ) : null}
+
+              <ShareButton
+                title={`${movie?.name || "Phim hay"} - Xem phim online`}
+                text={`Xem ${movie?.name || "phim hay"} tại đây!`}
+                className="hidden lg:flex border-white/15 bg-white/5 text-white hover:border-white/25 hover:bg-white/10"
+              />
             </div>
 
             {/* Mobile/Tablet/iPad: Tabs dưới 2 nút action */}

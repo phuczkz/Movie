@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Header from '@/components/Header.jsx';
 import { AnimatePresence } from "framer-motion";
 import PageTransition from '@/components/PageTransition.jsx';
+import BackToTop from '@/components/BackToTop.jsx';
 
 const ComicLayout = ({ children }) => {
   const location = useLocation();
@@ -32,6 +33,7 @@ const ComicLayout = ({ children }) => {
           </PageTransition>
         </AnimatePresence>
       </main>
+      <BackToTop />
     </div>
   );
 };

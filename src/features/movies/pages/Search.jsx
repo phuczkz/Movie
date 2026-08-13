@@ -2,6 +2,7 @@ import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import ComicCard from '@/features/comics/components/ComicCard.jsx';
 import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
 import { useSearchParams } from "react-router-dom";
+import { Search as SearchIcon } from "lucide-react";
 import { useAppMode } from '@/context/AppModeContext.jsx';
 
 const Search = () => {
@@ -50,7 +51,15 @@ const Search = () => {
             ))}
           </div>
         ) : (
-          <p className="text-slate-400">Không tìm thấy kết quả.</p>
+          <div className="min-h-[35vh] flex flex-col items-center justify-center text-center px-6">
+            <div className="size-16 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center mb-4 shadow-lg">
+              <SearchIcon className="size-8 text-slate-500" />
+            </div>
+            <h2 className="text-lg font-bold text-white mb-1">Không tìm thấy kết quả</h2>
+            <p className="text-slate-400 text-sm max-w-sm">
+              Thử tìm với từ khóa khác hoặc kiểm tra lại chính tả.
+            </p>
+          </div>
         )
       ) : null}
     </div>
