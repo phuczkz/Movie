@@ -368,19 +368,27 @@ const Detail = () => {
     (isTmdb && loadingAlts && !altDetail?.movie && !passedMovie);
 
   const isTrailer = useMemo(() => {
+    if (movieOverride?.mode === "trailer") return true;
+    if (movieOverride?.mode === "full") return false;
+
+    // If we have actual episodes, it is NOT a trailer!
+    if (episodes && episodes.length > 0) return false;
+
     const statusTextLower = (
       movie?.status ||
       movie?.episode_current ||
       ""
     ).toLowerCase();
+
     return (
       statusTextLower.includes("trailer") ||
-      (episodes.length === 0 && !isActuallyLoading)
+      (!isActuallyLoading && (!episodes || episodes.length === 0))
     );
   }, [
+    movieOverride?.mode,
+    episodes,
     movie?.status,
     movie?.episode_current,
-    episodes.length,
     isActuallyLoading,
   ]);
 

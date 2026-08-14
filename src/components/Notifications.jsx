@@ -1,15 +1,28 @@
 import { useEffect, useState, useRef } from "react";
-import { collection, query, where, onSnapshot, updateDoc, doc, writeBatch, deleteDoc } from "firebase/firestore";
-import { Bell, Trash2, X } from "lucide-react";
-import { Link } from "react-router-dom";
-import { db } from '@/firebase.config.js';
-import { useAuth } from '@/features/auth/context/AuthContext';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  updateDoc,
+  doc,
+  writeBatch,
+  deleteDoc,
+  orderBy,
+  limit,
+} from "firebase/firestore";
+import { Bell, Trash2, X, Megaphone } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { db } from "@/firebase.config.js";
+import { useAuth } from "@/features/auth/context/AuthContext";
 
 export default function Notifications() {
-  const { user } = useAuth();
+  const { user, userProfile, markAnnouncementAsRead } = useAuth();
   const [notifications, setNotifications] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
 
   const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
@@ -30,12 +43,7 @@ export default function Notifications() {
       q,
       (snapshot) => {
         const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        docs.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : Date.now();
-          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : Date.now();
-          return timeB - timeA;
-        });
-        setNotifications(docs.slice(0, 15));
+        setNotifications(docs);
       },
       (error) => {
         console.error("Notifications fetch error", error);
@@ -44,6 +52,30 @@ export default function Notifications() {
 
     return () => unsubscribe();
   }, [user, ADMIN_EMAIL]);
+
+  useEffect(() => {
+    if (!db) return;
+
+    const q = query(
+      collection(db, "announcements"),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const activeDocs = docs.filter((d) => d.active === true);
+        setAnnouncements(activeDocs);
+      },
+      (error) => {
+        console.error("Announcements fetch error", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -57,7 +89,71 @@ export default function Notifications() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const readList =
+    userProfile?.readAnnouncements ||
+    JSON.parse(localStorage.getItem("readAnnouncements") || "[]");
+
+  const stripHtmlAndDecode = (htmlStr) => {
+    if (!htmlStr) return "";
+    try {
+      const parsed = new DOMParser().parseFromString(htmlStr, "text/html");
+      return (parsed.body.textContent || parsed.body.innerText || "")
+        .replace(/\s+/g, " ")
+        .trim();
+    } catch {
+      return htmlStr
+        .replace(/<[^>]*>?/gm, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .trim();
+    }
+  };
+
+  const systemNotifs = announcements.map((ann) => {
+    const updatedAtMillis = ann.updatedAt?.toMillis
+      ? ann.updatedAt.toMillis()
+      : ann.createdAt?.toMillis
+      ? ann.createdAt.toMillis()
+      : 0;
+    const versionKey = `${ann.id}_${updatedAtMillis}`;
+    const isRead =
+      readList.includes(versionKey) ||
+      (!ann.updatedAt && readList.includes(ann.id));
+
+    const cleanContent = stripHtmlAndDecode(ann.content);
+
+    return {
+      id: `sys_${ann.id}`,
+      versionKey,
+      type: "announcement",
+      senderName: "Ban Quản Trị",
+      senderAvatar: "/apple-touch-icon.png",
+      movieName: ann.title || "Thông báo hệ thống",
+      movieSlug: ann.movieSlug || "",
+      content: cleanContent ? cleanContent.slice(0, 90) : "",
+      isRead,
+      createdAt: ann.updatedAt || ann.createdAt,
+      isSystemAnnouncement: true,
+    };
+  });
+
+  const allNotifications = [...systemNotifs, ...notifications]
+    .sort((a, b) => {
+      const timeA = a.createdAt?.toMillis
+        ? a.createdAt.toMillis()
+        : a.createdAt?.seconds
+        ? a.createdAt.seconds * 1000
+        : 0;
+      const timeB = b.createdAt?.toMillis
+        ? b.createdAt.toMillis()
+        : b.createdAt?.seconds
+        ? b.createdAt.seconds * 1000
+        : 0;
+      return timeB - timeA;
+    })
+    .slice(0, 15);
+
+  const unreadCount = allNotifications.filter((n) => !n.isRead).length;
 
   const handleMarkAsRead = async (id) => {
     try {
@@ -69,11 +165,55 @@ export default function Notifications() {
     }
   };
 
-  const handleDeleteNotification = async (e, id) => {
+  const handleNotificationClick = async (notif) => {
+    if (notif.isSystemAnnouncement) {
+      if (!notif.isRead) {
+        if (userProfile) {
+          await markAnnouncementAsRead(notif.versionKey);
+        } else {
+          const localRead = JSON.parse(
+            localStorage.getItem("readAnnouncements") || "[]"
+          );
+          if (!localRead.includes(notif.versionKey)) {
+            localRead.push(notif.versionKey);
+            localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
+          }
+        }
+      }
+      setOpen(false);
+      if (notif.movieSlug) {
+        navigate(`/movie/${notif.movieSlug}`);
+      } else {
+        navigate("/");
+      }
+    } else {
+      if (!notif.isRead) handleMarkAsRead(notif.id);
+      setOpen(false);
+      if (notif.movieSlug) {
+        navigate(`/movie/${notif.movieSlug}`);
+      }
+    }
+  };
+
+  const handleDeleteNotification = async (e, notif) => {
     e.preventDefault();
     e.stopPropagation();
+    if (notif.isSystemAnnouncement) {
+      if (userProfile) {
+        await markAnnouncementAsRead(notif.versionKey);
+      } else {
+        const localRead = JSON.parse(
+          localStorage.getItem("readAnnouncements") || "[]"
+        );
+        if (!localRead.includes(notif.versionKey)) {
+          localRead.push(notif.versionKey);
+          localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
+        }
+      }
+      return;
+    }
     try {
-      await deleteDoc(doc(db, "notifications", id));
+      await deleteDoc(doc(db, "notifications", notif.id));
     } catch (error) {
       console.error("Lỗi xóa thông báo:", error);
     }
@@ -82,14 +222,33 @@ export default function Notifications() {
   const handleClearAll = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (notifications.length === 0) return;
+    if (allNotifications.length === 0) return;
     if (!window.confirm("Bạn có chắc chắn muốn xóa tất cả thông báo?")) return;
+
     try {
-      const batch = writeBatch(db);
-      notifications.forEach((notif) => {
-        batch.delete(doc(db, "notifications", notif.id));
-      });
-      await batch.commit();
+      const userNotifs = allNotifications.filter((n) => !n.isSystemAnnouncement);
+      if (userNotifs.length > 0) {
+        const batch = writeBatch(db);
+        userNotifs.forEach((notif) => {
+          batch.delete(doc(db, "notifications", notif.id));
+        });
+        await batch.commit();
+      }
+
+      const sysNotifs = allNotifications.filter((n) => n.isSystemAnnouncement);
+      for (const notif of sysNotifs) {
+        if (userProfile) {
+          await markAnnouncementAsRead(notif.versionKey);
+        } else {
+          const localRead = JSON.parse(
+            localStorage.getItem("readAnnouncements") || "[]"
+          );
+          if (!localRead.includes(notif.versionKey)) {
+            localRead.push(notif.versionKey);
+            localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
+          }
+        }
+      }
     } catch (error) {
       console.error("Lỗi xóa tất cả thông báo:", error);
     }
@@ -115,7 +274,7 @@ export default function Notifications() {
         <div className="absolute -right-[80px] sm:-right-[88px] lg:right-0 mt-2 w-[340px] sm:w-[380px] lg:w-[400px] max-w-[calc(100vw-32px)] rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl overflow-hidden z-50 flex flex-col">
           <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
             <h3 className="font-semibold text-white">Thông báo</h3>
-            {notifications.length > 0 && (
+            {allNotifications.length > 0 && (
               <button
                 type="button"
                 onClick={handleClearAll}
@@ -127,25 +286,25 @@ export default function Notifications() {
             )}
           </div>
           <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-            {notifications.length === 0 ? (
+            {allNotifications.length === 0 ? (
               <div className="p-6 text-center text-sm text-slate-400">
                 Chưa có thông báo nào.
               </div>
             ) : (
-              notifications.map((notif) => (
-                <Link
+              allNotifications.map((notif) => (
+                <div
                   key={notif.id}
-                  to={`/watch/${notif.movieSlug}`}
-                  onClick={() => {
-                    if (!notif.isRead) handleMarkAsRead(notif.id);
-                    setOpen(false);
-                  }}
-                  className={`group relative flex items-start gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors ${
+                  onClick={() => handleNotificationClick(notif)}
+                  className={`group relative flex items-start gap-3 p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${
                     !notif.isRead ? "bg-emerald-500/5" : ""
                   }`}
                 >
-                  <div className="size-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-slate-800">
-                    {notif.senderAvatar ? (
+                  <div className="size-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-slate-800 flex items-center justify-center">
+                    {notif.isSystemAnnouncement ? (
+                      <div className="h-full w-full flex items-center justify-center bg-emerald-500/20 text-emerald-400">
+                        <Megaphone className="size-5" />
+                      </div>
+                    ) : notif.senderAvatar ? (
                       <img
                         src={notif.senderAvatar}
                         alt="avatar"
@@ -158,12 +317,18 @@ export default function Notifications() {
                       </div>
                     )}
                   </div>
-                  <div className={`flex-1 min-w-0 pr-6 ${notif.isRead ? 'opacity-50' : ''}`}>
+                  <div
+                    className={`flex-1 min-w-0 pr-6 ${
+                      notif.isRead ? "opacity-50" : ""
+                    }`}
+                  >
                     <p className="text-sm text-slate-300">
                       <span className="font-semibold text-white">
                         {notif.senderName}
                       </span>
-                      {notif.type === "tag"
+                      {notif.type === "announcement"
+                        ? " đã cập nhật bài viết / thông báo mới: "
+                        : notif.type === "tag"
                         ? " đã nhắc đến bạn trong một bình luận ở "
                         : " đã trả lời bình luận của bạn trong "}
                       <span className="font-semibold text-emerald-400">
@@ -179,13 +344,13 @@ export default function Notifications() {
                   )}
                   {/* Delete single notification button */}
                   <button
-                    onClick={(e) => handleDeleteNotification(e, notif.id)}
+                    onClick={(e) => handleDeleteNotification(e, notif)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-rose-500 opacity-0 group-hover:opacity-100 transition-all shadow-md"
                     title="Xóa thông báo này"
                   >
                     <X className="size-3.5" />
                   </button>
-                </Link>
+                </div>
               ))
             )}
           </div>

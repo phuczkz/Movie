@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 /* eslint-enable no-unused-vars */
 import { Check, Play } from "lucide-react";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 
 export default function AnnouncementModal({ announcement, onConfirm, onClose }) {
@@ -28,13 +29,13 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-md"
+        className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md"
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -55,7 +56,7 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
           <div className="relative p-6 overflow-y-auto flex-1 custom-scrollbar">
             {/* Header: Avatar & Logo */}
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-5 sm:gap-10 mb-2 pb-5 border-b border-white/5">
-              {/* Avatar Image (Fallback to a random cute avatar if no local image) */}
+              {/* Avatar Image */}
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl sm:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl shrink-0 bg-[#0f0f0f] flex items-center justify-center">
                 <img
                   src="/apple-touch-icon.png"
@@ -111,10 +112,10 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
                 <div className="w-full lg:w-1/2 xl:w-2/5 flex flex-col justify-center rounded-2xl overflow-hidden bg-black/40 border border-white/5 p-2 shadow-inner mt-4 lg:mt-0">
                   {announcement.movieSlug ? (
                     <Link
-                      to={`/watch/${announcement.movieSlug}`}
+                      to={`/movie/${announcement.movieSlug}`}
                       onClick={handleConfirm}
                       className="group relative block rounded-xl overflow-hidden"
-                      title="Click để xem phim ngay"
+                      title="Click để xem chi tiết phim"
                     >
                       <img 
                         src={announcement.image} 
@@ -163,6 +164,7 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

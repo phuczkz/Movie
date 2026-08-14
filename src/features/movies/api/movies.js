@@ -896,6 +896,34 @@ export const getDetail = (slug) =>
         }
       }
 
+      if ((!episodes || episodes.length === 0) && slug) {
+        try {
+          const cleanKeyword = slug
+            .replace(/[-_]/g, " ")
+            .replace(/\b(and|va|full|hd|raw|sub|tap|phim)\b/gi, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          if (cleanKeyword) {
+            const hits = await searchKKphim(cleanKeyword).catch(() => []);
+            const firstHit = hits.find((m) => m?.slug && m.slug !== slug);
+            if (firstHit?.slug) {
+              const altDetail = await getKKphimDetail(firstHit.slug).catch(() => null);
+              if (altDetail && altDetail.episodes?.length) {
+                return {
+                  movie: movie?.name ? movie : altDetail.movie,
+                  episodes: altDetail.episodes.map((ep) => ({
+                    ...ep,
+                    slug: ep.slug || normalizeEpisodeSlug(ep.name),
+                  })),
+                };
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[getDetail] final fallback search error", e);
+        }
+      }
+
       return { movie, episodes };
     },
     { movie: null, episodes: [] }

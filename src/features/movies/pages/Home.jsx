@@ -133,21 +133,53 @@ const Home = () => {
   const [activeAnnouncement, setActiveAnnouncement] = useState(null);
 
   useEffect(() => {
+    if (!db) return;
     const fetchAnnouncement = async () => {
-      if (!userProfile || !userProfile.isWhitelisted || !db) return;
       try {
         const q = query(
           collection(db, "announcements"),
           orderBy("createdAt", "desc"),
-          limit(10)
+          limit(15)
         );
         const snapshot = await getDocs(q);
-        const activeDoc = snapshot.docs.find(doc => doc.data().active === true);
-        
+        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        const activeDocs = docs
+          .filter((d) => d.active === true)
+          .sort((a, b) => {
+            const timeA = a.updatedAt?.toMillis
+              ? a.updatedAt.toMillis()
+              : a.createdAt?.toMillis
+              ? a.createdAt.toMillis()
+              : 0;
+            const timeB = b.updatedAt?.toMillis
+              ? b.updatedAt.toMillis()
+              : b.createdAt?.toMillis
+              ? b.createdAt.toMillis()
+              : 0;
+            return timeB - timeA;
+          });
+
+        const activeDoc = activeDocs[0];
+
         if (activeDoc) {
-          const data = { id: activeDoc.id, ...activeDoc.data() };
-          if (!userProfile.readAnnouncements?.includes(data.id)) {
-            setActiveAnnouncement(data);
+          const updatedAtMillis = activeDoc.updatedAt?.toMillis
+            ? activeDoc.updatedAt.toMillis()
+            : activeDoc.createdAt?.toMillis
+            ? activeDoc.createdAt.toMillis()
+            : 0;
+
+          const versionKey = `${activeDoc.id}_${updatedAtMillis}`;
+          const readList =
+            userProfile?.readAnnouncements ||
+            JSON.parse(localStorage.getItem("readAnnouncements") || "[]");
+
+          const isRead =
+            readList.includes(versionKey) ||
+            (!activeDoc.updatedAt && readList.includes(activeDoc.id));
+
+          if (!isRead) {
+            setActiveAnnouncement({ ...activeDoc, versionKey });
           }
         }
       } catch (err) {
@@ -159,7 +191,18 @@ const Home = () => {
 
   const handleConfirmAnnouncement = async () => {
     if (activeAnnouncement) {
-      await markAnnouncementAsRead(activeAnnouncement.id);
+      const keyToSave = activeAnnouncement.versionKey || activeAnnouncement.id;
+      if (userProfile) {
+        await markAnnouncementAsRead(keyToSave);
+      } else {
+        const localRead = JSON.parse(
+          localStorage.getItem("readAnnouncements") || "[]"
+        );
+        if (!localRead.includes(keyToSave)) {
+          localRead.push(keyToSave);
+          localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
+        }
+      }
       setActiveAnnouncement(null);
     }
   };
