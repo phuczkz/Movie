@@ -376,8 +376,6 @@ const Player = ({
           const desyncWatchdog = setInterval(() => {
             const now = performance.now();
 
-            // Ignore watchdog checks if video is seeking, paused, ended, tab hidden,
-            // within 4 seconds of a seek operation, or still buffering (readyState < 3)
             if (
               !videoEl ||
               videoEl.paused ||
@@ -385,7 +383,7 @@ const Player = ({
               videoEl.seeking ||
               videoEl.readyState < 3 ||
               document.hidden ||
-              now - lastSeekTime < 4000
+              now - lastSeekTime < 2000
             ) {
               desyncFreezeStartTime = 0;
               return;
@@ -393,7 +391,6 @@ const Player = ({
 
             const currentTime = videoEl.currentTime;
 
-            // Get frame count if supported by browser (with webkit fallback)
             let totalFrames = 0;
             const quality = typeof videoEl.getVideoPlaybackQuality === "function"
               ? videoEl.getVideoPlaybackQuality()
@@ -405,7 +402,6 @@ const Player = ({
             }
 
             if (lastCheckRealTime === 0) {
-              // Initialize trackers on the first tick
               lastWatchdogTime = currentTime;
               lastTotalFrames = totalFrames;
               lastCheckRealTime = now;
@@ -414,11 +410,8 @@ const Player = ({
 
             const timeDelta = currentTime - lastWatchdogTime;
             const frameDelta = totalFrames - lastTotalFrames;
-
-            // 1. Detect Video Decoder Freeze (Audio playing, video frame frozen)
-            // Nới rộng thời gian chờ đóng băng nếu người dùng đang tăng tốc độ phát video (playbackRate > 1.0)
             const playbackRate = videoEl.playbackRate || 1;
-            const freezeTimeout = playbackRate > 1 ? 5000 : 3500;
+            const freezeTimeout = playbackRate > 1 ? 4000 : 3000;
 
             if (totalFrames > 0 && lastTotalFrames > 0 && timeDelta > 0.05 && frameDelta === 0) {
               if (desyncFreezeStartTime === 0) {
@@ -426,42 +419,29 @@ const Player = ({
               } else if (now - desyncFreezeStartTime > freezeTimeout) {
                 desyncRecoveryAttempts += 1;
                 console.warn(
-                  `[Player] Silent video freeze detected at ${currentTime.toFixed(1)}s (rate: ${playbackRate}x). Recovery attempt #${desyncRecoveryAttempts}...`
+                  `[Player] Video freeze detected at ${currentTime.toFixed(1)}s. Recovery #${desyncRecoveryAttempts}`
                 );
-
                 desyncFreezeStartTime = 0;
 
                 if (hlsInstanceRef.current) {
-                  if (desyncRecoveryAttempts <= 1) {
-                    console.warn("[Player] Attempting recoverMediaError...");
-                    hlsInstanceRef.current.recoverMediaError();
-                  } else if (desyncRecoveryAttempts <= 2) {
-                    console.warn("[Player] Swapping audio codec and recovering...");
-                    hlsInstanceRef.current.swapAudioCodec();
+                  if (desyncRecoveryAttempts <= 2) {
                     hlsInstanceRef.current.recoverMediaError();
                   } else {
-                    console.error("[Player] Silent freeze recovery failed. Reloading source completely...");
                     desyncRecoveryAttempts = 0;
                     hlsInstanceRef.current.loadSource(url);
                     hlsInstanceRef.current.attachMedia(videoEl);
-                    if (currentTime > 0) {
-                      videoEl.currentTime = currentTime;
-                    }
+                    if (currentTime > 0) videoEl.currentTime = currentTime;
                     videoEl.play().catch(() => { });
                   }
 
-                  // Quan trọng: Reset trạng thái theo dõi để tránh luồng khôi phục chạy liên tục (gây kẹt tải mạng)
                   lastWatchdogTime = videoEl.currentTime;
                   lastTotalFrames = totalFrames;
-                  desyncFreezeStartTime = 0;
                   lastCheckRealTime = performance.now();
                 }
               }
             } else {
               desyncFreezeStartTime = 0;
-              if (frameDelta > 0) {
-                desyncRecoveryAttempts = 0;
-              }
+              if (frameDelta > 0) desyncRecoveryAttempts = 0;
             }
 
             lastWatchdogTime = currentTime;
@@ -469,9 +449,7 @@ const Player = ({
             lastCheckRealTime = now;
           }, 500);
 
-          // Store cleanup ref for the watchdog
           videoEl._desyncWatchdog = desyncWatchdog;
-          // ── Seek tracking handlers ──
 
           const onSeeking = () => {
             lastSeekTime = performance.now();
@@ -480,7 +458,7 @@ const Player = ({
           const onSeeked = () => {
             lastSeekTime = performance.now();
             desyncFreezeStartTime = 0;
-            lastCheckRealTime = 0; // reset watchdog baseline after seek settles
+            lastCheckRealTime = 0;
           };
 
           videoEl.addEventListener("seeking", onSeeking);
@@ -659,7 +637,7 @@ const Player = ({
       return;
     }
 
-    // Attach ultra-robust spam-proof smartSeekByOffset to ArtPlayer instance
+    // Debounced seek — accumulates rapid clicks into one seek, lets hls.js handle the rest
     let seekTimer = null;
     let accumulatedSeekOffset = 0;
     let baseSeekStartTime = null;
@@ -670,28 +648,21 @@ const Player = ({
 
       const video = art.video;
 
-      // Capture base playback timestamp when starting a spam/multi-click sequence
       if (baseSeekStartTime === null) {
         baseSeekStartTime = video.currentTime || 0;
       }
 
       accumulatedSeekOffset += offsetSeconds;
-      const totalOffset = accumulatedSeekOffset;
-      const absOffset = Math.abs(totalOffset);
-      const directionStr = totalOffset < 0 ? "Lùi" : "Tiến";
-
+      const absOffset = Math.abs(accumulatedSeekOffset);
+      const directionStr = accumulatedSeekOffset < 0 ? "Lùi" : "Tiến";
       art.emit("notice", `${directionStr} ${absOffset} giây`);
 
-      if (seekTimer) {
-        clearTimeout(seekTimer);
-      }
+      if (seekTimer) clearTimeout(seekTimer);
 
-      // 350ms window to accumulate all rapid spam clicks into a SINGLE seek request
       seekTimer = setTimeout(() => {
         const finalOffset = accumulatedSeekOffset;
         const startPos = baseSeekStartTime !== null ? baseSeekStartTime : (video.currentTime || 0);
 
-        // Reset state for next sequence
         accumulatedSeekOffset = 0;
         baseSeekStartTime = null;
         seekTimer = null;
@@ -700,53 +671,15 @@ const Player = ({
 
         const duration = video.duration || 0;
         let targetTime = Math.max(0, startPos + finalOffset);
-        if (duration > 0) {
-          targetTime = Math.min(targetTime, duration - 0.5);
-        }
+        if (duration > 0) targetTime = Math.min(targetTime, duration - 0.5);
 
-        const hls = hlsInstanceRef.current;
-
-        let isBuffered = false;
-        if (video.buffered && video.buffered.length > 0) {
-          for (let i = 0; i < video.buffered.length; i++) {
-            if (targetTime >= video.buffered.start(i) && targetTime <= video.buffered.end(i) - 0.1) {
-              isBuffered = true;
-              break;
-            }
-          }
-        }
-
-        if (!isBuffered && hls) {
-          // Stop the stale in-flight segment so it doesn't block the new fetch.
-          hls.stopLoad();
-
-          // Move the playhead — this is what triggers hls.js's internal seek handling.
-          try { video.currentTime = targetTime; } catch (e) {
-            console.warn("[Player] Seek currentTime error:", e);
-          }
-
-          // After the browser confirms the new position, explicitly tell hls.js where
-          // to start loading. This ensures the pipeline fetches the correct .ts segment
-          // without waiting for hls.js's own timer-based seek detection.
-          const onSeekedRestart = () => {
-            video.removeEventListener("seeked", onSeekedRestart);
-            if (hlsInstanceRef.current === hls) {
-              hls.startLoad(targetTime);
-            }
-          };
-          video.addEventListener("seeked", onSeekedRestart);
-
-        } else {
-          // Buffered seek or no hls instance — instant, no pipeline intervention needed.
-          try {
-            if (typeof art.seek === "function") {
-              art.seek(targetTime);
-            } else {
-              video.currentTime = targetTime;
-            }
-          } catch (e) {
-            console.warn("[Player] Seek error:", e);
-          }
+        // Just set currentTime — hls.js automatically detects the seek
+        // via the browser's 'seeking' event and loads the correct fragment.
+        // No manual stopLoad/startLoad needed.
+        try {
+          video.currentTime = targetTime;
+        } catch (e) {
+          console.warn("[Player] Seek error:", e);
         }
       }, 350);
     };

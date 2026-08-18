@@ -157,7 +157,7 @@ export const useHlsHandler = (source, isHls) => {
       progressive: true,
       startFragPrefetch: true,
       stretchShortVideoTrack: true,
-      forceKeyFrameOnDiscontinuity: false, // Allow smooth decoding across seek discontinuities
+      forceKeyFrameOnDiscontinuity: true, // Force keyframe at discontinuity to prevent decoder stall after ad-strip seek
 
       // ── FETCH API — replaces xhrSetup ──
       // Benefits of fetchSetup over xhrSetup:
