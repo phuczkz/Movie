@@ -1,10 +1,12 @@
-import { useReducer, useEffect } from "react";
+import { useReducer, useEffect, useState } from "react";
 import {
   collection,
+  collectionGroup,
   query,
   orderBy,
   limit,
   onSnapshot,
+  getDocs
 } from "firebase/firestore";
 import { db } from '@/firebase.config.js';
 import { 
@@ -17,6 +19,7 @@ import {
   Film,
   AlertCircle
 } from "lucide-react";
+import AdminDashboardCharts from "../components/AdminDashboardCharts";
 
 const initialState = {
   topMovies: [],
@@ -47,10 +50,34 @@ function reportsReducer(state, action) {
 export default function AdminReports() {
   const [state, dispatch] = useReducer(reportsReducer, initialState);
   const { topMovies, loading, error } = state;
+  const [usersStats, setUsersStats] = useState({ totalUsers: 0, whitelistedUsers: 0 });
+  const [usersDocs, setUsersDocs] = useState([]);
+  const [commentsDocs, setCommentsDocs] = useState([]);
+  const [totalCommentsCount, setTotalCommentsCount] = useState(0);
 
   useEffect(() => {
     if (!db) return;
     
+    // Fetch users list & whitelisted count
+    getDocs(collection(db, "users"))
+      .then((snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setUsersDocs(docs);
+        const total = docs.length;
+        const whitelisted = docs.filter((d) => d.isWhitelisted === true).length;
+        setUsersStats({ totalUsers: total, whitelistedUsers: whitelisted });
+      })
+      .catch((err) => console.warn("Failed to fetch users stats:", err));
+
+    // Fetch real total comments in Firestore
+    getDocs(collectionGroup(db, "items"))
+      .then((snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setCommentsDocs(docs);
+        setTotalCommentsCount(docs.length);
+      })
+      .catch((err) => console.warn("Failed to fetch comments count:", err));
+
     // Fetch top 50 movies to sort locally by unique users
     const q = query(
       collection(db, "movieViews"),
@@ -86,12 +113,22 @@ export default function AdminReports() {
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-semibold text-white flex items-center gap-2">
           <BarChart3 className="text-emerald-500 size-6" />
-          Báo cáo thống kê
+          Báo cáo & Thống kê Tổng quan
         </h2>
         <p className="text-slate-400 text-sm">
-          Theo dõi hiệu suất và lượng người dùng yêu cầu trên hệ thống
+          Theo dõi chỉ số hiệu suất, lượng người dùng và xu hướng truy cập hệ thống
         </p>
       </div>
+
+      {/* Interactive Charts & Analytics Widgets */}
+      <AdminDashboardCharts 
+        totalUsersCount={usersStats.totalUsers} 
+        whitelistedCount={usersStats.whitelistedUsers} 
+        totalCommentsCount={totalCommentsCount}
+        usersDocs={usersDocs}
+        commentsDocs={commentsDocs}
+        topMovies={topMovies} 
+      />
 
       {error && (
         <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-3 animate-in slide-in-from-top-4">
