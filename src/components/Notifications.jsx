@@ -89,9 +89,42 @@ export default function Notifications() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
-  const readList =
-    userProfile?.readAnnouncements ||
-    JSON.parse(localStorage.getItem("readAnnouncements") || "[]");
+  const localReadList = JSON.parse(
+    localStorage.getItem("readAnnouncements") || "[]"
+  );
+  const userReadList = userProfile?.readAnnouncements || [];
+  const readList = [...new Set([...localReadList, ...userReadList])];
+
+  const markAnnouncementRead = async (versionKey, docId) => {
+    try {
+      const localRead = JSON.parse(
+        localStorage.getItem("readAnnouncements") || "[]"
+      );
+      let updatedLocal = false;
+      if (versionKey && !localRead.includes(versionKey)) {
+        localRead.push(versionKey);
+        updatedLocal = true;
+      }
+      if (docId && !localRead.includes(docId)) {
+        localRead.push(docId);
+        updatedLocal = true;
+      }
+      if (updatedLocal) {
+        localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (userProfile) {
+      try {
+        if (versionKey) await markAnnouncementAsRead(versionKey);
+        if (docId && docId !== versionKey) await markAnnouncementAsRead(docId);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
 
   const stripHtmlAndDecode = (htmlStr) => {
     if (!htmlStr) return "";
@@ -118,12 +151,13 @@ export default function Notifications() {
     const versionKey = `${ann.id}_${updatedAtMillis}`;
     const isRead =
       readList.includes(versionKey) ||
-      (!ann.updatedAt && readList.includes(ann.id));
+      readList.includes(ann.id);
 
     const cleanContent = stripHtmlAndDecode(ann.content);
 
     return {
       id: `sys_${ann.id}`,
+      announcementId: ann.id,
       versionKey,
       type: "announcement",
       senderName: "Ban Quản Trị",
@@ -168,17 +202,7 @@ export default function Notifications() {
   const handleNotificationClick = async (notif) => {
     if (notif.isSystemAnnouncement) {
       if (!notif.isRead) {
-        if (userProfile) {
-          await markAnnouncementAsRead(notif.versionKey);
-        } else {
-          const localRead = JSON.parse(
-            localStorage.getItem("readAnnouncements") || "[]"
-          );
-          if (!localRead.includes(notif.versionKey)) {
-            localRead.push(notif.versionKey);
-            localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
-          }
-        }
+        await markAnnouncementRead(notif.versionKey, notif.announcementId);
       }
       setOpen(false);
       if (notif.movieSlug) {
@@ -199,17 +223,7 @@ export default function Notifications() {
     e.preventDefault();
     e.stopPropagation();
     if (notif.isSystemAnnouncement) {
-      if (userProfile) {
-        await markAnnouncementAsRead(notif.versionKey);
-      } else {
-        const localRead = JSON.parse(
-          localStorage.getItem("readAnnouncements") || "[]"
-        );
-        if (!localRead.includes(notif.versionKey)) {
-          localRead.push(notif.versionKey);
-          localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
-        }
-      }
+      await markAnnouncementRead(notif.versionKey, notif.announcementId);
       return;
     }
     try {
@@ -237,17 +251,7 @@ export default function Notifications() {
 
       const sysNotifs = allNotifications.filter((n) => n.isSystemAnnouncement);
       for (const notif of sysNotifs) {
-        if (userProfile) {
-          await markAnnouncementAsRead(notif.versionKey);
-        } else {
-          const localRead = JSON.parse(
-            localStorage.getItem("readAnnouncements") || "[]"
-          );
-          if (!localRead.includes(notif.versionKey)) {
-            localRead.push(notif.versionKey);
-            localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
-          }
-        }
+        await markAnnouncementRead(notif.versionKey, notif.announcementId);
       }
     } catch (error) {
       console.error("Lỗi xóa tất cả thông báo:", error);

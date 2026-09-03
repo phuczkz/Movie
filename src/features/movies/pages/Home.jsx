@@ -170,17 +170,23 @@ const Home = () => {
             : 0;
 
           const versionKey = `${activeDoc.id}_${updatedAtMillis}`;
-          const readList =
-            userProfile?.readAnnouncements ||
-            JSON.parse(localStorage.getItem("readAnnouncements") || "[]");
+          const localRead = JSON.parse(
+            localStorage.getItem("readAnnouncements") || "[]"
+          );
+          const userRead = userProfile?.readAnnouncements || [];
+          const readList = [...new Set([...localRead, ...userRead])];
 
           const isRead =
             readList.includes(versionKey) ||
-            (!activeDoc.updatedAt && readList.includes(activeDoc.id));
+            readList.includes(activeDoc.id);
 
           if (!isRead) {
             setActiveAnnouncement({ ...activeDoc, versionKey });
+          } else {
+            setActiveAnnouncement(null);
           }
+        } else {
+          setActiveAnnouncement(null);
         }
       } catch (err) {
         console.error("Error fetching announcement:", err);
@@ -192,15 +198,34 @@ const Home = () => {
   const handleConfirmAnnouncement = async () => {
     if (activeAnnouncement) {
       const keyToSave = activeAnnouncement.versionKey || activeAnnouncement.id;
-      if (userProfile) {
-        await markAnnouncementAsRead(keyToSave);
-      } else {
+      const docId = activeAnnouncement.id;
+
+      try {
         const localRead = JSON.parse(
           localStorage.getItem("readAnnouncements") || "[]"
         );
-        if (!localRead.includes(keyToSave)) {
+        let updatedLocal = false;
+        if (keyToSave && !localRead.includes(keyToSave)) {
           localRead.push(keyToSave);
+          updatedLocal = true;
+        }
+        if (docId && !localRead.includes(docId)) {
+          localRead.push(docId);
+          updatedLocal = true;
+        }
+        if (updatedLocal) {
           localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
+        }
+      } catch (err) {
+        console.error("Error saving announcement status to localStorage:", err);
+      }
+
+      if (userProfile) {
+        try {
+          if (keyToSave) await markAnnouncementAsRead(keyToSave);
+          if (docId && docId !== keyToSave) await markAnnouncementAsRead(docId);
+        } catch (err) {
+          console.error("Error saving announcement status to Firestore:", err);
         }
       }
       setActiveAnnouncement(null);
