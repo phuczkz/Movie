@@ -5,7 +5,6 @@ import GridSkeleton from '@/components/GridSkeleton.jsx';
 import CountryFilter from '@/components/CountryFilter.jsx';
 import YearFilter from '@/components/YearFilter.jsx';
 import TypeFilter from '@/components/TypeFilter.jsx';
-import { useMoviesList } from '@/features/movies/hooks/useMoviesList.js';
 import Pagination from '@/components/Pagination.jsx';
 import {
   useKKphimByCategory,
@@ -53,14 +52,6 @@ const Category = () => {
   const isHoatHinh = category === "hoat-hinh";
   const isCategory = !isSeries && !isSingle && !isLatest && !isChieuRap && !isHoatHinh;
 
-  const { data: seriesOphim = [], isLoading: loadingSeriesOphim } =
-    useMoviesList("series", undefined, {
-      enabled: isSeries,
-      page,
-      country: countryParam,
-      year: yearParam,
-      movieType: typeParam,
-    });
   const { data: seriesKK = [], isLoading: loadingSeriesKK } = useKKphimMovies(
     "series",
     {
@@ -72,14 +63,6 @@ const Category = () => {
     }
   );
 
-  const { data: singleOphim = [], isLoading: loadingSingleOphim } =
-    useMoviesList("single", undefined, {
-      enabled: isSingle,
-      page,
-      country: countryParam,
-      year: yearParam,
-      movieType: typeParam,
-    });
   const { data: singleKK = [], isLoading: loadingSingleKK } = useKKphimMovies(
     "single",
     {
@@ -91,14 +74,6 @@ const Category = () => {
     }
   );
 
-  const { data: latestOphim = [], isLoading: loadingLatestOphim } =
-    useMoviesList("latest", undefined, {
-      enabled: isLatest,
-      page,
-      country: countryParam,
-      year: yearParam,
-      movieType: typeParam,
-    });
   const { data: latestKK = [], isLoading: loadingLatestKK } = useKKphimMovies(
     "latest",
     {
@@ -126,17 +101,6 @@ const Category = () => {
       movieType: typeParam,
     });
 
-  const { data: byCategory = [], isLoading: loadingCategory } = useMoviesList(
-    "category",
-    category,
-    {
-      enabled: isCategory,
-      page,
-      country: countryParam,
-      year: yearParam,
-      movieType: typeParam,
-    }
-  );
   const { data: kkCategory = [], isLoading: loadingKKCategory } =
     useKKphimByCategory(category, {
       enabled: isCategory,
@@ -155,22 +119,13 @@ const Category = () => {
   }, [isSeries, isSingle, isLatest, isChieuRap, category]);
 
   const mergedData = useMemo(() => {
-    const mergeUnique = (...lists) => {
-      const map = new Map();
-      lists.flat().forEach((m) => {
-        if (!m || !m.slug) return;
-        if (!map.has(m.slug)) map.set(m.slug, m);
-      });
-      return Array.from(map.values());
-    };
-
     let result = [];
-    if (isSeries) result = mergeUnique(seriesKK, seriesOphim);
-    else if (isSingle) result = mergeUnique(singleKK, singleOphim);
-    else if (isLatest) result = mergeUnique(latestKK, latestOphim);
+    if (isSeries) result = seriesKK;
+    else if (isSingle) result = singleKK;
+    else if (isLatest) result = latestKK;
     else if (isChieuRap) result = mergedChieuRap;
     else if (isHoatHinh) result = mergedHoatHinh;
-    else result = mergeUnique(kkCategory, byCategory);
+    else result = kkCategory;
 
     if (countryParam) {
       result = result.filter((m) => {
@@ -204,14 +159,10 @@ const Category = () => {
     isSeries,
     isSingle,
     latestKK,
-    latestOphim,
     mergedChieuRap,
     mergedHoatHinh,
     seriesKK,
-    seriesOphim,
     singleKK,
-    singleOphim,
-    byCategory,
     kkCategory,
     countryParam,
     yearParam,
@@ -219,27 +170,23 @@ const Category = () => {
   ]);
 
   const isLoading = useMemo(() => {
-    if (isSeries) return loadingSeriesOphim || loadingSeriesKK;
-    if (isSingle) return loadingSingleOphim || loadingSingleKK;
-    if (isLatest) return loadingLatestOphim || loadingLatestKK;
+    if (isSeries) return loadingSeriesKK;
+    if (isSingle) return loadingSingleKK;
+    if (isLatest) return loadingLatestKK;
     if (isChieuRap) return loadingChieuRap;
     if (isHoatHinh) return loadingHoatHinh;
-    return loadingCategory || loadingKKCategory;
+    return loadingKKCategory;
   }, [
     isSeries,
-    loadingSeriesOphim,
     loadingSeriesKK,
     isSingle,
-    loadingSingleOphim,
     loadingSingleKK,
     isLatest,
-    loadingLatestOphim,
     loadingLatestKK,
     isChieuRap,
     loadingChieuRap,
     isHoatHinh,
     loadingHoatHinh,
-    loadingCategory,
     loadingKKCategory,
   ]);
 

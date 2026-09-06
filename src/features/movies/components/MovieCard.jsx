@@ -138,9 +138,8 @@ const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) 
           {audioBadges.map((b) => (
             <span
               key={b.key}
-              className={`hc-meta-badge ${
-                b.code === "Trailer" ? "hc-meta-badge--red" : "hc-meta-badge--orange"
-              }`}
+              className={`hc-meta-badge ${b.code === "Trailer" ? "hc-meta-badge--red" : "hc-meta-badge--orange"
+                }`}
             >
               {b.code}
             </span>
@@ -246,15 +245,15 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
 
       const current = (movie?.episode_current || "").toLowerCase();
       if (current.includes("full") || current.includes("hoàn tất")) return "Full";
-      
+
       const parsedCurrent = parseEpisodeNumber(current);
       if (parsedCurrent !== null && parsedCurrent > 0) {
-          if (Number.isFinite(epTotalNum) && epTotalNum > 1) {
-              return `${formatEp(parsedCurrent)}/${epTotalNum}`;
-          }
-          return formatEp(parsedCurrent);
+        if (Number.isFinite(epTotalNum) && epTotalNum > 1) {
+          return `${formatEp(parsedCurrent)}/${epTotalNum}`;
+        }
+        return formatEp(parsedCurrent);
       }
-      
+
       return null;
     };
 
@@ -289,7 +288,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
       const fallbackEpText = computeEpisodeText([]);
       const text = `${episodeCurrentText || ""} ${movieLang || ""} ${movie?.status || ""}`.toLowerCase();
       const hasEpisodeSignal = Boolean(fallbackEpText);
-      
+
       const hasVietsub = text.includes("vietsub") || text.includes("phụ đề") || text.includes("phu de");
       const hasThuyetMinh = text.includes("thuyết minh") || text.includes("thuy minh") || text.includes("tm");
       const hasLongTieng = text.includes("lồng tiếng") || text.includes("long tieng") || text.includes("lt");
@@ -330,7 +329,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
 
   const isMobileSize = isMobile();
   const basePoster = movie.poster_url || movie.thumb_url;
-  
+
   // Directly calculate poster source without waiting for IntersectionObserver
   const posterSrc = getOptimizedPoster(
     basePoster,
@@ -398,9 +397,8 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
             ref={imgRef}
             src={posterSrc}
             alt={movie.name}
-            className={`absolute h-full w-full object-cover transition-opacity duration-300 lg:group-hover:scale-105 ${
-              loaded ? "opacity-100 scale-100" : "opacity-0"
-            }`}
+            className={`absolute h-full w-full object-cover transition-opacity duration-300 lg:group-hover:scale-105 ${loaded ? "opacity-100 scale-100" : "opacity-0"
+              }`}
             loading={priority ? "eager" : "lazy"}
             decoding="async"
             {...(priority
@@ -424,15 +422,15 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
                 <div
                   key={badge.key}
                   title={badge.label}
-                    className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] leading-none font-bold uppercase shadow-md transition-transform duration-200 lg:group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
-                      ? "bg-slate-600/90 text-white backdrop-blur-md"
-                      : badge.code === "TM"
-                        ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
-                        : badge.code === "NCT"
-                          ? "bg-slate-500/90 text-white backdrop-blur-md"
-                          : badge.code === "Trailer"
-                            ? "bg-rose-500/90 text-white backdrop-blur-md"
-                            : "bg-sky-500/90 text-white backdrop-blur-md"
+                  className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] leading-none font-bold uppercase shadow-md transition-transform duration-200 lg:group-hover:-translate-y-[2px] whitespace-nowrap ${badge.code === "PĐ"
+                    ? "bg-slate-600/90 text-white backdrop-blur-md"
+                    : badge.code === "TM"
+                      ? "bg-amber-500/90 text-slate-950 backdrop-blur-md"
+                      : badge.code === "NCT"
+                        ? "bg-slate-500/90 text-white backdrop-blur-md"
+                        : badge.code === "Trailer"
+                          ? "bg-rose-500/90 text-white backdrop-blur-md"
+                          : "bg-sky-500/90 text-white backdrop-blur-md"
                     }`}
                 >
                   <span>
@@ -446,11 +444,11 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
         </div>
 
-        <div className="mt-4 flex flex-col items-center text-center px-1">
-          <h3 className="text-[17px] font-semibold text-white line-clamp-1 lg:group-hover:text-emerald-400 transition-colors">
+        <div className="mt-2.5 flex flex-col items-center text-center px-1">
+          <h3 className="text-sm sm:text-[15px] font-semibold text-white line-clamp-1 lg:group-hover:text-emerald-400 transition-colors">
             {movie.name}
           </h3>
-          <p className="text-[15px] font-medium text-slate-400 line-clamp-1 mt-1">
+          <p className="text-xs sm:text-[13px] font-medium text-slate-400 line-clamp-1 mt-0.5">
             {movie.origin_name || movie.name}
           </p>
         </div>

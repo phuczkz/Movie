@@ -38,17 +38,15 @@ import SEO from '@/components/SEO.jsx';
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
-  ophim: "Nguồn 2",
 };
 
 const PROVIDER_SOURCE_NAMES = {
   kkphim: "KKphim",
-  ophim: "Ophim",
 };
 
 const normalizeProviderParam = (value) => {
   const lower = (value || "").toString().trim().toLowerCase();
-  if (lower === "kkphim" || lower === "ophim") return lower;
+  if (lower === "kkphim") return lower;
   return null;
 };
 
@@ -59,7 +57,8 @@ const buildEpisodeProviders = (episode) => {
   if (episode._providers) {
     Object.entries(episode._providers).forEach(([key, val]) => {
       if (val && val.link && val.kind === "m3u8") {
-        providers[key] = val;
+        const providerKey = normalizeProviderParam(key) || key;
+        providers[providerKey] = val;
       }
     });
   }

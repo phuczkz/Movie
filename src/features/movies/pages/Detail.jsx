@@ -9,7 +9,7 @@ import { useMovieDetail } from '@/features/movies/hooks/useMovieDetail.js';
 import { useSavedMovie } from '@/features/movies/hooks/useSavedMovie.js';
 import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
 import { useMoviesList } from '@/features/movies/hooks/useMoviesList.js';
-import { useMoviesByCountry } from '@/features/movies/hooks/useMoviesByCountry.js';
+import { useKKphimByCountry } from '@/features/movies/hooks/useKKphimMovies.js';
 import { useWatchProgress } from '@/features/movies/hooks/useWatchProgress.js';
 import { useActorsWithTmdbImages } from '@/features/movies/hooks/useActorsWithTmdbImages.js';
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
@@ -36,7 +36,7 @@ const Detail = () => {
   const { user } = useAuth();
   const { loadProgress, clearProgress } = useWatchProgress();
   const { groups, currentSeason } = useSeries(data?.movie);
-  
+
   // Thừa hưởng dữ liệu cơ bản từ card (poster, name) nếu có, để tránh "Chưa có tên"
   const passedMovie = location.state?.movie;
   const passedPoster = location.state?.posterSrc;
@@ -232,7 +232,7 @@ const Detail = () => {
   const { data: cat2Pool = [] } = useMoviesList("latest", categorySlugs[1], {
     enabled: deferLoad && !!categorySlugs[1],
   });
-  const { data: countryPool = [] } = useMoviesByCountry(countrySlug, {
+  const { data: countryPool = [] } = useKKphimByCountry(countrySlug, {
     enabled: deferLoad && !!countrySlug,
   });
 
@@ -614,8 +614,8 @@ const Detail = () => {
 
   return (
     <div className="relative">
-      <SEO 
-        title={movie?.name || movie?.title || passedMovie?.name || 'Đang tải...'} 
+      <SEO
+        title={movie?.name || movie?.title || passedMovie?.name || 'Đang tải...'}
         description={movie?.content ? movie.content.replace(/<[^>]*>?/gm, '').substring(0, 160) : undefined}
         image={heroImage}
         type="video.movie"

@@ -19,19 +19,18 @@ const formatEpisodeName = (name = "") => {
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
-  ophim: "Nguồn 2",
 };
 
-const WatchEpisodeGrid = memo(({ 
-  serverGroups, 
-  activeServer, 
-  handleServerChange, 
-  episodesForServer, 
-  activeEpisode, 
-  slug, 
-  activeProvider, 
-  handleProviderChange, 
-  availableProviders 
+const WatchEpisodeGrid = memo(({
+  serverGroups,
+  activeServer,
+  handleServerChange,
+  episodesForServer,
+  activeEpisode,
+  slug,
+  activeProvider,
+  handleProviderChange,
+  availableProviders
 }) => {
   const activeRef = React.useRef(null);
 
@@ -54,11 +53,10 @@ const WatchEpisodeGrid = memo(({
               key={serverLabel}
               type="button"
               onClick={() => handleServerChange(serverLabel)}
-              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${
-                activeServer === serverLabel
+              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 ${activeServer === serverLabel
                   ? "border-emerald-500 bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/20"
                   : "border-white/10 bg-white/5 text-slate-300 hover:border-emerald-500/50 hover:text-emerald-400"
-              }`}
+                }`}
             >
               {serverLabel}
             </button>
@@ -76,11 +74,10 @@ const WatchEpisodeGrid = memo(({
                 key={p}
                 type="button"
                 onClick={() => handleProviderChange(p)}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-                  activeProvider === p
+                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${activeProvider === p
                     ? "border-sky-500/50 bg-sky-500/20 text-sky-400"
                     : "border-white/5 bg-white/5 text-slate-400 hover:border-sky-500/30 hover:text-sky-300"
-                }`}
+                  }`}
               >
                 {PROVIDER_LABELS[p] || p}
               </button>
@@ -88,17 +85,16 @@ const WatchEpisodeGrid = memo(({
             <button
               type="button"
               onClick={() => handleProviderChange("auto")}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
-                !activeProvider || activeProvider === "auto"
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${!activeProvider || activeProvider === "auto"
                   ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
                   : "border-white/5 bg-white/5 text-slate-400 hover:border-emerald-500/30 hover:text-emerald-300"
-              }`}
+                }`}
             >
               Tự động
             </button>
           </div>
         )}
-        
+
         {/* Helper Note for User */}
         <div className="text-sm font-medium text-amber-400/80 italic">
           {availableProviders.length > 1
@@ -113,7 +109,7 @@ const WatchEpisodeGrid = memo(({
           <ListChecks className="size-4" />
           <span className="text-sm font-semibold uppercase tracking-wider">Danh sách tập</span>
         </div>
-        
+
         <div className="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
             {episodesForServer.map((ep) => {
@@ -123,17 +119,16 @@ const WatchEpisodeGrid = memo(({
                 episodesForServer.length === 1 && epNum === 1
                   ? "Full"
                   : formatEpisodeName(ep.name || ep.slug);
-              
+
               return (
                 <Link
                   key={ep.slug}
                   ref={isActive ? activeRef : null}
                   to={`/watch/${slug}?episode=${ep.slug}&server=${encodeURIComponent(activeServer)}`}
-                  className={`flex items-center justify-center rounded-lg border py-2.5 text-sm font-bold transition-all duration-300 ${
-                    isActive
+                  className={`flex items-center justify-center rounded-lg border py-2.5 text-sm font-bold transition-all duration-300 ${isActive
                       ? "border-emerald-500 bg-emerald-500 text-emerald-950 shadow-lg shadow-emerald-500/25 scale-105 z-10"
                       : "border-white/5 bg-white/5 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-400 hover:bg-emerald-500/5"
-                  }`}
+                    }`}
                 >
                   {label}
                 </Link>

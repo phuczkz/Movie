@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getCountry } from '@/features/movies/api/movies';
+import { getKKphimByCountry } from '@/features/movies/api/movies2';
 
 export const useMoviesByCountry = (
   country,
@@ -12,7 +12,7 @@ export const useMoviesByCountry = (
 
   return useQuery({
     queryKey,
-    queryFn: () => getCountry(country, page, extraParams),
+    queryFn: () => getKKphimByCountry(country, page, extraParams),
     enabled: Boolean(country),
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,

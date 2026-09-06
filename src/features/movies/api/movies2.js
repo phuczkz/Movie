@@ -248,19 +248,29 @@ export const getKKphimByYear = async (year, page = 1) => {
 };
 
 export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
-  const { data } = await kkphim.get(`/the-loai/${slug}`, {
-    params: { page, ...extraParams },
-  });
-  const items = data?.data?.items || data?.items || [];
-  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  try {
+    const { data } = await kkphim.get(`/the-loai/${slug}`, {
+      params: { page, ...extraParams },
+    });
+    const items = data?.data?.items || data?.items || [];
+    return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  } catch (error) {
+    if (error?.response?.status === 404) return [];
+    throw error;
+  }
 };
 
 export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
-  const { data } = await kkphim.get(`/quoc-gia/${slug}`, {
-    params: { page, ...extraParams },
-  });
-  const items = data?.data?.items || data?.items || [];
-  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  try {
+    const { data } = await kkphim.get(`/quoc-gia/${slug}`, {
+      params: { page, ...extraParams },
+    });
+    const items = data?.data?.items || data?.items || [];
+    return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  } catch (error) {
+    if (error?.response?.status === 404) return [];
+    throw error;
+  }
 };
 
 export default kkphim;

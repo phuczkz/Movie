@@ -12,6 +12,7 @@ import { useChieuRapMerged } from '@/features/movies/hooks/useChieuRapMerged.js'
 import LoginBanner from '@/components/LoginBanner.jsx';
 import TrendingSection from '@/components/TrendingSection.jsx';
 import TheaterShowcase from '@/components/TheaterShowcase.jsx';
+import AnimeShowcase from '@/components/AnimeShowcase.jsx';
 import WeeklyRanking from '@/components/WeeklyRanking.jsx';
 import VietnamBanner from '@/components/VietnamBanner.jsx';
 import SEO from '@/components/SEO.jsx';
@@ -150,13 +151,13 @@ const Home = () => {
             const timeA = a.updatedAt?.toMillis
               ? a.updatedAt.toMillis()
               : a.createdAt?.toMillis
-              ? a.createdAt.toMillis()
-              : 0;
+                ? a.createdAt.toMillis()
+                : 0;
             const timeB = b.updatedAt?.toMillis
               ? b.updatedAt.toMillis()
               : b.createdAt?.toMillis
-              ? b.createdAt.toMillis()
-              : 0;
+                ? b.createdAt.toMillis()
+                : 0;
             return timeB - timeA;
           });
 
@@ -166,8 +167,8 @@ const Home = () => {
           const updatedAtMillis = activeDoc.updatedAt?.toMillis
             ? activeDoc.updatedAt.toMillis()
             : activeDoc.createdAt?.toMillis
-            ? activeDoc.createdAt.toMillis()
-            : 0;
+              ? activeDoc.createdAt.toMillis()
+              : 0;
 
           const versionKey = `${activeDoc.id}_${updatedAtMillis}`;
           const localRead = JSON.parse(
@@ -273,8 +274,8 @@ const Home = () => {
   return (
     <div className="space-y-8 sm:space-y-10 lg:space-y-12">
       <SEO />
-      
-      <AnnouncementModal 
+
+      <AnnouncementModal
         announcement={activeAnnouncement}
         onConfirm={handleConfirmAnnouncement}
         onClose={() => setActiveAnnouncement(null)}
@@ -338,6 +339,10 @@ const Home = () => {
         />
       </div>
 
+      <div ref={refAnime} className="pb-6 sm:pb-10 lg:pb-12">
+        <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
+      </div>
+
       {/* Main content + Sidebar ranking layout (MotChill pattern) */}
       <div className="xl:grid xl:grid-cols-[1fr_300px] xl:gap-6 2xl:grid-cols-[1fr_320px] 2xl:gap-8 space-y-10 xl:space-y-0">
         {/* Left: Movie grid sections */}
@@ -388,31 +393,6 @@ const Home = () => {
           </div>
         </div>
       </div>
-
-      <div ref={refAnime}>
-        <Section
-          title="Hoạt hình"
-          action={
-            <Link className="text-sm text-emerald-300 hover:text-emerald-200 transition-colors" to="category/hoat-hinh">
-              Xem tất cả
-            </Link>
-          }
-        >
-          {loadingAnime ? (
-            <div className="flex h-[200px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
-              <div className="loader-orbit loader-orbit-md"></div>
-            </div>
-          ) : (
-            <Grid
-              items={cap(anime)}
-              className=""
-              priorityCount={4}
-            />
-          )}
-        </Section>
-      </div>
-
-
     </div>
   );
 };

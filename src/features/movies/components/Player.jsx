@@ -1,15 +1,10 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import Artplayer from "artplayer";
-import { useHlsHandler } from '@/features/movies/hooks/useHlsHandler';
+import { useHlsHandler } from "@/features/movies/hooks/useHlsHandler";
 import { usePlayerHotkeys } from "./Player/usePlayerHotkeys";
 import { getHeaderHtml } from "./Player/PlayerHeader";
 import PlayerStyle from "./Player/PlayerStyle";
-import { getOptimizedPlayerPoster } from '@/utils/image-helper.js';
+import { getOptimizedPlayerPoster } from "@/utils/image-helper.js";
 
 // ─────────────────────────────────────────────
 // Main Player Component
@@ -84,13 +79,20 @@ const Player = ({
 
   const effectiveSource = useMemo(() => {
     const streamProxy = import.meta.env.VITE_STREAM_PROXY;
-    if (source && streamProxy && !source.includes("iframe") && !source.includes("embed") && !source.includes("phimapi.com/player")) {
+    if (
+      source &&
+      streamProxy &&
+      !source.includes("iframe") &&
+      !source.includes("embed") &&
+      !source.includes("phimapi.com/player")
+    ) {
       const cleanProxy = streamProxy.trim().replace(/\/$/, "");
       if (!source.includes(cleanProxy)) {
         // Upgrade http to https to prevent Mixed Content blocks on production
         let targetUrl = source;
         if (source.startsWith("http://")) {
-          const isLocalhost = source.includes("localhost") || source.includes("127.0.0.1");
+          const isLocalhost =
+            source.includes("localhost") || source.includes("127.0.0.1");
           if (!isLocalhost) {
             targetUrl = source.replace("http://", "https://");
           }
@@ -108,7 +110,9 @@ const Player = ({
           ) {
             return targetUrl;
           }
-        } catch { /* Ignore invalid URL formats */ }
+        } catch {
+          /* Ignore invalid URL formats */
+        }
 
         return `${cleanProxy}/?url=${encodeURIComponent(targetUrl)}`;
       }
@@ -117,7 +121,11 @@ const Player = ({
   }, [source]);
 
   const canUseIframe = useMemo(
-    () => source && (source.includes("iframe") || source.includes("embed") || source.includes("phimapi.com/player")),
+    () =>
+      source &&
+      (source.includes("iframe") ||
+        source.includes("embed") ||
+        source.includes("phimapi.com/player")),
     [source]
   );
 
@@ -177,9 +185,9 @@ const Player = ({
           }
 
           const seekTarget = pendingSeekRef.current;
-          // KHÔNG xoá pendingSeekRef.current ở đây! 
+          // KHÔNG xoá pendingSeekRef.current ở đây!
           // Hls.js sẽ dùng startPosition để tải đúng chunk mạng (tiết kiệm băng thông),
-          // Nhưng ta vẫn cần pendingSeekRef cho sự kiện `loadedmetadata` phía dưới 
+          // Nhưng ta vẫn cần pendingSeekRef cho sự kiện `loadedmetadata` phía dưới
           // để ép buộc trình duyệt/Artplayer không được reset về 0.
 
           const hls = new Hls({
@@ -299,6 +307,7 @@ const Player = ({
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 networkRecoveryAttempts += 1;
+
                 if (
                   data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR ||
                   data.details === Hls.ErrorDetails.MANIFEST_LOAD_TIMEOUT ||
@@ -326,14 +335,20 @@ const Player = ({
               case Hls.ErrorTypes.MEDIA_ERROR:
                 mediaRecoveryAttempts += 1;
                 if (mediaRecoveryAttempts <= 2) {
-                  console.warn("[Player] Fatal media error, recovering media...");
+                  console.warn(
+                    "[Player] Fatal media error, recovering media..."
+                  );
                   hls.recoverMediaError();
                 } else if (mediaRecoveryAttempts <= 4) {
-                  console.warn("[Player] Persistent media error, swapping audio codec and recovering...");
+                  console.warn(
+                    "[Player] Persistent media error, swapping audio codec and recovering..."
+                  );
                   hls.swapAudioCodec();
                   hls.recoverMediaError();
                 } else {
-                  console.error("[Player] Media recovery failed multiple times. Reloading source completely...");
+                  console.error(
+                    "[Player] Media recovery failed multiple times. Reloading source completely..."
+                  );
                   mediaRecoveryAttempts = 0;
                   hls.loadSource(url);
                   hls.attachMedia(videoEl);
@@ -346,12 +361,18 @@ const Player = ({
                 break;
               default:
                 reportPlaybackIssue("fatal-hls");
-                console.error("[Player] Fatal HLS error, attempting full reload of stream...");
+                console.error(
+                  "[Player] Fatal HLS error, attempting full reload of stream..."
+                );
                 hls.destroy();
                 hlsInstanceRef.current = null;
                 // Wait 2s and reload the exact URL that had the error, preserving playhead
                 setTimeout(() => {
-                  if (mountedRef.current && artInstanceRef.current && artInstanceRef.current.video) {
+                  if (
+                    mountedRef.current &&
+                    artInstanceRef.current &&
+                    artInstanceRef.current.video
+                  ) {
                     const currentPos = artInstanceRef.current.video.currentTime;
                     if (currentPos > 0) {
                       lastPositionRef.current = currentPos;
@@ -392,9 +413,10 @@ const Player = ({
             const currentTime = videoEl.currentTime;
 
             let totalFrames = 0;
-            const quality = typeof videoEl.getVideoPlaybackQuality === "function"
-              ? videoEl.getVideoPlaybackQuality()
-              : null;
+            const quality =
+              typeof videoEl.getVideoPlaybackQuality === "function"
+                ? videoEl.getVideoPlaybackQuality()
+                : null;
             if (quality) {
               totalFrames = quality.totalVideoFrames;
             } else if (typeof videoEl.webkitDecodedFrameCount === "number") {
@@ -413,13 +435,20 @@ const Player = ({
             const playbackRate = videoEl.playbackRate || 1;
             const freezeTimeout = playbackRate > 1 ? 4000 : 3000;
 
-            if (totalFrames > 0 && lastTotalFrames > 0 && timeDelta > 0.05 && frameDelta === 0) {
+            if (
+              totalFrames > 0 &&
+              lastTotalFrames > 0 &&
+              timeDelta > 0.05 &&
+              frameDelta === 0
+            ) {
               if (desyncFreezeStartTime === 0) {
                 desyncFreezeStartTime = now;
               } else if (now - desyncFreezeStartTime > freezeTimeout) {
                 desyncRecoveryAttempts += 1;
                 console.warn(
-                  `[Player] Video freeze detected at ${currentTime.toFixed(1)}s. Recovery #${desyncRecoveryAttempts}`
+                  `[Player] Video freeze detected at ${currentTime.toFixed(
+                    1
+                  )}s. Recovery #${desyncRecoveryAttempts}`
                 );
                 desyncFreezeStartTime = 0;
 
@@ -467,10 +496,6 @@ const Player = ({
             videoEl.removeEventListener("seeking", onSeeking);
             videoEl.removeEventListener("seeked", onSeeked);
           };
-
-
-
-
         },
       };
     }
@@ -558,7 +583,11 @@ const Player = ({
           html: `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>`,
           tooltip: "Tập tiếp theo",
           click: () => {
-            if (onNextEpisodeRef.current && (hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))) {
+            if (
+              onNextEpisodeRef.current &&
+              (hasNextEpisodeRef.current ||
+                (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))
+            ) {
               onNextEpisodeRef.current();
             }
           },
@@ -608,7 +637,11 @@ const Player = ({
               </span>
             </div>`,
           click: () => {
-            if (onNextEpisodeRef.current && (hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))) {
+            if (
+              onNextEpisodeRef.current &&
+              (hasNextEpisodeRef.current ||
+                (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current))
+            ) {
               onNextEpisodeRef.current();
             }
           },
@@ -661,7 +694,10 @@ const Player = ({
 
       seekTimer = setTimeout(() => {
         const finalOffset = accumulatedSeekOffset;
-        const startPos = baseSeekStartTime !== null ? baseSeekStartTime : (video.currentTime || 0);
+        const startPos =
+          baseSeekStartTime !== null
+            ? baseSeekStartTime
+            : video.currentTime || 0;
 
         accumulatedSeekOffset = 0;
         baseSeekStartTime = null;
@@ -714,9 +750,15 @@ const Player = ({
       }
 
       // Update next episode control visibility immediately on ready
-      const nextEpControl = artInstanceRef.current.template?.$player?.querySelector(".art-control-next-episode");
+      const nextEpControl =
+        artInstanceRef.current.template?.$player?.querySelector(
+          ".art-control-next-episode"
+        );
       if (nextEpControl) {
-        const shouldShow = !!onNextEpisodeRef.current && (hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current));
+        const shouldShow =
+          !!onNextEpisodeRef.current &&
+          (hasNextEpisodeRef.current ||
+            (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current));
         nextEpControl.style.display = shouldShow ? "flex" : "none";
       }
     });
@@ -735,14 +777,18 @@ const Player = ({
           return;
         }
         if (video.currentTime < 5 && seekTarget > 10) {
-          console.log(`[Player Watchdog] Đang ép video nhảy tới ${seekTarget}s...`);
+          console.log(
+            `[Player Watchdog] Đang ép video nhảy tới ${seekTarget}s...`
+          );
           try {
             if (typeof artInstanceRef.current.seek === "function") {
               artInstanceRef.current.seek(seekTarget);
             } else {
               video.currentTime = seekTarget;
             }
-          } catch (e) { console.warn("Seek error", e); }
+          } catch (e) {
+            console.warn("Seek error", e);
+          }
         } else if (video.currentTime >= seekTarget - 2) {
           // Đã seek thành công
           pendingSeekRef.current = 0;
@@ -763,7 +809,10 @@ const Player = ({
       if (pendingSeekRef.current > 0 && !forceSeekInterval) {
         forceSeekInterval = setInterval(applyForceSeek, 500);
         setTimeout(() => {
-          if (forceSeekInterval) { clearInterval(forceSeekInterval); forceSeekInterval = null; }
+          if (forceSeekInterval) {
+            clearInterval(forceSeekInterval);
+            forceSeekInterval = null;
+          }
         }, 5000); // Tự hủy sau 5s để không gây lag
       }
     });
@@ -781,7 +830,9 @@ const Player = ({
       if (onTimeUpdateRef.current) onTimeUpdateRef.current(t, d);
       const btn = nextEpBtnElRef.current;
       if (btn && d > 0) {
-        const hasNext = hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current);
+        const hasNext =
+          hasNextEpisodeRef.current ||
+          (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current);
         if (hasNext) {
           const remainingTime = d - t;
           const shouldShow = remainingTime <= 190 || t / d >= 0.9;
@@ -793,7 +844,9 @@ const Player = ({
     });
 
     artInstanceRef.current.on("video:ended", () => {
-      const hasNext = hasNextEpisodeRef.current || (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current);
+      const hasNext =
+        hasNextEpisodeRef.current ||
+        (isLastEpisodeOfSeasonRef.current && nextSeasonRef.current);
       if (nextEpBtnElRef.current && hasNext) {
         nextEpBtnElRef.current.style.display = "inline-flex";
       }
@@ -850,7 +903,9 @@ const Player = ({
     } else {
       // Lần đầu load hoặc CHUYỂN TẬP MỚI: sử dụng initialTime mới (hoặc về 0)
       const resumeTime =
-        typeof initialTime === "number" && Number.isFinite(initialTime) && initialTime > 0
+        typeof initialTime === "number" &&
+          Number.isFinite(initialTime) &&
+          initialTime > 0
           ? initialTime
           : 0;
       pendingSeekRef.current = resumeTime;
@@ -872,7 +927,9 @@ const Player = ({
         art.setting.show = false;
         try {
           art.setting.render();
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       art.switchUrl(effectiveSource, posterUrl);
@@ -923,9 +980,13 @@ const Player = ({
     }
 
     // 4. Update Next Episode Control Visibility
-    const nextEpControl = art.template?.$player?.querySelector(".art-control-next-episode");
+    const nextEpControl = art.template?.$player?.querySelector(
+      ".art-control-next-episode"
+    );
     if (nextEpControl) {
-      const shouldShow = !!onNextEpisode && (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason));
+      const shouldShow =
+        !!onNextEpisode &&
+        (hasNextEpisode || (isLastEpisodeOfSeason && nextSeason));
       nextEpControl.style.display = shouldShow ? "flex" : "none";
     }
 

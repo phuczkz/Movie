@@ -5,7 +5,6 @@ import YearFilter from '@/components/YearFilter.jsx';
 import TypeFilter from '@/components/TypeFilter.jsx';
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import GridSkeleton from '@/components/GridSkeleton.jsx';
-import { useMoviesByCountry } from '@/features/movies/hooks/useMoviesByCountry.js';
 import { useKKphimByCountry } from '@/features/movies/hooks/useKKphimMovies.js';
 import Pagination from '@/components/Pagination.jsx';
 import SEO from '@/components/SEO.jsx';
@@ -38,16 +37,7 @@ const Country = () => {
     navigate(`/country/${country}${safePage > 1 ? `/${safePage}` : ""}${query}`);
   };
 
-  const { data: ophim = [], isLoading: loadingOphim } = useMoviesByCountry(
-    country || "",
-    {
-      page,
-      enabled: Boolean(country),
-      year: yearParam,
-      movieType: typeParam,
-    }
-  );
-  const { data: kkphim = [], isLoading: loadingKK } = useKKphimByCountry(
+  const { data: kkphim = [], isLoading } = useKKphimByCountry(
     country || "",
     {
       page,
@@ -58,12 +48,7 @@ const Country = () => {
   );
 
   const movies = useMemo(() => {
-    const map = new Map();
-    [...kkphim, ...ophim].forEach((m) => {
-      if (!m || !m.slug) return;
-      if (!map.has(m.slug)) map.set(m.slug, m);
-    });
-    let result = Array.from(map.values());
+    let result = kkphim || [];
 
     if (yearParam) {
       result = result.filter(
@@ -78,15 +63,13 @@ const Country = () => {
     }
 
     return result;
-  }, [kkphim, ophim, yearParam, typeParam]);
+  }, [kkphim, yearParam, typeParam]);
 
   const pagedData = useMemo(() => {
     const limited = movies.slice(0, pageSize);
     const hasNext = movies.length >= pageSize;
     return { items: limited, hasNext };
   }, [movies, pageSize]);
-
-  const isLoading = loadingOphim || loadingKK;
 
   const heading = useMemo(() => countryLabels[country] || country, [country]);
 

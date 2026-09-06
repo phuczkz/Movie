@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { getCategory, getCountry, searchMovies, getByYear } from '@/features/movies/api/movies';
 import {
   getKKphimByCategory,
   getKKphimByCountry,
@@ -170,16 +169,12 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
 
       const requests = [
         safe(() => searchKKphim(q, page)),
-        safe(() => searchMovies(q, page)),
         safe(() => getKKphimByCategory(slug)),
         safe(() => getKKphimByCountry(slug)),
-        safe(() => getCategory(slug)),
-        safe(() => getCountry(slug)),
       ];
 
       if (isYear) {
         requests.push(safe(() => getKKphimByYear(q, page)));
-        requests.push(safe(() => getByYear(q, page)));
       }
 
       const results = await Promise.all(requests);
