@@ -46,8 +46,7 @@ const RATING_LEVELS = [
   },
 ];
 
-export default function RatingModal({
-  isOpen,
+function RatingModalContent({
   onClose,
   movieTitle = "",
   ratingData,
@@ -61,38 +60,27 @@ export default function RatingModal({
     submitting,
   } = ratingData || {};
 
-  const [selectedScore, setSelectedScore] = useState(5);
+  const [selectedScore, setSelectedScore] = useState(() => (userRating > 0 ? userRating : 5));
   const [statusMessage, setStatusMessage] = useState(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const modalRef = useRef(null);
 
-  // Khởi tạo điểm cũ của user khi mở modal
+  // Khóa cuộn trang khi modal mở, mở lại khi unmount
   useEffect(() => {
-    if (isOpen) {
-      setSelectedScore(userRating > 0 ? userRating : 5);
-      setStatusMessage(null);
-      setIsSuccess(false);
-      // Khóa cuộn trang
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen, userRating]);
+  }, []);
 
   // Phím ESC để đóng
   useEffect(() => {
-    if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
+  }, [onClose]);
 
   const activeLevel = RATING_LEVELS.find((l) => l.score === selectedScore) || RATING_LEVELS[0];
 
@@ -305,4 +293,9 @@ export default function RatingModal({
       </div>
     </div>
   );
+}
+
+export default function RatingModal(props) {
+  if (!props.isOpen) return null;
+  return <RatingModalContent {...props} />;
 }
