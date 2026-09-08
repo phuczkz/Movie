@@ -272,7 +272,7 @@ const Home = () => {
   const cap = (list) => list.slice(0, 7);
 
   return (
-    <div className="space-y-8 sm:space-y-10 lg:space-y-12">
+    <div className="space-y-6 sm:space-y-8 lg:space-y-12">
       <SEO />
 
       <AnnouncementModal
@@ -289,15 +289,15 @@ const Home = () => {
 
       <VietnamBanner />
 
-      <section className="!mt-0 rounded-3xl p-0 overflow-hidden relative">
-        <div className="mb-4 flex items-center gap-3 pt-6 pr-4 sm:pr-6 pl-0 sm:pl-0 sm:mb-5">
-          <span className="h-7 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
-          <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+      <section className="!mt-0 rounded-3xl p-0 relative">
+        <div className="mb-3 sm:mb-4 flex items-center gap-2.5 sm:gap-3 pt-2 sm:pt-4">
+          <span className="h-6 sm:h-7 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white tracking-tight">
             Bạn đang quan tâm gì?
           </h2>
         </div>
 
-        <div className="flex overflow-x-auto gap-4 pb-8 no-scrollbar pr-4 sm:pr-6 pl-0 sm:pl-0 lg:grid lg:grid-cols-4 xl:grid-cols-8 lg:gap-4 lg:pb-6">
+        <div className="flex overflow-x-auto gap-3 sm:gap-4 pb-2 sm:pb-4 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-4 xl:grid-cols-8 lg:gap-4">
           {quickFocusCards.map((item) => (
             <Link
               key={item.title}
@@ -339,14 +339,21 @@ const Home = () => {
         />
       </div>
 
-      <div ref={refAnime} className="pb-6 sm:pb-10 lg:pb-12">
+      <div ref={refAnime} className="pb-2 sm:pb-6 lg:pb-8">
         <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
       </div>
 
       {/* Main content + Sidebar ranking layout (MotChill pattern) */}
-      <div className="xl:grid xl:grid-cols-[1fr_300px] xl:gap-6 2xl:grid-cols-[1fr_320px] 2xl:gap-8 space-y-10 xl:space-y-0">
-        {/* Left: Movie grid sections */}
-        <div className="space-y-8 sm:space-y-10 lg:space-y-12">
+      <div className="flex flex-col xl:grid xl:grid-cols-[1fr_300px] xl:gap-6 2xl:grid-cols-[1fr_320px] 2xl:gap-8 space-y-8 sm:space-y-10 xl:space-y-0">
+        {/* Weekly ranking: Order 1 on Mobile/Tablet (right under AnimeShowcase), Order 2 (Sidebar) on Desktop */}
+        <div ref={refRanking} className="order-1 xl:order-2 xl:relative">
+          <div className="xl:absolute xl:inset-0 w-full h-full">
+            <WeeklyRanking movies={rankingMovies} />
+          </div>
+        </div>
+
+        {/* Left: Movie grid sections (Order 2 on Mobile/Tablet below WeeklyRanking, Order 1 on Desktop) */}
+        <div className="order-2 xl:order-1 space-y-8 sm:space-y-10 lg:space-y-12">
           <div ref={refKKSeries}>
             <Section
               title="Phim bộ mới cập nhật"
@@ -383,13 +390,6 @@ const Home = () => {
                 <Grid items={cap(kkSingle)} priorityCount={4} />
               )}
             </Section>
-          </div>
-        </div>
-
-        {/* Right: Weekly ranking sidebar ("Phim Hot Trong Tuần") */}
-        <div ref={refRanking} className="xl:relative">
-          <div className="xl:absolute xl:inset-0 w-full h-full">
-            <WeeklyRanking movies={rankingMovies} />
           </div>
         </div>
       </div>

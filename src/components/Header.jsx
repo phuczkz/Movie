@@ -227,18 +227,27 @@ const Header = () => {
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
 
+  const isComicMode = appMode === "comic";
+
   const { data: apiGenreOptionsData } = useQuery({
     queryKey: ["comic-genres"],
     queryFn: async () => {
-      const data = await comicApi.getCategoryList();
-      if (data?.status === "success" && data?.data?.items) {
-        return data.data.items.map((item) => ({
-          label: item.name,
-          to: `/comics/the-loai/${item.slug}`,
-        }));
+      try {
+        const data = await comicApi.getCategoryList();
+        if (data?.status === "success" && data?.data?.items) {
+          return data.data.items.map((item) => ({
+            label: item.name,
+            to: `/comics/the-loai/${item.slug}`,
+          }));
+        }
+        return [];
+      } catch (err) {
+        console.warn("Comic API getCategoryList failed, fallback to default genres:", err);
+        return [];
       }
-      return [];
     },
+    enabled: isComicMode,
+    retry: 1,
     staleTime: 60 * 60 * 1000, // 1 hour cache
   });
 
@@ -282,7 +291,6 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const isComicMode = appMode === "comic";
   const primaryNav = isComicMode ? comicPrimaryNav : moviePrimaryNav;
   const genreOptions = isComicMode
     ? apiGenreOptions.length > 0

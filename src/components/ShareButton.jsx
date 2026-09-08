@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Share2, Link2, Check, X } from "lucide-react";
 
-const ShareButton = ({ title, text, url, className = "" }) => {
+const ShareButton = ({ title, text, url, className = "", children }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef(null);
@@ -87,16 +87,22 @@ const ShareButton = ({ title, text, url, className = "" }) => {
 
   return (
     <div className="relative" ref={menuRef}>
-      <button
-        type="button"
-        onClick={handleNativeShare}
-        className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all active:scale-95 ${className || "bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"}`}
-        title="Chia sẻ"
-        aria-label="Chia sẻ phim"
-      >
-        <Share2 className="size-4" />
-        <span className="hidden sm:inline">Chia sẻ</span>
-      </button>
+      {children ? (
+        <div onClick={handleNativeShare} className="cursor-pointer">
+          {children}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={handleNativeShare}
+          className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all active:scale-95 ${className || "bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"}`}
+          title="Chia sẻ"
+          aria-label="Chia sẻ phim"
+        >
+          <Share2 className="size-4" />
+          <span className="hidden sm:inline">Chia sẻ</span>
+        </button>
+      )}
 
       {/* Share menu (fallback for browsers without native share API) */}
       {showMenu && (

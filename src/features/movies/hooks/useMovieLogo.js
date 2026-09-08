@@ -1,6 +1,17 @@
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { getTmdbLogo } from '@/features/movies/api/tmdb';
 
+/**
+ * Extract country slug and movie type from a movie object.
+ * Used to pass disambiguation context to TMDB search.
+ */
+const getMovieContext = (movie) => {
+  if (!movie) return {};
+  const countrySlug = movie.country?.[0]?.slug || null;
+  const type = movie.type || null;
+  return { countrySlug, type };
+};
+
 const LOGO_CACHE_KEY = "tmdb_logo_cache_v1";
 
 const getPersistedLogos = () => {
@@ -44,11 +55,13 @@ export const useMovieLogo = (movie) => {
   const originName = movie?.origin_name || "";
   const year = movie?.year;
   const slug = movie?.slug;
+  const context = getMovieContext(movie);
 
   const { data: logoUrl = null, isLoading } = useQuery({
-    queryKey: ["movie-logo", name, originName, year],
+    // Include slug in queryKey so movies with the same name but different slugs get separate cache
+    queryKey: ["movie-logo", slug, name, originName, year],
     queryFn: async () => {
-      const logoObj = await getTmdbLogo(name, originName, year);
+      const logoObj = await getTmdbLogo(name, originName, year, context);
       if (slug && logoObj && logoObj.url) {
         persistLogos([{ slug, logo: logoObj }]);
       }
@@ -90,15 +103,17 @@ export const useMovieLogos = (movies = []) => {
       const originName = m.origin_name || "";
       const year = m.year;
       const slug = m.slug;
+      const context = getMovieContext(m);
 
       return {
-        queryKey: ["movie-logo", name, originName, year],
+        // Include slug in queryKey so movies with the same name but different slugs get separate cache
+        queryKey: ["movie-logo", slug, name, originName, year],
         queryFn: async () => {
           if (index > 0) {
             // Delay fetching logos for subsequent slides to prioritize the first slide's assets
             await new Promise((resolve) => setTimeout(resolve, 1500 + index * 500));
           }
-          const logoObj = await getTmdbLogo(name, originName, year);
+          const logoObj = await getTmdbLogo(name, originName, year, context);
           if (slug && logoObj && logoObj.url) {
             persistLogos([{ slug, logo: logoObj }]);
           }
@@ -184,14 +199,16 @@ export const useMovieBackdrops = (movies = []) => {
       const originName = m.origin_name || "";
       const year = m.year;
       const slug = m.slug;
+      const context = getMovieContext(m);
 
       return {
-        queryKey: ["movie-backdrop", name, originName, year],
+        // Include slug in queryKey so movies with the same name but different slugs get separate cache
+        queryKey: ["movie-backdrop", slug, name, originName, year],
         queryFn: async () => {
           if (index > 0) {
             await new Promise((resolve) => setTimeout(resolve, 1500 + index * 500));
           }
-          const backdrop = await getTmdbBackdrop(name, originName, year);
+          const backdrop = await getTmdbBackdrop(name, originName, year, context);
           if (slug && typeof backdrop === "string" && backdrop) {
             persistBackdrops([{ slug, backdrop }]);
           }

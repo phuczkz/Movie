@@ -1,6 +1,9 @@
-import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Play, Heart, Info, ChevronRight, ChevronLeft } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Play, Heart, Info, ChevronRight, ChevronLeft, ArrowLeft, ArrowRight } from "lucide-react";
+/* eslint-disable no-unused-vars */
+import { motion, AnimatePresence } from "framer-motion";
+/* eslint-enable no-unused-vars */
 import { useMovieDetail } from "@/features/movies/hooks/useMovieDetail.js";
 import { useSavedMovie } from "@/features/movies/hooks/useSavedMovie.js";
 import { getOptimizedBanner, getOptimizedPoster } from "@/utils/image-helper.js";
@@ -22,10 +25,15 @@ const stripHtml = (html = "") => {
 
 const AnimeShowcase = ({ movies = [], loading = false }) => {
     const [activeIndex, setActiveIndex] = useState(0);
+    const [dragDirection, setDragDirection] = useState(0);
+    const isDraggingRef = useRef(false);
+    const navigate = useNavigate();
+
     const scrollRef = useRef(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
 
+    const totalMovies = movies.length;
     const activeMovie = movies[activeIndex] || movies[0];
 
     // Fetch detail for selected movie
@@ -35,6 +43,18 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
     const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(
         displayMovie || activeMovie
     );
+
+    const handleNext = useCallback(() => {
+        if (!totalMovies) return;
+        setDragDirection(1);
+        setActiveIndex((prev) => (prev + 1) % totalMovies);
+    }, [totalMovies]);
+
+    const handlePrev = useCallback(() => {
+        if (!totalMovies) return;
+        setDragDirection(-1);
+        setActiveIndex((prev) => (prev - 1 + totalMovies) % totalMovies);
+    }, [totalMovies]);
 
     const checkScroll = () => {
         const el = scrollRef.current;
@@ -93,7 +113,29 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
                         <ChevronRight className="size-4" />
                     </div>
                 </div>
-                <div className="w-full h-[400px] sm:h-[380px] rounded-[28px] bg-[#1f2635] border border-white/10 animate-pulse" />
+                {/* Desktop skeleton */}
+                <div className="hidden md:block w-full h-[400px] sm:h-[380px] rounded-[28px] bg-[#1f2635] border border-white/10 animate-pulse" />
+                {/* Mobile skeleton */}
+                <div className="block md:hidden space-y-4">
+                    <div className="w-full h-[390px] sm:h-[420px] rounded-[28px] bg-[#1f2635] border border-white/10 overflow-hidden animate-pulse flex flex-col">
+                        <div className="w-full h-44 sm:h-48 bg-white/5" />
+                        <div className="p-4 sm:p-5 space-y-3 flex-1">
+                            <div className="w-3/4 h-5 bg-white/10 rounded" />
+                            <div className="w-1/2 h-3 bg-white/5 rounded" />
+                            <div className="flex gap-2">
+                                <div className="w-12 h-5 bg-white/10 rounded" />
+                                <div className="w-12 h-5 bg-white/10 rounded" />
+                                <div className="w-16 h-5 bg-white/10 rounded" />
+                            </div>
+                            <div className="w-full h-12 bg-white/5 rounded pt-2" />
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-4 pt-1">
+                        <div className="size-11 rounded-full bg-white/10 animate-pulse" />
+                        <div className="w-28 h-3 rounded-full bg-white/10 animate-pulse" />
+                        <div className="size-11 rounded-full bg-white/10 animate-pulse" />
+                    </div>
+                </div>
             </section>
         );
     }
@@ -113,7 +155,7 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
             const name = typeof c === "string" ? c : c?.name || "";
             return name ? [name] : [];
         })
-        .slice(0, 6);
+        .slice(0, 5);
 
     const rating =
         displayMovie?.tmdb?.vote_average?.toFixed(1) ||
@@ -124,11 +166,38 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
     const description =
         stripHtml(displayMovie?.content) ||
         stripHtml(displayMovie?.description) ||
-        "Đây là câu chuyện có thật, đầy náo nhiệt, lỡ bịch và vô cùng điên rồ về cách các Minion chinh phục Hollywood, trở thành ngôi sao điện ảnh, rồi đánh mất tất cả, vô tình giải phóng những quái vật ra thế giới...";
+        "Bộ phim hoạt hình đặc sắc với cốt truyện lôi cuốn, hình ảnh ấn tượng và dàn nhân vật được yêu thích...";
 
     const timeLabel = displayMovie?.time || displayMovie?.episode_current || "1h 30m";
     const yearLabel = displayMovie?.year || "2026";
     const ageLabel = displayMovie?.quality || "T16";
+
+    // Data for stacked cards peeking from underneath
+    const nextMovie1 = totalMovies > 1 ? movies[(activeIndex + 1) % totalMovies] : null;
+    const nextMovie2 = totalMovies > 2 ? movies[(activeIndex + 2) % totalMovies] : null;
+
+    const rawBackdrop1 =
+        nextMovie1?.backdrop_url ||
+        nextMovie1?.thumb_url ||
+        nextMovie1?.poster_url ||
+        fallbackImage;
+    const backdropSrc1 = getOptimizedBanner(rawBackdrop1, 640, 80);
+
+    const rawBackdrop2 =
+        nextMovie2?.backdrop_url ||
+        nextMovie2?.thumb_url ||
+        nextMovie2?.poster_url ||
+        fallbackImage;
+    const backdropSrc2 = getOptimizedBanner(rawBackdrop2, 640, 80);
+
+    // Sliding window of 5 indicator dots (matching the 5 dots in design image)
+    const maxVisibleDots = Math.min(5, totalMovies);
+    let startDot = Math.max(0, Math.min(activeIndex - Math.floor(maxVisibleDots / 2), totalMovies - maxVisibleDots));
+    let endDot = Math.min(totalMovies, startDot + maxVisibleDots);
+    if (endDot - startDot < maxVisibleDots) {
+        startDot = Math.max(0, endDot - maxVisibleDots);
+    }
+    const visibleDots = Array.from({ length: endDot - startDot }, (_, i) => startDot + i);
 
     return (
         <section className="space-y-3 sm:space-y-4">
@@ -145,17 +214,247 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
                         <ChevronRight className="size-4" />
                     </div>
                 </Link>
-
-                {/* <Link
-                    to="/category/hoat-hinh"
-                    className="text-xs sm:text-sm font-medium text-slate-400 hover:text-emerald-400 transition-colors"
-                >
-                    Xem tất cả
-                </Link> */}
             </div>
 
-            {/* Main Anime Showcase Container - Medium Slate Gray Theme */}
-            <div className="relative w-full rounded-[24px] sm:rounded-[28px] border border-white/10 bg-[#1f2635] shadow-2xl mb-10 sm:mb-12">
+            {/* ========================================================= */}
+            {/* MOBILE ONLY: CardStack Design Layout                      */}
+            {/* ========================================================= */}
+            <div className="block md:hidden relative w-full pt-1 pb-2">
+                {/* Ambient glow background */}
+                <div className="absolute -inset-x-2 -inset-y-4 bg-gradient-to-tr from-emerald-500/15 via-transparent to-teal-500/10 rounded-[36px] blur-3xl pointer-events-none -z-10" />
+
+                {/* Card Stack Container */}
+                <div className="relative w-full min-h-[390px] sm:min-h-[420px]">
+                    {/* Layer 2 (Bottom-most card behind) */}
+                    {nextMovie2 && (
+                        <div
+                            className="absolute inset-x-0 top-0 h-full rounded-[28px] bg-[#141924] border border-white/10 shadow-sm pointer-events-none origin-bottom-left transition-transform duration-300 overflow-hidden flex flex-col"
+                            style={{
+                                transform: "translateY(12px) rotate(2.8deg)",
+                                opacity: 0.5,
+                                zIndex: 10,
+                            }}
+                        >
+                            <div className="relative w-full h-44 sm:h-48 overflow-hidden bg-slate-900 rounded-t-[28px] flex-shrink-0">
+                                <img
+                                    src={backdropSrc2}
+                                    alt=""
+                                    className="w-full h-full object-cover object-center opacity-80"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = fallbackImage;
+                                    }}
+                                />
+                                <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#141924] to-transparent" />
+                            </div>
+                            <div className="flex-1 bg-[#141924]" />
+                        </div>
+                    )}
+
+                    {/* Layer 1 (Middle card behind) */}
+                    {nextMovie1 && (
+                        <div
+                            className="absolute inset-x-0 top-0 h-full rounded-[28px] bg-[#19202f] border border-white/12 shadow-md pointer-events-none origin-bottom-left transition-transform duration-300 overflow-hidden flex flex-col"
+                            style={{
+                                transform: "translateY(6px) rotate(1.5deg)",
+                                opacity: 0.78,
+                                zIndex: 20,
+                            }}
+                        >
+                            <div className="relative w-full h-44 sm:h-48 overflow-hidden bg-slate-900 rounded-t-[28px] flex-shrink-0">
+                                <img
+                                    src={backdropSrc1}
+                                    alt=""
+                                    className="w-full h-full object-cover object-center opacity-90"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = fallbackImage;
+                                    }}
+                                />
+                                <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#19202f] to-transparent" />
+                            </div>
+                            <div className="flex-1 bg-[#19202f]" />
+                        </div>
+                    )}
+
+                    {/* Layer 0 (Top Active Card) */}
+                    <AnimatePresence initial={false} mode="wait">
+                        <motion.div
+                            key={displayMovie?.slug || activeIndex}
+                            initial={{
+                                opacity: 0.85,
+                                scale: 0.98,
+                                x: dragDirection > 0 ? 30 : -30,
+                            }}
+                            animate={{
+                                opacity: 1,
+                                scale: 1,
+                                x: 0,
+                                rotate: 0,
+                                y: 0,
+                            }}
+                            exit={{
+                                opacity: 0,
+                                scale: 0.94,
+                                x: dragDirection > 0 ? -40 : 40,
+                            }}
+                            transition={{
+                                type: "spring",
+                                stiffness: 320,
+                                damping: 28,
+                            }}
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0.25}
+                            onDragStart={() => {
+                                isDraggingRef.current = true;
+                            }}
+                            onDragEnd={(e, { offset, velocity }) => {
+                                setTimeout(() => {
+                                    isDraggingRef.current = false;
+                                }, 60);
+
+                                if (offset.x < -45 || velocity.x < -350) {
+                                    handleNext();
+                                } else if (offset.x > 45 || velocity.x > 350) {
+                                    handlePrev();
+                                }
+                            }}
+                            onClick={() => {
+                                if (!isDraggingRef.current && displayMovie?.slug) {
+                                    navigate(`/movie/${displayMovie.slug}`);
+                                }
+                            }}
+                            className="group/card relative min-h-[390px] sm:min-h-[420px] w-full rounded-[28px] bg-[#1f2635] border border-white/15 shadow-2xl overflow-hidden cursor-grab active:cursor-grabbing flex flex-col select-none"
+                            style={{ zIndex: 30 }}
+                        >
+                            {/* 1. Horizontal Banner Image (Ảnh ngang ban đầu) */}
+                            <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-slate-900 rounded-t-[28px] flex-shrink-0">
+                                <img
+                                    key={displayMovie?.slug}
+                                    src={backdropSrc}
+                                    alt={displayMovie?.name || "Anime"}
+                                    className="w-full h-full object-cover object-center transition-transform duration-500 group-hover/card:scale-105 filter brightness-105"
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = fallbackImage;
+                                    }}
+                                />
+                                {/* Bottom gradient overlay blending smoothly into card body */}
+                                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#1f2635] via-[#1f2635]/65 to-transparent pointer-events-none" />
+                            </div>
+
+                            {/* 2. Card Body Info */}
+                            <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow space-y-2.5">
+                                {/* Titles */}
+                                <div className="space-y-0.5">
+                                    <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm group-hover/card:text-emerald-400 transition-colors">
+                                        {displayMovie?.name}
+                                    </h3>
+                                    {displayMovie?.origin_name && (
+                                        <p className="text-xs sm:text-sm font-medium text-[#f59e0b] line-clamp-1">
+                                            {displayMovie.origin_name}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Meta Badges line: IMDb | Year | Duration */}
+                                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold pt-0.5">
+                                    {/* IMDb Badge */}
+                                    <div className="flex items-center gap-1 rounded border border-amber-400/60 bg-black/40 px-2 py-0.5 text-amber-400 shadow-sm">
+                                        <span className="font-extrabold text-[11px] text-amber-400">IMDb</span>
+                                        <span className="text-white font-medium">{rating}</span>
+                                    </div>
+
+                                    {/* Year Badge */}
+                                    <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-white/90 text-[11px]">
+                                        {yearLabel}
+                                    </span>
+
+                                    {/* Duration Badge */}
+                                    <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-white/90 text-[11px]">
+                                        {timeLabel}
+                                    </span>
+
+                                    {/* Genre Pills */}
+                                    {categories.slice(0, 3).map((cat) => (
+                                        <span
+                                            key={cat}
+                                            className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/90 border border-white/10"
+                                        >
+                                            {cat}
+                                        </span>
+                                    ))}
+                                </div>
+
+                                {/* Synopsis text */}
+                                <div className="pt-2 border-t border-white/10">
+                                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed line-clamp-2 sm:line-clamp-3 font-normal">
+                                        {description}
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </AnimatePresence>
+                </div>
+
+                {/* Bottom Navigation Controls (matching illustration) */}
+                <div className="relative z-40 flex items-center justify-center gap-4 sm:gap-5 mt-8 sm:mt-10">
+                    {/* Prev Circular Button */}
+                    <button
+                        type="button"
+                        onClick={handlePrev}
+                        aria-label="Thẻ trước"
+                        className="size-11 sm:size-12 rounded-full bg-white text-slate-900 shadow-md shadow-black/25 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all duration-200 focus:outline-none"
+                    >
+                        <ArrowLeft className="size-5 text-slate-900 stroke-[2.2]" />
+                    </button>
+
+                    {/* Pagination Indicators with touch-friendly hit areas */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 px-1">
+                        {visibleDots.map((dotIdx) => {
+                            const isActive = dotIdx === activeIndex;
+                            return (
+                                <button
+                                    key={dotIdx}
+                                    type="button"
+                                    onClick={() => {
+                                        setDragDirection(dotIdx > activeIndex ? 1 : -1);
+                                        setActiveIndex(dotIdx);
+                                    }}
+                                    aria-label={`Đi tới thẻ ${dotIdx + 1}`}
+                                    className="min-w-[24px] sm:min-w-[28px] min-h-[36px] flex items-center justify-center focus:outline-none"
+                                >
+                                    <span
+                                        className={`block transition-all duration-300 ${
+                                            isActive
+                                                ? "w-7 h-2.5 rounded-full bg-white shadow-sm"
+                                                : "size-2 rounded-full bg-white/30 hover:bg-white/60"
+                                        }`}
+                                    />
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Next Circular Button */}
+                    <button
+                        type="button"
+                        onClick={handleNext}
+                        aria-label="Thẻ tiếp theo"
+                        className="size-11 sm:size-12 rounded-full bg-white text-slate-900 shadow-md shadow-black/25 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all duration-200 focus:outline-none"
+                    >
+                        <ArrowRight className="size-5 text-slate-900 stroke-[2.2]" />
+                    </button>
+                </div>
+            </div>
+
+            {/* ========================================================= */}
+            {/* DESKTOP ONLY: Full Showcase View with Posters & Actions  */}
+            {/* ========================================================= */}
+            <div className="hidden md:block relative w-full rounded-[24px] sm:rounded-[28px] border border-white/10 bg-[#1f2635] shadow-2xl mb-10 sm:mb-12">
 
                 {/* Top Preview Block */}
                 <div className="relative min-h-[380px] sm:min-h-[350px] md:min-h-[340px] lg:min-h-[360px] pb-14 sm:pb-14 md:pb-14 flex flex-col md:flex-row items-stretch overflow-hidden rounded-[24px] sm:rounded-[28px]">

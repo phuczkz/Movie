@@ -30,9 +30,10 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 max-h-[420px] sm:max-h-[500px] xl:max-h-none rounded-xl bg-slate-900/40 border border-white/5 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 min-h-0 xl:max-h-none rounded-xl bg-slate-900/40 border border-white/5 overflow-hidden xl:overflow-y-auto xl:custom-scrollbar">
         <div className="divide-y divide-white/5">
           {displayMovies.map((movie, i) => {
+            const isHiddenOnMobile = i >= 4;
             const posterSrc =
               getOptimizedPoster(
                 movie.poster_url || movie.thumb_url,
@@ -61,7 +62,9 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
                 key={movie.slug}
                 to={`/movie/${movie.slug}`}
                 state={{ movie }}
-                className="flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-white/5 transition-colors group"
+                className={`${
+                  isHiddenOnMobile ? "hidden xl:flex" : "flex"
+                } items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-white/5 transition-colors group`}
               >
                 {/* Rank number */}
                 <span

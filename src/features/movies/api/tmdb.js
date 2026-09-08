@@ -163,19 +163,126 @@ export const getTmdbDetailBySlug = async (slug) => {
 
   return { movie, episodes: [] };
 };
-export const searchTmdbMovie = async (query, year) => {
+/**
+ * Map KKphim country slugs to TMDB original_language codes.
+ * Used to disambiguate movies with the same name from different countries.
+ */
+const COUNTRY_SLUG_TO_LANG = {
+  "thai-lan": "th",
+  "han-quoc": "ko",
+  "trung-quoc": "zh",
+  "nhat-ban": "ja",
+  "an-do": "hi",
+  "dai-loan": "zh",
+  "hong-kong": "cn",
+  "phap": "fr",
+  "duc": "de",
+  "tay-ban-nha": "es",
+  "y": "it",
+  "brazil": "pt",
+  "bo-dao-nha": "pt",
+  "nga": "ru",
+  "viet-nam": "vi",
+  "philippines": "tl",
+  "indonesia": "id",
+  "my": "en",
+  "anh": "en",
+  "uc": "en",
+  "canada": "en",
+};
+
+/**
+ * Map KKphim movie types to preferred TMDB media_type.
+ */
+const mapMovieType = (type) => {
+  if (!type) return null;
+  const t = type.toLowerCase();
+  if (t === "single" || t === "phimle") return "movie";
+  if (t === "series" || t === "phimbo" || t === "hoathinh" || t === "tvshows") return "tv";
+  return null;
+};
+
+/**
+ * Search TMDB for a movie/TV show, with optional context for disambiguation.
+ * @param {string} query - Search query
+ * @param {number|string} [year] - Release year
+ * @param {object} [context] - Additional context for scoring
+ * @param {string} [context.countrySlug] - KKphim country slug (e.g. "thai-lan")
+ * @param {string} [context.type] - KKphim movie type (e.g. "series", "single")
+ */
+export const searchTmdbMovie = async (query, year, context = {}) => {
   if (!query) return null;
   try {
     const { data } = await tmdb.get("search/multi", {
       params: { query, year },
     });
     const results = data?.results || [];
-    // Focus on movie/tv results that have a backdrop or poster
-    return results.find(
+    // Only consider movie/tv results that have a backdrop or poster
+    const candidates = results.filter(
       (r) =>
         (r.media_type === "movie" || r.media_type === "tv") &&
         (r.poster_path || r.backdrop_path)
     );
+
+    if (!candidates.length) return null;
+
+    // If no context is provided, fall back to the first candidate (legacy behavior)
+    const { countrySlug, type } = context;
+    const hasContext = Boolean(countrySlug || type);
+    if (!hasContext) return candidates[0];
+
+    // Score each candidate for best match
+    const expectedLang = countrySlug ? COUNTRY_SLUG_TO_LANG[countrySlug] : null;
+    const expectedMediaType = mapMovieType(type);
+    const yearNum = year ? Number(year) : null;
+
+    let bestScore = -Infinity;
+    let bestCandidate = candidates[0];
+
+    for (const r of candidates) {
+      let score = 0;
+
+      // Year match: strong signal (±1 year tolerance)
+      const rYear = (r.release_date || r.first_air_date || "").slice(0, 4);
+      if (yearNum && rYear) {
+        const diff = Math.abs(Number(rYear) - yearNum);
+        if (diff === 0) score += 30;
+        else if (diff === 1) score += 15;
+        else if (diff <= 2) score += 5;
+        // Penalize very old results when searching for recent content
+        else if (diff > 10) score -= 20;
+        else score -= 5;
+      }
+
+      // Original language match: strongest disambiguation signal
+      if (expectedLang && r.original_language) {
+        if (r.original_language === expectedLang) {
+          score += 40;
+        } else {
+          // Mild penalty for wrong language — not a dealbreaker
+          score -= 5;
+        }
+      }
+
+      // Media type match: series vs movie
+      if (expectedMediaType && r.media_type) {
+        if (r.media_type === expectedMediaType) {
+          score += 20;
+        } else {
+          score -= 10;
+        }
+      }
+
+      // Slight boost for popularity (tiebreaker) — normalized to small range
+      score += Math.min((r.popularity || 0) / 100, 5);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = r;
+      }
+    }
+
+    return bestCandidate;
   } catch (error) {
     console.warn("[tmdb] search failed", error.message);
     return null;
@@ -297,8 +404,12 @@ export const getTmdbFullEpisodes = async (
  * Tries `name` first, then `originName` if no result.
  * Prefers Vietnamese → English → any language.
  * Returns null if no logo is found.
+ * @param {string} name - Vietnamese name
+ * @param {string} originName - Original name
+ * @param {number|string} year - Release year
+ * @param {object} [context] - { countrySlug, type } for disambiguation
  */
-export const getTmdbLogo = async (name, originName, year) => {
+export const getTmdbLogo = async (name, originName, year, context = {}) => {
   if (!name && !originName) return null;
 
   // Clean the name (e.g. "Movie Name (Phần 2)" -> "Movie Name")
@@ -307,16 +418,16 @@ export const getTmdbLogo = async (name, originName, year) => {
 
   try {
     // Try primary name first, then fall back to origin_name
-    let match = cleanName ? await searchTmdbMovie(cleanName, year) : null;
+    let match = cleanName ? await searchTmdbMovie(cleanName, year, context) : null;
 
     // If search with year failed, try without year
     if (!match && cleanName) {
-      match = await searchTmdbMovie(cleanName);
+      match = await searchTmdbMovie(cleanName, undefined, context);
     }
 
     if (!match && cleanOrigin && cleanOrigin !== cleanName) {
-      match = await searchTmdbMovie(cleanOrigin, year);
-      if (!match) match = await searchTmdbMovie(cleanOrigin);
+      match = await searchTmdbMovie(cleanOrigin, year, context);
+      if (!match) match = await searchTmdbMovie(cleanOrigin, undefined, context);
     }
     if (!match) return null;
 
@@ -351,21 +462,25 @@ export const getTmdbLogo = async (name, originName, year) => {
 
 /**
  * Search TMDB for a movie/TV and return its high-res backdrop image URL.
+ * @param {string} name - Vietnamese name
+ * @param {string} originName - Original name
+ * @param {number|string} year - Release year
+ * @param {object} [context] - { countrySlug, type } for disambiguation
  */
-export const getTmdbBackdrop = async (name, originName, year) => {
+export const getTmdbBackdrop = async (name, originName, year, context = {}) => {
   if (!name && !originName) return null;
 
   const { baseName: cleanName } = parseSeasonInfo(name || "");
   const { baseName: cleanOrigin } = parseSeasonInfo(originName || "");
 
   try {
-    let match = cleanName ? await searchTmdbMovie(cleanName, year) : null;
+    let match = cleanName ? await searchTmdbMovie(cleanName, year, context) : null;
     if (!match && cleanName) {
-      match = await searchTmdbMovie(cleanName);
+      match = await searchTmdbMovie(cleanName, undefined, context);
     }
     if (!match && cleanOrigin && cleanOrigin !== cleanName) {
-      match = await searchTmdbMovie(cleanOrigin, year);
-      if (!match) match = await searchTmdbMovie(cleanOrigin);
+      match = await searchTmdbMovie(cleanOrigin, year, context);
+      if (!match) match = await searchTmdbMovie(cleanOrigin, undefined, context);
     }
     
     if (!match || !match.backdrop_path) return null;

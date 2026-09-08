@@ -3,11 +3,13 @@ import {
   Play,
   ChevronDown,
   Film,
+  Star,
+  Send,
 } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { useState } from "react";
 import { getOptimizedImage } from "./detailUtils.js";
-
-const Rating = lazy(() => import('@/components/Rating.jsx'));
+import { useMovieRating } from "@/features/movies/hooks/useMovieRating.js";
+import RatingModal from "./RatingModal.jsx";
 import ShareButton from '@/components/ShareButton.jsx';
 
 const DetailHero = ({
@@ -34,6 +36,13 @@ const DetailHero = ({
 }) => {
   const [bannerLoaded, setBannerLoaded] = useState(false);
   const [posterLoaded, setPosterLoaded] = useState(false);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const ratingData = useMovieRating(slug, movie?.rating);
+  const displayRating = ratingData.average > 0
+    ? ratingData.average
+    : movie?.rating
+    ? Number(movie.rating).toFixed(1)
+    : "0";
 
   const detailBadgeText = (() => {
     const type = movie?.type || "";
@@ -177,9 +186,6 @@ const DetailHero = ({
               </>
             ) : null}
 
-            <Suspense fallback={<div className="text-slate-500 text-xs">Đang tải đánh giá...</div>}>
-              <Rating movieSlug={slug} apiRating={movie.rating} />
-            </Suspense>
 
             {/* Desktop/Laptop+: giữ layout meta như hiện tại */}
             <div className="hidden lg:flex flex-wrap items-center gap-2 text-xs sm:text-sm text-white font-medium drop-shadow-md">
@@ -277,7 +283,8 @@ const DetailHero = ({
               </div>
             </details>
 
-            <div className="flex flex-row items-stretch gap-3 pt-1 w-full lg:w-auto lg:flex-row lg:flex-wrap lg:items-center">
+            {/* Desktop Action Group (lg: và lớn hơn) */}
+            <div className="hidden lg:flex lg:flex-wrap lg:items-center gap-3 pt-1">
               <button
                 type="button"
                 onClick={(e) => {
@@ -288,18 +295,18 @@ const DetailHero = ({
                     : "";
                   navigate(`/watch/${slug}${serverParam}`);
                 }}
-                className={`flex flex-1 lg:flex-none justify-center lg:justify-start items-center gap-2 rounded-full bg-emerald-500 px-4 sm:px-6 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] hover:bg-emerald-400 relative z-30 cursor-pointer ${
+                className={`inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] relative z-30 cursor-pointer ${
                   episodes.length ? "" : "opacity-90"
                 }`}
               >
                 {movieOverride?.mode === "trailer" || isTrailer ? (
                   <>
-                    <Film className="size-4" fill="currentColor" />
+                    <Film className="size-4 fill-current" />
                     Xem Trailer
                   </>
                 ) : (
                   <>
-                    <Play className="size-4" fill="currentColor" />
+                    <Play className="size-4 fill-current" />
                     {episodes.length ? "Xem ngay" : "Mở trang xem"}
                   </>
                 )}
@@ -309,10 +316,10 @@ const DetailHero = ({
                 type="button"
                 onClick={toggleSave}
                 disabled={saving}
-                className={`flex flex-1 lg:flex-none justify-center lg:justify-start items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
+                className={`inline-flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold transition cursor-pointer relative z-30 ${
                   isSaved
                     ? "border-rose-400/60 bg-rose-500/20 text-rose-100 hover:bg-rose-500/30"
-                    : "border-white/15 bg-white/5 text-white hover:border-emerald-300/60 hover:text-emerald-100"
+                    : "border-white/15 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
                 } ${saving ? "opacity-80" : ""}`}
               >
                 <Heart
@@ -326,17 +333,127 @@ const DetailHero = ({
                   : "Yêu thích"}
               </button>
 
-              {error ? (
-                <span className="text-xs text-amber-200">
-                  {error.message || "Không thể cập nhật Yêu thích."}
-                </span>
-              ) : null}
-
               <ShareButton
                 title={`${movie?.name || "Phim hay"} - Xem phim online`}
                 text={`Xem ${movie?.name || "phim hay"} tại đây!`}
-                className="hidden lg:flex border-white/15 bg-white/5 text-white hover:border-white/25 hover:bg-white/10"
+                className="border-white/15 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
               />
+
+              <button
+                type="button"
+                onClick={() => setIsRatingModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-200 px-4 py-3 text-sm font-semibold transition cursor-pointer relative z-30"
+                title="Đánh giá phim này"
+              >
+                <Star className="size-4 fill-amber-400 text-amber-400" />
+                <span>Đánh giá ({displayRating})</span>
+              </button>
+            </div>
+
+            {/* Mobile & Tablet Action Area (Màn hình dưới lg - Thiết kế theo hình tham khảo) */}
+            <div className="flex lg:hidden flex-col gap-3.5 w-full pt-1">
+              {/* Nút Xem Ngay Full-width màu xanh lá emerald gốc */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const serverParam = selectedServer
+                    ? `?server=${encodeURIComponent(selectedServer)}`
+                    : "";
+                  navigate(`/watch/${slug}${serverParam}`);
+                }}
+                className={`w-full flex justify-center items-center gap-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 px-6 py-3.5 text-base font-bold shadow-[0_8px_24px_rgba(16,185,129,0.35)] active:scale-[0.98] transition-all cursor-pointer relative z-30 ${
+                  episodes.length ? "" : "opacity-90"
+                }`}
+              >
+                {movieOverride?.mode === "trailer" || isTrailer ? (
+                  <>
+                    <Film className="size-5 fill-current" />
+                    <span>Xem Trailer</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="size-5 fill-current" />
+                    <span>{episodes.length ? "Xem Ngay" : "Mở trang xem"}</span>
+                  </>
+                )}
+              </button>
+
+              {/* Hàng 3 icon bên dưới: Yêu thích, Chia sẻ và Đánh giá được CĂN GIỮA (center) đều nhau */}
+              <div className="flex items-center justify-center gap-8 sm:gap-12 w-full pt-1">
+                {/* 1. Nút Yêu thích */}
+                <button
+                  type="button"
+                  onClick={toggleSave}
+                  disabled={saving}
+                  className="group flex flex-col items-center gap-1 text-slate-300 hover:text-white transition active:scale-95 cursor-pointer relative z-30 min-w-[56px]"
+                >
+                  <div
+                    className={`p-1.5 rounded-full transition-all ${
+                      isSaved
+                        ? "text-rose-500 bg-rose-500/10"
+                        : "text-white/80 group-hover:text-white"
+                    }`}
+                  >
+                    <Heart
+                      className={`size-5 transition-transform group-hover:scale-110 ${
+                        isSaved ? "scale-110 fill-rose-500 text-rose-500" : ""
+                      }`}
+                      fill={isSaved ? "currentColor" : "none"}
+                      strokeWidth={isSaved ? 0 : 2}
+                    />
+                  </div>
+                  <span
+                    className={`text-[11px] font-medium tracking-tight whitespace-nowrap ${
+                      isSaved ? "text-rose-400" : "text-slate-300"
+                    }`}
+                  >
+                    {saving ? "Đang lưu..." : isSaved ? "Đã lưu" : "Yêu thích"}
+                  </span>
+                </button>
+
+                {/* 2. Nút Chia sẻ */}
+                <div className="relative z-30 min-w-[56px] flex justify-center">
+                  <ShareButton
+                    title={`${movie?.name || "Phim hay"} - Xem phim online`}
+                    text={`Xem ${movie?.name || "phim hay"} tại đây!`}
+                  >
+                    <button
+                      type="button"
+                      className="group flex flex-col items-center gap-1 text-slate-300 hover:text-white transition active:scale-95 cursor-pointer"
+                    >
+                      <div className="p-1.5 rounded-full text-white/80 group-hover:text-white transition-all">
+                        <Send className="size-5 transition-transform group-hover:scale-110 rotate-[-15deg]" />
+                      </div>
+                      <span className="text-[11px] font-medium tracking-tight text-slate-300 whitespace-nowrap">
+                        Chia sẻ
+                      </span>
+                    </button>
+                  </ShareButton>
+                </div>
+
+                {/* 3. Nút Đánh giá (Pill xanh cân đối cùng hàng) */}
+                <div className="relative z-30 flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsRatingModalOpen(true)}
+                    className="flex items-center gap-2 rounded-full bg-[#2a4db7] hover:bg-[#2543a0] active:bg-[#1f3a8a] text-white px-4 py-2 text-sm font-bold shadow-md shadow-blue-900/40 transition-all active:scale-95 cursor-pointer"
+                    aria-label="Mở form đánh giá phim"
+                  >
+                    <Star className="size-4 fill-white text-white" />
+                    <span className="font-mono text-base">{displayRating}</span>
+                  </button>
+                </div>
+              </div>
+
+              {error ? (
+                <div className="text-center w-full">
+                  <span className="text-xs text-amber-200">
+                    {error.message || "Không thể cập nhật Yêu thích."}
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             {/* Mobile/Tablet/iPad: Tabs dưới 2 nút action */}
@@ -380,6 +497,13 @@ const DetailHero = ({
           </div>
         </div>
       </div>
+
+      <RatingModal
+        isOpen={isRatingModalOpen}
+        onClose={() => setIsRatingModalOpen(false)}
+        movieTitle={movie?.name || passedMovie?.name}
+        ratingData={ratingData}
+      />
     </>
   );
 };
