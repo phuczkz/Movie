@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Heart, Info, ChevronRight, ChevronLeft, ArrowLeft, ArrowRight } from "lucide-react";
 /* eslint-disable no-unused-vars */
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 /* eslint-enable no-unused-vars */
 import { useMovieDetail } from "@/features/movies/hooks/useMovieDetail.js";
 import { useSavedMovie } from "@/features/movies/hooks/useSavedMovie.js";
@@ -23,10 +23,155 @@ const stripHtml = (html = "") => {
         .trim();
 };
 
+const CardStackItem = ({
+    displayMovie,
+    backdropSrc,
+    rating,
+    yearLabel,
+    timeLabel,
+    categories,
+    description,
+    dragDirection,
+    handleNext,
+    handlePrev,
+    navigate,
+}) => {
+    const isDraggingRef = useRef(false);
+    const x = useMotionValue(0);
+    // Dynamic tilt rotation: ngón tay kéo sang trái thì thẻ nghiêng trái, kéo sang phải nghiêng phải
+    const rotate = useTransform(x, [-240, 0, 240], [-8, 0, 8]);
+
+    const cardVariants = {
+        enter: (direction) => ({
+            x: direction > 0 ? 80 : -80,
+            opacity: 0,
+            scale: 0.98,
+            zIndex: 25,
+        }),
+        center: {
+            x: 0,
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            zIndex: 30,
+            transition: {
+                type: "spring",
+                stiffness: 350,
+                damping: 30,
+                mass: 0.8,
+            },
+        },
+        exit: (direction) => ({
+            x: direction > 0 ? -280 : 280,
+            opacity: 0,
+            scale: 0.95,
+            zIndex: 35,
+            transition: {
+                duration: 0.25,
+                ease: [0.32, 0.72, 0, 1],
+            },
+        }),
+    };
+
+    return (
+        <motion.div
+            custom={dragDirection}
+            variants={cardVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.7}
+            style={{ x, rotate }}
+            onDragStart={() => {
+                isDraggingRef.current = true;
+            }}
+            onDragEnd={(e, { offset, velocity }) => {
+                setTimeout(() => {
+                    isDraggingRef.current = false;
+                }, 80);
+
+                const swipeThreshold = 40;
+                const velocityThreshold = 300;
+                if (offset.x < -swipeThreshold || velocity.x < -velocityThreshold) {
+                    handleNext();
+                } else if (offset.x > swipeThreshold || velocity.x > velocityThreshold) {
+                    handlePrev();
+                }
+            }}
+            onClick={() => {
+                if (!isDraggingRef.current && displayMovie?.slug) {
+                    navigate(`/movie/${displayMovie.slug}`);
+                }
+            }}
+            className="group/card col-start-1 row-start-1 relative w-full rounded-[28px] bg-[#1f2635] border border-white/15 shadow-2xl overflow-hidden cursor-grab active:cursor-grabbing flex flex-col select-none touch-pan-y"
+        >
+            {/* 1. Horizontal Banner Image */}
+            <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-slate-900 rounded-t-[28px] flex-shrink-0">
+                <img
+                    src={backdropSrc}
+                    alt={displayMovie?.name || "Anime"}
+                    className="w-full h-full object-cover object-center transition-transform duration-500 group-hover/card:scale-105 filter brightness-105"
+                    onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = fallbackImage;
+                    }}
+                />
+                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#1f2635] via-[#1f2635]/65 to-transparent pointer-events-none" />
+            </div>
+
+            {/* 2. Card Body Info */}
+            <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow space-y-2.5">
+                <div className="space-y-0.5">
+                    <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm group-hover/card:text-emerald-400 transition-colors">
+                        {displayMovie?.name}
+                    </h3>
+                    {displayMovie?.origin_name && (
+                        <p className="text-xs sm:text-sm font-medium text-[#f59e0b] line-clamp-1">
+                            {displayMovie.origin_name}
+                        </p>
+                    )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold pt-0.5">
+                    <div className="flex items-center gap-1 rounded border border-amber-400/60 bg-black/40 px-2 py-0.5 text-amber-400 shadow-sm">
+                        <span className="font-extrabold text-[11px] text-amber-400">IMDb</span>
+                        <span className="text-white font-medium">{rating}</span>
+                    </div>
+
+                    <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-white/90 text-[11px]">
+                        {yearLabel}
+                    </span>
+
+                    <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-white/90 text-[11px]">
+                        {timeLabel}
+                    </span>
+
+                    {categories.slice(0, 3).map((cat) => (
+                        <span
+                            key={cat}
+                            className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/90 border border-white/10"
+                        >
+                            {cat}
+                        </span>
+                    ))}
+                </div>
+
+                <div className="pt-2 border-t border-white/10">
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed line-clamp-2 sm:line-clamp-3 font-normal">
+                        {description}
+                    </p>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
 const AnimeShowcase = ({ movies = [], loading = false }) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const [dragDirection, setDragDirection] = useState(0);
-    const isDraggingRef = useRef(false);
+    const isTransitioningRef = useRef(false);
     const navigate = useNavigate();
 
     const scrollRef = useRef(null);
@@ -45,15 +190,23 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
     );
 
     const handleNext = useCallback(() => {
-        if (!totalMovies) return;
+        if (!totalMovies || isTransitioningRef.current) return;
+        isTransitioningRef.current = true;
         setDragDirection(1);
         setActiveIndex((prev) => (prev + 1) % totalMovies);
+        setTimeout(() => {
+            isTransitioningRef.current = false;
+        }, 280);
     }, [totalMovies]);
 
     const handlePrev = useCallback(() => {
-        if (!totalMovies) return;
+        if (!totalMovies || isTransitioningRef.current) return;
+        isTransitioningRef.current = true;
         setDragDirection(-1);
         setActiveIndex((prev) => (prev - 1 + totalMovies) % totalMovies);
+        setTimeout(() => {
+            isTransitioningRef.current = false;
+        }, 280);
     }, [totalMovies]);
 
     const checkScroll = () => {
@@ -114,9 +267,9 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
                     </div>
                 </div>
                 {/* Desktop skeleton */}
-                <div className="hidden md:block w-full h-[400px] sm:h-[380px] rounded-[28px] bg-[#1f2635] border border-white/10 animate-pulse" />
-                {/* Mobile skeleton */}
-                <div className="block md:hidden space-y-4">
+                <div className="hidden xl:block w-full h-[400px] sm:h-[380px] rounded-[28px] bg-[#1f2635] border border-white/10 animate-pulse" />
+                {/* Mobile & Tablet skeleton */}
+                <div className="block xl:hidden space-y-4">
                     <div className="w-full h-[390px] sm:h-[420px] rounded-[28px] bg-[#1f2635] border border-white/10 overflow-hidden animate-pulse flex flex-col">
                         <div className="w-full h-44 sm:h-48 bg-white/5" />
                         <div className="p-4 sm:p-5 space-y-3 flex-1">
@@ -217,191 +370,109 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
             </div>
 
             {/* ========================================================= */}
-            {/* MOBILE ONLY: CardStack Design Layout                      */}
+            {/* MOBILE & TABLET: CardStack Design Layout                  */}
             {/* ========================================================= */}
-            <div className="block md:hidden relative w-full pt-1 pb-2">
+            <div className="block xl:hidden relative w-full pt-1 pb-2">
                 {/* Ambient glow background */}
                 <div className="absolute -inset-x-2 -inset-y-4 bg-gradient-to-tr from-emerald-500/15 via-transparent to-teal-500/10 rounded-[36px] blur-3xl pointer-events-none -z-10" />
 
-                {/* Card Stack Container */}
-                <div className="relative w-full min-h-[390px] sm:min-h-[420px]">
+                {/* Card Stack Container: Full width matching other components, with right allowance for rotation */}
+                <div className="relative w-full pr-3.5 sm:pr-4 grid grid-cols-1">
                     {/* Layer 2 (Bottom-most card behind) */}
                     {nextMovie2 && (
                         <div
-                            className="absolute inset-x-0 top-0 h-full rounded-[28px] bg-[#141924] border border-white/10 shadow-sm pointer-events-none origin-bottom-left transition-transform duration-300 overflow-hidden flex flex-col"
+                            className="col-start-1 row-start-1 w-full h-full rounded-[28px] bg-[#1a2232] border border-white/15 shadow-md pointer-events-none origin-bottom-left overflow-hidden flex flex-col transition-all duration-300"
                             style={{
-                                transform: "translateY(12px) rotate(2.8deg)",
-                                opacity: 0.5,
+                                transform: "translateY(22px) rotate(2.8deg)",
                                 zIndex: 10,
                             }}
                         >
-                            <div className="relative w-full h-44 sm:h-48 overflow-hidden bg-slate-900 rounded-t-[28px] flex-shrink-0">
+                            <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-slate-900/80 rounded-t-[28px] flex-shrink-0">
                                 <img
                                     src={backdropSrc2}
                                     alt=""
-                                    className="w-full h-full object-cover object-center opacity-80"
+                                    className="w-full h-full object-cover object-center opacity-60"
                                     loading="lazy"
                                     onError={(e) => {
                                         e.currentTarget.onerror = null;
                                         e.currentTarget.src = fallbackImage;
                                     }}
                                 />
-                                <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#141924] to-transparent" />
+                                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#1a2232] to-transparent" />
                             </div>
-                            <div className="flex-1 bg-[#141924]" />
+                            <div className="flex-1 bg-[#1a2232]" />
                         </div>
                     )}
 
                     {/* Layer 1 (Middle card behind) */}
                     {nextMovie1 && (
                         <div
-                            className="absolute inset-x-0 top-0 h-full rounded-[28px] bg-[#19202f] border border-white/12 shadow-md pointer-events-none origin-bottom-left transition-transform duration-300 overflow-hidden flex flex-col"
+                            className="col-start-1 row-start-1 w-full h-full rounded-[28px] bg-[#242e42] border border-white/20 shadow-lg pointer-events-none origin-bottom-left overflow-hidden flex flex-col transition-all duration-300"
                             style={{
-                                transform: "translateY(6px) rotate(1.5deg)",
-                                opacity: 0.78,
+                                transform: "translateY(11px) rotate(1.4deg)",
                                 zIndex: 20,
                             }}
                         >
-                            <div className="relative w-full h-44 sm:h-48 overflow-hidden bg-slate-900 rounded-t-[28px] flex-shrink-0">
+                            <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-slate-900/80 rounded-t-[28px] flex-shrink-0">
                                 <img
                                     src={backdropSrc1}
                                     alt=""
-                                    className="w-full h-full object-cover object-center opacity-90"
+                                    className="w-full h-full object-cover object-center opacity-75"
                                     loading="lazy"
                                     onError={(e) => {
                                         e.currentTarget.onerror = null;
                                         e.currentTarget.src = fallbackImage;
                                     }}
                                 />
-                                <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#19202f] to-transparent" />
+                                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#242e42] to-transparent" />
                             </div>
-                            <div className="flex-1 bg-[#19202f]" />
+
+                            {/* 2. Skeleton Loader Placeholder for Peek UX */}
+                            <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow space-y-3 animate-pulse opacity-70">
+                                {/* Titles Skeleton */}
+                                <div className="space-y-1.5">
+                                    <div className="h-5 sm:h-6 w-3/4 bg-white/15 rounded-md" />
+                                    <div className="h-3.5 w-2/5 bg-amber-400/20 rounded-md" />
+                                </div>
+
+                                {/* Badges Skeleton */}
+                                <div className="flex items-center gap-2 pt-0.5">
+                                    <div className="h-5 w-14 rounded bg-amber-400/25 border border-amber-400/30" />
+                                    <div className="h-5 w-12 rounded bg-white/15 border border-white/10" />
+                                    <div className="h-5 w-14 rounded bg-white/15 border border-white/10" />
+                                    <div className="h-5 w-16 rounded-md bg-white/10" />
+                                </div>
+
+                                {/* Synopsis Skeleton */}
+                                <div className="pt-2 border-t border-white/10 space-y-1.5">
+                                    <div className="h-3 w-full bg-white/10 rounded" />
+                                    <div className="h-3 w-4/5 bg-white/10 rounded" />
+                                </div>
+                            </div>
                         </div>
                     )}
 
-                    {/* Layer 0 (Top Active Card) */}
-                    <AnimatePresence initial={false} mode="wait">
-                        <motion.div
+                    {/* Layer 0 (Top Active Card with dynamic tilt physics) */}
+                    <AnimatePresence initial={false} custom={dragDirection}>
+                        <CardStackItem
                             key={displayMovie?.slug || activeIndex}
-                            initial={{
-                                opacity: 0.85,
-                                scale: 0.98,
-                                x: dragDirection > 0 ? 30 : -30,
-                            }}
-                            animate={{
-                                opacity: 1,
-                                scale: 1,
-                                x: 0,
-                                rotate: 0,
-                                y: 0,
-                            }}
-                            exit={{
-                                opacity: 0,
-                                scale: 0.94,
-                                x: dragDirection > 0 ? -40 : 40,
-                            }}
-                            transition={{
-                                type: "spring",
-                                stiffness: 320,
-                                damping: 28,
-                            }}
-                            drag="x"
-                            dragConstraints={{ left: 0, right: 0 }}
-                            dragElastic={0.25}
-                            onDragStart={() => {
-                                isDraggingRef.current = true;
-                            }}
-                            onDragEnd={(e, { offset, velocity }) => {
-                                setTimeout(() => {
-                                    isDraggingRef.current = false;
-                                }, 60);
-
-                                if (offset.x < -45 || velocity.x < -350) {
-                                    handleNext();
-                                } else if (offset.x > 45 || velocity.x > 350) {
-                                    handlePrev();
-                                }
-                            }}
-                            onClick={() => {
-                                if (!isDraggingRef.current && displayMovie?.slug) {
-                                    navigate(`/movie/${displayMovie.slug}`);
-                                }
-                            }}
-                            className="group/card relative min-h-[390px] sm:min-h-[420px] w-full rounded-[28px] bg-[#1f2635] border border-white/15 shadow-2xl overflow-hidden cursor-grab active:cursor-grabbing flex flex-col select-none"
-                            style={{ zIndex: 30 }}
-                        >
-                            {/* 1. Horizontal Banner Image (Ảnh ngang ban đầu) */}
-                            <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-slate-900 rounded-t-[28px] flex-shrink-0">
-                                <img
-                                    key={displayMovie?.slug}
-                                    src={backdropSrc}
-                                    alt={displayMovie?.name || "Anime"}
-                                    className="w-full h-full object-cover object-center transition-transform duration-500 group-hover/card:scale-105 filter brightness-105"
-                                    onError={(e) => {
-                                        e.currentTarget.onerror = null;
-                                        e.currentTarget.src = fallbackImage;
-                                    }}
-                                />
-                                {/* Bottom gradient overlay blending smoothly into card body */}
-                                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#1f2635] via-[#1f2635]/65 to-transparent pointer-events-none" />
-                            </div>
-
-                            {/* 2. Card Body Info */}
-                            <div className="p-4 sm:p-5 flex flex-col justify-between flex-grow space-y-2.5">
-                                {/* Titles */}
-                                <div className="space-y-0.5">
-                                    <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight leading-snug line-clamp-2 drop-shadow-sm group-hover/card:text-emerald-400 transition-colors">
-                                        {displayMovie?.name}
-                                    </h3>
-                                    {displayMovie?.origin_name && (
-                                        <p className="text-xs sm:text-sm font-medium text-[#f59e0b] line-clamp-1">
-                                            {displayMovie.origin_name}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Meta Badges line: IMDb | Year | Duration */}
-                                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold pt-0.5">
-                                    {/* IMDb Badge */}
-                                    <div className="flex items-center gap-1 rounded border border-amber-400/60 bg-black/40 px-2 py-0.5 text-amber-400 shadow-sm">
-                                        <span className="font-extrabold text-[11px] text-amber-400">IMDb</span>
-                                        <span className="text-white font-medium">{rating}</span>
-                                    </div>
-
-                                    {/* Year Badge */}
-                                    <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-white/90 text-[11px]">
-                                        {yearLabel}
-                                    </span>
-
-                                    {/* Duration Badge */}
-                                    <span className="rounded border border-white/20 bg-white/10 px-2 py-0.5 text-white/90 text-[11px]">
-                                        {timeLabel}
-                                    </span>
-
-                                    {/* Genre Pills */}
-                                    {categories.slice(0, 3).map((cat) => (
-                                        <span
-                                            key={cat}
-                                            className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium text-white/90 border border-white/10"
-                                        >
-                                            {cat}
-                                        </span>
-                                    ))}
-                                </div>
-
-                                {/* Synopsis text */}
-                                <div className="pt-2 border-t border-white/10">
-                                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed line-clamp-2 sm:line-clamp-3 font-normal">
-                                        {description}
-                                    </p>
-                                </div>
-                            </div>
-                        </motion.div>
+                            displayMovie={displayMovie}
+                            backdropSrc={backdropSrc}
+                            rating={rating}
+                            yearLabel={yearLabel}
+                            timeLabel={timeLabel}
+                            categories={categories}
+                            description={description}
+                            dragDirection={dragDirection}
+                            handleNext={handleNext}
+                            handlePrev={handlePrev}
+                            navigate={navigate}
+                        />
                     </AnimatePresence>
                 </div>
 
                 {/* Bottom Navigation Controls (matching illustration) */}
-                <div className="relative z-40 flex items-center justify-center gap-4 sm:gap-5 mt-8 sm:mt-10">
+                <div className="relative z-40 flex items-center justify-center gap-4 sm:gap-5 mt-9 sm:mt-11">
                     {/* Prev Circular Button */}
                     <button
                         type="button"
@@ -421,6 +492,7 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
                                     key={dotIdx}
                                     type="button"
                                     onClick={() => {
+                                        if (isTransitioningRef.current || dotIdx === activeIndex) return;
                                         setDragDirection(dotIdx > activeIndex ? 1 : -1);
                                         setActiveIndex(dotIdx);
                                     }}
@@ -454,7 +526,7 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
             {/* ========================================================= */}
             {/* DESKTOP ONLY: Full Showcase View with Posters & Actions  */}
             {/* ========================================================= */}
-            <div className="hidden md:block relative w-full rounded-[24px] sm:rounded-[28px] border border-white/10 bg-[#1f2635] shadow-2xl mb-10 sm:mb-12">
+            <div className="hidden xl:block relative w-full rounded-[24px] sm:rounded-[28px] border border-white/10 bg-[#1f2635] shadow-2xl mb-10 sm:mb-12">
 
                 {/* Top Preview Block */}
                 <div className="relative min-h-[380px] sm:min-h-[350px] md:min-h-[340px] lg:min-h-[360px] pb-14 sm:pb-14 md:pb-14 flex flex-col md:flex-row items-stretch overflow-hidden rounded-[24px] sm:rounded-[28px]">

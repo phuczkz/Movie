@@ -1,38 +1,42 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronDown, Search } from "lucide-react";
-import { useMovieCountries } from "@/features/movies/hooks/useKKphimMovies";
+import { useMovieGenres } from "@/features/movies/hooks/useKKphimMovies";
+import { isForbiddenGenre } from "@/utils/filter";
 
-const DEFAULT_COUNTRY_OPTIONS = [
-  { label: "Tất cả quốc gia", value: "" },
-  { label: "Việt Nam", value: "viet-nam" },
-  { label: "Hàn Quốc", value: "han-quoc" },
-  { label: "Nhật Bản", value: "nhat-ban" },
-  { label: "Trung Quốc", value: "trung-quoc" },
-  { label: "Mỹ", value: "my" },
-  { label: "Anh", value: "anh" },
-  { label: "Thái Lan", value: "thai-lan" },
-  { label: "Âu Mỹ", value: "au-my" },
+const DEFAULT_GENRE_OPTIONS = [
+  { label: "Tất cả thể loại", value: "" },
+  { label: "Hành Động", value: "hanh-dong" },
+  { label: "Tình Cảm", value: "tinh-cam" },
+  { label: "Hài Hước", value: "hai-huoc" },
+  { label: "Kinh Dị", value: "kinh-di" },
+  { label: "Tâm Lý", value: "tam-ly" },
+  { label: "Phiêu Lưu", value: "phieu-luu" },
+  { label: "Hoạt Hình", value: "hoat-hinh" },
+  { label: "Cổ Trang", value: "co-trang" },
+  { label: "Khoa Học", value: "khoa-hoc" },
+  { label: "Viễn Tưởng", value: "vien-tuong" },
 ];
 
-const CountryFilter = ({ value, onChange, label = "Quốc gia:" }) => {
+const GenreFilter = ({ value, onChange, label = "Thể loại:" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef(null);
 
-  const { data: apiCountries = [] } = useMovieCountries();
+  const { data: apiGenres = [] } = useMovieGenres();
 
   const options = useMemo(() => {
-    if (apiCountries && apiCountries.length > 0) {
+    if (apiGenres && apiGenres.length > 0) {
+      const filtered = apiGenres.filter((g) => !isForbiddenGenre(g));
       return [
-        { label: "Tất cả quốc gia", value: "" },
-        ...apiCountries.map((c) => ({
-          label: c.name,
-          value: c.slug,
+        { label: "Tất cả thể loại", value: "" },
+        ...filtered.map((g) => ({
+          label: g.name,
+          value: g.slug,
         })),
       ];
     }
-    return DEFAULT_COUNTRY_OPTIONS;
-  }, [apiCountries]);
+    return DEFAULT_GENRE_OPTIONS;
+  }, [apiGenres]);
 
   const selectedOption =
     options.find((opt) => opt.value === value) || options[0];
@@ -83,7 +87,7 @@ const CountryFilter = ({ value, onChange, label = "Quốc gia:" }) => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm quốc gia..."
+                  placeholder="Tìm thể loại..."
                   className="w-full rounded-lg bg-white/5 pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-400 border border-white/10 focus:border-emerald-400 focus:outline-none"
                   autoFocus
                 />
@@ -122,4 +126,4 @@ const CountryFilter = ({ value, onChange, label = "Quốc gia:" }) => {
   );
 };
 
-export default CountryFilter;
+export default GenreFilter;

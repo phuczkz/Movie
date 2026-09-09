@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useReducer } from "react";
+import { useEffect, useRef, useState, useReducer, useMemo } from "react";
 import {
   ChevronDown,
   LogIn,
@@ -15,6 +15,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import { useAppMode } from '@/context/AppModeContext';
 import { comicApi } from '@/features/comics/api/comicApi';
+import { useMovieGenres, useMovieCountries } from '@/features/movies/hooks/useKKphimMovies.js';
+import { isForbiddenGenre } from '@/utils/filter.js';
 import SearchBar from '@/components/SearchBar.jsx';
 import Notifications from '@/components/Notifications.jsx';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
@@ -63,7 +65,7 @@ const comicGenreOptions = [
   { label: "Manhwa", to: "/comics/the-loai/manhwa" },
 ];
 
-const Dropdown = ({ label, options, isWide = false }) => {
+const Dropdown = ({ label, options, variant = "default", isWide = false }) => {
   const [open, setOpen] = useState(false);
   const timerRef = useRef(null);
   const isHoverDevice = useRef(
@@ -86,7 +88,7 @@ const Dropdown = ({ label, options, isWide = false }) => {
   const closeLater = () => {
     if (!isHoverDevice.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setOpen(false), 100);
+    timerRef.current = setTimeout(() => setOpen(false), 150);
   };
 
   const handleButtonClick = () => {
@@ -94,13 +96,30 @@ const Dropdown = ({ label, options, isWide = false }) => {
     setOpen(!open);
   };
 
-  // Close when clicking outside on mobile
+  // Close when clicking outside
   useEffect(() => {
-    if (isHoverDevice.current || !open) return;
+    if (!open) return;
     const handleClickOutside = () => setOpen(false);
     window.addEventListener("click", handleClickOutside);
     return () => window.removeEventListener("click", handleClickOutside);
   }, [open]);
+
+  // Determine container placement and grid classes based on variant or isWide
+  let containerClasses = "left-1/2 -translate-x-1/2 w-48";
+  let gridClasses = "space-y-1 max-h-[400px]";
+
+  const effectiveVariant = variant !== "default" ? variant : (isWide ? "comic-genre" : "default");
+
+  if (effectiveVariant === "movie-genre") {
+    containerClasses = "fixed inset-x-4 top-[64px] sm:top-[70px] lg:absolute lg:top-full lg:inset-x-auto lg:right-[-60px] xl:right-[-20px] 2xl:right-0 lg:w-[620px] xl:w-[700px] max-w-[calc(100vw-2rem)]";
+    gridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-1.5 max-h-[380px]";
+  } else if (effectiveVariant === "movie-country") {
+    containerClasses = "fixed inset-x-4 top-[64px] sm:top-[70px] lg:absolute lg:top-full lg:inset-x-auto lg:right-0 lg:w-[660px] xl:w-[760px] max-w-[calc(100vw-2rem)]";
+    gridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 max-h-[380px]";
+  } else if (effectiveVariant === "comic-genre") {
+    containerClasses = "fixed inset-x-4 top-[64px] sm:top-[70px] lg:absolute lg:top-full lg:inset-x-auto lg:right-[-120px] xl:right-[-50px] 2xl:right-0 lg:w-[800px] xl:w-[1050px] 2xl:w-[1200px] max-w-[calc(100vw-2rem)]";
+    gridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-1.5 max-h-[380px]";
+  }
 
   return (
     <div
@@ -121,25 +140,16 @@ const Dropdown = ({ label, options, isWide = false }) => {
         />
       </button>
       {open && (
-        <div
-          className={`absolute z-30 mt-2 pt-1 ${isWide
-            ? "fixed inset-x-4 lg:absolute lg:-right-40 lg:left-auto lg:translate-x-0 lg:w-[800px] xl:w-[1100px] 2xl:w-[1250px]"
-            : "left-1/2 -translate-x-1/2 w-48"
-            }`}
-        >
-          <div
-            className={`rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur shadow-xl p-4 custom-scrollbar overflow-y-auto ${isWide
-              ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-x-2 gap-y-1 max-h-[350px]"
-              : "space-y-1 max-h-[400px]"
-              }`}
-          >
+        <div className={`absolute z-40 mt-2 pt-1 ${containerClasses}`}>
+          <div className={`rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl p-4 custom-scrollbar overflow-y-auto ${gridClasses}`}>
             {options.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
-                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm text-slate-100 hover:bg-white/10 transition-colors whitespace-nowrap"
+                onClick={() => setOpen(false)}
+                className="flex items-center px-2.5 py-1.5 rounded-lg text-xs xl:text-sm text-slate-300 hover:text-white hover:bg-emerald-500/20 hover:border-emerald-500/30 border border-transparent transition-all truncate"
               >
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
               </Link>
             ))}
           </div>
@@ -160,18 +170,23 @@ const MobileDropdown = ({ label, options, onNavigate }) => {
         onClick={() => setOpen((v) => !v)}
       >
         <span>{label}</span>
-        <ChevronDown
-          className={`size-4 transition ${open ? "rotate-180" : "rotate-0"}`}
-        />
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 font-normal">
+            ({options.length})
+          </span>
+          <ChevronDown
+            className={`size-4 transition-transform duration-200 ${open ? "rotate-180" : "rotate-0"}`}
+          />
+        </div>
       </button>
       {open && (
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm text-white/90 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-white/90 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
           {options.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               onClick={onNavigate}
-              className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-center"
+              className="rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:text-emerald-300 px-2.5 py-2 text-center text-xs font-medium text-slate-200 transition-all active:scale-95 truncate"
             >
               {item.label}
             </Link>
@@ -253,6 +268,31 @@ const Header = () => {
 
   const apiGenreOptions = apiGenreOptionsData || [];
 
+  const { data: apiMovieGenres = [] } = useMovieGenres({ enabled: !isComicMode });
+  const { data: apiMovieCountries = [] } = useMovieCountries({ enabled: !isComicMode });
+
+  const dynamicMovieGenreOptions = useMemo(() => {
+    if (apiMovieGenres.length > 0) {
+      return apiMovieGenres
+        .filter((item) => !isForbiddenGenre(item))
+        .map((item) => ({
+          label: item.name,
+          to: `/category/${item.slug}`,
+        }));
+    }
+    return movieGenreOptions;
+  }, [apiMovieGenres]);
+
+  const dynamicMovieCountryOptions = useMemo(() => {
+    if (apiMovieCountries.length > 0) {
+      return apiMovieCountries.map((item) => ({
+        label: item.name,
+        to: `/country/${item.slug}`,
+      }));
+    }
+    return movieCountryOptions;
+  }, [apiMovieCountries]);
+
   const closeAll = () => {
     dispatch({ type: "CLOSE_ALL" });
   };
@@ -296,7 +336,8 @@ const Header = () => {
     ? apiGenreOptions.length > 0
       ? apiGenreOptions
       : comicGenreOptions
-    : movieGenreOptions;
+    : dynamicMovieGenreOptions;
+  const countryOptions = dynamicMovieCountryOptions;
 
   const isHome = location.pathname === "/" || location.pathname === "/comics";
   const isDetail =
@@ -401,10 +442,14 @@ const Header = () => {
             <Dropdown
               label="Thể Loại"
               options={genreOptions}
-              isWide={isComicMode}
+              variant={isComicMode ? "comic-genre" : "movie-genre"}
             />
             {!isComicMode && (
-              <Dropdown label="Quốc Gia" options={movieCountryOptions} />
+              <Dropdown
+                label="Quốc Gia"
+                options={countryOptions}
+                variant="movie-country"
+              />
             )}
           </nav>
 
@@ -607,7 +652,7 @@ const Header = () => {
                 {!isComicMode && (
                   <MobileDropdown
                     label="Quốc Gia"
-                    options={movieCountryOptions}
+                    options={countryOptions}
                     onNavigate={closeAll}
                   />
                 )}

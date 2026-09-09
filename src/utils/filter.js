@@ -1,3 +1,25 @@
+export const FORBIDDEN_CATEGORIES = ["Phim 18+", "18+", "Cấp 3", "Sexy", "Adult"];
+export const FORBIDDEN_SLUGS = ["phim-18", "18-plus", "cap-3", "adult", "sexy", "18"];
+
+/**
+ * Checks if a genre or slug belongs to forbidden 18+ categories.
+ * @param {string|Object} genreOrSlug 
+ * @returns {boolean}
+ */
+export const isForbiddenGenre = (genreOrSlug) => {
+  if (!genreOrSlug) return false;
+  const name = (typeof genreOrSlug === "string" ? genreOrSlug : genreOrSlug?.name || "").toLowerCase().trim();
+  const slug = (typeof genreOrSlug === "string" ? genreOrSlug : genreOrSlug?.slug || "").toLowerCase().trim();
+
+  return (
+    FORBIDDEN_SLUGS.some((f) => slug === f || slug.includes(f)) ||
+    FORBIDDEN_CATEGORIES.some((f) => name.includes(f.toLowerCase())) ||
+    slug === "phim-18" ||
+    slug.includes("18") ||
+    name.includes("18+")
+  );
+};
+
 /**
  * Checks if a movie belongs to the "Phim 18+" category or contains adult content.
  * @param {Object} movie 
@@ -6,8 +28,8 @@
 export const isAdultMovie = (movie) => {
   if (!movie) return false;
 
-  const forbiddenCategories = ["Phim 18+", "18+", "Cấp 3", "Sexy", "Adult"];
-  const forbiddenSlugs = ["phim-18", "18-plus", "cap-3", "adult", "sexy"];
+  const forbiddenCategories = FORBIDDEN_CATEGORIES;
+  const forbiddenSlugs = FORBIDDEN_SLUGS;
 
   // Check categories
   const categories = movie.category || movie.genres || [];

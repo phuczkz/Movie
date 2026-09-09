@@ -1,5 +1,5 @@
 import axios from "axios";
-import { filterAdultMovies, isAdultMovie } from '@/utils/filter';
+import { filterAdultMovies, isAdultMovie, isForbiddenGenre } from '@/utils/filter';
 
 // Helpers to escape and decode HTML entities for search queries and display names
 const decodeHtmlEntities = (str = "") => {
@@ -162,6 +162,9 @@ const uniqueBySlug = (items = []) => {
 };
 
 const fetchList = async (path, page = 1, extraParams = {}) => {
+  if (extraParams.category && isForbiddenGenre(extraParams.category)) {
+    return [];
+  }
   const config = { params: { page, ...extraParams } };
   if (path === "/danh-sach/phim-moi-cap-nhat") {
     // This endpoint is hosted directly under the API base URL without the /v1/api prefix
@@ -248,6 +251,9 @@ export const getKKphimByYear = async (year, page = 1) => {
 };
 
 export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
+  if (!slug || isForbiddenGenre(slug) || (extraParams.category && isForbiddenGenre(extraParams.category))) {
+    return [];
+  }
   try {
     const { data } = await kkphim.get(`/the-loai/${slug}`, {
       params: { page, ...extraParams },
@@ -261,6 +267,9 @@ export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
 };
 
 export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
+  if (!slug || (extraParams.category && isForbiddenGenre(extraParams.category))) {
+    return [];
+  }
   try {
     const { data } = await kkphim.get(`/quoc-gia/${slug}`, {
       params: { page, ...extraParams },
@@ -270,6 +279,58 @@ export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
   } catch (error) {
     if (error?.response?.status === 404) return [];
     throw error;
+  }
+};
+
+export const getKKphimGenres = async () => {
+  try {
+    const { data } = await kkphim.get("/the-loai");
+    const items = data?.data?.items || data?.items || [];
+    return items.filter((item) => !isForbiddenGenre(item));
+  } catch (error) {
+    console.warn("kkphim /the-loai via v1/api failed, trying base URL:", error);
+    try {
+      const resp = await axios.get(`${import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com"}/the-loai`);
+      const items = resp.data?.data?.items || resp.data?.items || [];
+      return items.filter((item) => !isForbiddenGenre(item));
+    } catch (e) {
+      console.error("getKKphimGenres failed:", e);
+      return [];
+    }
+  }
+};
+
+export const getKKphimCountries = async () => {
+  try {
+    const { data } = await kkphim.get("/quoc-gia");
+    return data?.data?.items || data?.items || [];
+  } catch (error) {
+    console.warn("kkphim /quoc-gia via v1/api failed, trying base URL:", error);
+    try {
+      const resp = await axios.get(`${import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com"}/quoc-gia`);
+      return resp.data?.data?.items || resp.data?.items || [];
+    } catch (e) {
+      console.error("getKKphimCountries failed:", e);
+      return [];
+    }
+  }
+};
+
+export const getKKphimYears = async () => {
+  try {
+    const { data } = await kkphim.get("/nam-phat-hanh");
+    const items = data?.data?.items || data?.items || [];
+    return items.map((item) => String(item.year || item)).filter(Boolean);
+  } catch (error) {
+    console.warn("kkphim /nam-phat-hanh via v1/api failed, trying base URL:", error);
+    try {
+      const resp = await axios.get(`${import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com"}/nam-phat-hanh`);
+      const items = resp.data?.data?.items || resp.data?.items || [];
+      return items.map((item) => String(item.year || item)).filter(Boolean);
+    } catch (e) {
+      console.error("getKKphimYears failed:", e);
+      return [];
+    }
   }
 };
 

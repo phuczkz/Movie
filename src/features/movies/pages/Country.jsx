@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import CountryFilter from '@/components/CountryFilter.jsx';
+import GenreFilter from '@/components/GenreFilter.jsx';
 import YearFilter from '@/components/YearFilter.jsx';
-import TypeFilter from '@/components/TypeFilter.jsx';
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import GridSkeleton from '@/components/GridSkeleton.jsx';
-import { useKKphimByCountry } from '@/features/movies/hooks/useKKphimMovies.js';
+import { useKKphimByCountry, useMovieCountries } from '@/features/movies/hooks/useKKphimMovies.js';
+import { isForbiddenGenre } from '@/utils/filter.js';
 import Pagination from '@/components/Pagination.jsx';
 import SEO from '@/components/SEO.jsx';
 
@@ -22,13 +23,16 @@ const countryLabels = {
 
 const Country = () => {
   const { country, page: pageParam } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const genreParam = searchParams.get("genre") || "";
   const yearParam = searchParams.get("year") || "";
-  const typeParam = searchParams.get("type") || "";
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
   const page = pageFromUrl;
-  const pageSize = 20;
+
+  const isForbidden = isForbiddenGenre(genreParam);
+
+  const { data: dynamicCountries = [] } = useMovieCountries();
 
   const goToPage = (nextPage) => {
     const safePage = Math.max(1, nextPage);
@@ -41,66 +45,87 @@ const Country = () => {
     country || "",
     {
       page,
-      enabled: Boolean(country),
+      enabled: Boolean(country) && !isForbidden,
+      category: genreParam,
       year: yearParam,
-      movieType: typeParam,
     }
   );
 
   const movies = useMemo(() => {
-    let result = kkphim || [];
-
-    if (yearParam) {
-      result = result.filter(
-        (m) => m.year && String(m.year) === String(yearParam)
-      );
-    }
-
-    if (typeParam) {
-      result = result.filter(
-        (m) => m.type && String(m.type) === String(typeParam)
-      );
-    }
-
-    return result;
-  }, [kkphim, yearParam, typeParam]);
+    return kkphim || [];
+  }, [kkphim]);
 
   const pagedData = useMemo(() => {
-    const limited = movies.slice(0, pageSize);
-    const hasNext = movies.length >= pageSize;
-    return { items: limited, hasNext };
-  }, [movies, pageSize]);
+    const hasNext = movies.length >= 24;
+    return { items: movies, hasNext };
+  }, [movies]);
 
-  const heading = useMemo(() => countryLabels[country] || country, [country]);
+  const heading = useMemo(() => {
+    const found = dynamicCountries.find((c) => c.slug === country);
+    if (found?.name) return found.name;
+    return countryLabels[country] || country;
+  }, [country, dynamicCountries]);
+
+  const updateFilterParams = (updater) => {
+    const newParams = new URLSearchParams(searchParams);
+    updater(newParams);
+    const queryString = newParams.toString();
+    navigate(`/country/${country}${queryString ? `?${queryString}` : ""}`);
+  };
 
   const handleChange = (value) => {
-    if (!value) return;
-    navigate(`/country/${value}`);
+    if (!value) {
+      // Chuyển về "Tất cả quốc gia"
+      const newParams = new URLSearchParams(searchParams);
+      if (genreParam) {
+        newParams.delete("genre");
+        const queryString = newParams.toString();
+        navigate(`/category/${genreParam}${queryString ? `?${queryString}` : ""}`);
+      } else {
+        const queryString = newParams.toString();
+        navigate(`/category/phim-moi${queryString ? `?${queryString}` : ""}`);
+      }
+      return;
+    }
+    const queryString = searchParams.toString();
+    navigate(`/country/${value}${queryString ? `?${queryString}` : ""}`);
+  };
+
+  const handleGenreChange = (value) => {
+    updateFilterParams((p) => {
+      if (value) p.set("genre", value);
+      else p.delete("genre");
+    });
   };
 
   const handleYearChange = (value) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set("year", value);
-    } else {
-      newParams.delete("year");
-    }
-    setSearchParams(newParams);
+    updateFilterParams((p) => {
+      if (value) p.set("year", value);
+      else p.delete("year");
+    });
   };
 
-  const handleTypeChange = (value) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set("type", value);
-    } else {
-      newParams.delete("type");
-    }
-    setSearchParams(newParams);
-  };
+  if (isForbidden) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
+        <h2 className="text-xl font-bold text-white">Nội dung không khả dụng</h2>
+        <p className="text-slate-400 text-sm max-w-md">
+          Thể loại phim này không tồn tại hoặc đã bị hạn chế trên hệ thống.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="px-5 py-2.5 rounded-xl bg-emerald-500 text-emerald-950 font-semibold text-sm hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20"
+        >
+          Về trang chủ
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <SEO title={`Danh sách phim ${heading} ${typeParam} ${yearParam}`} />
+      <SEO title={`Danh sách phim ${heading} ${yearParam}`.trim()} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-slate-400 uppercase tracking-[0.14em]">
@@ -110,8 +135,8 @@ const Country = () => {
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <CountryFilter value={country || ""} onChange={handleChange} />
+          <GenreFilter value={genreParam} onChange={handleGenreChange} />
           <YearFilter value={yearParam} onChange={handleYearChange} />
-          <TypeFilter value={typeParam} onChange={handleTypeChange} />
         </div>
       </div>
 

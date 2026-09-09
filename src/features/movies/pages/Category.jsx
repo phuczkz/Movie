@@ -3,15 +3,17 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import GridSkeleton from '@/components/GridSkeleton.jsx';
 import CountryFilter from '@/components/CountryFilter.jsx';
+import GenreFilter from '@/components/GenreFilter.jsx';
 import YearFilter from '@/components/YearFilter.jsx';
-import TypeFilter from '@/components/TypeFilter.jsx';
 import Pagination from '@/components/Pagination.jsx';
 import {
   useKKphimByCategory,
   useKKphimMovies,
+  useMovieGenres,
 } from '@/features/movies/hooks/useKKphimMovies.js';
 import { useChieuRapMerged } from '@/features/movies/hooks/useChieuRapMerged.js';
 import { useHoatHinhMerged } from '@/features/movies/hooks/useHoatHinhMerged.js';
+import { isForbiddenGenre } from '@/utils/filter.js';
 import SEO from '@/components/SEO.jsx';
 
 const categoryLabels = {
@@ -27,14 +29,15 @@ const categoryLabels = {
 
 const Category = () => {
   const { category, page: pageParam } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const countryParam = searchParams.get("country") || "";
+  const genreParam = searchParams.get("genre") || "";
   const yearParam = searchParams.get("year") || "";
-  const typeParam = searchParams.get("type") || "";
   const navigate = useNavigate();
   const pageFromUrl = Math.max(1, Number(pageParam) || 1);
   const page = pageFromUrl;
-  const pageSize = 20;
+
+  const isForbidden = isForbiddenGenre(category) || (genreParam && isForbiddenGenre(genreParam));
 
   const goToPage = (nextPage) => {
     const safePage = Math.max(1, nextPage);
@@ -52,62 +55,63 @@ const Category = () => {
   const isHoatHinh = category === "hoat-hinh";
   const isCategory = !isSeries && !isSingle && !isLatest && !isChieuRap && !isHoatHinh;
 
+  const { data: dynamicGenres = [] } = useMovieGenres();
+
   const { data: seriesKK = [], isLoading: loadingSeriesKK } = useKKphimMovies(
     "series",
     {
-      enabled: isSeries,
+      enabled: isSeries && !isForbidden,
       page,
       country: countryParam,
       year: yearParam,
-      movieType: typeParam,
+      category: genreParam,
     }
   );
 
   const { data: singleKK = [], isLoading: loadingSingleKK } = useKKphimMovies(
     "single",
     {
-      enabled: isSingle,
+      enabled: isSingle && !isForbidden,
       page,
       country: countryParam,
       year: yearParam,
-      movieType: typeParam,
+      category: genreParam,
     }
   );
 
   const { data: latestKK = [], isLoading: loadingLatestKK } = useKKphimMovies(
     "latest",
     {
-      enabled: isLatest,
+      enabled: isLatest && !isForbidden,
       page,
       country: countryParam,
       year: yearParam,
-      movieType: typeParam,
+      category: genreParam,
     }
   );
 
   const { data: mergedChieuRap = [], isLoading: loadingChieuRap } =
     useChieuRapMerged(page, {
-      enabled: isChieuRap,
+      enabled: isChieuRap && !isForbidden,
       country: countryParam,
       year: yearParam,
-      movieType: typeParam,
+      category: genreParam,
     });
 
   const { data: mergedHoatHinh = [], isLoading: loadingHoatHinh } =
     useHoatHinhMerged(page, {
-      enabled: isHoatHinh,
+      enabled: isHoatHinh && !isForbidden,
       country: countryParam,
       year: yearParam,
-      movieType: typeParam,
+      category: genreParam,
     });
 
   const { data: kkCategory = [], isLoading: loadingKKCategory } =
     useKKphimByCategory(category, {
-      enabled: isCategory,
+      enabled: isCategory && !isForbidden,
       page,
       country: countryParam,
       year: yearParam,
-      movieType: typeParam,
     });
 
   const heading = useMemo(() => {
@@ -115,8 +119,11 @@ const Category = () => {
     if (isSingle) return "Phim lẻ";
     if (isLatest) return "Phim mới";
     if (isChieuRap) return "Phim chiếu rạp";
+    if (isHoatHinh) return "Hoạt hình";
+    const found = dynamicGenres.find((g) => g.slug === category);
+    if (found?.name) return found.name;
     return categoryLabels[category] || category;
-  }, [isSeries, isSingle, isLatest, isChieuRap, category]);
+  }, [isSeries, isSingle, isLatest, isChieuRap, isHoatHinh, category, dynamicGenres]);
 
   const mergedData = useMemo(() => {
     let result = [];
@@ -127,28 +134,38 @@ const Category = () => {
     else if (isHoatHinh) result = mergedHoatHinh;
     else result = kkCategory;
 
-    if (countryParam) {
-      result = result.filter((m) => {
-        if (!m.country) return false;
-        if (Array.isArray(m.country)) {
-          return m.country.some(
-            (c) => (typeof c === "string" ? c : c.slug) === countryParam
-          );
-        }
-        return false;
-      });
-    }
+    // For latestKK (/danh-sach/phim-moi-cap-nhat), apply client-side filtering as fallback
+    // because that specific endpoint does not filter server-side
+    if (isLatest) {
+      if (countryParam) {
+        result = result.filter((m) => {
+          if (!m.country) return false;
+          if (Array.isArray(m.country)) {
+            return m.country.some(
+              (c) => (typeof c === "string" ? c : c.slug) === countryParam
+            );
+          }
+          return false;
+        });
+      }
 
-    if (yearParam) {
-      result = result.filter(
-        (m) => m.year && String(m.year) === String(yearParam)
-      );
-    }
+      if (genreParam) {
+        result = result.filter((m) => {
+          if (!m.category) return false;
+          if (Array.isArray(m.category)) {
+            return m.category.some(
+              (c) => (typeof c === "string" ? c : c.slug) === genreParam
+            );
+          }
+          return false;
+        });
+      }
 
-    if (typeParam) {
-      result = result.filter(
-        (m) => m.type && String(m.type) === String(typeParam)
-      );
+      if (yearParam) {
+        result = result.filter(
+          (m) => m.year && String(m.year) === String(yearParam)
+        );
+      }
     }
 
     return result;
@@ -165,8 +182,8 @@ const Category = () => {
     singleKK,
     kkCategory,
     countryParam,
+    genreParam,
     yearParam,
-    typeParam,
   ]);
 
   const isLoading = useMemo(() => {
@@ -191,40 +208,73 @@ const Category = () => {
   ]);
 
   const pagedData = useMemo(() => {
-    const limited = mergedData.slice(0, pageSize);
-    const hasNext = mergedData.length >= pageSize;
-    return { items: limited, hasNext };
-  }, [mergedData, pageSize]);
+    const hasNext = mergedData.length >= 24;
+    return { items: mergedData, hasNext };
+  }, [mergedData]);
+
+  const updateFilterParams = (updater) => {
+    const newParams = new URLSearchParams(searchParams);
+    updater(newParams);
+    const queryString = newParams.toString();
+    navigate(`/category/${category}${queryString ? `?${queryString}` : ""}`);
+  };
 
   const handleCountryChange = (value) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set("country", value);
-    } else {
-      newParams.delete("country");
+    updateFilterParams((p) => {
+      if (value) p.set("country", value);
+      else p.delete("country");
+    });
+  };
+
+  const handleGenreChange = (value) => {
+    if (isCategory) {
+      const newParams = new URLSearchParams(searchParams);
+      if (value) {
+        const queryString = newParams.toString();
+        navigate(`/category/${value}${queryString ? `?${queryString}` : ""}`);
+      } else {
+        // Chuyển về "Tất cả thể loại"
+        if (countryParam) {
+          newParams.delete("country");
+          const queryString = newParams.toString();
+          navigate(`/country/${countryParam}${queryString ? `?${queryString}` : ""}`);
+        } else {
+          const queryString = newParams.toString();
+          navigate(`/category/phim-moi${queryString ? `?${queryString}` : ""}`);
+        }
+      }
+      return;
     }
-    setSearchParams(newParams);
+    updateFilterParams((p) => {
+      if (value) p.set("genre", value);
+      else p.delete("genre");
+    });
   };
 
   const handleYearChange = (value) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set("year", value);
-    } else {
-      newParams.delete("year");
-    }
-    setSearchParams(newParams);
+    updateFilterParams((p) => {
+      if (value) p.set("year", value);
+      else p.delete("year");
+    });
   };
 
-  const handleTypeChange = (value) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set("type", value);
-    } else {
-      newParams.delete("type");
-    }
-    setSearchParams(newParams);
-  };
+  if (isForbidden) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
+        <h2 className="text-xl font-bold text-white">Nội dung không khả dụng</h2>
+        <p className="text-slate-400 text-sm max-w-md">
+          Thể loại phim này không tồn tại hoặc đã bị hạn chế trên hệ thống.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="px-5 py-2.5 rounded-xl bg-emerald-500 text-emerald-950 font-semibold text-sm hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20"
+        >
+          Về trang chủ
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -238,10 +288,11 @@ const Category = () => {
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <CountryFilter value={countryParam} onChange={handleCountryChange} />
+          <GenreFilter
+            value={isCategory ? category : genreParam}
+            onChange={handleGenreChange}
+          />
           <YearFilter value={yearParam} onChange={handleYearChange} />
-          {isCategory && (
-            <TypeFilter value={typeParam} onChange={handleTypeChange} />
-          )}
         </div>
       </div>
 
