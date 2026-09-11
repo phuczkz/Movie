@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
 import { useAppMode } from '@/context/AppModeContext';
 import { getOptimizedPoster } from '@/utils/image-helper.js';
+import { usePosterFallback } from '@/features/movies/hooks/usePosterFallback.js';
 
 const MOBILE_WIDTH = 640;
 const FALLBACK_POSTER =
@@ -18,6 +19,50 @@ const getSearchPoster = (url, w = 360, isComic = false) => {
     fullUrl = `${comicCdn}${url}`;
   }
   return getOptimizedPoster(fullUrl, w) || FALLBACK_POSTER;
+};
+
+const SearchResultItem = ({ movie, isComicMode, onSelect }) => {
+  const comicPoster = isComicMode
+    ? getSearchPoster(movie.poster_url || movie.thumb_url, 360, true)
+    : null;
+
+  const { posterSrc, handlePosterError } = usePosterFallback(
+    movie,
+    120,
+    70,
+    FALLBACK_POSTER
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(movie)}
+      className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-700/70 transition-colors"
+    >
+      <img
+        src={isComicMode ? (comicPoster || FALLBACK_POSTER) : posterSrc}
+        alt={movie.name}
+        className="w-12 h-16 rounded-md object-cover flex-shrink-0 bg-slate-800"
+        loading="lazy"
+        onError={
+          isComicMode
+            ? (e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = FALLBACK_POSTER;
+              }
+            : handlePosterError
+        }
+      />
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-white line-clamp-1">
+          {movie.name}
+        </p>
+        <p className="text-xs text-slate-400 mt-0.5">
+          {movie.year || "Đang cập nhật"}
+        </p>
+      </div>
+    </button>
+  );
 };
 
 const SearchBar = ({
@@ -140,31 +185,12 @@ const SearchBar = ({
               </div>
             ) : (
               results.map((movie) => (
-                <button
+                <SearchResultItem
                   key={movie.slug}
-                  type="button"
-                  onClick={() => handleSelect(movie)}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-700/70 transition-colors"
-                >
-                  <img
-                    src={getSearchPoster(
-                      movie.poster_url || movie.thumb_url,
-                      360,
-                      isComicMode
-                    )}
-                    alt={movie.name}
-                    className="w-12 h-16 rounded-md object-cover flex-shrink-0"
-                    loading="lazy"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white line-clamp-1">
-                      {movie.name}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {movie.year || "Đang cập nhật"}
-                    </p>
-                  </div>
-                </button>
+                  movie={movie}
+                  isComicMode={isComicMode}
+                  onSelect={handleSelect}
+                />
               ))
             )}
           </div>

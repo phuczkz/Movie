@@ -1,10 +1,9 @@
-// eslint-disable-next-line no-unused-vars
-import { LazyMotion, domAnimation, m } from "framer-motion";
+import { LazyMotion, domAnimation, m as Motion } from "framer-motion";
 
 const PageTransition = ({ children }) => {
   return (
     <LazyMotion features={domAnimation}>
-      <m.div
+      <Motion.div
         initial={{ opacity: 0, y: 10, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -10, scale: 1.01 }}
@@ -12,10 +11,10 @@ const PageTransition = ({ children }) => {
           duration: 0.4, 
           ease: [0.4, 0, 0.2, 1]
         }}
-        className="w-full h-full"
+        className="w-full flex-1 flex flex-col"
       >
         {children}
-      </m.div>
+      </Motion.div>
     </LazyMotion>
   );
 };

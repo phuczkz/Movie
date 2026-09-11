@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getEpisodes } from '@/features/movies/api/movies.js';
 import { normalizeServerLabel, parseEpisodeNumber } from '@/utils/episodes.js';
 import { isMobile } from '@/utils/responsive.js';
-import { getOptimizedPoster } from '@/utils/image-helper.js';
+import { usePosterFallback } from '@/features/movies/hooks/usePosterFallback.js';
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
@@ -41,13 +41,19 @@ const TrendingCard = ({ movie, index }) => {
   });
 
   const isMobileSize = isMobile();
-  const basePoster = movie.poster_url || movie.thumb_url;
+  const posterWidth = isMobileSize ? 240 : 360;
+  const posterQuality = isMobileSize ? 70 : 80;
+
+  const { posterSrc: rawPosterSrc, handlePosterError } = usePosterFallback(
+    movie,
+    posterWidth,
+    posterQuality,
+    fallbackPoster,
+    () => setLoaded(true)
+  );
+
   const posterSrc = shouldLoad
-    ? getOptimizedPoster(
-        basePoster,
-        isMobileSize ? 240 : 360,
-        isMobileSize ? 70 : 80
-      ) || fallbackPoster
+    ? rawPosterSrc
     : "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
   const badges = useMemo(() => {
@@ -167,6 +173,7 @@ const TrendingCard = ({ movie, index }) => {
           decoding="async"
           fetchPriority="low"
           onLoad={() => setLoaded(true)}
+          onError={handlePosterError}
         />
 
         {/* Custom Exact Border for Hover - Traces the polygon perfectly */}

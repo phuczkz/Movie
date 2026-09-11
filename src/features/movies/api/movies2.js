@@ -1,5 +1,6 @@
 import axios from "axios";
 import { filterAdultMovies, isAdultMovie, isForbiddenGenre } from '@/utils/filter';
+import { normalizeImageUrl } from '@/utils/image-helper';
 
 // Helpers to escape and decode HTML entities for search queries and display names
 const decodeHtmlEntities = (str = "") => {
@@ -64,20 +65,47 @@ kkphim.interceptors.response.use(
       const cdn = data.data.APP_DOMAIN_CDN_IMAGE || "https://img.phimapi.com";
       
       items.forEach((item) => {
-        if (!item.poster_url || item.poster_url.startsWith("http")) return;
+        if (!item.poster_url) return;
+
+        // Special case: KKphim list API returns danviet.vn without i.ex-cdn.com
+        if (item.poster_url.includes("danviet.vn/files/") && !item.poster_url.includes("i.ex-cdn.com")) {
+          const after = item.poster_url.substring(item.poster_url.indexOf("danviet.vn/files/"));
+          item.poster_url = `https://i.ex-cdn.com/${after}`;
+          return;
+        }
         
-        const p_file = item.poster_url.split('/').pop();
-        const t_file = (item.thumb_url || '').split('/').pop();
-        
-        const p_full = ogImages.find(img => typeof img === "string" && img.endsWith('/' + p_file));
-        if (p_full) {
-           item.poster_url = `${cdn}/${p_full}`;
-           if (t_file) {
-             const folder = p_full.substring(0, p_full.lastIndexOf('/'));
-             item.thumb_url = `${cdn}/${folder}/${t_file}`;
-           } else {
-             item.thumb_url = item.poster_url;
-           }
+        // Check if poster is already a full external URL or domain (e.g. danviet.vn/...)
+        if (item.poster_url.startsWith("http://") || item.poster_url.startsWith("https://")) {
+          // already full URL
+        } else if (/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\//.test(item.poster_url)) {
+          item.poster_url = `https://${item.poster_url}`;
+        } else {
+          const p_file = item.poster_url.split('/').pop();
+          const t_file = (item.thumb_url || '').split('/').pop();
+          
+          const p_full = ogImages.find(img => typeof img === "string" && img.endsWith('/' + p_file));
+          if (p_full) {
+            if (p_full.includes("danviet.vn/files/") && !p_full.includes("i.ex-cdn.com")) {
+              const after = p_full.substring(p_full.indexOf("danviet.vn/files/"));
+              item.poster_url = `https://i.ex-cdn.com/${after}`;
+            } else if (p_full.startsWith("http://") || p_full.startsWith("https://")) {
+              item.poster_url = p_full;
+            } else if (/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\//.test(p_full)) {
+              item.poster_url = `https://${p_full}`;
+            } else {
+              item.poster_url = `${cdn}/${p_full.replace(/^\//, '')}`;
+            }
+
+            // Only overwrite thumb if thumb doesn't already have its own folder
+            if (t_file && item.thumb_url && !item.thumb_url.includes('/') && !p_full.includes('.')) {
+              const folder = p_full.substring(0, p_full.lastIndexOf('/'));
+              item.thumb_url = `${cdn}/${folder}/${t_file}`;
+            }
+          }
+        }
+
+        if (item.thumb_url && /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\//.test(item.thumb_url)) {
+          item.thumb_url = `https://${item.thumb_url}`;
         }
       });
     }
@@ -113,9 +141,7 @@ export const cancelAllKKphimRequests = () => {
 const normalizePosterUrl = (url = "") => {
   const trimmed = (url || "").trim();
   if (!trimmed) return placeholder;
-  if (trimmed.startsWith("http")) return trimmed;
-  const clean = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return `${imageCdn}${clean}`;
+  return normalizeImageUrl(trimmed, imageCdn || "https://phimimg.com");
 };
 
 const normalizeKKphimMovie = (raw = {}) => {
@@ -250,8 +276,35 @@ export const getKKphimByYear = async (year, page = 1) => {
   return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
 };
 
+const KNOWN_COUNTRIES = new Set([
+  "anh", "ba-lan", "brazil", "bo-dao-nha", "canada", "chau-phi", "ha-lan",
+  "han-quoc", "hong-kong", "indonesia", "malaysia", "mexico", "na-uy",
+  "nam-phi", "nga", "nhat-ban", "philippines", "phap", "quoc-gia-khac",
+  "thai-lan", "tho-nhi-ky", "thuy-si", "thuy-dien", "trung-quoc",
+  "tay-ban-nha", "uae", "ukraina", "viet-nam", "au-my", "uc", "y",
+  "dan-mach", "dai-loan", "duc", "a-rap-xe-ut", "an-do", "my"
+]);
+
+const KNOWN_CATEGORIES = new Set([
+  "bi-an", "chien-tranh", "chinh-kich", "co-trang", "gia-dinh", "hai-huoc",
+  "hanh-dong", "hinh-su", "hoc-duong", "khoa-hoc", "kinh-di", "kinh-dien",
+  "lich-su", "mien-tay", "phim-ngan", "phieu-luu", "than-thoai", "the-thao",
+  "tre-em", "tai-lieu", "tam-ly", "tinh-cam", "vien-tuong", "vo-thuat",
+  "am-nhac", "hoat-hinh", "phim-bo", "phim-le", "phim-chieu-rap", "phim-moi"
+]);
+
+export const isValidCountrySlug = (slug) => {
+  if (!slug || typeof slug !== "string") return false;
+  return KNOWN_COUNTRIES.has(slug.toLowerCase().trim());
+};
+
+export const isValidCategorySlug = (slug) => {
+  if (!slug || typeof slug !== "string") return false;
+  return KNOWN_CATEGORIES.has(slug.toLowerCase().trim());
+};
+
 export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
-  if (!slug || isForbiddenGenre(slug) || (extraParams.category && isForbiddenGenre(extraParams.category))) {
+  if (!slug || !isValidCategorySlug(slug) || isForbiddenGenre(slug) || (extraParams.category && isForbiddenGenre(extraParams.category))) {
     return [];
   }
   try {
@@ -267,7 +320,7 @@ export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
 };
 
 export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
-  if (!slug || (extraParams.category && isForbiddenGenre(extraParams.category))) {
+  if (!slug || !isValidCountrySlug(slug) || (extraParams.category && isForbiddenGenre(extraParams.category))) {
     return [];
   }
   try {
@@ -284,53 +337,43 @@ export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
 
 export const getKKphimGenres = async () => {
   try {
-    const { data } = await kkphim.get("/the-loai");
+    const base = import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com";
+    const { data } = await axios.get(`${base}/the-loai`);
     const items = data?.data?.items || data?.items || [];
+    items.forEach((item) => {
+      if (item?.slug) KNOWN_CATEGORIES.add(item.slug.toLowerCase().trim());
+    });
     return items.filter((item) => !isForbiddenGenre(item));
   } catch (error) {
-    console.warn("kkphim /the-loai via v1/api failed, trying base URL:", error);
-    try {
-      const resp = await axios.get(`${import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com"}/the-loai`);
-      const items = resp.data?.data?.items || resp.data?.items || [];
-      return items.filter((item) => !isForbiddenGenre(item));
-    } catch (e) {
-      console.error("getKKphimGenres failed:", e);
-      return [];
-    }
+    console.error("getKKphimGenres failed:", error);
+    return [];
   }
 };
 
 export const getKKphimCountries = async () => {
   try {
-    const { data } = await kkphim.get("/quoc-gia");
-    return data?.data?.items || data?.items || [];
+    const base = import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com";
+    const { data } = await axios.get(`${base}/quoc-gia`);
+    const items = data?.data?.items || data?.items || [];
+    items.forEach((item) => {
+      if (item?.slug) KNOWN_COUNTRIES.add(item.slug.toLowerCase().trim());
+    });
+    return items;
   } catch (error) {
-    console.warn("kkphim /quoc-gia via v1/api failed, trying base URL:", error);
-    try {
-      const resp = await axios.get(`${import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com"}/quoc-gia`);
-      return resp.data?.data?.items || resp.data?.items || [];
-    } catch (e) {
-      console.error("getKKphimCountries failed:", e);
-      return [];
-    }
+    console.error("getKKphimCountries failed:", error);
+    return [];
   }
 };
 
-export const getKKphimYears = async () => {
+export const getKKphimYears = async () => {     
   try {
-    const { data } = await kkphim.get("/nam-phat-hanh");
+    const base = import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com";
+    const { data } = await axios.get(`${base}/nam-phat-hanh`);
     const items = data?.data?.items || data?.items || [];
     return items.map((item) => String(item.year || item)).filter(Boolean);
   } catch (error) {
-    console.warn("kkphim /nam-phat-hanh via v1/api failed, trying base URL:", error);
-    try {
-      const resp = await axios.get(`${import.meta.env.VITE_KKPHIM_API_BASE || "https://phimapi.com"}/nam-phat-hanh`);
-      const items = resp.data?.data?.items || resp.data?.items || [];
-      return items.map((item) => String(item.year || item)).filter(Boolean);
-    } catch (e) {
-      console.error("getKKphimYears failed:", e);
-      return [];
-    }
+    console.error("getKKphimYears failed:", error);
+    return [];
   }
 };
 

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { getOptimizedImage } from "./detailUtils.js";
+import { usePosterFallback } from "@/features/movies/hooks/usePosterFallback.js";
 import { useMovieRating } from "@/features/movies/hooks/useMovieRating.js";
 import RatingModal from "./RatingModal.jsx";
 import ShareButton from '@/components/ShareButton.jsx';
@@ -85,6 +86,19 @@ const DetailHero = ({
 
   const showQuality = movie?.quality && movie.quality.toUpperCase() !== "HD";
   const showLang = movie?.lang && movie.lang.toLowerCase() !== "vietsub";
+  const heroMovieObj = movie?.name ? movie : (passedMovie || movie);
+  const fallbackHeroPoster = getOptimizedImage(
+    passedMovie?.poster_url || movie?.poster_url,
+    500
+  );
+  const { posterSrc: heroPosterSrc, handlePosterError: handleHeroPosterError } = usePosterFallback(
+    heroMovieObj,
+    500,
+    85,
+    fallbackHeroPoster,
+    () => setPosterLoaded(true)
+  );
+
   return (
     <>
       {heroImage ? (
@@ -153,21 +167,14 @@ const DetailHero = ({
               <div className="absolute inset-0 bg-slate-800/60 animate-pulse" />
             )}
             <img
-              src={getOptimizedImage(
-                passedMovie?.poster_url || movie?.poster_url,
-                500
-              )}
+              src={heroPosterSrc}
               alt={movie?.name || passedMovie?.name}
               className={`h-full w-full object-cover transition-opacity duration-500 ease-out ${
                 posterLoaded ? "opacity-100" : "opacity-0"
               }`}
               fetchPriority="high"
               onLoad={() => setPosterLoaded(true)}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = passedMovie?.poster_url || movie?.poster_url;
-                setPosterLoaded(true);
-              }}
+              onError={handleHeroPosterError}
             />
           </div>
 

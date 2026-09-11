@@ -14,6 +14,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 
 body {
   margin: 0;
@@ -292,8 +296,10 @@ body {
   border-radius: 9999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #111827;
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar-thumb:hover {
+    background: #111827;
+  }
 }
 
 .no-scrollbar {
@@ -322,8 +328,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: opacity 0.2s;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  opacity: 1;
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -339,8 +347,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-radius: 10px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
 }
 
 .loader,
@@ -590,39 +600,22 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   letter-spacing: 0.02em;
 }
 
-.hc-btn-play:hover {
-  background: rgba(100, 155, 120, 0.32);
+/* Hover effects only on Desktop/Laptop */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .hc-btn-play:hover {
+    background: rgba(100, 155, 120, 0.32);
+  }
+
+  .hc-btn-play--comic:hover {
+    background: rgba(140, 90, 200, 0.38);
+  }
+
+  .hc-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
 }
 
-/* Purple for comics */
-.hc-btn-play--comic {
-  background: rgba(140, 90, 200, 0.22);
-  color: #ede9fe;
-}
-.hc-btn-play--comic:hover {
-  background: rgba(140, 90, 200, 0.38);
-}
-
-/* Circle icon buttons (+, ♥, ˅) */
-.hc-icon-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #cbd5e1;
-  flex-shrink: 0;
-  transition: background 0.15s;
-}
-
-.hc-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-}
 
 /* ── Meta badges row (year, HD, Full, 13+) ── */
 .hc-meta-row {
@@ -803,10 +796,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-.art-setting-item:hover {
-  background: rgba(255, 255, 255, 0.06) !important;
-  color: #ffffff !important;
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .art-setting-item:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #ffffff !important;
+  }
 }
+
 
 /* Current selection highlight - Emerald color matching our theme */
 .art-setting-item.art-current,

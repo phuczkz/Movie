@@ -1,8 +1,8 @@
 import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Twitter, Film } from "lucide-react";
 
-const Footer = () => {
+const Footer = ({ className = "" }) => {
   return (
-    <footer className="relative z-10 border-t border-white/5 bg-slate-950/40 backdrop-blur-2xl">
+    <footer className={`relative z-10 border-t border-white/5 bg-slate-950/40 backdrop-blur-2xl mt-auto w-full ${className}`}>
       {/* SEO Structured Data */}
       <script type="application/ld+json">
         {JSON.stringify({

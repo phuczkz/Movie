@@ -56,8 +56,12 @@ const TheaterCard = ({ movie, priority = false }) => {
           decoding="async"
           onLoad={() => setLoaded(true)}
           onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = fallbackThumb;
+            if (movie.poster_url && e.currentTarget.src !== movie.poster_url) {
+              e.currentTarget.src = movie.poster_url;
+            } else {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = fallbackThumb;
+            }
             setLoaded(true);
           }}
         />

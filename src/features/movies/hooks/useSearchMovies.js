@@ -4,6 +4,8 @@ import {
   getKKphimByCountry,
   searchKKphim,
   getKKphimByYear,
+  isValidCategorySlug,
+  isValidCountrySlug,
 } from '@/features/movies/api/movies2';
 import { comicApi } from '@/features/comics/api/comicApi';
 import { filterAdultMovies } from '@/utils/filter';
@@ -169,9 +171,15 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
 
       const requests = [
         safe(() => searchKKphim(q, page)),
-        safe(() => getKKphimByCategory(slug)),
-        safe(() => getKKphimByCountry(slug)),
       ];
+
+      if (isValidCategorySlug(slug)) {
+        requests.push(safe(() => getKKphimByCategory(slug)));
+      }
+
+      if (isValidCountrySlug(slug)) {
+        requests.push(safe(() => getKKphimByCountry(slug)));
+      }
 
       if (isYear) {
         requests.push(safe(() => getKKphimByYear(q, page)));

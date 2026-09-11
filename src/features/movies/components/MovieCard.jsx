@@ -7,6 +7,7 @@ import { useMovieDetail } from '@/features/movies/hooks/useMovieDetail.js';
 import { normalizeServerLabel, parseEpisodeNumber } from '@/utils/episodes.js';
 import { isMobile } from '@/utils/responsive.js';
 import { getOptimizedPoster } from '@/utils/image-helper.js';
+import { usePosterFallback } from '@/features/movies/hooks/usePosterFallback.js';
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
@@ -328,14 +329,29 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   }, [isInView, slug]);
 
   const isMobileSize = isMobile();
-  const basePoster = movie.poster_url || movie.thumb_url;
+  const posterWidth = priority ? (isMobileSize ? 300 : 480) : (isMobileSize ? 200 : 360);
+  const posterQuality = isMobileSize ? 70 : 80;
 
-  // Directly calculate poster source without waiting for IntersectionObserver
-  const posterSrc = getOptimizedPoster(
-    basePoster,
-    priority ? (isMobileSize ? 300 : 480) : (isMobileSize ? 200 : 360),
-    isMobileSize ? 70 : 80
-  ) || fallbackPoster;
+  const detailMovie = detailData?.movie;
+
+  // Prioritize detailMovie when fetched, as the Detail API contains the most accurate, official poster
+  const effectiveMovie = useMemo(() => {
+    if (!detailMovie) return movie;
+    return {
+      ...movie,
+      ...detailMovie,
+      poster_url: detailMovie.poster_url || movie.poster_url,
+      thumb_url: detailMovie.thumb_url || movie.thumb_url,
+    };
+  }, [movie, detailMovie]);
+
+  const { posterSrc, handlePosterError } = usePosterFallback(
+    effectiveMovie,
+    posterWidth,
+    posterQuality,
+    fallbackPoster,
+    () => setLoaded(true)
+  );
 
   // Determine the best landscape image for the hover popup.
   // For movies from the API list, thumb_url = landscape, poster_url = portrait (already normalized).
@@ -343,16 +359,15 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   // When API detail data is available (from useMovieDetail), prefer its thumb_url as the
   // definitive landscape source since normalizeMovie() in movies.js correctly swaps
   // Ophim's confusing poster/thumb naming.
-  const detailMovie = detailData?.movie;
   const bestLandscape =
     (detailMovie?.thumb_url && detailMovie.thumb_url !== detailMovie?.poster_url
       ? detailMovie.thumb_url
       : null) ||
-    (movie.thumb_url && movie.thumb_url !== movie.poster_url
-      ? movie.thumb_url
+    (effectiveMovie.thumb_url && effectiveMovie.thumb_url !== effectiveMovie.poster_url
+      ? effectiveMovie.thumb_url
       : null) ||
-    movie.thumb_url ||
-    movie.poster_url;
+    effectiveMovie.thumb_url ||
+    effectiveMovie.poster_url;
 
   // Primary: optimized proxy URL for the thumb
   const thumbSrc =
@@ -405,15 +420,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
               ? { fetchPriority: "high" }
               : { fetchPriority: "low" })}
             onLoad={() => setLoaded(true)}
-            onError={(e) => {
-              if (e.currentTarget.src !== basePoster && basePoster) {
-                e.currentTarget.src = basePoster;
-              } else {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = fallbackPoster;
-              }
-              setLoaded(true);
-            }}
+            onError={handlePosterError}
           />
 
           {audioBadges.length ? (

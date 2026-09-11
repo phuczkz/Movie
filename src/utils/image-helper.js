@@ -218,3 +218,93 @@ export const toOptimizedHeroImage = (url, w = 640, q = 85) => {
     return url;
   }
 };
+
+export const normalizeImageUrl = (
+  url,
+  fallbackCdn = import.meta.env.VITE_KKPHIM_IMAGE_CDN || "https://phimimg.com"
+) => {
+  if (!url || typeof url !== "string") return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+
+  // Special CDN fix: Danviet images without ex-cdn wrapper
+  if (trimmed.includes("danviet.vn/files/") && !trimmed.includes("i.ex-cdn.com")) {
+    const after = trimmed.substring(trimmed.indexOf("danviet.vn/files/"));
+    return `https://i.ex-cdn.com/${after}`;
+  }
+
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  // If it starts with an external domain (e.g. any abc.xyz/...)
+  if (/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\//.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  const clean = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return `${fallbackCdn}${clean}`;
+};
+
+/**
+ * Generates an array of alternate URLs with different file extensions (.jpg, .jpeg, .png, .webp).
+ * Flexible for movies whose files on server are named .jpg instead of .webp or vice versa.
+ */
+export const getAlternateExtensionUrls = (url) => {
+  if (!url || typeof url !== "string") return [];
+  const match = url.match(/\.(webp|jpg|jpeg|png)($|\?)/i);
+  if (!match) return [];
+  const ext = match[1].toLowerCase();
+  const rest = match[2] || "";
+  const base = url.slice(0, match.index);
+  
+  const extensions = ext === "webp" 
+    ? ["jpg", "jpeg", "png"] 
+    : ["webp", ext === "jpg" ? "jpeg" : "jpg", "png"];
+    
+  return extensions.map((e) => `${base}.${e}${rest}`);
+};
+
+/**
+ * Builds an ordered fallback chain of candidate URLs to load a movie poster.
+ * Prioritizes:
+ * 1. Optimized poster URL (wsrv / proxy)
+ * 2. Raw poster URL (direct)
+ * 3. Alternate extensions of poster (.jpg <-> .webp)
+ * 4. Optimized thumb URL (fallback to thumb if poster fails)
+ * 5. Raw thumb URL
+ * 6. Alternate extensions of thumb (.webp <-> .jpg)
+ */
+export const getMoviePosterFallbackChain = (movie, width = 360, quality = 80) => {
+  const chain = [];
+  const seen = new Set();
+
+  const add = (u) => {
+    if (u && typeof u === "string" && !seen.has(u)) {
+      seen.add(u);
+      chain.push(u);
+    }
+  };
+
+  const rawPoster = normalizeImageUrl(movie?.poster_url);
+  const rawThumb = normalizeImageUrl(movie?.thumb_url || movie?.banner || movie?.backdrop_url);
+
+  // 1. Poster candidates
+  if (rawPoster) {
+    add(getOptimizedPoster(rawPoster, width, quality));
+    add(rawPoster);
+    getAlternateExtensionUrls(rawPoster).forEach((altUrl) => {
+      add(getOptimizedPoster(altUrl, width, quality));
+      add(altUrl);
+    });
+  }
+
+  // 2. Thumb candidates (nếu poster lỗi hoặc không hiển thị, linh hoạt lấy thumb)
+  if (rawThumb && rawThumb !== rawPoster) {
+    add(getOptimizedPoster(rawThumb, width, quality));
+    add(rawThumb);
+    getAlternateExtensionUrls(rawThumb).forEach((altUrl) => {
+      add(getOptimizedPoster(altUrl, width, quality));
+      add(altUrl);
+    });
+  }
+
+  return chain;
+};
