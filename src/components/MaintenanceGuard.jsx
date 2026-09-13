@@ -61,11 +61,12 @@ export default function MaintenanceGuard({ children }) {
     };
   }, [isActive]);
 
-  // Only block on Firebase Auth resolving (loading).
-  // maintenance.isLoaded loads in parallel — we do not wait for it to show the app.
-  // If maintenance is enabled, the UI switches to the maintenance screen as soon as
-  // isLoaded becomes true (typically 200–500ms after auth resolves).
-  const showInitialLoading = loading;
+  // Block render until BOTH Firebase Auth AND maintenance data are ready.
+  // Previously only auth (loading) was awaited, which caused a flash: children
+  // (Login/Register page) rendered for ~200-500ms while maintenance.isLoaded
+  // was still false (default enabled=false) before Firestore snapshot arrived.
+  // Now the AppLoader stays visible until both signals are resolved.
+  const showInitialLoading = loading || !maintenance?.isLoaded;
 
   return (
     <>
