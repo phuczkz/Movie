@@ -6,6 +6,7 @@ import { isFirebaseConfigured } from '@/firebase.config.js';
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import AvatarModal from '@/components/AvatarModal.jsx';
 import { useAppMode } from '@/context/AppModeContext';
+import { getProxiedAvatar } from "@/utils/image-helper.js";
 
 const WatchHistory = lazy(() => import('@/features/movies/components/WatchHistory.jsx'));
 const ComicHistory = lazy(() => import('@/features/comics/components/ComicHistory.jsx'));
@@ -63,8 +64,8 @@ const Profile = () => {
     else if (user?.uid) rawUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`;
     
     if (!rawUrl) return null;
-    if (rawUrl.includes("dicebear.com") || rawUrl.startsWith("/")) return rawUrl;
-    return `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&w=200&h=200&fit=cover&output=webp&q=80`;
+    // Use centralized getProxiedAvatar with 200px size for profile page
+    return getProxiedAvatar(rawUrl, 200);
   }, [user, userProfile]);
 
   if (loading) {

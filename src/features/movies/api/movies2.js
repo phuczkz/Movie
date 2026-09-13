@@ -171,6 +171,8 @@ const normalizeKKphimMovie = (raw = {}) => {
     actor: raw.actor || [],
     director: raw.director || [],
     trailer_url: raw.trailer_url || "",
+    // Expose TMDB metadata (id, type, etc.) for direct asset lookup
+    tmdb: raw.tmdb || null,
     origin: raw,
   };
 };

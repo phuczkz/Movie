@@ -248,6 +248,174 @@ function isMediaSegment(pathname) {
   );
 }
 
+/**
+ * Whitelist of image source domains allowed through the /img/ proxy.
+ * Requests for domains not in this list will be rejected.
+ */
+const IMAGE_ALLOWED_HOSTS = [
+  "phimimg.com",
+  "img.ophim.live",
+  "ophim1.com",
+  "ophim.live",
+  "otruyenapi.com",
+  "img.otruyenapi.com",
+  "image.tmdb.org",
+  "images.unsplash.com",
+];
+
+/**
+ * Handle /img/ route — Image proxy with Cloudflare edge caching.
+ *
+ * Fetches images directly from allowed source domains, sets long-lived
+ * cache headers, and stores them in Cloudflare's edge cache.
+ *
+ * Query params:
+ *   - url (required): The source image URL to proxy.
+ *
+ * Cache strategy:
+ *   - Cache-Control: public, max-age=31536000, immutable (1 year)
+ *   - Cloudflare edge cache via caches.default API
+ *   - Cache miss: fetch from origin (~200-400ms)
+ *   - Cache hit: served from nearest Cloudflare PoP (~10-50ms)
+ */
+async function handleImage(request, env, ctx, corsHeaders) {
+  const url = new URL(request.url);
+  const targetUrl = url.searchParams.get("url");
+
+  if (!targetUrl) {
+    return jsonResponse(
+      { error: "Missing ?url= parameter" },
+      400,
+      corsHeaders
+    );
+  }
+
+  let parsedTarget;
+  try {
+    parsedTarget = new URL(targetUrl);
+    if (!["http:", "https:"].includes(parsedTarget.protocol)) {
+      throw new Error("Invalid protocol");
+    }
+  } catch {
+    return jsonResponse(
+      { error: "Invalid image URL" },
+      400,
+      corsHeaders
+    );
+  }
+
+  // Only allow whitelisted image source domains
+  const hostname = parsedTarget.hostname.toLowerCase();
+  const isAllowed = IMAGE_ALLOWED_HOSTS.some(
+    (host) => hostname === host || hostname.endsWith(`.${host}`)
+  );
+
+  if (!isAllowed) {
+    return jsonResponse(
+      { error: "Image host not allowed" },
+      403,
+      corsHeaders
+    );
+  }
+
+  // Check Cloudflare edge cache first (only for GET without Range)
+  const cache = caches.default;
+  const cacheKey = new Request(request.url, { method: "GET" });
+
+  if (request.method === "GET") {
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+      const headers = new Headers(cachedResponse.headers);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        headers.set(key, value);
+      });
+      return new Response(cachedResponse.body, {
+        status: cachedResponse.status,
+        statusText: cachedResponse.statusText,
+        headers,
+      });
+    }
+  }
+
+  // Cache miss — fetch from origin
+  try {
+    const upstreamHeaders = buildUpstreamHeaders(request, targetUrl);
+    // Accept any image format from origin
+    upstreamHeaders.set("Accept", "image/webp,image/avif,image/*,*/*");
+
+    const upstream = await fetch(targetUrl, {
+      method: "GET",
+      headers: upstreamHeaders,
+      redirect: "follow",
+      signal: request.signal,
+    });
+
+    if (!upstream.ok) {
+      return jsonResponse(
+        { error: `Image origin returned ${upstream.status}` },
+        upstream.status,
+        corsHeaders
+      );
+    }
+
+    // Validate response is actually an image
+    const contentType = upstream.headers.get("Content-Type") || "";
+    if (!contentType.startsWith("image/")) {
+      return jsonResponse(
+        { error: "Origin did not return an image" },
+        502,
+        corsHeaders
+      );
+    }
+
+    // Build response with long-lived cache headers
+    const responseHeaders = new Headers(corsHeaders);
+    responseHeaders.set("Content-Type", contentType);
+
+    const contentLength = upstream.headers.get("Content-Length");
+    if (contentLength) {
+      responseHeaders.set("Content-Length", contentLength);
+    }
+
+    const etag = upstream.headers.get("ETag");
+    if (etag) {
+      responseHeaders.set("ETag", etag);
+    }
+
+    const lastModified = upstream.headers.get("Last-Modified");
+    if (lastModified) {
+      responseHeaders.set("Last-Modified", lastModified);
+    }
+
+    // Cache for 1 year — images are immutable content-addressed assets
+    responseHeaders.set(
+      "Cache-Control",
+      "public, max-age=31536000, immutable"
+    );
+
+    const response = new Response(upstream.body, {
+      status: 200,
+      headers: responseHeaders,
+    });
+
+    // Store in Cloudflare edge cache asynchronously
+    if (request.method === "GET") {
+      ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    }
+
+    return response;
+  } catch (err) {
+    return jsonResponse(
+      {
+        error: "Image proxy error",
+        message: err instanceof Error ? err.message : "Unknown error",
+      },
+      502,
+      corsHeaders
+    );
+  }
+}
+
 async function handleTmdb(request, env, corsHeaders) {
   const url = new URL(request.url);
   const tmdbPath = url.pathname.replace(/^\/tmdb\/?/, "");
@@ -340,6 +508,11 @@ export default {
 
     if (requestUrl.pathname.startsWith("/tmdb")) {
       return handleTmdb(request, env, corsHeaders);
+    }
+
+    // Image proxy route — direct fetch + Cloudflare edge cache
+    if (requestUrl.pathname.startsWith("/img")) {
+      return handleImage(request, env, ctx, corsHeaders);
     }
 
     const targetUrl = requestUrl.searchParams.get("url");

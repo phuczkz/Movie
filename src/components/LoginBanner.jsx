@@ -5,9 +5,11 @@ import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 const UNSPLASH_BG_RAW =
   "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1000&auto=format&fit=crop";
 
-const UNSPLASH_BG_OPTIMIZED = `https://wsrv.nl/?url=${encodeURIComponent(
-  UNSPLASH_BG_RAW
-)}&output=webp&w=960&fit=cover&q=80`;
+// Proxy through our Worker /img/ route for Cloudflare edge caching
+const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || "").trim().replace(/\/$/, "");
+const UNSPLASH_BG_OPTIMIZED = STREAM_PROXY
+  ? `${STREAM_PROXY}/img/?url=${encodeURIComponent(UNSPLASH_BG_RAW)}`
+  : UNSPLASH_BG_RAW;
 
 const LoginBanner = () => {
   const { user, loading } = useAuth();

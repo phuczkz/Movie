@@ -112,7 +112,7 @@ const ComicCard = ({ comic, priority = false }) => {
             {...(priority ? { fetchPriority: "high" } : { fetchPriority: "low" })}
             onError={(e) => {
               const currentSrc = e.currentTarget.src;
-              if (currentSrc.includes("wsrv.nl")) {
+              if (currentSrc.includes("wsrv.nl") || currentSrc.includes("/img/?url=")) {
                 e.currentTarget.src = thumbUrl;
               } else if (currentSrc === thumbUrl) {
                 e.currentTarget.src =

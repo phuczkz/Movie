@@ -3,6 +3,7 @@ import { Send, UserCircle, Users, Info } from "lucide-react";
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from '@/firebase.config.js';
 import { useAuth } from '@/features/auth/context/AuthContext';
+import { getProxiedAvatar } from "@/utils/image-helper.js";
 
 export default function WatchChat({ roomId, roomHostId, onInfoClick, isActive = true, onUnreadChange }) {
   const { user, userProfile } = useAuth();
@@ -122,11 +123,9 @@ export default function WatchChat({ roomId, roomHostId, onInfoClick, isActive = 
     }
   };
 
-  const getProxiedAvatar = (url) => {
-    if (!url) return null;
-    if (url.includes("dicebear.com") || url.startsWith("/")) return url;
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=50&h=50&fit=cover&output=webp&q=80`;
-  };
+  // Avatar proxying handled by centralized getProxiedAvatar from image-helper.js
+  // Uses 50px size for chat avatars
+  const proxiedAvatar = (url) => getProxiedAvatar(url, 50);
 
   const formatMessageTime = (timestamp) => {
     if (!timestamp) return "";
@@ -191,7 +190,7 @@ export default function WatchChat({ roomId, roomHostId, onInfoClick, isActive = 
               <div key={m.userId} className="flex items-center gap-2.5 py-1">
                 <div className="size-7 rounded-full overflow-hidden bg-white/5 border border-white/5 relative shrink-0">
                   {m.userAvatar ? (
-                    <img src={getProxiedAvatar(m.userAvatar)} alt={m.userName} className="h-full w-full object-cover" crossOrigin="anonymous" />
+                    <img src={proxiedAvatar(m.userAvatar)} alt={m.userName} className="h-full w-full object-cover" crossOrigin="anonymous" />
                   ) : (
                     <UserCircle className="h-full w-full text-slate-500" />
                   )}
@@ -213,7 +212,7 @@ export default function WatchChat({ roomId, roomHostId, onInfoClick, isActive = 
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar">
         {messages.map((msg) => {
           const isMe = msg.userId === user?.uid;
-          const avatar = getProxiedAvatar(msg.userAvatar);
+          const avatar = proxiedAvatar(msg.userAvatar);
 
           return (
             <div

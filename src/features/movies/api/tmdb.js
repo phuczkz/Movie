@@ -202,6 +202,59 @@ const mapMovieType = (type) => {
   return null;
 };
 
+const cleanTitle = (str = "") =>
+  (str || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+
+/**
+ * Calculates match score between a search query and a TMDB candidate.
+ * Returns a value from 0 to 100.
+ * A score of 0 means the candidate has NO textual similarity to the query.
+ */
+const calculateTitleMatch = (query, candidate) => {
+  const q = cleanTitle(query);
+  if (!q) return 0;
+  const qTokens = q.split(" ").filter((t) => t.length > 1);
+
+  const candidateTitles = [
+    candidate.title,
+    candidate.name,
+    candidate.original_title,
+    candidate.original_name,
+  ]
+    .filter(Boolean)
+    .map(cleanTitle);
+
+  let best = 0;
+  for (const t of candidateTitles) {
+    if (!t) continue;
+    // Exact match
+    if (t === q) return 100;
+    // Substring match
+    if (t.includes(q) || q.includes(t)) {
+      const ratio = Math.min(t.length, q.length) / Math.max(t.length, q.length);
+      best = Math.max(best, Math.round(50 + ratio * 40));
+      continue;
+    }
+    // Token overlap match
+    if (qTokens.length > 0) {
+      const tTokens = new Set(t.split(" ").filter((x) => x.length > 1));
+      const overlap = qTokens.filter((tok) => tTokens.has(tok)).length;
+      const ratio = overlap / qTokens.length;
+      if (ratio > 0) {
+        best = Math.max(best, Math.round(ratio * 50));
+      }
+    }
+  }
+  return best;
+};
+
 /**
  * Search TMDB for a movie/TV show, with optional context for disambiguation.
  * @param {string} query - Search query
@@ -226,21 +279,23 @@ export const searchTmdbMovie = async (query, year, context = {}) => {
 
     if (!candidates.length) return null;
 
-    // If no context is provided, fall back to the first candidate (legacy behavior)
     const { countrySlug, type } = context;
-    const hasContext = Boolean(countrySlug || type);
-    if (!hasContext) return candidates[0];
-
-    // Score each candidate for best match
     const expectedLang = countrySlug ? COUNTRY_SLUG_TO_LANG[countrySlug] : null;
     const expectedMediaType = mapMovieType(type);
     const yearNum = year ? Number(year) : null;
 
     let bestScore = -Infinity;
-    let bestCandidate = candidates[0];
+    let bestCandidate = null;
 
     for (const r of candidates) {
-      let score = 0;
+      // 1. Mandatory title similarity verification to avoid matching unrelated titles
+      const titleScore = calculateTitleMatch(query, r);
+      if (titleScore === 0) {
+        // Disqualify candidate entirely if title has zero similarity with query
+        continue;
+      }
+
+      let score = titleScore;
 
       // Year match: strong signal (±1 year tolerance)
       const rYear = (r.release_date || r.first_air_date || "").slice(0, 4);
@@ -401,34 +456,82 @@ export const getTmdbFullEpisodes = async (
 
 /**
  * Search TMDB for a movie/TV by name (and optional year) and return its logo image URL.
- * Tries `name` first, then `originName` if no result.
- * Prefers Vietnamese → English → any language.
+ * Prioritizes direct lookup by tmdbId if provided in context.
+ * Tries `originName` candidates and `name`.
  * Returns null if no logo is found.
  * @param {string} name - Vietnamese name
  * @param {string} originName - Original name
  * @param {number|string} year - Release year
- * @param {object} [context] - { countrySlug, type } for disambiguation
+ * @param {object} [context] - { countrySlug, type, tmdbId, tmdbType } for disambiguation and direct ID lookup
  */
 export const getTmdbLogo = async (name, originName, year, context = {}) => {
+  const { tmdbId, tmdbType, type } = context;
+
+  // 1. Direct lookup by TMDB ID if available from the movie source
+  if (tmdbId) {
+    try {
+      const preferredType = tmdbType || mapMovieType(type) || "tv";
+      let res = null;
+      try {
+        res = await tmdb.get(`${preferredType}/${tmdbId}/images`, {
+          params: { include_image_language: "vi,en,null" },
+        });
+      } catch {
+        const altType = preferredType === "tv" ? "movie" : "tv";
+        res = await tmdb.get(`${altType}/${tmdbId}/images`, {
+          params: { include_image_language: "vi,en,null" },
+        });
+      }
+
+      const logos = res?.data?.logos || [];
+      if (logos.length) {
+        const pick =
+          logos.find((l) => l.iso_639_1 === "vi") ||
+          logos.find((l) => l.iso_639_1 === "en") ||
+          logos.find((l) => !l.iso_639_1) ||
+          logos[0];
+
+        if (pick?.file_path) {
+          return {
+            url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
+            lang: pick.iso_639_1 || "other",
+          };
+        }
+      }
+    } catch (error) {
+      console.warn(`[tmdb] direct logo lookup for id ${tmdbId} failed`, error.message);
+    }
+  }
+
   if (!name && !originName) return null;
 
-  // Clean the name (e.g. "Movie Name (Phần 2)" -> "Movie Name")
+  // Clean the names (e.g. "Movie Name (Phần 2)" -> "Movie Name")
   const { baseName: cleanName } = parseSeasonInfo(name || "");
   const { baseName: cleanOrigin } = parseSeasonInfo(originName || "");
 
+  // Split multi-name origins like "City Rong / Rong Cheng"
+  const originCandidates = cleanOrigin
+    ? cleanOrigin
+        .split(/[/,]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
   try {
-    // Try primary name first, then fall back to origin_name
-    let match = cleanName ? await searchTmdbMovie(cleanName, year, context) : null;
+    let match = null;
+    const isForeign = context.countrySlug && context.countrySlug !== "viet-nam";
 
-    // If search with year failed, try without year
-    if (!match && cleanName) {
-      match = await searchTmdbMovie(cleanName, undefined, context);
+    // For foreign films, try original titles first because TMDB indexes them more accurately
+    const queriesToTry = isForeign
+      ? [...originCandidates, cleanName].filter(Boolean)
+      : [cleanName, ...originCandidates].filter(Boolean);
+
+    for (const q of queriesToTry) {
+      match = await searchTmdbMovie(q, year, context);
+      if (!match) match = await searchTmdbMovie(q, undefined, context);
+      if (match) break;
     }
 
-    if (!match && cleanOrigin && cleanOrigin !== cleanName) {
-      match = await searchTmdbMovie(cleanOrigin, year, context);
-      if (!match) match = await searchTmdbMovie(cleanOrigin, undefined, context);
-    }
     if (!match) return null;
 
     const mediaType = match.media_type || "movie";
@@ -452,7 +555,7 @@ export const getTmdbLogo = async (name, originName, year, context = {}) => {
 
     return {
       url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
-      lang: pick.iso_639_1 || "other"
+      lang: pick.iso_639_1 || "other",
     };
   } catch (error) {
     console.warn("[tmdb] logo fetch failed", error.message);
@@ -462,29 +565,66 @@ export const getTmdbLogo = async (name, originName, year, context = {}) => {
 
 /**
  * Search TMDB for a movie/TV and return its high-res backdrop image URL.
+ * Prioritizes direct lookup by tmdbId if provided in context.
  * @param {string} name - Vietnamese name
  * @param {string} originName - Original name
  * @param {number|string} year - Release year
- * @param {object} [context] - { countrySlug, type } for disambiguation
+ * @param {object} [context] - { countrySlug, type, tmdbId, tmdbType } for disambiguation and direct ID lookup
  */
 export const getTmdbBackdrop = async (name, originName, year, context = {}) => {
+  const { tmdbId, tmdbType, type } = context;
+
+  // 1. Direct lookup by TMDB ID if available from the movie source
+  if (tmdbId) {
+    try {
+      const preferredType = tmdbType || mapMovieType(type) || "tv";
+      let backdropPath = null;
+      try {
+        const res = await tmdb.get(`${preferredType}/${tmdbId}`);
+        backdropPath = res?.data?.backdrop_path || null;
+      } catch {
+        const altType = preferredType === "tv" ? "movie" : "tv";
+        const altRes = await tmdb.get(`${altType}/${tmdbId}`);
+        backdropPath = altRes?.data?.backdrop_path || null;
+      }
+
+      if (backdropPath) {
+        return `https://image.tmdb.org/t/p/original${backdropPath}`;
+      }
+    } catch (error) {
+      console.warn(`[tmdb] direct backdrop lookup for id ${tmdbId} failed`, error.message);
+    }
+  }
+
   if (!name && !originName) return null;
 
   const { baseName: cleanName } = parseSeasonInfo(name || "");
   const { baseName: cleanOrigin } = parseSeasonInfo(originName || "");
 
+  // Split multi-name origins like "City Rong / Rong Cheng"
+  const originCandidates = cleanOrigin
+    ? cleanOrigin
+        .split(/[/,]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
   try {
-    let match = cleanName ? await searchTmdbMovie(cleanName, year, context) : null;
-    if (!match && cleanName) {
-      match = await searchTmdbMovie(cleanName, undefined, context);
+    let match = null;
+    const isForeign = context.countrySlug && context.countrySlug !== "viet-nam";
+
+    const queriesToTry = isForeign
+      ? [...originCandidates, cleanName].filter(Boolean)
+      : [cleanName, ...originCandidates].filter(Boolean);
+
+    for (const q of queriesToTry) {
+      match = await searchTmdbMovie(q, year, context);
+      if (!match) match = await searchTmdbMovie(q, undefined, context);
+      if (match) break;
     }
-    if (!match && cleanOrigin && cleanOrigin !== cleanName) {
-      match = await searchTmdbMovie(cleanOrigin, year, context);
-      if (!match) match = await searchTmdbMovie(cleanOrigin, undefined, context);
-    }
-    
+
     if (!match || !match.backdrop_path) return null;
-    
+
     return `https://image.tmdb.org/t/p/original${match.backdrop_path}`;
   } catch (error) {
     console.warn("[tmdb] backdrop fetch failed", error.message);

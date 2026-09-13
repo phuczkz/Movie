@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { getProxiedAvatar } from "@/utils/image-helper.js";
 import {
   collection,
   addDoc,
@@ -97,13 +98,7 @@ function CommentRow({
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
 
-  const getProxiedAvatar = (url) => {
-    if (!url) return null;
-    if (url.includes("dicebear.com") || url.startsWith("/")) return url;
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      url
-    )}&w=100&h=100&fit=cover&output=webp&q=80`;
-  };
+  // Avatar proxying handled by centralized getProxiedAvatar from image-helper.js
 
   const finalAvatar = getProxiedAvatar(currentUserAvatar);
 
@@ -541,13 +536,7 @@ export default function Comments({ movieSlug, movieName }) {
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
 
-  const getProxiedAvatar = (url) => {
-    if (!url) return null;
-    if (url.includes("dicebear.com") || url.startsWith("/")) return url;
-    return `https://wsrv.nl/?url=${encodeURIComponent(
-      url
-    )}&w=100&h=100&fit=cover&output=webp&q=80`;
-  };
+  // Avatar proxying handled by centralized getProxiedAvatar from image-helper.js
 
   const finalAvatar = getProxiedAvatar(currentUserAvatar);
 

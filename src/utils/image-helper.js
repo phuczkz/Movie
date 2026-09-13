@@ -9,7 +9,8 @@ const DIRECT_CDN_HOSTS = [
 const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || "").trim().replace(/\/$/, "");
 
 /**
- * Check if a URL belongs to a known Vietnamese CDN that should be loaded directly.
+ * Check if a URL belongs to a known Vietnamese CDN that should be proxied
+ * through our own Worker instead of wsrv.nl.
  * @param {string} url - The image URL to check.
  * @returns {boolean}
  */
@@ -59,15 +60,28 @@ const resizeTmdb = (url, w = 342) => {
 };
 
 /**
+ * Build a proxied image URL through our Cloudflare Worker's /img/ route.
+ * This bypasses wsrv.nl entirely for whitelisted domains, reducing
+ * the proxy chain from 3 hops to 1 and leveraging Cloudflare edge cache.
+ *
+ * @param {string} url - Source image URL.
+ * @returns {string} Proxied URL via Worker /img/ route.
+ */
+const buildImageProxyUrl = (url) => {
+  if (!url || !STREAM_PROXY) return url;
+  return `${STREAM_PROXY}/img/?url=${encodeURIComponent(url)}`;
+};
+
+/**
  * Get an optimized poster URL for movie/comic cards.
  *
  * - TMDB: resize via TMDB path.
- * - Vietnamese CDNs: proxy through stream proxy then wsrv.nl to convert to WebP.
- * - Other: proxy through wsrv.nl for WebP conversion and resize.
+ * - Vietnamese CDNs: proxy through Worker /img/ route (direct fetch + edge cache).
+ * - Other: fallback to wsrv.nl for WebP conversion and resize.
  *
  * @param {string} url - Original image URL.
- * @param {number} [w=360] - Desired width.
- * @param {number} [q=80] - Quality (1-100), used only for wsrv.nl proxy.
+ * @param {number} [w=360] - Desired width (used only for wsrv.nl fallback).
+ * @param {number} [q=80] - Quality (1-100), used only for wsrv.nl fallback.
  * @returns {string|null}
  */
 export const getOptimizedPoster = (url, w = 360, q = 80) => {
@@ -79,18 +93,12 @@ export const getOptimizedPoster = (url, w = 360, q = 80) => {
       return resizeTmdb(url, w);
     }
 
-    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
+    // Vietnamese CDNs: proxy through Worker /img/ route (1 hop, edge cached)
     if (isDirectCdnUrl(url)) {
-      if (STREAM_PROXY) {
-        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
-        return `https://wsrv.nl/?url=${encodeURIComponent(
-          proxied
-        )}&output=webp&w=${w}&fit=cover&q=${q}`;
-      }
-      return url;
+      return buildImageProxyUrl(url);
     }
 
-    // Unknown domains: proxy through wsrv.nl for optimization
+    // Unknown domains: fallback to wsrv.nl for optimization
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
     )}&output=webp&w=${w}&fit=cover&q=${q}`;
@@ -117,18 +125,12 @@ export const getOptimizedBanner = (url, w = 1280, q = 75) => {
       return resizeTmdb(url, w);
     }
 
-    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
+    // Vietnamese CDNs: proxy through Worker /img/ route
     if (isDirectCdnUrl(url)) {
-      if (STREAM_PROXY) {
-        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
-        return `https://wsrv.nl/?url=${encodeURIComponent(
-          proxied
-        )}&output=webp&w=${w}&fit=cover&q=${q}`;
-      }
-      return url;
+      return buildImageProxyUrl(url);
     }
 
-    // Unknown domains: proxy through wsrv.nl
+    // Unknown domains: fallback to wsrv.nl
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
     )}&output=webp&w=${w}&fit=cover&q=${q}`;
@@ -152,18 +154,12 @@ export const getOptimizedPlayerPoster = (url) => {
       return url;
     }
 
-    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
+    // Vietnamese CDNs: proxy through Worker /img/ route
     if (isDirectCdnUrl(url)) {
-      if (STREAM_PROXY) {
-        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
-        return `https://wsrv.nl/?url=${encodeURIComponent(
-          proxied
-        )}&w=1920&output=webp&q=90`;
-      }
-      return url;
+      return buildImageProxyUrl(url);
     }
 
-    // Others: proxy through wsrv.nl
+    // Others: fallback to wsrv.nl
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
     )}&w=1920&output=webp&q=90`;
@@ -187,6 +183,11 @@ export const toOptimizedHeroImage = (url, w = 640, q = 85) => {
   try {
     const parsed = new URL(url);
 
+    // If already proxied through our Worker /img/ route, return as-is
+    if (parsed.pathname.startsWith("/img")) {
+      return url;
+    }
+
     // If already proxied through wsrv.nl, update params
     if (parsed.hostname === "wsrv.nl") {
       parsed.searchParams.set("w", String(w));
@@ -199,21 +200,56 @@ export const toOptimizedHeroImage = (url, w = 640, q = 85) => {
       return url;
     }
 
-    // Vietnamese CDNs: proxy through stream proxy + wsrv.nl
+    // Vietnamese CDNs: proxy through Worker /img/ route
     if (isDirectCdnUrl(url)) {
-      if (STREAM_PROXY) {
-        const proxied = `${STREAM_PROXY}/?url=${encodeURIComponent(url)}`;
-        return `https://wsrv.nl/?url=${encodeURIComponent(
-          proxied
-        )}&w=${w}&output=webp&q=${q}`;
-      }
-      return url;
+      return buildImageProxyUrl(url);
     }
 
-    // Others: proxy through wsrv.nl
+    // Others: fallback to wsrv.nl
     return `https://wsrv.nl/?url=${encodeURIComponent(
       url
     )}&w=${w}&output=webp&q=${q}`;
+  } catch {
+    return url;
+  }
+};
+
+/**
+ * Proxy an avatar URL through our Worker /img/ route or wsrv.nl fallback.
+ * Centralized utility to replace duplicate getProxiedAvatar functions
+ * scattered across Comments, WatchChat, and Profile components.
+ *
+ * @param {string} url - Raw avatar URL (photoURL from Firebase, etc.).
+ * @param {number} [size=100] - Desired width/height for wsrv.nl fallback.
+ * @returns {string|null}
+ */
+export const getProxiedAvatar = (url, size = 100) => {
+  if (!url) return null;
+  // DiceBear SVGs and local paths don't need proxying
+  if (url.includes("dicebear.com") || url.startsWith("/")) return url;
+
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+
+    // If the avatar host is in our Worker whitelist, use /img/ route
+    const IMAGE_PROXY_HOSTS = [
+      "phimimg.com", "img.ophim.live", "ophim1.com", "ophim.live",
+      "otruyenapi.com", "img.otruyenapi.com", "image.tmdb.org",
+      "images.unsplash.com",
+    ];
+
+    const isProxyable = IMAGE_PROXY_HOSTS.some(
+      (host) => hostname === host || hostname.endsWith(`.${host}`)
+    );
+
+    if (isProxyable && STREAM_PROXY) {
+      return buildImageProxyUrl(url);
+    }
+
+    // Fallback to wsrv.nl for other domains (Google, Facebook avatar URLs, etc.)
+    return `https://wsrv.nl/?url=${encodeURIComponent(
+      url
+    )}&w=${size}&h=${size}&fit=cover&output=webp&q=80`;
   } catch {
     return url;
   }
@@ -265,7 +301,7 @@ export const getAlternateExtensionUrls = (url) => {
 /**
  * Builds an ordered fallback chain of candidate URLs to load a movie poster.
  * Prioritizes:
- * 1. Optimized poster URL (wsrv / proxy)
+ * 1. Optimized poster URL (Worker /img/ proxy or wsrv.nl fallback)
  * 2. Raw poster URL (direct)
  * 3. Alternate extensions of poster (.jpg <-> .webp)
  * 4. Optimized thumb URL (fallback to thumb if poster fails)

@@ -7,12 +7,14 @@ import { getTmdbLogo } from '@/features/movies/api/tmdb';
  */
 const getMovieContext = (movie) => {
   if (!movie) return {};
-  const countrySlug = movie.country?.[0]?.slug || null;
-  const type = movie.type || null;
-  return { countrySlug, type };
+  const countrySlug = movie.country?.[0]?.slug || movie.origin?.country?.[0]?.slug || null;
+  const type = movie.type || movie.origin?.type || null;
+  const tmdbId = movie.tmdb?.id || movie.origin?.tmdb?.id || null;
+  const tmdbType = movie.tmdb?.type || movie.origin?.tmdb?.type || null;
+  return { countrySlug, type, tmdbId, tmdbType };
 };
 
-const LOGO_CACHE_KEY = "tmdb_logo_cache_v1";
+const LOGO_CACHE_KEY = "tmdb_logo_cache_v2";
 
 const getPersistedLogos = () => {
   try {
@@ -58,8 +60,8 @@ export const useMovieLogo = (movie) => {
   const context = getMovieContext(movie);
 
   const { data: logoUrl = null, isLoading } = useQuery({
-    // Include slug in queryKey so movies with the same name but different slugs get separate cache
-    queryKey: ["movie-logo", slug, name, originName, year],
+    // Include slug and tmdbId in queryKey so movies get separate cache
+    queryKey: ["movie-logo", slug, name, originName, year, context.tmdbId],
     queryFn: async () => {
       const logoObj = await getTmdbLogo(name, originName, year, context);
       if (slug && logoObj && logoObj.url) {
@@ -106,8 +108,8 @@ export const useMovieLogos = (movies = []) => {
       const context = getMovieContext(m);
 
       return {
-        // Include slug in queryKey so movies with the same name but different slugs get separate cache
-        queryKey: ["movie-logo", slug, name, originName, year],
+        // Include slug and tmdbId in queryKey so movies get separate cache
+        queryKey: ["movie-logo", slug, name, originName, year, context.tmdbId],
         queryFn: async () => {
           if (index > 0) {
             // Delay fetching logos for subsequent slides to prioritize the first slide's assets
@@ -154,7 +156,7 @@ export const useMovieLogos = (movies = []) => {
   return { logoMap, isLoading };
 };
 
-const BACKDROP_CACHE_KEY = "tmdb_backdrop_cache_v1";
+const BACKDROP_CACHE_KEY = "tmdb_backdrop_cache_v2";
 
 const getPersistedBackdrops = () => {
   try {
@@ -202,8 +204,8 @@ export const useMovieBackdrops = (movies = []) => {
       const context = getMovieContext(m);
 
       return {
-        // Include slug in queryKey so movies with the same name but different slugs get separate cache
-        queryKey: ["movie-backdrop", slug, name, originName, year],
+        // Include slug and tmdbId in queryKey so movies get separate cache
+        queryKey: ["movie-backdrop", slug, name, originName, year, context.tmdbId],
         queryFn: async () => {
           if (index > 0) {
             await new Promise((resolve) => setTimeout(resolve, 1500 + index * 500));
