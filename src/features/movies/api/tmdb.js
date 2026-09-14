@@ -255,6 +255,10 @@ const calculateTitleMatch = (query, candidate) => {
   return best;
 };
 
+// In-memory cache và khử trùng lặp request tìm kiếm TMDB đang thực hiện
+const searchCache = new Map();
+const inFlightSearches = new Map();
+
 /**
  * Search TMDB for a movie/TV show, with optional context for disambiguation.
  * @param {string} query - Search query
@@ -265,10 +269,20 @@ const calculateTitleMatch = (query, candidate) => {
  */
 export const searchTmdbMovie = async (query, year, context = {}) => {
   if (!query) return null;
-  try {
-    const { data } = await tmdb.get("search/multi", {
-      params: { query, year },
-    });
+
+  const cacheKey = `${query.toString().trim().toLowerCase()}_${year || ""}_${context.countrySlug || ""}_${context.type || ""}`;
+  if (searchCache.has(cacheKey)) {
+    return searchCache.get(cacheKey);
+  }
+  if (inFlightSearches.has(cacheKey)) {
+    return inFlightSearches.get(cacheKey);
+  }
+
+  const searchPromise = (async () => {
+    try {
+      const { data } = await tmdb.get("search/multi", {
+        params: { query, year },
+      });
     const results = data?.results || [];
     // Only consider movie/tv results that have a backdrop or poster
     const candidates = results.filter(
@@ -337,11 +351,18 @@ export const searchTmdbMovie = async (query, year, context = {}) => {
       }
     }
 
-    return bestCandidate;
-  } catch (error) {
-    console.warn("[tmdb] search failed", error.message);
-    return null;
-  }
+      searchCache.set(cacheKey, bestCandidate);
+      return bestCandidate;
+    } catch (error) {
+      console.warn("[tmdb] search failed", error.message);
+      return null;
+    } finally {
+      inFlightSearches.delete(cacheKey);
+    }
+  })();
+
+  inFlightSearches.set(cacheKey, searchPromise);
+  return searchPromise;
 };
 
 export const getTmdbCredits = async (id, mediaType = "movie") => {
@@ -631,3 +652,112 @@ export const getTmdbBackdrop = async (name, originName, year, context = {}) => {
     return null;
   }
 };
+
+/**
+ * Lấy đồng thời cả Logo và Backdrop cho Hero carousel trong 1 lần tìm kiếm duy nhất,
+ * tránh việc gọi 2 hàm getTmdbLogo và getTmdbBackdrop tìm kiếm lặp lại cùng một phim.
+ */
+export const getTmdbHeroAssets = async (name, originName, year, context = {}) => {
+  const { tmdbId, tmdbType, type } = context;
+
+  // 1. Nếu có tmdbId trực tiếp
+  if (tmdbId) {
+    try {
+      const preferredType = tmdbType || mapMovieType(type) || "tv";
+      let res = null;
+      try {
+        res = await tmdb.get(`${preferredType}/${tmdbId}`, {
+          params: { append_to_response: "images", include_image_language: "vi,en,null" },
+        });
+      } catch {
+        const altType = preferredType === "tv" ? "movie" : "tv";
+        res = await tmdb.get(`${altType}/${tmdbId}`, {
+          params: { append_to_response: "images", include_image_language: "vi,en,null" },
+        });
+      }
+
+      if (res?.data) {
+        const backdrop = res.data.backdrop_path
+          ? `https://image.tmdb.org/t/p/original${res.data.backdrop_path}`
+          : null;
+        const logos = res.data.images?.logos || [];
+        let logo = null;
+        if (logos.length) {
+          const pick =
+            logos.find((l) => l.iso_639_1 === "vi") ||
+            logos.find((l) => l.iso_639_1 === "en") ||
+            logos.find((l) => !l.iso_639_1) ||
+            logos[0];
+          if (pick?.file_path) {
+            logo = {
+              url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
+              lang: pick.iso_639_1 || "other",
+            };
+          }
+        }
+        return { logo, backdrop };
+      }
+    } catch (e) {
+      console.warn(`[tmdb] direct hero assets lookup for id ${tmdbId} failed`, e.message);
+    }
+  }
+
+  // 2. Tìm kiếm qua tên
+  if (!name && !originName) return { logo: null, backdrop: null };
+
+  const { baseName: cleanName } = parseSeasonInfo(name || "");
+  const { baseName: cleanOrigin } = parseSeasonInfo(originName || "");
+  const originCandidates = cleanOrigin
+    ? cleanOrigin
+        .split(/[/,]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+
+  const isForeign = context.countrySlug && context.countrySlug !== "viet-nam";
+  const queriesToTry = isForeign
+    ? [...originCandidates, cleanName].filter(Boolean)
+    : [cleanName, ...originCandidates].filter(Boolean);
+
+  let match = null;
+  for (const q of queriesToTry) {
+    match = await searchTmdbMovie(q, year, context);
+    if (!match) match = await searchTmdbMovie(q, undefined, context);
+    if (match) break;
+  }
+
+  if (!match) return { logo: null, backdrop: null };
+
+  const backdrop = match.backdrop_path
+    ? `https://image.tmdb.org/t/p/original${match.backdrop_path}`
+    : null;
+
+  const mediaType = match.media_type || "movie";
+  const id = match.id;
+
+  let logo = null;
+  try {
+    const { data } = await tmdb.get(`${mediaType}/${id}/images`, {
+      params: { include_image_language: "vi,en,null" },
+    });
+    const logos = data?.logos || [];
+    if (logos.length) {
+      const pick =
+        logos.find((l) => l.iso_639_1 === "vi") ||
+        logos.find((l) => l.iso_639_1 === "en") ||
+        logos.find((l) => !l.iso_639_1) ||
+        logos[0];
+      if (pick?.file_path) {
+        logo = {
+          url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
+          lang: pick.iso_639_1 || "other",
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("[tmdb] hero logo fetch failed", err.message);
+  }
+
+  return { logo, backdrop };
+};
+

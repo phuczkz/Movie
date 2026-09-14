@@ -8,18 +8,16 @@ import {
   doc,
   writeBatch,
   deleteDoc,
-  orderBy,
-  limit,
 } from "firebase/firestore";
 import { Bell, Trash2, X, Megaphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { db } from "@/firebase.config.js";
-import { useAuth } from "@/features/auth/context/AuthContext";
+import { useAuth, useAnnouncements } from "@/features/auth/context/AuthContext";
 
 export default function Notifications() {
   const { user, userProfile, markAnnouncementAsRead } = useAuth();
   const [notifications, setNotifications] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
+  const { data: announcements = [] } = useAnnouncements();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -52,30 +50,6 @@ export default function Notifications() {
 
     return () => unsubscribe();
   }, [user, ADMIN_EMAIL]);
-
-  useEffect(() => {
-    if (!db) return;
-
-    const q = query(
-      collection(db, "announcements"),
-      orderBy("createdAt", "desc"),
-      limit(10)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const activeDocs = docs.filter((d) => d.active === true);
-        setAnnouncements(activeDocs);
-      },
-      (error) => {
-        console.error("Announcements fetch error", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {

@@ -4,6 +4,7 @@ import {
 import { doc, onSnapshot, increment, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { db } from '@/firebase.config.js';
 import { useMemo, useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useMovieDetail } from '@/features/movies/hooks/useMovieDetail.js';
 import { useSavedMovie } from '@/features/movies/hooks/useSavedMovie.js';
@@ -49,7 +50,6 @@ const Detail = () => {
   const [resumeData, setResumeData] = useState(null);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [movieOverride, setMovieOverride] = useState(null);
-  const [tmdbFullEpisodes, setTmdbFullEpisodes] = useState([]);
   const { movie: baseMovie, episodes: baseEpisodes = [] } = data || {};
   const isTmdb = baseMovie?.slug?.startsWith("tmdb-");
   const tmdbScheduleId = isTmdb ? baseMovie?.origin?.id : baseMovie?.tmdb?.id;
@@ -63,25 +63,15 @@ const Detail = () => {
     tmdbScheduleId && tmdbScheduleMediaType === "tv"
   );
 
-  // Fetch all TMDB episodes for air-date logic
-  useEffect(() => {
-    if (!canUseTmdbSchedule) return;
-
-    const fetchAll = async () => {
-      try {
-        const eps = await getTmdbEpisodes(
-          tmdbScheduleId,
-          "tv",
-          tmdbScheduleSeasons || []
-        );
-        setTmdbFullEpisodes(Array.isArray(eps) ? eps : []);
-      } catch (err) {
-        console.error("[tmdb] failed to fetch extra episodes", err);
-        setTmdbFullEpisodes([]);
-      }
-    };
-    fetchAll();
-  }, [canUseTmdbSchedule, tmdbScheduleId, tmdbScheduleSeasons, setTmdbFullEpisodes]);
+  // Fetch all TMDB episodes for air-date logic — cached by React Query
+  const { data: tmdbFullEpisodes = [] } = useQuery({
+    queryKey: ["tmdbEpisodes", tmdbScheduleId, tmdbScheduleSeasons],
+    queryFn: () => getTmdbEpisodes(tmdbScheduleId, "tv", tmdbScheduleSeasons || []),
+    enabled: canUseTmdbSchedule,
+    staleTime: 1000 * 60 * 30,   // 30 min — air schedules rarely change
+    gcTime: 1000 * 60 * 60,      // keep in memory 1 h
+    select: (eps) => (Array.isArray(eps) ? eps : []),
+  });
 
   // Listen for admin movie override (trailer mode)
   useEffect(() => {

@@ -235,6 +235,8 @@ const Header = () => {
   const { appMode, setAppMode } = useAppMode();
   const isAdmin = user && user.email === ADMIN_EMAIL;
   const navigate = useNavigate();
+  // Defer genre/country API calls until user hovers the nav for the first time
+  const [navHovered, setNavHovered] = useState(false);
   const avatarUrl =
     userProfile?.photoURL ||
     user?.photoURL ||
@@ -268,8 +270,8 @@ const Header = () => {
 
   const apiGenreOptions = apiGenreOptionsData || [];
 
-  const { data: apiMovieGenres = [] } = useMovieGenres({ enabled: !isComicMode });
-  const { data: apiMovieCountries = [] } = useMovieCountries({ enabled: !isComicMode });
+  const { data: apiMovieGenres = [] } = useMovieGenres({ enabled: !isComicMode && navHovered });
+  const { data: apiMovieCountries = [] } = useMovieCountries({ enabled: !isComicMode && navHovered });
 
   const dynamicMovieGenreOptions = useMemo(() => {
     if (apiMovieGenres.length > 0) {
@@ -425,7 +427,10 @@ const Header = () => {
             />
           </div>
 
-          <nav className="flex flex-shrink-0 items-center gap-0.5 xl:gap-1 text-white">
+          <nav
+            className="flex flex-shrink-0 items-center gap-0.5 xl:gap-1 text-white"
+            onMouseEnter={() => !navHovered && setNavHovered(true)}
+          >
             {primaryNav.map((item) => (
               <NavLink
                 key={item.to}

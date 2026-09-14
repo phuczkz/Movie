@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Info, Play, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+// LazyMotion đã được bọc ở root (main.jsx) — không cần bọc lại ở đây
 // eslint-disable-next-line no-unused-vars
-import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 // removed useEpisodeLabel import as it was unused
-import { useMovieLogos, useMovieBackdrops } from '@/features/movies/hooks/useMovieLogo';
+import { useHeroAssets } from '@/features/movies/hooks/useMovieLogo';
 import { useMovieDetail } from '@/features/movies/hooks/useMovieDetail.js';
 import { useSavedMovie } from '@/features/movies/hooks/useSavedMovie.js';
 import { isMobile } from '@/utils/responsive.js';
@@ -41,13 +42,22 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
 
   const safeIndex = slideCount ? Math.min(activeIndex, slideCount - 1) : 0;
   const activeMovie = slides[safeIndex] || slides[0];
-  const { data: detailData } = useMovieDetail(activeMovie?.slug);
+
+  // Debounce slug 500ms: tránh gửi request detail cho slide đang dừ qua nhanh khi tự động chuyển slide
+  const [debouncedSlug, setDebouncedSlug] = useState(activeMovie?.slug);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSlug(activeMovie?.slug);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeMovie?.slug]);
+
+  const { data: detailData } = useMovieDetail(debouncedSlug);
   const displayMovie = detailData?.movie || activeMovie;
   const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(displayMovie || activeMovie);
 
-  // removed unused episodeLabel declaration
-  const { logoMap } = useMovieLogos(slides);
-  const { backdropMap } = useMovieBackdrops(slides);
+  // Tải đồng thời cả Logo và Backdrop cho các slide trong 1 truy vấn duy nhất, không tìm kiếm lặp lại
+  const { logoMap, backdropMap } = useHeroAssets(slides);
 
   const activeLogoObj = logoMap.get(activeMovie?.slug) || null;
   const activeLogo = activeLogoObj?.url || null;
@@ -167,10 +177,9 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   const partString = partMatch ? partMatch[0] : null;
 
   return (
-    <LazyMotion features={domAnimation}>
-      <section
-        className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px]"
-      >
+    <section
+      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px]"
+    >
         <div className="absolute inset-0">
           <AnimatePresence mode="popLayout">
             <m.img
@@ -388,7 +397,6 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
           </div>
         ) : null}
       </section>
-    </LazyMotion>
   );
 };
 

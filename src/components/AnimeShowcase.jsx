@@ -181,8 +181,16 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
     const totalMovies = movies.length;
     const activeMovie = movies[activeIndex] || movies[0];
 
-    // Fetch detail for selected movie
-    const { data: detailData } = useMovieDetail(activeMovie?.slug);
+
+    const [debouncedSlug, setDebouncedSlug] = useState(activeMovie?.slug);
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSlug(activeMovie?.slug);
+        }, 450);
+        return () => clearTimeout(timer);
+    }, [activeMovie?.slug]);
+
+    const { data: detailData } = useMovieDetail(debouncedSlug);
     const displayMovie = detailData?.movie || activeMovie;
 
     const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(
@@ -500,11 +508,10 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
                                     className="min-w-[24px] sm:min-w-[28px] min-h-[36px] flex items-center justify-center focus:outline-none"
                                 >
                                     <span
-                                        className={`block transition-all duration-300 ${
-                                            isActive
+                                        className={`block transition-all duration-300 ${isActive
                                                 ? "w-7 h-2.5 rounded-full bg-white shadow-sm"
                                                 : "size-2 rounded-full bg-white/30 hover:bg-white/60"
-                                        }`}
+                                            }`}
                                     />
                                 </button>
                             );

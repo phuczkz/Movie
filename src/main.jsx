@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { LazyMotion, domAnimation } from "framer-motion";
 import App from "./App.jsx";
 import { AuthProvider } from '@/features/auth/context/AuthContext.jsx';
 import { AppModeProvider } from '@/context/AppModeContext.jsx';
@@ -42,18 +43,21 @@ window.addEventListener(
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <AppModeProvider>
-              <MaintenanceGuard>
-                <App />
-              </MaintenanceGuard>
-            </AppModeProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </HelmetProvider>
+    {/* LazyMotion ở root: tải animation bundle 1 lần duy nhất, tránh trùng lặp ở Hero/PageTransition */}
+    <LazyMotion features={domAnimation} strict={false}>
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <AuthProvider>
+              <AppModeProvider>
+                <MaintenanceGuard>
+                  <App />
+                </MaintenanceGuard>
+              </AppModeProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </HelmetProvider>
+    </LazyMotion>
   </StrictMode>
 );

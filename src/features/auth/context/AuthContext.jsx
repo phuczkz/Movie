@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 let firebaseSdkPromise = null;
 
@@ -534,7 +535,7 @@ export const AuthProvider = ({ children }) => {
           loadFirebaseSdk(),
           import("firebase/app")
         ]);
-        
+
         // Initialize AdminApp on demand to save initial bundle size
         const adminApp = initializeApp(config.firebaseConfig, "AdminApp_" + Date.now());
         const adminAuth = getAuth(adminApp);
@@ -596,12 +597,12 @@ export const AuthProvider = ({ children }) => {
         if (!config.db) return;
         const currentUser = await ensureCurrentUser();
         const userRef = firestoreMod.doc(config.db, "users", currentUser.uid);
-        
+
         await firestoreMod.updateDoc(userRef, {
           readAnnouncements: firestoreMod.arrayUnion(announcementId),
           updatedAt: firestoreMod.serverTimestamp(),
         });
-        
+
         setUserProfile((prev) => ({
           ...prev,
           readAnnouncements: [...(prev?.readAnnouncements || []), announcementId],
@@ -616,3 +617,31 @@ export const AuthProvider = ({ children }) => {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => use(AuthContext);
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAnnouncements = () => {
+  return useQuery({
+    queryKey: ["active-announcements"],
+    queryFn: async () => {
+      const { config, firestoreMod } = await loadFirebaseSdk();
+      if (!config.db) return [];
+      try {
+        const q = firestoreMod.query(
+          firestoreMod.collection(config.db, "announcements"),
+          firestoreMod.orderBy("createdAt", "desc"),
+          firestoreMod.limit(15)
+        );
+        const snapshot = await firestoreMod.getDocs(q);
+        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        return docs.filter((d) => d.active === true);
+      } catch (err) {
+        console.error("Error fetching announcements:", err);
+        return [];
+      }
+    },
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+  });
+};

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import Hero from '@/components/Hero.jsx';
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
@@ -16,9 +16,7 @@ import AnimeShowcase from '@/components/AnimeShowcase.jsx';
 import WeeklyRanking from '@/components/WeeklyRanking.jsx';
 import VietnamBanner from '@/components/VietnamBanner.jsx';
 import SEO from '@/components/SEO.jsx';
-import { db } from '@/firebase.config.js';
-import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
-import { useAuth } from '@/features/auth/context/AuthContext.jsx';
+import { useAuth, useAnnouncements } from '@/features/auth/context/AuthContext.jsx';
 import AnnouncementModal from '@/components/AnnouncementModal.jsx';
 import ContinueWatching from '@/components/ContinueWatching.jsx';
 
@@ -131,70 +129,50 @@ const Home = () => {
   };
 
   const { userProfile, markAnnouncementAsRead } = useAuth();
-  const [activeAnnouncement, setActiveAnnouncement] = useState(null);
+  const { data: rawAnnouncements = [] } = useAnnouncements();
+  // Tính toán trực tiếp từ dữ liệu — tránh useEffect+setState gây cascading renders
+  const [dismissed, setDismissed] = useState(false);
 
-  useEffect(() => {
-    if (!db) return;
-    const fetchAnnouncement = async () => {
-      try {
-        const q = query(
-          collection(db, "announcements"),
-          orderBy("createdAt", "desc"),
-          limit(15)
-        );
-        const snapshot = await getDocs(q);
-        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const activeAnnouncement = useMemo(() => {
+    if (dismissed) return null;
+    if (!rawAnnouncements || rawAnnouncements.length === 0) return null;
 
-        const activeDocs = docs
-          .filter((d) => d.active === true)
-          .sort((a, b) => {
-            const timeA = a.updatedAt?.toMillis
-              ? a.updatedAt.toMillis()
-              : a.createdAt?.toMillis
-                ? a.createdAt.toMillis()
-                : 0;
-            const timeB = b.updatedAt?.toMillis
-              ? b.updatedAt.toMillis()
-              : b.createdAt?.toMillis
-                ? b.createdAt.toMillis()
-                : 0;
-            return timeB - timeA;
-          });
+    const activeDocs = [...rawAnnouncements].sort((a, b) => {
+      const timeA = a.updatedAt?.toMillis
+        ? a.updatedAt.toMillis()
+        : a.createdAt?.toMillis
+          ? a.createdAt.toMillis()
+          : 0;
+      const timeB = b.updatedAt?.toMillis
+        ? b.updatedAt.toMillis()
+        : b.createdAt?.toMillis
+          ? b.createdAt.toMillis()
+          : 0;
+      return timeB - timeA;
+    });
 
-        const activeDoc = activeDocs[0];
+    const activeDoc = activeDocs[0];
+    if (!activeDoc) return null;
 
-        if (activeDoc) {
-          const updatedAtMillis = activeDoc.updatedAt?.toMillis
-            ? activeDoc.updatedAt.toMillis()
-            : activeDoc.createdAt?.toMillis
-              ? activeDoc.createdAt.toMillis()
-              : 0;
+    const updatedAtMillis = activeDoc.updatedAt?.toMillis
+      ? activeDoc.updatedAt.toMillis()
+      : activeDoc.createdAt?.toMillis
+        ? activeDoc.createdAt.toMillis()
+        : 0;
 
-          const versionKey = `${activeDoc.id}_${updatedAtMillis}`;
-          const localRead = JSON.parse(
-            localStorage.getItem("readAnnouncements") || "[]"
-          );
-          const userRead = userProfile?.readAnnouncements || [];
-          const readList = [...new Set([...localRead, ...userRead])];
+    const versionKey = `${activeDoc.id}_${updatedAtMillis}`;
+    const localRead = JSON.parse(
+      localStorage.getItem("readAnnouncements") || "[]"
+    );
+    const userRead = userProfile?.readAnnouncements || [];
+    const readList = [...new Set([...localRead, ...userRead])];
 
-          const isRead =
-            readList.includes(versionKey) ||
-            readList.includes(activeDoc.id);
+    const isRead =
+      readList.includes(versionKey) ||
+      readList.includes(activeDoc.id);
 
-          if (!isRead) {
-            setActiveAnnouncement({ ...activeDoc, versionKey });
-          } else {
-            setActiveAnnouncement(null);
-          }
-        } else {
-          setActiveAnnouncement(null);
-        }
-      } catch (err) {
-        console.error("Error fetching announcement:", err);
-      }
-    };
-    fetchAnnouncement();
-  }, [userProfile]);
+    return isRead ? null : { ...activeDoc, versionKey };
+  }, [rawAnnouncements, userProfile, dismissed]);
 
   const handleConfirmAnnouncement = async () => {
     if (activeAnnouncement) {
@@ -229,10 +207,11 @@ const Home = () => {
           console.error("Error saving announcement status to Firestore:", err);
         }
       }
-      setActiveAnnouncement(null);
+      setDismissed(true);
     }
   };
 
+  const [refTrending, showTrending] = useSectionVisibility();
   const [refAnime, showAnime] = useSectionVisibility();
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
@@ -251,7 +230,7 @@ const Home = () => {
 
   const { data: kkSeries = [], isLoading: loadingKKSeries } = useKKphimMovies(
     "series",
-    { enabled: showKKSeries, ...commonQueryOpts }
+    { enabled: showTrending || showKKSeries, ...commonQueryOpts }
   );
   const { data: kkSingle = [], isLoading: loadingKKSingle } = useKKphimMovies(
     "single",
@@ -278,7 +257,7 @@ const Home = () => {
       <AnnouncementModal
         announcement={activeAnnouncement}
         onConfirm={handleConfirmAnnouncement}
-        onClose={() => setActiveAnnouncement(null)}
+        onClose={() => setDismissed(true)}
       />
 
       <LoginBanner />
@@ -326,10 +305,12 @@ const Home = () => {
         </div>
       </section>
 
-      <TrendingSection
-        movies={kkSeries.slice(0, 10)}
-        loading={loadingKKSeries}
-      />
+      <div ref={refTrending}>
+        <TrendingSection
+          movies={kkSeries.slice(0, 10)}
+          loading={loadingKKSeries}
+        />
+      </div>
 
       {/* Phim chiếu rạp — landscape cards (MotChill "Đề Cử" pattern) */}
       <div ref={refTheater}>

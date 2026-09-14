@@ -1,5 +1,5 @@
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getTmdbLogo } from '@/features/movies/api/tmdb';
+import { getTmdbLogo, getTmdbBackdrop, getTmdbHeroAssets } from '@/features/movies/api/tmdb';
 
 /**
  * Extract country slug and movie type from a movie object.
@@ -186,8 +186,6 @@ const persistBackdrops = (items) => {
   }
 };
 
-import { getTmdbBackdrop } from '@/features/movies/api/tmdb';
-
 /**
  * Fetches backdrop URLs for multiple movies (used by Hero carousel).
  * Returns a Map<slug, backdropUrl | null>.
@@ -243,4 +241,88 @@ export const useMovieBackdrops = (movies = []) => {
   const isLoading = queryResults.some((res) => res.isLoading);
 
   return { backdropMap, isLoading };
+};
+
+/**
+ * Hook tối ưu cho Hero Carousel: tải đồng thời cả Logo và Backdrop cho các slide
+ * trong 1 query duy nhất mỗi phim, tránh tìm kiếm TMDB lặp lại 2 lần (double search).
+ */
+export const useHeroAssets = (movies = []) => {
+  const list = movies.filter(Boolean);
+
+  const queryResults = useQueries({
+    queries: list.map((m, index) => {
+      const name = m.name || "";
+      const originName = m.origin_name || "";
+      const year = m.year;
+      const slug = m.slug;
+      const context = getMovieContext(m);
+
+      return {
+        queryKey: ["movie-hero-assets", slug, name, originName, year, context.tmdbId],
+        queryFn: async () => {
+          if (index > 0) {
+            // Delay fetching assets cho các slide sau để ưu tiên slide đầu tiên hiển thị trước
+            await new Promise((resolve) => setTimeout(resolve, 1500 + index * 500));
+          }
+          const assets = await getTmdbHeroAssets(name, originName, year, context);
+          if (slug && assets) {
+            if (assets.logo && assets.logo.url) {
+              persistLogos([{ slug, logo: assets.logo }]);
+            }
+            if (assets.backdrop) {
+              persistBackdrops([{ slug, backdrop: assets.backdrop }]);
+            }
+          }
+          return assets || { logo: null, backdrop: null };
+        },
+        enabled: !!(name || originName),
+        staleTime: 60 * 60 * 1000,
+        gcTime: 24 * 60 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnMount: false,
+        retry: 1,
+        initialData: () => {
+          if (!slug) return undefined;
+          const logoCache = getPersistedLogos();
+          const backdropCache = getPersistedBackdrops();
+          const cachedLogo = logoCache[slug];
+          const cachedBg = backdropCache[slug];
+
+          let logo = null;
+          if (typeof cachedLogo === "string" && cachedLogo) {
+            logo = { url: cachedLogo, lang: "other" };
+          } else if (cachedLogo && cachedLogo.url) {
+            logo = cachedLogo;
+          }
+
+          const backdrop = typeof cachedBg === "string" && cachedBg ? cachedBg : null;
+
+          if (logo || backdrop) {
+            return { logo, backdrop };
+          }
+          return undefined;
+        },
+      };
+    }),
+  });
+
+  const logoMap = new Map();
+  const backdropMap = new Map();
+
+  list.forEach((m, idx) => {
+    const res = queryResults[idx];
+    if (res && res.data) {
+      if (res.data.logo) {
+        logoMap.set(m.slug, res.data.logo);
+      }
+      if (res.data.backdrop) {
+        backdropMap.set(m.slug, res.data.backdrop);
+      }
+    }
+  });
+
+  const isLoading = queryResults.some((res) => res.isLoading);
+
+  return { logoMap, backdropMap, isLoading };
 };

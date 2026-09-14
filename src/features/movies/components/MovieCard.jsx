@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Play, Calendar, Film, Globe, Heart, Info, ChevronDown } from "lucide-react";
 
@@ -164,6 +164,9 @@ const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) 
   );
 };
 
+// Bọc memo để HoverCard không re-render khi MovieCard cha cập nhật state không liên quan
+const MemoHoverCard = memo(HoverCard);
+
 // ─── Main MovieCard ──────────────────────────────────────────────────────────
 const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const imgRef = useRef(null);
@@ -221,8 +224,10 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     setHovered(false);
   };
 
+  // Chỉ fetch chi tiết phim khi người dùng hover (apiReady) hoặc card được đánh dấu ưu tiên.
+  // Không fetch theo isInView để tránh hàng loạt request khi cuộn trang.
   const { data: detailData, isFetched } = useMovieDetail(slug, {
-    enabled: (apiReady || isInView || priority) && !!slug,
+    enabled: (apiReady || priority) && !!slug,
   });
   const episodeList = useMemo(() => detailData?.episodes || [], [detailData?.episodes]);
 
@@ -328,7 +333,8 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     return () => observer.disconnect();
   }, [isInView, slug]);
 
-  const isMobileSize = isMobile();
+  // Dùng useMemo để tránh gọi DOM API (window.innerWidth) mỗi lần render
+  const isMobileSize = useMemo(() => isMobile(), []);
   const posterWidth = priority ? (isMobileSize ? 300 : 480) : (isMobileSize ? 200 : 360);
   const posterQuality = isMobileSize ? 70 : 80;
 
@@ -463,7 +469,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
 
       {/* Hover Preview — overlays directly on the card, centered */}
       {hovered && (
-        <HoverCard
+        <MemoHoverCard
           movie={movie}
           thumbSrc={thumbSrc}
           thumbFallbacks={thumbFallbacks}
