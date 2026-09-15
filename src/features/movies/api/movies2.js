@@ -14,15 +14,6 @@ const decodeHtmlEntities = (str = "") => {
     .replace(/&apos;/g, "'");
 };
 
-const escapeHtmlSearch = (str = "") => {
-  if (!str) return "";
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/'/g, "&#039;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-};
 
 const apiBase = import.meta.env.VITE_KKPHIM_API;
 const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
@@ -189,6 +180,32 @@ const uniqueBySlug = (items = []) => {
   return result;
 };
 
+const extractPagination = (data, rawItemsLength = 0, page = 1) => {
+  const p = data?.data?.params?.pagination || data?.pagination || data?.data?.pagination;
+  const totalPages = Number(p?.totalPages) || (rawItemsLength >= 24 ? page + 1 : page);
+  const totalItems = Number(p?.totalItems) || (rawItemsLength || 0);
+  const currentPage = Number(p?.currentPage) || page;
+  const totalItemsPerPage = Number(p?.totalItemsPerPage) || 24;
+  return {
+    totalPages: Math.max(1, totalPages),
+    totalItems,
+    currentPage,
+    totalItemsPerPage,
+    hasNext: totalPages > currentPage,
+  };
+};
+
+const attachPagination = (list, pagination) => {
+  if (Array.isArray(list)) {
+    list.pagination = pagination;
+    list.totalPages = pagination.totalPages;
+    list.totalItems = pagination.totalItems;
+    list.currentPage = pagination.currentPage;
+    list.hasNext = pagination.hasNext;
+  }
+  return list;
+};
+
 const fetchList = async (path, page = 1, extraParams = {}) => {
   if (extraParams.category && isForbiddenGenre(extraParams.category)) {
     return [];
@@ -200,7 +217,9 @@ const fetchList = async (path, page = 1, extraParams = {}) => {
   }
   const { data } = await kkphim.get(path, config);
   const items = data?.data?.items || data?.items || [];
-  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  const pagination = extractPagination(data, items.length, page);
+  const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  return attachPagination(filtered, pagination);
 };
 
 export const getKKphimLatest = (page = 1, extraParams = {}) =>
@@ -253,13 +272,17 @@ export const getKKphimDetail = async (slug, options = {}) => {
   };
 };
 
-export const searchKKphim = async (keyword, page = 1) => {
-  const escapedKeyword = escapeHtmlSearch(keyword);
+export const searchKKphim = async (keyword, page = 1, limit = 24) => {
+  const cleanKeyword = (keyword || "").toString().trim();
+  if (!cleanKeyword) return attachPagination([], extractPagination(null, 0, page));
+
   const { data } = await kkphim.get("/tim-kiem", {
-    params: { keyword: escapedKeyword, page },
+    params: { keyword: cleanKeyword, page, limit },
   });
   const items = data?.data?.items || data?.items || [];
-  return filterAdultMovies(items.map(normalizeKKphimMovie));
+  const pagination = extractPagination(data, items.length, page);
+  const filtered = filterAdultMovies(items.map(normalizeKKphimMovie));
+  return attachPagination(filtered, pagination);
 };
 
 export const getKKphimByYear = async (year, page = 1) => {
@@ -275,7 +298,18 @@ export const getKKphimByYear = async (year, page = 1) => {
     ...(le?.data?.data?.items || le?.data?.items || []),
     ...(bo?.data?.data?.items || bo?.data?.items || []),
   ];
-  return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  const leTotalPages = Number(le?.data?.data?.params?.pagination?.totalPages) || 0;
+  const boTotalPages = Number(bo?.data?.data?.params?.pagination?.totalPages) || 0;
+  const totalPages = Math.max(1, leTotalPages, boTotalPages);
+  const totalItems = (Number(le?.data?.data?.params?.pagination?.totalItems) || 0) + (Number(bo?.data?.data?.params?.pagination?.totalItems) || 0);
+  const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+  return attachPagination(filtered, {
+    totalPages,
+    totalItems,
+    currentPage: page,
+    totalItemsPerPage: 24,
+    hasNext: totalPages > page,
+  });
 };
 
 const KNOWN_COUNTRIES = new Set([
@@ -314,7 +348,9 @@ export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
       params: { page, ...extraParams },
     });
     const items = data?.data?.items || data?.items || [];
-    return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+    const pagination = extractPagination(data, items.length, page);
+    const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+    return attachPagination(filtered, pagination);
   } catch (error) {
     if (error?.response?.status === 404) return [];
     throw error;
@@ -330,7 +366,9 @@ export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
       params: { page, ...extraParams },
     });
     const items = data?.data?.items || data?.items || [];
-    return filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+    const pagination = extractPagination(data, items.length, page);
+    const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+    return attachPagination(filtered, pagination);
   } catch (error) {
     if (error?.response?.status === 404) return [];
     throw error;

@@ -1,5 +1,8 @@
 export const FORBIDDEN_CATEGORIES = ["Phim 18+", "18+", "Cấp 3", "Sexy", "Adult"];
-export const FORBIDDEN_SLUGS = ["phim-18", "18-plus", "cap-3", "adult", "sexy", "18"];
+export const FORBIDDEN_SLUGS = ["phim-18", "18-plus", "cap-3", "adult", "sexy"];
+
+const ADULT_SLUG_REGEX = /(^|[-_])(18-plus|phim-18|18\+|cap-3|adult|sexy)([-_]|$)/i;
+const ADULT_NAME_REGEX = /(^|[\s([{-])(18\+|phim 18\+|cấp 3|adult|sexy)([\s)\]}-]|$)/i;
 
 /**
  * Checks if a genre or slug belongs to forbidden 18+ categories.
@@ -12,11 +15,11 @@ export const isForbiddenGenre = (genreOrSlug) => {
   const slug = (typeof genreOrSlug === "string" ? genreOrSlug : genreOrSlug?.slug || "").toLowerCase().trim();
 
   return (
-    FORBIDDEN_SLUGS.some((f) => slug === f || slug.includes(f)) ||
-    FORBIDDEN_CATEGORIES.some((f) => name.includes(f.toLowerCase())) ||
+    ADULT_SLUG_REGEX.test(slug) ||
+    ADULT_NAME_REGEX.test(name) ||
     slug === "phim-18" ||
-    slug.includes("18") ||
-    name.includes("18+")
+    slug === "18-plus" ||
+    name === "18+"
   );
 };
 
@@ -28,9 +31,6 @@ export const isForbiddenGenre = (genreOrSlug) => {
 export const isAdultMovie = (movie) => {
   if (!movie) return false;
 
-  const forbiddenCategories = FORBIDDEN_CATEGORIES;
-  const forbiddenSlugs = FORBIDDEN_SLUGS;
-
   // Check categories
   const categories = movie.category || movie.genres || [];
   if (Array.isArray(categories)) {
@@ -39,18 +39,21 @@ export const isAdultMovie = (movie) => {
       const slug = (typeof cat === "string" ? "" : cat?.slug || "").trim();
 
       return (
-        forbiddenCategories.some((forbidden) => name.toLowerCase().includes(forbidden.toLowerCase())) ||
-        forbiddenSlugs.some((forbidden) => slug.toLowerCase().includes(forbidden.toLowerCase()))
+        ADULT_NAME_REGEX.test(name) ||
+        ADULT_SLUG_REGEX.test(slug) ||
+        slug === "phim-18" ||
+        slug === "18-plus" ||
+        name === "18+"
       );
     });
     if (hasAdultCategory) return true;
   }
 
   // Check movie name or slug as a fallback
-  const name = (movie.name || "").toLowerCase();
-  const slug = (movie.slug || "").toLowerCase();
+  const name = (movie.name || "").trim();
+  const slug = (movie.slug || "").trim();
   
-  if (forbiddenSlugs.some(f => slug.includes(f)) || forbiddenCategories.some(f => name.includes(f.toLowerCase()))) return true;
+  if (ADULT_SLUG_REGEX.test(slug) || ADULT_NAME_REGEX.test(name)) return true;
 
   return false;
 };

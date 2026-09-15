@@ -208,10 +208,39 @@ const Category = () => {
     loadingKKCategory,
   ]);
 
+  const activeDataSource = useMemo(() => {
+    if (isSeries) return seriesKK;
+    if (isSingle) return singleKK;
+    if (isLatest) return latestKK;
+    if (isChieuRap) return mergedChieuRap;
+    if (isHoatHinh) return mergedHoatHinh;
+    return kkCategory;
+  }, [
+    isChieuRap,
+    isHoatHinh,
+    isLatest,
+    isSeries,
+    isSingle,
+    latestKK,
+    mergedChieuRap,
+    mergedHoatHinh,
+    seriesKK,
+    singleKK,
+    kkCategory,
+  ]);
+
+  const totalPages = useMemo(() => {
+    return (
+      activeDataSource?.totalPages ||
+      activeDataSource?.pagination?.totalPages ||
+      (activeDataSource?.length >= 24 ? page + 1 : page)
+    );
+  }, [activeDataSource, page]);
+
   const pagedData = useMemo(() => {
-    const hasNext = mergedData.length >= 24;
-    return { items: mergedData, hasNext };
-  }, [mergedData]);
+    const hasNext = totalPages ? page < totalPages : mergedData.length >= 24;
+    return { items: mergedData, hasNext, totalPages };
+  }, [mergedData, totalPages, page]);
 
   const updateFilterParams = (updater) => {
     const newParams = new URLSearchParams(searchParams);
@@ -364,6 +393,7 @@ const Category = () => {
           {(pagedData.hasNext || page > 1) && (
             <Pagination
               currentPage={page}
+              totalPages={pagedData.totalPages}
               hasNext={pagedData.hasNext}
               onPageChange={goToPage}
             />
@@ -375,9 +405,20 @@ const Category = () => {
             <Film className="size-8" />
           </div>
           <h2 className="text-lg font-bold text-white mb-1">Không tìm thấy phim phù hợp</h2>
-          <p className="text-slate-400 text-sm max-w-sm">
-            Hiện chưa có phim nào phù hợp với bộ lọc đã chọn. Vui lòng thử chọn lại thể loại, quốc gia hoặc năm khác.
+          <p className="text-slate-400 text-sm max-w-sm mb-4">
+            {page > 1
+              ? `Trang ${page} không có phim nào hoặc đã vượt quá số trang hiện có.`
+              : "Hiện chưa có phim nào phù hợp với bộ lọc đã chọn. Vui lòng thử chọn lại thể loại, quốc gia hoặc năm khác."}
           </p>
+          {page > 1 && (
+            <button
+              type="button"
+              onClick={() => goToPage(1)}
+              className="px-5 py-2.5 rounded-xl bg-emerald-500 text-emerald-950 font-semibold text-sm hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20"
+            >
+              Quay về trang 1
+            </button>
+          )}
         </div>
       )}
     </div>

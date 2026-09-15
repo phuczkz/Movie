@@ -361,6 +361,16 @@ const Detail = () => {
     if (movieOverride?.mode === "trailer") return true;
     if (movieOverride?.mode === "full") return false;
 
+    // Detect "Trailer" status from API metadata (episode_current or status)
+    const rawEpCurrent = (movie?.episode_current || "").toLowerCase();
+    const rawStatus = (movie?.status || "").toLowerCase();
+    const isApiTrailer =
+      rawEpCurrent === "trailer" ||
+      rawEpCurrent.startsWith("trailer") ||
+      rawStatus === "trailer" ||
+      rawStatus.startsWith("trailer");
+    if (isApiTrailer) return true;
+
     // If we have actual episodes, it is NOT a trailer!
     if (episodes && episodes.length > 0) return false;
 
@@ -647,6 +657,7 @@ const Detail = () => {
           epTotal={epTotal}
           upcomingNotice={upcomingNotice}
           movieOverride={movieOverride}
+          isTrailer={isTrailer}
           isTmdb={isTmdb}
           actorsWithImages={actorsWithImages}
           relatedMovies={relatedMovies}
@@ -669,6 +680,7 @@ const Detail = () => {
           epTotal={epTotal}
           upcomingNotice={upcomingNotice}
           movieOverride={movieOverride}
+          isTrailer={isTrailer}
           isTmdb={isTmdb}
           actorsWithImages={actorsWithImages}
           relatedMovies={relatedMovies}

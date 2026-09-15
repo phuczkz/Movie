@@ -118,9 +118,17 @@ const SearchBar = ({
       document.removeEventListener("pointerdown", handleClickOutside);
   }, []);
 
+  const [prevUrlQ, setPrevUrlQ] = useState(() => (params.get("q") || "").trim());
+  if ((params.get("q") || "").trim() !== prevUrlQ) {
+    const nextQ = (params.get("q") || "").trim();
+    setPrevUrlQ(nextQ);
+    setQuery(params.get("q") || "");
+    setDebouncedQuery(nextQ);
+  }
+
   const { data = [], isFetching } = useSearchMovies(debouncedQuery, appMode);
   const hasQuery = Boolean(debouncedQuery);
-  const limit = isMobile ? 3 : 8;
+  const limit = isMobile ? 5 : 8;
   const results = data.slice(0, limit);
   const shouldShowDropdown = open && hasQuery;
   const searchPath = isComicMode ? "/comics/search" : "/search";

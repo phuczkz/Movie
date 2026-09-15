@@ -26,8 +26,9 @@ export const comicApi = {
     if (!res.ok) throw new Error("Lỗi tải chi tiết truyện");
     return res.json();
   },
-  search: async (keyword) => {
-    const res = await fetch(`${COMIC_API}/tim-kiem?keyword=${encodeURIComponent(keyword)}`);
+  search: async (keyword, page = 1) => {
+    const cleanKeyword = (keyword || "").toString().trim();
+    const res = await fetch(`${COMIC_API}/tim-kiem?keyword=${encodeURIComponent(cleanKeyword)}&page=${page}`);
     if (!res.ok) throw new Error("Lỗi tìm kiếm truyện");
     return res.json();
   },

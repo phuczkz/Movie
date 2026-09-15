@@ -37,6 +37,13 @@ const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) 
   const year = movie?.year;
   const content = movie?.content || movie?.origin?.content || "";
 
+  // Detect trailer: episode_current or status starts with "Trailer"
+  const rawEpCurrent = episodeStatus.toLowerCase();
+  const rawStatus = (movie?.status || "").toLowerCase();
+  const isTrailerCard =
+    rawEpCurrent === "trailer" || rawEpCurrent.startsWith("trailer") ||
+    rawStatus === "trailer"   || rawStatus.startsWith("trailer");
+
   const statusLabel = (() => {
     const s = episodeStatus.toLowerCase();
     if (s.includes("full") || s.includes("hoàn tất")) return "Full";
@@ -98,12 +105,12 @@ const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) 
         {/* Action row */}
         <div className="hc-actions">
           <Link
-            to={`/watch/${movie.slug}`}
+            to={isTrailerCard ? `/movie/${movie.slug}` : `/watch/${movie.slug}`}
             className="hc-btn-play"
             onClick={(e) => e.stopPropagation()}
           >
             <Play size={13} fill="currentColor" />
-            Xem Ngay
+            {isTrailerCard ? "Xem Trailer" : "Xem Ngay"}
           </Link>
 
           <button
@@ -250,7 +257,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
       }
 
       const current = (movie?.episode_current || "").toLowerCase();
-      if (current.includes("full") || current.includes("hoàn tất")) return "Full";
+      const isCompleted = current.includes("full") || current.includes("hoàn tất");
 
       const parsedCurrent = parseEpisodeNumber(current);
       if (parsedCurrent !== null && parsedCurrent > 0) {
@@ -259,6 +266,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
         }
         return formatEp(parsedCurrent);
       }
+      if (isCompleted) return "Full";
 
       return null;
     };

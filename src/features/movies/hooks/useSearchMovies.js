@@ -9,7 +9,6 @@ import {
 } from '@/features/movies/api/movies2';
 import { comicApi } from '@/features/comics/api/comicApi';
 import { filterAdultMovies } from '@/utils/filter';
-import { parseSeasonInfo } from '@/utils/episodes';
 
 const slugify = (text = "") =>
   text
@@ -26,121 +25,113 @@ const parseEpisodeCount = (str) => {
   return match ? parseInt(match[1], 10) : 0;
 };
 
-const nameVariants = (raw = "") => {
-  const set = new Set();
-  const full = (raw || "").toLowerCase().trim();
-  if (!full || full.length < 2) return set;
-  set.add(full);
-  // Part without parentheses
-  const stripped = full.replace(/\s*\([^)]*\)/g, "").trim();
-  if (stripped && stripped.length > 2 && stripped !== full) set.add(stripped);
-  // Content inside parentheses
-  const m = full.match(/\(([^)]+)\)/);
-  if (m) {
-    const inside = m[1].trim();
-    if (inside.length > 2) set.add(inside);
+const normalizeText = (text = "") =>
+  text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+
+const calculateRelevance = (movie, query) => {
+  const normQuery = normalizeText(query);
+  if (!normQuery) return 0;
+
+  const rawName = (movie.name || "").toLowerCase().trim();
+  const rawOrigin = (movie.origin_name || "").toLowerCase().trim();
+  const rawQuery = (query || "").toLowerCase().trim();
+
+  const normName = normalizeText(movie.name || "");
+  const normOrigin = normalizeText(movie.origin_name || "");
+
+  let score = 0;
+
+  // 1. Exact matches (highest priority)
+  if (rawName === rawQuery || normName === normQuery) {
+    score += 1000;
+  } else if (rawOrigin === rawQuery || normOrigin === normQuery) {
+    score += 900;
   }
-  return set;
-};
-
-const buildKeys = (item) => {
-  const keys = new Set();
-  const slug = item.slug || item._id || item.id;
-  const year = item.year || "";
-
-  if (slug) keys.add(`slug:${slug}`);
-
-  const vName = nameVariants(item.name || "");
-  const vOrigin = nameVariants(item.origin_name || "");
-
-  const originInfo = parseSeasonInfo(item.origin_name || "");
-  const nameInfo = parseSeasonInfo(item.name || "");
-  const tmdbSeason = item.tmdb?.season;
-  
-  const s = originInfo.season !== null ? originInfo.season : nameInfo.season !== null ? nameInfo.season : tmdbSeason || null;
-
-  const addPair = (prefix, value) => {
-    if (!value || value.length <= 2) return;
-    
-    let baseKey = `${prefix}:${value}`;
-    if (s !== null) {
-      baseKey += `|S${s}`;
+  // 2. Starts with query (word boundary or full phrase)
+  else if (
+    normName.startsWith(normQuery + " ") ||
+    normName.startsWith(normQuery + ":") ||
+    normName.startsWith(normQuery + "-")
+  ) {
+    score += 600;
+  } else if (
+    normOrigin.startsWith(normQuery + " ") ||
+    normOrigin.startsWith(normQuery + ":") ||
+    normOrigin.startsWith(normQuery + "-")
+  ) {
+    score += 500;
+  }
+  // 3. Whole phrase boundary match
+  else {
+    const escapedQuery = normQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const wordRegex = new RegExp("(^|\\s)" + escapedQuery + "($|\\s)", "i");
+    if (wordRegex.test(normName)) {
+      score += 350;
+    } else if (wordRegex.test(normOrigin)) {
+      score += 300;
     }
-    
-    // Key with year (preferred — avoids false positives across different years)
-    if (year) keys.add(`${baseKey}|${year}`);
-    // Key without year (fallback — catches when one API lacks year data)
-    keys.add(baseKey);
-  };
+    // 4. Substring match
+    else if (normName.includes(normQuery)) {
+      score += 150;
+    } else if (normOrigin.includes(normQuery)) {
+      score += 100;
+    }
+  }
 
-  // Canonical keys
-  vName.forEach((v) => addPair("name", v));
-  vOrigin.forEach((v) => addPair("origin", v));
+  // Small year tiebreaker for recent content
+  if (movie.year) {
+    const y = Number(movie.year);
+    if (!isNaN(y)) {
+      score += Math.min(y / 100, 25);
+    }
+  }
 
-  // Cross-field: one API's name may equal the other's origin_name
-  vName.forEach((v) => addPair("origin", v));
-  vOrigin.forEach((v) => addPair("name", v));
-
-  return keys;
+  return score;
 };
 
-const smartDedupe = (items = []) => {
-  // map: key → { item, keys }
+const dedupeMoviesBySlug = (items = []) => {
   const map = new Map();
 
   for (const it of items) {
     if (!it) continue;
+    const key = it.slug || it._id || it.id;
+    if (!key) continue;
 
-    const keys = buildKeys(it);
-
-    // Find existing entry by any matching key
-    let existing = null;
-    let existingKeys = null;
-    for (const k of keys) {
-      if (map.has(k)) {
-        ({ item: existing, keys: existingKeys } = map.get(k));
-        break;
-      }
-    }
-
-    if (existing) {
-      // Merge: keep whichever has MORE episodes, but take the MAX episode count
+    if (map.has(key)) {
+      const existing = map.get(key);
       const cur = parseEpisodeCount(it.episode_current);
       const prev = parseEpisodeCount(existing.episode_current);
-
-      // Build merged item: use base with higher episode count, always take max
-      const base = cur >= prev ? it : existing;
-      const merged = {
-        ...base,
-        episode_current:
-          cur >= prev ? it.episode_current : existing.episode_current,
-        episode_total:
-          parseEpisodeCount(it.episode_total) >=
-          parseEpisodeCount(existing.episode_total)
-            ? it.episode_total
-            : existing.episode_total,
-      };
-
-      // Union of all keys from both entries
-      const allKeys = new Set([...existingKeys, ...keys]);
-      const entry = { item: merged, keys: allKeys };
-      for (const k of allKeys) map.set(k, entry);
+      if (cur > prev) {
+        map.set(key, {
+          ...existing,
+          ...it,
+          episode_current: it.episode_current,
+          episode_total: it.episode_total || existing.episode_total,
+        });
+      }
     } else {
-      const entry = { item: it, keys };
-      for (const k of keys) map.set(k, entry);
+      map.set(key, it);
     }
   }
 
-  // Deduplicate by reference (map may have multiple keys pointing to same entry)
-  const seen = new Set();
-  const result = [];
-  for (const { item } of map.values()) {
-    if (!seen.has(item)) {
-      seen.add(item);
-      result.push(item);
-    }
+  return Array.from(map.values());
+};
+
+const attachPagination = (list, pagination) => {
+  if (Array.isArray(list) && pagination) {
+    list.pagination = pagination;
+    list.totalPages = pagination.totalPages;
+    list.totalItems = pagination.totalItems;
+    list.currentPage = pagination.currentPage;
+    list.hasNext = pagination.hasNext;
   }
-  return result;
+  return list;
 };
 
 export const useSearchMovies = (query, appMode = "movie", page = 1) =>
@@ -160,9 +151,17 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
       };
 
       if (appMode === "comic") {
-        const res = await safe(() => comicApi.search(q));
+        const res = await safe(() => comicApi.search(q, page));
         const items = res?.data?.items || [];
-        return filterAdultMovies(items);
+        const p = res?.data?.params?.pagination || {};
+        const pagination = {
+          totalPages: Number(p.totalPages) || 1,
+          totalItems: Number(p.totalItems) || items.length,
+          currentPage: Number(p.currentPage) || page,
+          hasNext: (Number(p.totalPages) || 1) > page,
+        };
+        const sorted = items.slice().sort((a, b) => calculateRelevance(b, q) - calculateRelevance(a, q));
+        return attachPagination(filterAdultMovies(sorted), pagination);
       }
 
       // Default: Movie search
@@ -187,7 +186,25 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
 
       const results = await Promise.all(requests);
 
-      return filterAdultMovies(smartDedupe(results.flat().filter(Boolean)));
+      const searchPrimary = results[0] || [];
+      const primaryPagination = searchPrimary.pagination || {
+        totalPages: searchPrimary.totalPages || 1,
+        totalItems: searchPrimary.totalItems || searchPrimary.length,
+        currentPage: page,
+        hasNext: (searchPrimary.totalPages || 1) > page,
+      };
+
+      const allItems = dedupeMoviesBySlug(results.flat().filter(Boolean));
+      const filtered = filterAdultMovies(allItems);
+
+      // Sort by relevance to user query
+      const sorted = filtered.sort((a, b) => {
+        const scoreDiff = calculateRelevance(b, q) - calculateRelevance(a, q);
+        if (scoreDiff !== 0) return scoreDiff;
+        return (Number(b.year) || 0) - (Number(a.year) || 0);
+      });
+
+      return attachPagination(sorted, primaryPagination);
     },
     enabled: Boolean(query?.trim()),
     staleTime: 10 * 60 * 1000,

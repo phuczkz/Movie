@@ -146,6 +146,7 @@ export default function ComicList() {
 
           <Pagination 
             currentPage={page}
+            totalPages={totalPages}
             hasNext={hasNext}
             onPageChange={handlePageChange}
           />

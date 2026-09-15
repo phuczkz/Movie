@@ -111,6 +111,7 @@ export default function ComicHome() {
         {(hasNext || page > 1) && (
           <Pagination 
             currentPage={page}
+            totalPages={totalPages}
             hasNext={hasNext}
             onPageChange={handlePageChange}
           />

@@ -10,7 +10,7 @@ const Comments = lazy(() => import('@/features/movies/components/Comments.jsx'))
 const DetailDesktopContent = ({
   movie, episodes, selectedEpisodes, serverGroups, selectedServer,
   setUserSelectedServer, isMovie, isCompleted, epTotal, upcomingNotice,
-  movieOverride, isTmdb, actorsWithImages, relatedMovies, groups,
+  movieOverride, isTrailer, isTmdb, actorsWithImages, relatedMovies, groups,
   currentSeason, hasVietsub, hasLongTieng, hasThuyetMinh,
 }) => {
   return (
@@ -36,7 +36,7 @@ const DetailDesktopContent = ({
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-semibold text-white">Tập phim</h2>
               <div className="flex items-center gap-2 text-sm text-slate-300">
-                {!isMovie && (
+                {!isMovie && !isTrailer && (
                   <span className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-3 py-1">
                     <span className="text-[11px] uppercase tracking-[0.08em] text-emerald-200">{selectedServer || "Nguồn"}</span>
                     <span className="text-slate-200/80">{selectedEpisodes.length ? `${selectedEpisodes.length}${epTotal ? `/${epTotal}` : ""} tập` : ""}</span>
@@ -47,7 +47,7 @@ const DetailDesktopContent = ({
             </div>
           </div>
 
-          {Object.keys(serverGroups).length > 1 && !isMovie ? (
+          {Object.keys(serverGroups).length > 1 && !isMovie && !isTrailer ? (
             <div className="flex flex-wrap items-center gap-2">
               {hasVietsub ? (<button type="button" onClick={() => setUserSelectedServer("Vietsub")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Vietsub" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Vietsub</button>) : null}
               {hasLongTieng ? (<button type="button" onClick={() => setUserSelectedServer("Lồng Tiếng")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Lồng Tiếng" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Lồng Tiếng</button>) : null}
@@ -62,7 +62,7 @@ const DetailDesktopContent = ({
             </div>
           )}
 
-          {movieOverride?.mode === "trailer" ? (
+          {isTrailer || movieOverride?.mode === "trailer" ? (
             <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
               <div className="flex justify-center"><Info className="size-6 text-amber-400" /></div>
               <p className="text-sm font-semibold text-amber-200">Phim hiện đang chưa có nguồn</p>
