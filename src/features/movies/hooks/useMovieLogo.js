@@ -14,12 +14,21 @@ const getMovieContext = (movie) => {
   return { countrySlug, type, tmdbId, tmdbType };
 };
 
-const LOGO_CACHE_KEY = "tmdb_logo_cache_v2";
+const LOGO_CACHE_KEY = "tmdb_logo_cache_v3";
 
 const getPersistedLogos = () => {
   try {
     const raw = localStorage.getItem(LOGO_CACHE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Object.keys(parsed).length > 0) return parsed;
+    }
+    const oldRaw = localStorage.getItem("tmdb_logo_cache_v2");
+    if (oldRaw) {
+      const parsedOld = JSON.parse(oldRaw);
+      if (parsedOld && Object.keys(parsedOld).length > 0) return parsedOld;
+    }
+    return {};
   } catch {
     return {};
   }
@@ -298,7 +307,9 @@ export const useHeroAssets = (movies = []) => {
 
           const backdrop = typeof cachedBg === "string" && cachedBg ? cachedBg : null;
 
-          if (logo || backdrop) {
+          // Only return initialData if logo exists in cache.
+          // If logo is missing, return undefined so React Query triggers queryFn immediately to fetch the logo.
+          if (logo) {
             return { logo, backdrop };
           }
           return undefined;

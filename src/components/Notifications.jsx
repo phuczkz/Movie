@@ -237,10 +237,12 @@ export default function Notifications() {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="relative flex items-center justify-center p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+        aria-label="Thông báo"
+        className="relative flex items-center justify-center p-2 rounded-full text-white hover:bg-white/10 transition-colors"
       >
-        <Bell className="size-5" />
+        <Bell className="size-5 filter drop-shadow-[0_1px_6px_rgba(0,0,0,0.85)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]" />
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-sm ring-2 ring-slate-950">
             {unreadCount > 9 ? "9+" : unreadCount}

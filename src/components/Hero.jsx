@@ -60,8 +60,8 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   const { logoMap, backdropMap } = useHeroAssets(slides);
 
   const activeLogoObj = logoMap.get(activeMovie?.slug) || null;
-  const activeLogo = activeLogoObj?.url || null;
-  const activeLogoLang = activeLogoObj?.lang || "other";
+  const activeLogo = typeof activeLogoObj === "string" ? activeLogoObj : (activeLogoObj?.url || null);
+  const activeLogoLang = typeof activeLogoObj === "object" ? (activeLogoObj?.lang || "other") : "other";
   const activeTmdbBackdrop = backdropMap.get(activeMovie?.slug) || null;
 
   let heroBadgeText = "";
@@ -227,18 +227,18 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                 transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
                 className="space-y-3 md:space-y-6"
               >
-                <div className="gap-1.5 md:gap-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[80px]">
+                <div className="gap-1.5 md:gap-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[75px]">
                   {activeLogo ? (
                     <img
                       src={activeLogo}
                       alt={activeMovie.name}
-                      className="mx-auto md:mx-0 max-h-[90px] sm:max-h-[100px] md:max-h-[120px] lg:max-h-[140px] 2xl:max-h-[180px] w-auto object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,1)] filter brightness-110 contrast-110"
+                      className="mx-auto md:mx-0 min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[70px] max-h-[95px] sm:max-h-[110px] md:max-h-[130px] lg:max-h-[150px] 2xl:max-h-[175px] max-w-[85%] sm:max-w-[75%] md:max-w-[440px] lg:max-w-[500px] 2xl:max-w-[560px] w-auto h-auto object-contain object-center md:object-left drop-shadow-[0_10px_30px_rgba(0,0,0,1)] filter brightness-110 contrast-110 select-none"
                       draggable={false}
                       fetchPriority="high"
                       decoding="async"
                     />
                   ) : (
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-tight text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)] line-clamp-2">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-normal sm:leading-[1.28] text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)] line-clamp-2 pb-2">
                       {activeMovie.name}
                     </h1>
                   )}
@@ -251,7 +251,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                     }
                     if (!subText || subText === activeMovie.name && !activeLogo) return null;
                     return (
-                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left line-clamp-1">
+                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left line-clamp-1 pb-1">
                         {subText}
                       </h2>
                     );

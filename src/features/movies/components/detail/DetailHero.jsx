@@ -154,8 +154,8 @@ const DetailHero = ({
       ) : null}
 
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-center lg:items-end -mt-24 sm:-mt-32 md:-mt-40 lg:-mt-52 xl:-mt-64 relative z-20">
-          <div className="mx-auto lg:mx-0 w-32 sm:w-40 md:w-44 lg:w-64 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 lg:border-4 lg:border-slate-900 shadow-[0_30px_60px_rgba(0,0,0,0.9)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30 transition-transform duration-500 hover:scale-[1.02]">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 items-center lg:items-end -mt-40 sm:-mt-48 md:-mt-60 lg:-mt-76 xl:-mt-96 relative z-20">
+          <div className="mx-auto lg:mx-0 w-32 sm:w-40 md:w-44 lg:w-64 shrink-0 overflow-hidden rounded-2xl sm:rounded-3xl border-0 lg:border-4 lg:border-slate-900 shadow-[0_8px_20px_rgba(0,0,0,0.55)] lg:shadow-[0_30px_60px_rgba(0,0,0,0.9)] bg-slate-900 aspect-[2/3] ring-1 ring-white/10 relative z-30 transition-transform duration-500 hover:scale-[1.02]">
             {!posterLoaded && passedPoster && (
               <img
                 src={passedPoster}
@@ -178,21 +178,15 @@ const DetailHero = ({
             />
           </div>
 
-          <div className="gap-4 flex-1 w-full lg:pt-4 drop-shadow-2xl flex flex-col items-center lg:items-start text-center lg:text-left">
+          <div className="gap-4 flex-1 w-full lg:pt-4 flex flex-col items-center lg:items-start text-center lg:text-left">
             <h1 className="text-3xl sm:text-4xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,1)]">
               {movie?.name || passedMovie?.name || "Đang tải tên phim..."}
             </h1>
             {movie.origin_name ? (
-              <>
-                <p className="lg:hidden text-slate-200/80 text-sm font-medium drop-shadow-md">
-                  {movie.origin_name}
-                </p>
-                <p className="hidden lg:block text-slate-100/90 text-sm font-medium drop-shadow-md">
-                  Tên gốc: {movie.origin_name}
-                </p>
-              </>
+              <p className="hidden lg:block text-slate-100/90 text-sm font-medium drop-shadow-md">
+                Tên gốc: {movie.origin_name}
+              </p>
             ) : null}
-
 
             {/* Desktop/Laptop+: giữ layout meta như hiện tại */}
             <div className="hidden lg:flex flex-wrap items-center gap-2 text-xs sm:text-sm text-white font-medium drop-shadow-md">
@@ -238,6 +232,11 @@ const DetailHero = ({
                 Thông tin phim
                 <ChevronDown className="size-4" />
               </summary>
+              {movie?.origin_name ? (
+                <p className="mt-2 text-sm font-medium text-slate-200/90 text-center drop-shadow-md">
+                  Tên gốc: <span className="text-white font-semibold">{movie.origin_name}</span>
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-white font-medium">
                 {movie?.year && (
                   <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
@@ -302,7 +301,7 @@ const DetailHero = ({
                     : "";
                   navigate(`/watch/${slug}${serverParam}`);
                 }}
-                className={`inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/40 transition hover:-translate-y-[1px] relative z-30 cursor-pointer ${
+                className={`inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-[1px] relative z-30 cursor-pointer ${
                   episodes.length ? "" : "opacity-90"
                 }`}
               >
@@ -343,7 +342,7 @@ const DetailHero = ({
               <ShareButton
                 title={`${movie?.name || "Phim hay"} - Xem phim online`}
                 text={`Xem ${movie?.name || "phim hay"} tại đây!`}
-                className="border-white/15 bg-white/5 text-white hover:border-white/30 hover:bg-white/10"
+                className="rounded-full border border-white/15 bg-white/5 text-white hover:border-white/30 hover:bg-white/10 px-5 py-3"
               />
 
               <button
@@ -370,7 +369,7 @@ const DetailHero = ({
                     : "";
                   navigate(`/watch/${slug}${serverParam}`);
                 }}
-                className={`w-full flex justify-center items-center gap-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 px-6 py-3.5 text-base font-bold shadow-[0_8px_24px_rgba(16,185,129,0.35)] active:scale-[0.98] transition-all cursor-pointer relative z-30 ${
+                className={`w-full flex justify-center items-center gap-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 px-6 py-3.5 text-base font-bold active:scale-[0.98] transition-all cursor-pointer relative z-30 ${
                   episodes.length ? "" : "opacity-90"
                 }`}
               >

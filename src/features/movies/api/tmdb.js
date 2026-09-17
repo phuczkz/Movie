@@ -475,6 +475,64 @@ export const getTmdbFullEpisodes = async (
   }
 };
 
+// Helper: detect uncropped backdrop canvases uploaded mistakenly as logos
+const isUncroppedCanvas = (l) => {
+  if (!l) return false;
+  // Full HD / 4K canvases uploaded directly without cropping
+  if (
+    (l.width === 1920 && l.height === 1080) ||
+    (l.width === 1280 && l.height === 720) ||
+    (l.width === 3840 && l.height === 2160)
+  ) {
+    return true;
+  }
+  // Exactly 16:9 aspect ratio with large resolution (typical backdrop canvas)
+  const ratio = l.aspect_ratio || (l.width && l.height ? l.width / l.height : 0);
+  if (Math.abs(ratio - 16 / 9) < 0.015 && (l.width >= 1200 || l.height >= 700)) {
+    return true;
+  }
+  return false;
+};
+
+const pickBestLogo = (logos = []) => {
+  if (!Array.isArray(logos) || logos.length === 0) return null;
+
+  const getLangRank = (l) => {
+    const lang = l?.iso_639_1;
+    if (lang === "vi") return 4;
+    if (lang === "en") return 3;
+    if (!lang) return 2;
+    return 1;
+  };
+
+  const sorted = [...logos].sort((a, b) => {
+    // 1. Deprioritize uncropped 16:9 canvases (which contain tiny text inside a huge transparent canvas)
+    const uncroppedA = isUncroppedCanvas(a) ? 1 : 0;
+    const uncroppedB = isUncroppedCanvas(b) ? 1 : 0;
+    if (uncroppedA !== uncroppedB) return uncroppedA - uncroppedB;
+
+    // 2. Language priority
+    const langDiff = getLangRank(b) - getLangRank(a);
+    if (langDiff !== 0) return langDiff;
+
+    // 3. Community quality score
+    const scoreA = (a.vote_count || 0) * (a.vote_average || 1);
+    const scoreB = (b.vote_count || 0) * (b.vote_average || 1);
+    if (scoreB !== scoreA) return scoreB - scoreA;
+
+    // 4. Aspect ratio: avoid abnormal vertical or ultra-wide ribbons
+    const ratioA = a.aspect_ratio || (a.width && a.height ? a.width / a.height : 0);
+    const ratioB = b.aspect_ratio || (b.width && b.height ? b.width / b.height : 0);
+    const isNormalRatioA = ratioA >= 1.2 && ratioA <= 6.5 ? 1 : 0;
+    const isNormalRatioB = ratioB >= 1.2 && ratioB <= 6.5 ? 1 : 0;
+    if (isNormalRatioB !== isNormalRatioA) return isNormalRatioB - isNormalRatioA;
+
+    return (b.width || 0) - (a.width || 0);
+  });
+
+  return sorted[0] || null;
+};
+
 /**
  * Search TMDB for a movie/TV by name (and optional year) and return its logo image URL.
  * Prioritizes direct lookup by tmdbId if provided in context.
@@ -505,19 +563,12 @@ export const getTmdbLogo = async (name, originName, year, context = {}) => {
       }
 
       const logos = res?.data?.logos || [];
-      if (logos.length) {
-        const pick =
-          logos.find((l) => l.iso_639_1 === "vi") ||
-          logos.find((l) => l.iso_639_1 === "en") ||
-          logos.find((l) => !l.iso_639_1) ||
-          logos[0];
-
-        if (pick?.file_path) {
-          return {
-            url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
-            lang: pick.iso_639_1 || "other",
-          };
-        }
+      const pick = pickBestLogo(logos);
+      if (pick?.file_path) {
+        return {
+          url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
+          lang: pick.iso_639_1 || "other",
+        };
       }
     } catch (error) {
       console.warn(`[tmdb] direct logo lookup for id ${tmdbId} failed`, error.message);
@@ -563,15 +614,7 @@ export const getTmdbLogo = async (name, originName, year, context = {}) => {
     });
 
     const logos = data?.logos || [];
-    if (!logos.length) return null;
-
-    // Priority: vi → en → no-language (null/"") → any (zh, ja, etc.)
-    const pick =
-      logos.find((l) => l.iso_639_1 === "vi") ||
-      logos.find((l) => l.iso_639_1 === "en") ||
-      logos.find((l) => !l.iso_639_1) ||
-      logos[0];
-
+    const pick = pickBestLogo(logos);
     if (!pick?.file_path) return null;
 
     return {
@@ -681,19 +724,13 @@ export const getTmdbHeroAssets = async (name, originName, year, context = {}) =>
           ? `https://image.tmdb.org/t/p/original${res.data.backdrop_path}`
           : null;
         const logos = res.data.images?.logos || [];
+        const pick = pickBestLogo(logos);
         let logo = null;
-        if (logos.length) {
-          const pick =
-            logos.find((l) => l.iso_639_1 === "vi") ||
-            logos.find((l) => l.iso_639_1 === "en") ||
-            logos.find((l) => !l.iso_639_1) ||
-            logos[0];
-          if (pick?.file_path) {
-            logo = {
-              url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
-              lang: pick.iso_639_1 || "other",
-            };
-          }
+        if (pick?.file_path) {
+          logo = {
+            url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
+            lang: pick.iso_639_1 || "other",
+          };
         }
         return { logo, backdrop };
       }
@@ -741,18 +778,12 @@ export const getTmdbHeroAssets = async (name, originName, year, context = {}) =>
       params: { include_image_language: "vi,en,null" },
     });
     const logos = data?.logos || [];
-    if (logos.length) {
-      const pick =
-        logos.find((l) => l.iso_639_1 === "vi") ||
-        logos.find((l) => l.iso_639_1 === "en") ||
-        logos.find((l) => !l.iso_639_1) ||
-        logos[0];
-      if (pick?.file_path) {
-        logo = {
-          url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
-          lang: pick.iso_639_1 || "other",
-        };
-      }
+    const pick = pickBestLogo(logos);
+    if (pick?.file_path) {
+      logo = {
+        url: `https://image.tmdb.org/t/p/original${pick.file_path}`,
+        lang: pick.iso_639_1 || "other",
+      };
     }
   } catch (err) {
     console.warn("[tmdb] hero logo fetch failed", err.message);

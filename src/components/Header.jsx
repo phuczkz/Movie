@@ -472,12 +472,12 @@ const Header = () => {
               {appMode === "movie" ? (
                 <>
                   <BookOpen className="size-4 text-purple-400" />
-                  <span className="text-slate-200">Đọc Truyện</span>
+                  <span className="text-slate-200">Truyện</span>
                 </>
               ) : (
                 <>
                   <Film className="size-4 text-blue-400" />
-                  <span className="text-slate-200">Xem Phim</span>
+                  <span className="text-slate-200">Phim</span>
                 </>
               )}
             </button>
