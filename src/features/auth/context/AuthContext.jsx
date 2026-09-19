@@ -50,6 +50,8 @@ const AuthContext = createContext({
   logout: async () => { },
   saveMovie: async () => { },
   removeSavedMovie: async () => { },
+  savedMovieSlugs: new Set(),
+  savedMoviesLoaded: false,
   saveComic: async () => { },
   removeSavedComic: async () => { },
   createAccountByAdmin: async () => { },
@@ -82,6 +84,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [savedMovieSlugs, setSavedMovieSlugs] = useState(() => new Set());
+  const [savedMoviesLoaded, setSavedMoviesLoaded] = useState(false);
 
   const ensureCurrentUser = useCallback(async () => {
     const { config, authMod } = await loadFirebaseSdk();
@@ -106,6 +110,7 @@ export const AuthProvider = ({ children }) => {
     unsubscribeAuth: null,
     profileUnsubscribe: null,
     maintenanceUnsubscribe: null,
+    favoritesUnsubscribe: null,
   }).current;
 
   const startFirebaseListeners = useCallback(async () => {
@@ -171,22 +176,51 @@ export const AuthProvider = ({ children }) => {
             cleanup.profileUnsubscribe();
             cleanup.profileUnsubscribe = null;
           }
+          if (cleanup.favoritesUnsubscribe) {
+            cleanup.favoritesUnsubscribe();
+            cleanup.favoritesUnsubscribe = null;
+          }
 
           if (!currentUser) {
             setUserProfile(null);
             setProfileLoading(false);
+            setSavedMovieSlugs(new Set());
+            setSavedMoviesLoaded(false);
             setLoading(false);
             return;
           }
 
           if (!config.db) {
             setProfileLoading(false);
+            setSavedMoviesLoaded(false);
             setLoading(false);
             return;
           }
 
           setProfileLoading(true);
           const userRef = firestoreMod.doc(config.db, "users", currentUser.uid);
+
+          // Centralized listener for favorite movies (single listener for entire app)
+          const favColRef = firestoreMod.collection(
+            config.db,
+            "users",
+            currentUser.uid,
+            "FavoriteMovies"
+          );
+          cleanup.favoritesUnsubscribe = firestoreMod.onSnapshot(
+            favColRef,
+            (snapshot) => {
+              const slugs = new Set(
+                snapshot.docs.map((d) => d.data()?.slug || d.id)
+              );
+              setSavedMovieSlugs(slugs);
+              setSavedMoviesLoaded(true);
+            },
+            (error) => {
+              console.error("Favorites onSnapshot error:", error);
+              setSavedMoviesLoaded(true);
+            }
+          );
 
           cleanup.profileUnsubscribe = firestoreMod.onSnapshot(
             userRef,
@@ -258,6 +292,9 @@ export const AuthProvider = ({ children }) => {
       if (typeof cleanup.maintenanceUnsubscribe === "function") {
         cleanup.maintenanceUnsubscribe();
       }
+      if (typeof cleanup.favoritesUnsubscribe === "function") {
+        cleanup.favoritesUnsubscribe();
+      }
     };
   }, [cleanup]);
 
@@ -272,6 +309,8 @@ export const AuthProvider = ({ children }) => {
       loading,
       profileLoading,
       maintenance,
+      savedMovieSlugs,
+      savedMoviesLoaded,
       loginGoogle: async () => {
         const { config, authMod } = await loadFirebaseSdk();
         if (!config.auth || !config.googleProvider) return rejectIfMissing();
@@ -609,7 +648,16 @@ export const AuthProvider = ({ children }) => {
         }));
       },
     }),
-    [user, loading, userProfile, profileLoading, maintenance, ensureCurrentUser]
+    [
+      user,
+      loading,
+      userProfile,
+      profileLoading,
+      maintenance,
+      savedMovieSlugs,
+      savedMoviesLoaded,
+      ensureCurrentUser,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

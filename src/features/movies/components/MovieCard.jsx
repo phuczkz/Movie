@@ -456,14 +456,12 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const isImageReady = loaded || isCached;
 
   useEffect(() => {
-    if (posterSrc && loadedPosterCache.has(posterSrc)) {
-      setLoaded(true);
-      return;
-    }
     // Nếu trình duyệt đã cache sẵn ảnh, kích hoạt hiển thị ngay lập tức
     if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
       if (posterSrc) loadedPosterCache.add(posterSrc);
-      setLoaded(true);
+      requestAnimationFrame(() => {
+        setLoaded(true);
+      });
     }
   }, [posterSrc]);
 

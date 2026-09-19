@@ -34,13 +34,11 @@ const TheaterCard = ({ movie, priority = false }) => {
   const isImageReady = loaded || isCached;
 
   useEffect(() => {
-    if (thumbSrc && loadedTheaterCache.has(thumbSrc)) {
-      setLoaded(true);
-      return;
-    }
     if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
       if (thumbSrc) loadedTheaterCache.add(thumbSrc);
-      setLoaded(true);
+      requestAnimationFrame(() => {
+        setLoaded(true);
+      });
     }
   }, [thumbSrc]);
 
