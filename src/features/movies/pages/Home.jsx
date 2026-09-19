@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState, useMemo } from "react";
-import { ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Hero from '@/components/Hero.jsx';
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import Section from '@/components/Section.jsx';
@@ -103,18 +103,75 @@ const Grid = ({
   className = "",
   priorityCount = 0,
 }) => {
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 10);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 10);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [items, checkScroll]);
+
+  const scroll = (direction) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.75;
+    el.scrollBy({
+      left: direction === "right" ? amount : -amount,
+      behavior: "smooth",
+    });
+  };
+
   const baseClass =
     variant === "landscape" ? "home-grid-movies-landscape" : "home-grid-movies";
+
   return (
-    <div className={`${baseClass} ${className}`.trim()}>
-      {items.map((movie, idx) => (
-        <MovieCard
-          key={movie.slug}
-          movie={movie}
-          variant={variant}
-          priority={idx < priorityCount}
-        />
-      ))}
+    <div className="relative group/grid">
+      <div ref={scrollRef} className={`${baseClass} ${className}`.trim()}>
+        {items.map((movie, idx) => (
+          <MovieCard
+            key={movie.slug}
+            movie={movie}
+            priority={idx < priorityCount}
+          />
+        ))}
+      </div>
+
+      {canScrollLeft && (
+        <button
+          type="button"
+          onClick={() => scroll("left")}
+          className="hidden lg:flex absolute left-2 top-[calc(50%-16px)] -translate-y-1/2 z-20 items-center justify-center w-10 h-10 rounded-full bg-black/60 border border-white/10 text-white backdrop-blur-sm opacity-0 group-hover/grid:opacity-100 transition-opacity hover:bg-black/80 shadow-lg cursor-pointer"
+          aria-label="Cuộn trái"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+      )}
+
+      {canScrollRight && (
+        <button
+          type="button"
+          onClick={() => scroll("right")}
+          className="hidden lg:flex absolute right-2 top-[calc(50%-16px)] -translate-y-1/2 z-20 items-center justify-center w-10 h-10 rounded-full bg-black/60 border border-white/10 text-white backdrop-blur-sm opacity-0 group-hover/grid:opacity-100 transition-opacity hover:bg-black/80 shadow-lg cursor-pointer"
+          aria-label="Cuộn phải"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      )}
     </div>
   );
 };
@@ -247,8 +304,8 @@ const Home = () => {
   const rankingMovies = latest.slice(0, 10);
 
   const heroMovies = latest.slice(0, 4);
-  // On desktop with sidebar, we have less horizontal space → show fewer items
-  const cap = (list) => list.slice(0, 7);
+  // Horizontal scroll row: display up to 16 latest movies
+  const cap = (list) => list.slice(0, 16);
 
   return (
     <div className="space-y-6 sm:space-y-8 lg:space-y-12">
@@ -324,17 +381,10 @@ const Home = () => {
         <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
       </div>
 
-      {/* Main content + Sidebar ranking layout (MotChill pattern) */}
-      <div className="flex flex-col xl:grid xl:grid-cols-[1fr_300px] xl:gap-6 2xl:grid-cols-[1fr_320px] 2xl:gap-8 space-y-8 sm:space-y-10 xl:space-y-0">
-        {/* Weekly ranking: Order 1 on Mobile/Tablet (right under AnimeShowcase), Order 2 (Sidebar) on Desktop */}
-        <div ref={refRanking} className="order-1 xl:order-2 xl:relative">
-          <div className="xl:absolute xl:inset-0 w-full h-full">
-            <WeeklyRanking movies={rankingMovies} />
-          </div>
-        </div>
-
-        {/* Left: Movie grid sections (Order 2 on Mobile/Tablet below WeeklyRanking, Order 1 on Desktop) */}
-        <div className="order-2 xl:order-1 space-y-8 sm:space-y-10 lg:space-y-12">
+      {/* 2-column layout: 2/3 left for series & single movies, 1/3 right for weekly hot movies */}
+      <div className="flex flex-col lg:grid lg:grid-cols-3 lg:gap-6 xl:gap-8 space-y-8 sm:space-y-10 lg:space-y-0">
+        {/* Left: Movie grid sections (2/3 width on Desktop, after Ranking on Mobile/Tablet) */}
+        <div className="order-2 lg:order-1 lg:col-span-2 min-w-0 space-y-8 sm:space-y-10 lg:space-y-12">
           <div ref={refKKSeries}>
             <Section
               title="Phim bộ mới cập nhật"
@@ -371,6 +421,13 @@ const Home = () => {
                 <Grid items={cap(kkSingle)} priorityCount={4} />
               )}
             </Section>
+          </div>
+        </div>
+
+        {/* Right: Weekly ranking (1/3 width on Desktop, first on Mobile/Tablet) */}
+        <div ref={refRanking} className="order-1 lg:order-2 lg:col-span-1 min-w-0 lg:relative">
+          <div className="lg:absolute lg:inset-0 w-full h-full">
+            <WeeklyRanking movies={rankingMovies} />
           </div>
         </div>
       </div>

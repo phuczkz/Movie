@@ -10,7 +10,7 @@ import {
   Globe2,
   Info,
 } from "lucide-react";
-import { onSnapshot, doc, increment, setDoc, updateDoc, serverTimestamp, arrayUnion, deleteDoc } from "firebase/firestore";
+import { onSnapshot, doc, increment, setDoc, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { db } from '@/firebase.config.js';
 import { useMovieDetail } from '@/features/movies/hooks/useMovieDetail.js';
 import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
@@ -31,6 +31,7 @@ import WatchMobileTabs from '@/features/movies/components/watch/WatchMobileTabs.
 import ActorSection from '@/features/movies/components/detail/ActorSection.jsx';
 import SeasonSelector from '@/components/SeasonSelector.jsx';
 import { useSeries } from '@/features/movies/hooks/useSeries.js';
+import { useWatchTogetherRoom } from '@/features/movies/hooks/use-watch-together-room.js';
 const Comments = lazy(() => import('@/features/movies/components/Comments.jsx'));
 const WatchTogetherModal = lazy(() => import('@/features/movies/components/watch/WatchTogetherModal.jsx'));
 const WatchChat = lazy(() => import('@/features/movies/components/watch/WatchChat.jsx'));
@@ -102,18 +103,12 @@ const Watch = () => {
   // Tránh việc setParams (cập nhật URL) làm mất location.state và reset initialTime về 0,
   // nhưng đồng thời đảm bảo chuyển sang tập mới thì initialTime = 0 chứ không kế thừa tập cũ.
   const currentEpisodeSlug = params.get("episode") || "default";
-  const episodeInitialTimeRef = useRef({ slug: null, episode: null, time: 0 });
-
-  if (episodeInitialTimeRef.current.slug !== slug || episodeInitialTimeRef.current.episode !== currentEpisodeSlug) {
-    episodeInitialTimeRef.current = {
-      slug,
-      episode: currentEpisodeSlug,
-      time: (typeof location.state?.initialTime === "number" && location.state.initialTime > 0)
-        ? location.state.initialTime
-        : 0,
-    };
-  }
-  const initialTime = episodeInitialTimeRef.current.time;
+  const initialTime = useMemo(() => {
+    return (typeof location.state?.initialTime === "number" && location.state.initialTime > 0)
+      ? location.state.initialTime
+      : 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, currentEpisodeSlug]);
   const progressRef = useRef({ currentTime: 0, duration: 0 });
   const lastSaveRef = useRef(0);
   const failedProvidersRef = useRef(new Set());
@@ -158,30 +153,8 @@ const Watch = () => {
     setParams(nextParams, { replace: true });
   }, [params, setParams]);
 
-  const [roomData, setRoomData] = useState(null);
-  const roomDataRef = useRef(null);
-  useEffect(() => {
-    roomDataRef.current = roomData;
-  }, [roomData]);
   const [isWatchTogetherModalOpen, setIsWatchTogetherModalOpen] = useState(false);
   const [player, setPlayer] = useState(null);
-  const isSyncing = useRef(false);
-
-  const isHost = Boolean(user && roomData && roomData.hostUid === user.uid);
-  const isMember = Boolean(user && roomData && roomData.hostUid !== user.uid);
-
-  const [sidebarTab, setSidebarTab] = useState("info");
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Switch to watch_together tab once when a room is joined/created
-  const prevRoomIdRef = useRef(roomId);
-  useEffect(() => {
-    if (roomId && !prevRoomIdRef.current) {
-      setMobileTab("watch_together");
-      setSidebarTab("watch_together");
-    }
-    prevRoomIdRef.current = roomId;
-  }, [roomId]);
 
   const selectedEpisode = params.get("episode");
   const selectedServerParam = params.get("server");
@@ -257,12 +230,13 @@ const Watch = () => {
 
   const prevScopeKeyRef = useRef(playbackScopeKey);
   const prevProviderRef = useRef(selectedProviderParam);
-  if (playbackScopeKey !== prevScopeKeyRef.current || selectedProviderParam !== prevProviderRef.current) {
-    prevScopeKeyRef.current = playbackScopeKey;
-    prevProviderRef.current = selectedProviderParam;
-    // Clear failed providers when scope or selected provider changes to ensure a fresh start
-    failedProvidersRef.current.clear();
-  }
+  useEffect(() => {
+    if (playbackScopeKey !== prevScopeKeyRef.current || selectedProviderParam !== prevProviderRef.current) {
+      prevScopeKeyRef.current = playbackScopeKey;
+      prevProviderRef.current = selectedProviderParam;
+      failedProvidersRef.current.clear();
+    }
+  }, [playbackScopeKey, selectedProviderParam]);
 
   const availableProviders = Object.entries(episodeProviders).flatMap(([k, v]) => v?.link ? [k] : []);
   const preferredProvider = normalizeProviderParam(activeEpisode?._preferredProvider) || availableProviders[0] || null;
@@ -283,7 +257,6 @@ const Watch = () => {
     } else {
       nextParams.set("provider", provider);
       setAutoProviderState({ key: playbackScopeKey, provider: null, notice: "" });
-      // Clear all failed providers on manual switch to start fresh
       failedProvidersRef.current.clear();
     }
     setParams(nextParams, { replace: true });
@@ -291,27 +264,17 @@ const Watch = () => {
 
   const handlePlaybackIssue = useCallback(() => {
     if (!activeProvider) return;
-
-    // Mark the current provider as failed
     failedProvidersRef.current.add(activeProvider);
-
-    // Find another provider that hasn't failed yet
     const fallbackProvider = availableProviders.find(
       p => p !== activeProvider && !failedProvidersRef.current.has(p) && episodeProviders[p]?.link
     );
-
-    // If there's a fallback provider, update URL/params accordingly
     if (fallbackProvider) {
       const nextParams = new URLSearchParams(params);
-      nextParams.delete("provider"); // Remove hardcoded provider param to let auto-provider switch
+      nextParams.delete("provider");
       setParams(nextParams, { replace: true });
     }
-
     setAutoProviderState((prev) => {
-      // If we already have a notice for this specific playback scope, skip updating to avoid UI flickering
       if (prev.key === playbackScopeKey && prev.notice) return prev;
-
-      // If a working fallback provider is found
       if (fallbackProvider) {
         return {
           key: playbackScopeKey,
@@ -319,8 +282,6 @@ const Watch = () => {
           notice: `Nguồn ${activeProviderLabel} đang gặp sự cố. Hệ thống tự động chuyển sang Nguồn ${PROVIDER_LABELS[fallbackProvider] || fallbackProvider}.`
         };
       }
-
-      // Absolutely no sources work
       return {
         key: playbackScopeKey,
         provider: prev.provider || null,
@@ -345,245 +306,34 @@ const Watch = () => {
     if (selectedEpisode && playerRef.current) playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedEpisode]);
 
-  // 1. Listen to Room document in Firestore
+  // Delegate all Watch Together Firebase logic to dedicated hook
+  const { roomData, isHost, isMember } = useWatchTogetherRoom({
+    roomId,
+    setRoomId,
+    user,
+    userProfile,
+    player,
+    slug,
+    activeEpisode,
+    activeServer,
+    activeProvider,
+    params,
+    setParams,
+    navigate,
+  });
+
+  const [sidebarTab, setSidebarTab] = useState("info");
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Switch to watch_together tab once when a room is joined/created
+  const prevRoomIdRef = useRef(roomId);
   useEffect(() => {
-    if (!db || !roomId) {
-      setRoomData(null);
-      return;
+    if (roomId && !prevRoomIdRef.current) {
+      setMobileTab("watch_together");
+      setSidebarTab("watch_together");
     }
-
-    const unsubscribe = onSnapshot(doc(db, "watchRooms", roomId), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        setRoomData(data);
-      } else {
-        // Room closed/deleted
-        setRoomData(null);
-        setRoomId(null);
-      }
-    }, (error) => {
-      console.error("Lỗi lắng nghe phòng xem chung:", error);
-    });
-
-    return () => unsubscribe();
-  }, [roomId, setRoomId]);
-
-  // 1b. Member: Check Host Heartbeat (Online Status)
-  useEffect(() => {
-    if (!roomId || isHost) return;
-
-    const interval = setInterval(() => {
-      const currentData = roomDataRef.current;
-      if (!currentData?.playerState?.updatedAt) return;
-
-      const updatedAt = currentData.playerState.updatedAt;
-      const updateMs = updatedAt.toMillis ? updatedAt.toMillis() : Date.now();
-      const diffSeconds = (Date.now() - updateMs) / 1000;
-
-      if (diffSeconds > 60) { // Host offline for more than 60 seconds
-        alert("Chủ phòng đã ngoại tuyến. Bạn sẽ được đưa ra khỏi phòng xem chung.");
-        setRoomId(null);
-        setRoomData(null);
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [roomId, isHost, setRoomId]);
-
-
-  // 1d. Host: Heartbeat timer to keep room alive (runs even when video is paused)
-  useEffect(() => {
-    if (!isHost || !roomId || !db) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const roomRef = doc(db, "watchRooms", roomId);
-        await updateDoc(roomRef, {
-          "playerState.updatedAt": serverTimestamp(),
-        });
-      } catch (err) {
-        console.warn("Lỗi gửi heartbeat chủ phòng:", err);
-      }
-    }, 15000); // Send heartbeat every 15 seconds
-
-    return () => clearInterval(interval);
-  }, [isHost, roomId]);
-
-  // 1e. Participant Presence: Register active status in the room
-  useEffect(() => {
-    if (!roomId || !user || !db) return;
-
-    const memberRef = doc(db, `watchRooms/${roomId}/members`, user.uid);
-    const updatePresence = async () => {
-      try {
-        const displayName = userProfile?.displayName || user.displayName || user.email?.split("@")[0] || "Người dùng";
-        const photoURL = userProfile?.photoURL || user.photoURL || null;
-        await setDoc(memberRef, {
-          userId: user.uid,
-          userName: displayName,
-          userAvatar: photoURL,
-          lastActive: serverTimestamp(),
-        }, { merge: true });
-      } catch (err) {
-        console.warn("Lỗi cập nhật hiện diện:", err);
-      }
-    };
-
-    updatePresence();
-    const interval = setInterval(updatePresence, 15000); // presence heartbeat every 15s
-
-    return () => {
-      clearInterval(interval);
-      deleteDoc(memberRef).catch(() => { });
-    };
-  }, [roomId, user, userProfile]);
-
-  // 2. Member: Sync Movie/Episode/Server/Provider from Firestore room state
-  useEffect(() => {
-    if (!roomData || isHost || !roomId) return;
-
-    const nextParams = new URLSearchParams(params);
-    let changed = false;
-
-    if (roomData.movieSlug && roomData.movieSlug !== slug) {
-      navigate(`/watch/${roomData.movieSlug}?room=${roomId}&episode=${roomData.episodeSlug}&server=${roomData.server || "Vietsub"}${roomData.provider ? `&provider=${roomData.provider}` : ""}`, { replace: true });
-      return;
-    }
-
-    if (roomData.episodeSlug && roomData.episodeSlug !== params.get("episode")) {
-      nextParams.set("episode", roomData.episodeSlug);
-      changed = true;
-    }
-    if (roomData.server && roomData.server !== params.get("server")) {
-      nextParams.set("server", roomData.server);
-      changed = true;
-    }
-    if (roomData.provider && roomData.provider !== params.get("provider")) {
-      nextParams.set("provider", roomData.provider);
-      changed = true;
-    } else if (!roomData.provider && params.get("provider")) {
-      nextParams.delete("provider");
-      changed = true;
-    }
-
-    if (changed) {
-      setParams(nextParams, { replace: true });
-    }
-  }, [roomData, isHost, slug, params, setParams, navigate, roomId]);
-
-  // 3. Host: Sync Episode / Server / Provider changes to Firestore
-  useEffect(() => {
-    if (!isHost || !roomId || !db) return;
-
-    const updateRoomEpisode = async () => {
-      try {
-        const roomRef = doc(db, "watchRooms", roomId);
-        await setDoc(roomRef, {
-          episodeSlug: activeEpisode?.slug || "",
-          server: activeServer || "Vietsub",
-          provider: activeProvider || "",
-          playerState: {
-            isPlaying: false,
-            currentTime: 0,
-            updatedAt: serverTimestamp(),
-          }
-        }, { merge: true });
-      } catch (err) {
-        console.warn("Lỗi cập nhật tập lên phòng Firestore:", err);
-      }
-    };
-
-    updateRoomEpisode();
-  }, [activeEpisode, activeServer, activeProvider, isHost, roomId]);
-
-  // 4. Host: Sync Player playback state (Play/Pause/Seek) to Firestore
-  useEffect(() => {
-    if (!player || !isHost || !roomId || !db) return;
-
-    const updatePlayerState = async (isPlaying, currentTime) => {
-      try {
-        const roomRef = doc(db, "watchRooms", roomId);
-        await setDoc(roomRef, {
-          playerState: {
-            isPlaying,
-            currentTime,
-            updatedAt: serverTimestamp(),
-          }
-        }, { merge: true });
-      } catch (err) {
-        console.error("Lỗi cập nhật trạng thái trình phát lên phòng:", err);
-      }
-    };
-
-    const onPlay = () => {
-      if (isSyncing.current) return;
-      updatePlayerState(true, player.video.currentTime);
-    };
-
-    const onPause = () => {
-      if (isSyncing.current) return;
-      updatePlayerState(false, player.video.currentTime);
-    };
-
-    const onSeeked = () => {
-      if (isSyncing.current) return;
-      updatePlayerState(!player.video.paused, player.video.currentTime);
-    };
-
-    let lastTimeUpdate = 0;
-    const onTimeUpdate = () => {
-      if (isSyncing.current) return;
-      const now = Date.now();
-      if (now - lastTimeUpdate > 5000) {
-        lastTimeUpdate = now;
-        updatePlayerState(!player.video.paused, player.video.currentTime);
-      }
-    };
-
-    player.on("video:play", onPlay);
-    player.on("video:pause", onPause);
-    player.on("video:seeked", onSeeked);
-    player.on("video:timeupdate", onTimeUpdate);
-
-    return () => {
-      player.off("video:play", onPlay);
-      player.off("video:pause", onPause);
-      player.off("video:seeked", onSeeked);
-      player.off("video:timeupdate", onTimeUpdate);
-    };
-  }, [player, isHost, roomId]);
-
-  // 5. Member: Sync Player playback state from Firestore
-  useEffect(() => {
-    if (!player || !roomData || isHost || !roomData.playerState) return;
-
-    const { isPlaying, currentTime } = roomData.playerState;
-
-    isSyncing.current = true;
-
-    // Sync Play/Pause
-    if (isPlaying && player.video.paused) {
-      player.play().catch(() => { });
-    } else if (!isPlaying && !player.video.paused) {
-      player.pause();
-    }
-
-    // Sync Time with fixed latency estimation (avoids client-clock desync)
-    const hostTimeAdjusted = currentTime + (isPlaying ? 0.2 : 0);
-    const videoEl = player.video;
-    const timeDiff = Math.abs(videoEl.currentTime - hostTimeAdjusted);
-
-    if (timeDiff > 1.5) {
-      // eslint-disable-next-line react-hooks/immutability
-      videoEl.currentTime = hostTimeAdjusted;
-    }
-
-    // Return cleanup to prevent isSyncing leak on fast re-renders
-    const timer = setTimeout(() => {
-      isSyncing.current = false;
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [player, roomData, isHost]);
+    prevRoomIdRef.current = roomId;
+  }, [roomId]);
 
   const onTimeUpdate = useCallback((currentTime, duration) => {
     progressRef.current = { currentTime, duration };

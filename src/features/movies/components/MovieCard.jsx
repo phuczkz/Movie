@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Play, Calendar, Film, Globe, Heart, Info, ChevronDown } from "lucide-react";
 
@@ -16,7 +16,14 @@ const fallbackLandscape =
 
 
 // ─── Hover Preview Card ──────────────────────────────────────────────────────
-const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) => {
+const HoverCard = ({
+  movie,
+  isTrailer = false,
+  thumbSrc,
+  thumbFallbacks,
+  audioBadges,
+  alignment,
+}) => {
   const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(movie);
   const [thumbLoaded, setThumbLoaded] = useState(false);
   const thumbRetryIndex = useRef(0);
@@ -37,14 +44,18 @@ const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) 
   const year = movie?.year;
   const content = movie?.content || movie?.origin?.content || "";
 
-  // Detect trailer: episode_current or status starts with "Trailer"
+  // Detect trailer: check isTrailer prop, episode_current, or status
   const rawEpCurrent = episodeStatus.toLowerCase();
   const rawStatus = (movie?.status || "").toLowerCase();
   const isTrailerCard =
-    rawEpCurrent === "trailer" || rawEpCurrent.startsWith("trailer") ||
-    rawStatus === "trailer"   || rawStatus.startsWith("trailer");
+    isTrailer ||
+    rawEpCurrent.includes("trailer") ||
+    rawEpCurrent.includes("teaser") ||
+    rawStatus.includes("trailer") ||
+    rawStatus.includes("teaser");
 
   const statusLabel = (() => {
+    if (isTrailerCard) return null;
     const s = episodeStatus.toLowerCase();
     if (s.includes("full") || s.includes("hoàn tất")) return "Full";
     if (s.includes("tập")) return episodeStatus;
@@ -174,6 +185,10 @@ const HoverCard = ({ movie, thumbSrc, thumbFallbacks, audioBadges, alignment }) 
 // Bọc memo để HoverCard không re-render khi MovieCard cha cập nhật state không liên quan
 const MemoHoverCard = memo(HoverCard);
 
+// Module-level cache để lưu các URL poster đã tải thành công trong phiên làm việc.
+// Giúp hiển thị ảnh tức thì, tránh giật/chớp nháy skeleton khi cuộn lên cuộn xuống.
+const loadedPosterCache = new Set();
+
 // ─── Main MovieCard ──────────────────────────────────────────────────────────
 const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const imgRef = useRef(null);
@@ -212,11 +227,15 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
 
     const rect = e.currentTarget.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
+    const scrollParent = e.currentTarget.closest(".home-grid-movies") || e.currentTarget.closest(".overflow-x-auto");
+    const parentRect = scrollParent ? scrollParent.getBoundingClientRect() : null;
+    const rightBound = parentRect ? Math.min(window.innerWidth, parentRect.right) : window.innerWidth;
+    const leftBound = parentRect ? Math.max(0, parentRect.left) : 0;
     const threshold = 160;
 
-    if (center < threshold) {
+    if (center - leftBound < threshold) {
       setAlignment("left");
-    } else if (window.innerWidth - center < threshold) {
+    } else if (rightBound - center < threshold) {
       setAlignment("right");
     } else {
       setAlignment("center");
@@ -231,14 +250,83 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     setHovered(false);
   };
 
-  // Chỉ fetch chi tiết phim khi người dùng hover (apiReady) hoặc card được đánh dấu ưu tiên.
-  // Không fetch theo isInView để tránh hàng loạt request khi cuộn trang.
+  // Chỉ fetch chi tiết phim khi người dùng hover (apiReady).
+  // priority chỉ dùng để ưu tiên tải ảnh (loading="eager", fetchPriority="high"),
+  // KHÔNG kích hoạt gọi API để tránh 12-16 request đồng loạt khi load trang.
   const { data: detailData, isFetched } = useMovieDetail(slug, {
-    enabled: (apiReady || priority) && !!slug,
+    enabled: apiReady && !!slug,
   });
+  const detailMovie = detailData?.movie;
+
+  // Prioritize detailMovie when fetched, as the Detail API contains the most accurate, official poster
+  const effectiveMovie = useMemo(() => {
+    if (!detailMovie) return movie;
+    return {
+      ...movie,
+      ...detailMovie,
+      poster_url: detailMovie.poster_url || movie.poster_url,
+      thumb_url: detailMovie.thumb_url || movie.thumb_url,
+    };
+  }, [movie, detailMovie]);
+
   const episodeList = useMemo(() => detailData?.episodes || [], [detailData?.episodes]);
 
+  const isTrailer = useMemo(() => {
+    // 1. Check original movie object from list
+    const listEp = (movie?.episode_current || episodeCurrentText || "").toLowerCase();
+    const listStatus = (movie?.status || "").toLowerCase();
+    if (
+      listEp.includes("trailer") ||
+      listEp.includes("teaser") ||
+      listStatus.includes("trailer") ||
+      listStatus.includes("teaser")
+    ) {
+      return true;
+    }
+
+    // 2. Check detailMovie from API
+    const detailEp = (detailMovie?.episode_current || "").toLowerCase();
+    const detailStatus = (detailMovie?.status || "").toLowerCase();
+    if (
+      detailEp.includes("trailer") ||
+      detailEp.includes("teaser") ||
+      detailStatus.includes("trailer") ||
+      detailStatus.includes("teaser")
+    ) {
+      return true;
+    }
+
+    // 3. Check if all fetched episodes are trailer/teaser/preview
+    if (episodeList.length > 0) {
+      const allEpisodesAreTrailers = episodeList.every((ep) => {
+        const str = `${ep?.name || ""} ${ep?.slug || ""} ${ep?.filename || ""}`.toLowerCase();
+        return (
+          str.includes("trailer") ||
+          str.includes("teaser") ||
+          str.includes("preview") ||
+          str.includes("bts")
+        );
+      });
+      if (allEpisodesAreTrailers) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [
+    movie?.episode_current,
+    movie?.status,
+    episodeCurrentText,
+    detailMovie?.episode_current,
+    detailMovie?.status,
+    episodeList,
+  ]);
+
   const audioBadges = useMemo(() => {
+    if (isTrailer) {
+      return [{ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null }];
+    }
+
     // Helper to compute episode text for a given list of episodes
     const computeEpisodeText = (eps) => {
       const latestFromList = eps.reduce((max, ep) => {
@@ -324,7 +412,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     }
 
     return badges;
-  }, [episodeList, episodeCurrentText, movieLang, movie.status, movie.episode_total, movie.episode_current, isFetched]);
+  }, [isTrailer, episodeList, episodeCurrentText, movieLang, movie.status, movie.episode_total, movie.episode_current, isFetched]);
 
   useEffect(() => {
     if (!cardRef.current || isInView) return undefined;
@@ -346,26 +434,38 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   const posterWidth = priority ? (isMobileSize ? 300 : 480) : (isMobileSize ? 200 : 360);
   const posterQuality = isMobileSize ? 70 : 80;
 
-  const detailMovie = detailData?.movie;
-
-  // Prioritize detailMovie when fetched, as the Detail API contains the most accurate, official poster
-  const effectiveMovie = useMemo(() => {
-    if (!detailMovie) return movie;
-    return {
-      ...movie,
-      ...detailMovie,
-      poster_url: detailMovie.poster_url || movie.poster_url,
-      thumb_url: detailMovie.thumb_url || movie.thumb_url,
-    };
-  }, [movie, detailMovie]);
+  const onImageFallbackExhausted = useCallback(() => {
+    setLoaded(true);
+  }, []);
 
   const { posterSrc, handlePosterError } = usePosterFallback(
     effectiveMovie,
     posterWidth,
     posterQuality,
     fallbackPoster,
-    () => setLoaded(true)
+    onImageFallbackExhausted
   );
+
+  const handlePosterLoad = useCallback(() => {
+    if (posterSrc) loadedPosterCache.add(posterSrc);
+    setLoaded(true);
+  }, [posterSrc]);
+
+  // Kiểm tra ảnh đã có trong bộ nhớ tạm session hoặc cache trình duyệt chưa
+  const isCached = Boolean(posterSrc && loadedPosterCache.has(posterSrc));
+  const isImageReady = loaded || isCached;
+
+  useEffect(() => {
+    if (posterSrc && loadedPosterCache.has(posterSrc)) {
+      setLoaded(true);
+      return;
+    }
+    // Nếu trình duyệt đã cache sẵn ảnh, kích hoạt hiển thị ngay lập tức
+    if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
+      if (posterSrc) loadedPosterCache.add(posterSrc);
+      setLoaded(true);
+    }
+  }, [posterSrc]);
 
   // Determine the best landscape image for the hover popup.
   // For movies from the API list, thumb_url = landscape, poster_url = portrait (already normalized).
@@ -419,21 +519,21 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
       >
         <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg lg:group-hover:shadow-emerald-500/20 transition-all duration-300">
           {/* Skeleton shimmer — visible until image is loaded */}
-          {!loaded && (
+          {!isImageReady && (
             <div className="absolute inset-0 mc-img-skeleton" />
           )}
           <img
             ref={imgRef}
             src={posterSrc}
             alt={movie.name}
-            className={`absolute h-full w-full object-cover transition-opacity duration-300 lg:group-hover:scale-105 ${loaded ? "opacity-100 scale-100" : "opacity-0"
-              }`}
+            className={`absolute h-full w-full object-cover lg:group-hover:scale-105 ${isImageReady ? "opacity-100 scale-100" : "opacity-0"
+              } ${isCached ? "" : "transition-opacity duration-300"}`}
             loading={priority ? "eager" : "lazy"}
             decoding="async"
             {...(priority
               ? { fetchPriority: "high" }
               : { fetchPriority: "low" })}
-            onLoad={() => setLoaded(true)}
+            onLoad={handlePosterLoad}
             onError={handlePosterError}
           />
 
@@ -478,7 +578,8 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
       {/* Hover Preview — overlays directly on the card, centered */}
       {hovered && (
         <MemoHoverCard
-          movie={movie}
+          movie={effectiveMovie}
+          isTrailer={isTrailer}
           thumbSrc={thumbSrc}
           thumbFallbacks={thumbFallbacks}
           audioBadges={audioBadges}
@@ -489,4 +590,4 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
   );
 };
 
-export default MovieCard;
+export default memo(MovieCard);

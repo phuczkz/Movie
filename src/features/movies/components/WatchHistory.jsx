@@ -47,19 +47,19 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
 
   return (
     <div
-      className={`group relative flex overflow-hidden rounded-xl border border-white/10 bg-slate-800/50 transition-all hover:scale-[1.01] hover:border-emerald-500/50 hover:shadow-lg ${adminView
-          ? "flex-row h-24 sm:h-24"
-          : "flex-row sm:flex-col h-28 sm:h-auto sm:aspect-[3/4] sm:bg-slate-900 sm:hover:shadow-2xl"
+      className={`group relative flex overflow-hidden rounded-2xl border border-white/10 bg-slate-800/50 transition-all hover:scale-[1.02] hover:border-emerald-500/50 hover:shadow-xl ${adminView
+          ? "flex-row h-24 sm:h-24 rounded-xl"
+          : "flex-col aspect-[2/3] bg-slate-900 shadow-md"
         }`}
     >
       {/* Image Section */}
-      <div className={`${adminView ? "w-16 min-w-[4rem]" : "w-20 min-w-[5rem] sm:w-full sm:absolute sm:inset-0 sm:z-0"
-        } flex-shrink-0 relative overflow-hidden bg-slate-900`}>
+      <div className={`${adminView ? "w-16 min-w-[4rem] relative" : "absolute inset-0 z-0"
+        } flex-shrink-0 overflow-hidden bg-slate-900`}>
         {posterUrl ? (
           <img
             src={posterUrl.replace(/\/w(92|154|185|300|342|500|780)\//, "/original/")}
             alt={movieName}
-            className="h-full w-full object-cover object-top opacity-100 transition-transform duration-700 ease-out sm:group-hover:scale-110"
+            className="h-full w-full object-cover object-top opacity-100 transition-transform duration-500 ease-out group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';
@@ -71,7 +71,7 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
           </div>
         )}
         {/* Gradient Overlay applies only on desktop main view */}
-        {!adminView && <div className="hidden sm:block absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent" />}
+        {!adminView && <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />}
       </div>
 
       {/* Delete Button (top right) */}
@@ -79,7 +79,7 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); handleDelete(item.slug); }}
-          className="p-1.5 text-white/60 hover:text-white bg-slate-950/40 hover:bg-rose-600 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
+          className="p-1.5 text-white/60 hover:text-white bg-slate-950/50 hover:bg-rose-600 rounded-full backdrop-blur-md transition-all shadow-md active:scale-95"
           title="Xóa khỏi lịch sử"
           aria-label="Xóa khỏi lịch sử"
         >
@@ -88,44 +88,30 @@ function WatchHistoryCard({ item, handleDelete, user, adminView = false }) {
       </div>
 
       {/* Content Section */}
-      <div className={`relative z-10 flex flex-1 flex-col justify-center overflow-hidden ${adminView ? "p-3" : "p-3 sm:p-5 sm:justify-end"
+      <div className={`relative z-10 flex flex-1 flex-col justify-end overflow-hidden ${adminView ? "p-3 justify-center" : "p-2.5 sm:p-3"
         }`}>
-        <h3 className={`font-semibold text-white tracking-tight line-clamp-1 pr-6 ${adminView ? "text-xs sm:text-sm mb-0.5" : "text-sm sm:text-lg sm:mb-1 sm:line-clamp-2 sm:pr-0 sm:drop-shadow-lg"
+        <h3 className={`font-semibold text-white tracking-tight line-clamp-1 ${adminView ? "text-xs sm:text-sm mb-0.5" : "text-xs sm:text-sm drop-shadow-md"
           }`}>
           {movieName}
         </h3>
 
-        <p className={`font-medium text-emerald-400 mb-0.5 ${adminView ? "text-[10px]" : "text-[11px] sm:text-sm sm:text-emerald-300 sm:drop-shadow-md"
-          }`}>
-          {epLabel}
-        </p>
-
-        <div className={`flex items-center justify-between ${adminView ? "mt-0.5" : "mt-2 sm:mt-0"}`}>
-          <p className={`text-slate-400 ${adminView ? "text-[9px]" : "text-[10px] sm:text-xs sm:text-slate-300/90 sm:drop-shadow-md sm:mb-4"
-            }`}>
-            Đã xem: {formatTime(item.currentTime)}
+        <div className={`flex items-center justify-between gap-1 ${adminView ? "mt-0.5" : "mt-0.5 mb-1.5"}`}>
+          <p className="text-[10px] sm:text-xs font-medium text-emerald-400 truncate">
+            {epLabel}
           </p>
-
-          {!adminView && (
-            <Link
-              to={`/watch/${item.slug}${item.episodeSlug ? `?episode=${item.episodeSlug}` : ""}${item.server ? `&server=${item.server}` : ""}`}
-              state={{ initialTime: item.currentTime }}
-              className="sm:hidden flex items-center gap-1 rounded-lg bg-emerald-500/20 px-2 py-1 text-[10px] font-semibold text-emerald-400 transition hover:bg-emerald-500 hover:text-emerald-950"
-            >
-              <Play className="size-3" fill="currentColor" /> Tiếp
-            </Link>
-          )}
+          <p className="text-[10px] sm:text-xs text-slate-300/80 shrink-0">
+            {formatTime(item.currentTime)}
+          </p>
         </div>
 
-        {/* Desktop-only full-width button (only in non-admin view) */}
         {!adminView && (
           <Link
             to={`/watch/${item.slug}${item.episodeSlug ? `?episode=${item.episodeSlug}` : ""}${item.server ? `&server=${item.server}` : ""}`}
             state={{ initialTime: item.currentTime }}
-            className="hidden sm:flex group/btn items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-lg shadow-emerald-500/30 transition hover:-translate-y-[2px] hover:bg-emerald-400 active:scale-[0.98] w-full mt-auto"
+            className="flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl bg-emerald-500 px-2.5 py-1.5 text-xs font-bold text-emerald-950 shadow-md transition-all hover:bg-emerald-400 active:scale-95 w-full"
           >
-            <Play className="size-4 transition-transform group-hover/btn:scale-110" fill="currentColor" />
-            Tiếp tục xem
+            <Play className="size-3 sm:size-3.5 fill-current" />
+            <span>Tiếp tục xem</span>
           </Link>
         )}
       </div>
@@ -224,7 +210,7 @@ export default function WatchHistory({ userId, adminView = false }) {
         </div>
       ) : (
         <div className={`${adminView ? "max-h-none" : "max-h-[85vh] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar"}`}>
-          <div className={`grid gap-3 sm:gap-4 ${adminView ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}>
+          <div className={`grid gap-3 sm:gap-4 ${adminView ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-2" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"}`}>
             {history.map((item) => (
               <WatchHistoryCard
                 key={item.id}

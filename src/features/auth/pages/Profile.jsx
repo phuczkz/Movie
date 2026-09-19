@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import AvatarModal from '@/components/AvatarModal.jsx';
 import { useAppMode } from '@/context/AppModeContext';
 import { getProxiedAvatar } from "@/utils/image-helper.js";
+import ProfileStatsCard from '@/features/auth/components/profile-stats-card.jsx';
 
 const WatchHistory = lazy(() => import('@/features/movies/components/WatchHistory.jsx'));
 const ComicHistory = lazy(() => import('@/features/comics/components/ComicHistory.jsx'));
@@ -98,7 +99,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8 space-y-8">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 md:p-8 space-y-8">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-white/5">
         <div className="relative group shrink-0">
@@ -165,118 +166,127 @@ const Profile = () => {
         </div>
       </div>
 
-      {appMode === 'comic' ? (
-        <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 text-purple-200 text-sm flex items-center gap-3">
-          <BookOpen size={16} className="text-purple-500" />
-          Bạn đang ở chế độ <b>MangaHub</b> (Đọc truyện)
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-emerald-200 text-sm flex items-center gap-3">
-          <Play size={16} className="text-emerald-500" />
-          Bạn đang ở chế độ <b>Movie</b> (Xem phim)
-        </div>
-      )}
-
-      {!isFirebaseConfigured && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-100 px-4 py-3 text-sm">
-          Firebase chưa được cấu hình. Một số tính năng có thể không hoạt động.
-        </div>
-      )}
-
-      <div className="grid gap-8 lg:grid-cols-[1fr,auto]">
-        <form onSubmit={onSubmit} className="space-y-6 order-2 lg:order-1">
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={user?.email || ""}
-                readOnly
-                disabled
-                className="w-full rounded-2xl bg-white/[0.03] border border-white/10 px-4 py-3 text-slate-400 cursor-not-allowed"
-              />
+      {/* 2 cột: Cột 1 (Bạn đang ở chế độ gì & thông tin user) và Cột 2 (Tổng quan tài khoản) */}
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1fr_360px]">
+        {/* Cột 1: Hiển thị Bạn đang ở chế độ gì và form thông tin user */}
+        <div className="space-y-6">
+          {appMode === 'comic' ? (
+            <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 text-purple-200 text-sm flex items-center gap-3">
+              <BookOpen size={16} className="text-purple-500 shrink-0" />
+              <span>Bạn đang ở chế độ <b>MangaHub</b> (Đọc truyện)</span>
             </div>
-            <div className="space-y-2">
-              <label htmlFor="displayName" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
-                Họ tên / Biệt danh
-              </label>
-              <input
-                id="displayName"
-                name="displayName"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
-                placeholder="Nhập tên của bạn"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="birthday" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
-                Ngày sinh
-              </label>
-              <input
-                id="birthday"
-                name="birthday"
-                type="date"
-                value={birthday || ""}
-                max={todayStr}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  const clamped = value && value > todayStr ? todayStr : value;
-                  setBirthday(clamped);
-                }}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
-              />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="phoneNumber" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
-                Số điện thoại
-              </label>
-              <input
-                id="phoneNumber"
-                name="phoneNumber"
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                value={phoneNumber}
-                onChange={(e) => {
-                  const digits = (e.target.value || "").replace(/\D+/g, "");
-                  setPhoneNumber(digits.slice(0, 10));
-                }}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
-                placeholder="0xxx xxx xxx"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-              <span className="size-1.5 rounded-full bg-red-500" />
-              {error}
-            </div>
-          )}
-          {message && (
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-              <Check size={16} />
-              {message}
+          ) : (
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-emerald-200 text-sm flex items-center gap-3">
+              <Play size={16} className="text-emerald-500 shrink-0" />
+              <span>Bạn đang ở chế độ <b>Movie</b> (Xem phim)</span>
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving || profileLoading}
-            className="w-full sm:w-auto rounded-full bg-emerald-500 px-8 py-3.5 text-emerald-950 font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 active:scale-95"
-          >
-            {saving ? "Đang xử lý…" : "Lưu thay đổi"}
-          </button>
-        </form>
+          {!isFirebaseConfigured && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-100 px-4 py-3 text-sm">
+              Firebase chưa được cấu hình. Một số tính năng có thể không hoạt động.
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} className="space-y-6">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={user?.email || ""}
+                  readOnly
+                  disabled
+                  className="w-full rounded-2xl bg-white/[0.03] border border-white/10 px-4 py-3 text-slate-400 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="displayName" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                  Họ tên / Biệt danh
+                </label>
+                <input
+                  id="displayName"
+                  name="displayName"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
+                  placeholder="Nhập tên của bạn"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="birthday" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                  Ngày sinh
+                </label>
+                <input
+                  id="birthday"
+                  name="birthday"
+                  type="date"
+                  value={birthday || ""}
+                  max={todayStr}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const clamped = value && value > todayStr ? todayStr : value;
+                    setBirthday(clamped);
+                  }}
+                  className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="phoneNumber" className="text-xs uppercase tracking-wider text-slate-400 font-bold ml-1">
+                  Số điện thoại
+                </label>
+                <input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    const digits = (e.target.value || "").replace(/\D+/g, "");
+                    setPhoneNumber(digits.slice(0, 10));
+                  }}
+                  className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
+                  placeholder="0xxx xxx xxx"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                <span className="size-1.5 rounded-full bg-red-500" />
+                {error}
+              </div>
+            )}
+            {message && (
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 px-4 py-3 text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                <Check size={16} />
+                {message}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={saving || profileLoading}
+              className="w-full sm:w-auto rounded-full bg-emerald-500 px-8 py-3.5 text-emerald-950 font-bold shadow-xl shadow-emerald-500/20 hover:bg-emerald-400 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:translate-y-0 active:scale-95"
+            >
+              {saving ? "Đang xử lý…" : "Lưu thay đổi"}
+            </button>
+          </form>
+        </div>
+
+        {/* Cột 2 (bên phải): Thống kê hoạt động (Tổng quan tài khoản) */}
+        <div>
+          <ProfileStatsCard />
+        </div>
       </div>
 
       <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải lịch sử...</div>}>
