@@ -77,6 +77,22 @@ const getEpisodePlayableLink = (ep = {}) => {
   return link;
 };
 
+// Trả về link embed (iframe player của KKphim) nếu có, dùng làm nguồn dự phòng.
+const getEpisodeEmbedLink = (ep = {}) => {
+  const link = ep.link_embed || ep.embed || "";
+  if (!link) return "";
+  // Chỉ lấy link dạng embed/iframe, không lấy link m3u8 trực tiếp vào đây
+  if (
+    link.includes("iframe") ||
+    link.includes("embed") ||
+    link.includes("phimapi.com/player")
+  ) {
+    return link;
+  }
+  // Nếu link_embed trỏ thẳng vào .m3u8 (không phải iframe), bỏ qua
+  return "";
+};
+
 const getEpisodeSourceKind = (ep = {}) => {
   const link = getEpisodePlayableLink(ep);
   if (link) return "m3u8";
@@ -158,13 +174,22 @@ const mergeEpisodes = (kkList = []) => {
         };
       }
 
+      // Lưu link embed như một nguồn dự phòng (fallback provider).
+      // Tên key: 'backup'. Loại: 'embed'. Dùng khi nguồn m3u8 chính gặp sự cố.
+      const embedLink = getEpisodeEmbedLink(ep);
+      if (embedLink) {
+        nextSources["backup"] = {
+          link: embedLink,
+          kind: "embed",
+        };
+      }
+
       const currentHasLink = Boolean(
         Object.values(nextSources).some((item) => item?.link) ||
           current?.ep?.link_m3u8 ||
           current?.ep?.m3u8 ||
           current?.ep?.linkplay ||
-          current?.ep?.link ||
-          current?.ep?.embed
+          current?.ep?.link
       );
 
       if (prefers || (!currentHasLink && hasLink)) {
@@ -180,7 +205,7 @@ const mergeEpisodes = (kkList = []) => {
           epNum: epNum ?? -1,
           sources: nextSources,
         });
-      } else if (hasLink && current) {
+      } else if ((hasLink || embedLink) && current) {
         map.set(key, {
           ...current,
           sources: nextSources,

@@ -78,45 +78,21 @@ const Player = ({
   }, [onToggleTheater]);
 
   const effectiveSource = useMemo(() => {
-    const streamProxy = import.meta.env.VITE_STREAM_PROXY;
-    if (
-      source &&
-      streamProxy &&
-      !source.includes("iframe") &&
-      !source.includes("embed") &&
-      !source.includes("phimapi.com/player")
-    ) {
-      const cleanProxy = streamProxy.trim().replace(/\/$/, "");
-      if (!source.includes(cleanProxy)) {
-        // Upgrade http to https to prevent Mixed Content blocks on production
-        let targetUrl = source;
-        if (source.startsWith("http://")) {
-          const isLocalhost =
-            source.includes("localhost") || source.includes("127.0.0.1");
-          if (!isLocalhost) {
-            targetUrl = source.replace("http://", "https://");
-          }
-        }
+    if (!source) return source;
 
-        try {
-          const urlObj = new URL(targetUrl);
-          const hostname = urlObj.hostname.toLowerCase();
-
-          if (
-            hostname.endsWith("phim1280.tv") ||
-            hostname.includes("kkphimplayer") ||
-            hostname.includes("opstream") ||
-            hostname.includes("ophim")
-          ) {
-            return targetUrl;
-          }
-        } catch {
-          /* Ignore invalid URL formats */
-        }
-
-        return `${cleanProxy}/?url=${encodeURIComponent(targetUrl)}`;
+    // Phát trực tiếp từ CDN của nguồn phim.
+    // Tất cả CDN hiện tại đều hỗ trợ CORS (*) nên trình duyệt có thể kết nối trực tiếp.
+    // Không đi qua proxy vì có thể bị chặn IP datacenter (403/404).
+    //
+    // Chỉ cần chuẩn hóa http -> https để tránh lỗi Mixed Content trên production HTTPS.
+    if (source.startsWith("http://")) {
+      const isLocalhost =
+        source.includes("localhost") || source.includes("127.0.0.1");
+      if (!isLocalhost) {
+        return source.replace("http://", "https://");
       }
     }
+
     return source;
   }, [source]);
 

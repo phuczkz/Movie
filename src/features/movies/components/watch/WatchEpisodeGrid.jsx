@@ -19,6 +19,7 @@ const formatEpisodeName = (name = "") => {
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
+  backup: "Dự phòng",
 };
 
 const WatchEpisodeGrid = memo(({

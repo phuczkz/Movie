@@ -38,15 +38,18 @@ import SEO from '@/components/SEO.jsx';
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
+  backup: "Dự phòng",
 };
 
 const PROVIDER_SOURCE_NAMES = {
-  kkphim: "KKphim",
+  kkphim: "Nguồn chính",
+  backup: "Dự phòng",
 };
 
 const normalizeProviderParam = (value) => {
   const lower = (value || "").toString().trim().toLowerCase();
-  if (lower === "kkphim") return lower;
+  if (lower === "kkphim") return "kkphim";
+  if (lower === "backup" || lower === "embed") return "backup";
   return null;
 };
 
@@ -56,22 +59,40 @@ const buildEpisodeProviders = (episode) => {
 
   if (episode._providers) {
     Object.entries(episode._providers).forEach(([key, val]) => {
-      if (val && val.link && val.kind === "m3u8") {
+      if (val && val.link) {
+        // Nhận cả m3u8 lẫn embed vào danh sách providers
         const providerKey = normalizeProviderParam(key) || key;
         providers[providerKey] = val;
       }
     });
   }
 
+  // Fallback: nếu chưa có nguồn m3u8 chính, thử lấy từ field trực tiếp
   const directLink = episode.link_m3u8 || episode.m3u8 || episode.linkplay || episode.link || "";
   const inferredProvider = normalizeProviderParam(episode._provider) || "kkphim";
 
   if (!providers[inferredProvider]?.link && directLink) {
-    const isM3u8 = directLink.includes(".m3u8") || (!directLink.includes("iframe") && !directLink.includes("embed") && !directLink.includes("phimapi.com/player"));
+    const isM3u8 = directLink.includes(".m3u8") || (
+      !directLink.includes("iframe") &&
+      !directLink.includes("embed") &&
+      !directLink.includes("phimapi.com/player")
+    );
     if (isM3u8) {
       providers[inferredProvider] = { link: directLink, kind: "m3u8" };
     }
   }
+
+  // Fallback: nếu chưa có nguồn embed, thử lấy từ field link_embed trực tiếp
+  if (!providers["backup"]?.link && episode.link_embed) {
+    if (
+      episode.link_embed.includes("embed") ||
+      episode.link_embed.includes("iframe") ||
+      episode.link_embed.includes("phimapi.com/player")
+    ) {
+      providers["backup"] = { link: episode.link_embed, kind: "embed" };
+    }
+  }
+
   return providers;
 };
 
@@ -264,12 +285,25 @@ const Watch = () => {
     failedProvidersRef.current.clear();
   }
 
+  // Providers có link m3u8 thực sự (không tính embed) — dùng cho auto-failover giữa các nguồn m3u8
+  const m3u8Providers = Object.entries(episodeProviders).flatMap(
+    ([k, v]) => (v?.link && v?.kind !== "embed") ? [k] : []
+  );
+  // Tất cả providers kể cả embed — hiển thị trên UI cho người dùng chứ
   const availableProviders = Object.entries(episodeProviders).flatMap(([k, v]) => v?.link ? [k] : []);
-  const preferredProvider = normalizeProviderParam(activeEpisode?._preferredProvider) || availableProviders[0] || null;
+  // preferredProvider luôn là m3u8, không auto-chọn embed
+  const preferredProvider = normalizeProviderParam(activeEpisode?._preferredProvider) || m3u8Providers[0] || null;
   const activeProvider = (selectedProviderParam && episodeProviders[selectedProviderParam]?.link ? selectedProviderParam : null) || (autoProviderOverride && episodeProviders[autoProviderOverride]?.link ? autoProviderOverride : null) || preferredProvider;
   const activeProviderLabel = PROVIDER_LABELS[activeProvider] || "Mặc định";
 
-  const activeSource = (activeProvider ? episodeProviders[activeProvider]?.link : "") || (activeEpisode?.link_m3u8 && !activeEpisode.link_m3u8.includes("iframe") && !activeEpisode.link_m3u8.includes("embed") ? activeEpisode.link_m3u8 : "");
+  // Nếu provider hiện tại là nguồn embed, trả về link embed để PlayerSection dùng iframe.
+  // Nếu là m3u8, phát trực tiếp qua ArtPlayer + HLS.js.
+  const activeProviderData = activeProvider ? episodeProviders[activeProvider] : null;
+  const activeSource = activeProviderData?.link
+    ? activeProviderData.link
+    : (activeEpisode?.link_m3u8 && !activeEpisode.link_m3u8.includes("iframe") && !activeEpisode.link_m3u8.includes("embed")
+      ? activeEpisode.link_m3u8
+      : "");
 
   const currentIndex = activeEpisode ? episodesForServer.findIndex((ep) => ep.slug === activeEpisode.slug) : -1;
   const nextEpisode = currentIndex >= 0 ? episodesForServer[currentIndex + 1] || null : null;
@@ -292,42 +326,53 @@ const Watch = () => {
   const handlePlaybackIssue = useCallback(() => {
     if (!activeProvider) return;
 
-    // Mark the current provider as failed
+    // Đánh dấu provider hiện tại là đã lỗi
     failedProvidersRef.current.add(activeProvider);
 
-    // Find another provider that hasn't failed yet
-    const fallbackProvider = availableProviders.find(
+    // Tìm provider m3u8 khác chưa lỗi
+    const fallbackM3u8Provider = m3u8Providers.find(
       p => p !== activeProvider && !failedProvidersRef.current.has(p) && episodeProviders[p]?.link
     );
 
-    // If there's a fallback provider, update URL/params accordingly
-    if (fallbackProvider) {
+    // Nếu có nguồn m3u8 dự phòng, chuyển sang ngay
+    if (fallbackM3u8Provider) {
       const nextParams = new URLSearchParams(params);
-      nextParams.delete("provider"); // Remove hardcoded provider param to let auto-provider switch
+      nextParams.delete("provider");
       setParams(nextParams, { replace: true });
-    }
-
-    setAutoProviderState((prev) => {
-      // If we already have a notice for this specific playback scope, skip updating to avoid UI flickering
-      if (prev.key === playbackScopeKey && prev.notice) return prev;
-
-      // If a working fallback provider is found
-      if (fallbackProvider) {
+      setAutoProviderState((prev) => {
+        if (prev.key === playbackScopeKey && prev.notice) return prev;
         return {
           key: playbackScopeKey,
-          provider: fallbackProvider,
-          notice: `Nguồn ${activeProviderLabel} đang gặp sự cố. Hệ thống tự động chuyển sang Nguồn ${PROVIDER_LABELS[fallbackProvider] || fallbackProvider}.`
+          provider: fallbackM3u8Provider,
+          notice: `Nguồn ${activeProviderLabel} đang gặp sự cố. Hệ thống tự động chuyển sang Nguồn ${PROVIDER_LABELS[fallbackM3u8Provider] || fallbackM3u8Provider}.`
+        };
+      });
+      return;
+    }
+
+    // Không còn nguồn m3u8 nào khả dụng — kiểm tra xem có nguồn embed dự phòng không
+    const hasEmbedFallback = Boolean(episodeProviders["backup"]?.link);
+
+    setAutoProviderState((prev) => {
+      if (prev.key === playbackScopeKey && prev.notice) return prev;
+
+      if (hasEmbedFallback && activeProvider !== "backup") {
+        // Tự động chuyển sang nguồn dự phòng
+        return {
+          key: playbackScopeKey,
+          provider: "backup",
+          notice: `Nguồn m3u8 đang gặp sự cố. Đã tự động chuyển sang nguồn Dự phòng.`
         };
       }
 
-      // Absolutely no sources work
+      // Tuyệt đối không có nguồn nào hoạt động
       return {
         key: playbackScopeKey,
         provider: prev.provider || null,
         notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.`
       };
     });
-  }, [activeProvider, activeProviderLabel, availableProviders, episodeProviders, playbackScopeKey, setAutoProviderState, params, setParams]);
+  }, [activeProvider, activeProviderLabel, m3u8Providers, episodeProviders, playbackScopeKey, setAutoProviderState, params, setParams]);
 
   const handleServerChange = useCallback((serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);

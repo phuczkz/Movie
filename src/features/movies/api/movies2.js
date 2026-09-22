@@ -265,8 +265,8 @@ export const getKKphimDetail = async (slug, options = {}) => {
       name: ep.name || `Tập ${idx + 1}`,
       slug: ep.slug || `ep-${idx + 1}`,
       server_name: ep.server_name || "",
-      link_m3u8: ep.link_m3u8 || ep.link_embed || ep.link || "",
-      embed: ep.link_embed || ep.link_m3u8 || ep.link || "",
+      link_m3u8: ep.link_m3u8 || ep.linkplay || "",
+      link_embed: ep.link_embed || "",
       _provider: "kkphim",
     })),
   };
