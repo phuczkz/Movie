@@ -84,31 +84,37 @@ body {
   }
 }
 
-/* HOME PAGE SPECIFIC: Horizontal scroll on Mobile, grid on larger */
+/* HOME PAGE SPECIFIC: Horizontal scroll row across all screens */
 .home-grid-movies {
-  display: grid;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-bottom: 0.75rem;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-grid-movies::-webkit-scrollbar {
+  display: none;
+}
+
+.home-grid-movies > * {
+  flex-shrink: 0;
 }
 
 /* Mobile: horizontal scroll */
 @media (max-width: 639.98px) {
   .home-grid-movies {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: visible;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     gap: 0.75rem;
     padding-bottom: 0.5rem;
     margin-left: -1rem;
     margin-right: -1rem;
     padding-left: 1rem;
     padding-right: 1rem;
-  }
-  .home-grid-movies::-webkit-scrollbar {
-    display: none;
   }
   .home-grid-movies > * {
     flex: 0 0 42%;
@@ -120,92 +126,110 @@ body {
 /* Tablets (Portrait & Landscape): horizontal scroll with wider cards */
 @media (min-width: 640px) and (max-width: 1023.98px) {
   .home-grid-movies {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: visible;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     gap: 1rem;
-    padding-bottom: 1rem;
+    padding-bottom: 0.75rem;
     margin-left: -1.5rem;
     margin-right: -1.5rem;
     padding-left: 1.5rem;
     padding-right: 1.5rem;
   }
-  .home-grid-movies::-webkit-scrollbar {
-    display: none;
-  }
   .home-grid-movies > * {
-    flex: 0 0 25%;
+    flex: 0 0 28%;
     min-width: 160px;
     max-width: 220px;
   }
 }
 
-/* Laptops 1024-1279: 4 columns */
+/* Laptops 1024-1279: horizontal scroll ~4 cards in view */
 @media (min-width: 1024px) and (max-width: 1279.98px) {
   .home-grid-movies {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    overflow: visible;
+    gap: 1rem;
+    padding-top: 1rem;
+    margin-top: -1rem;
+    padding-bottom: 3.5rem;
+    margin-bottom: -2.5rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
   }
+  .home-grid-movies > * {
+    flex: 0 0 calc((100% - 3 * 1rem) / 4);
+    min-width: 140px;
+    max-width: 200px;
+  }
 }
 
-/* Desktop 1280-1439: 5 columns (sidebar takes ~300px) */
+/* Desktop 1280-1439: horizontal scroll 5 cards in view (beside sidebar) */
 @media (min-width: 1280px) and (max-width: 1439.98px) {
   .home-grid-movies {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    overflow: visible;
+    gap: 1rem;
+    padding-top: 1rem;
+    margin-top: -1rem;
+    padding-bottom: 3.5rem;
+    margin-bottom: -2.5rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
   }
+  .home-grid-movies > * {
+    flex: 0 0 calc((100% - 4 * 1rem) / 5);
+    min-width: 150px;
+    max-width: 200px;
+  }
 }
 
-/* Large desktop 1440+: 7 columns */
+/* Large desktop 1440+: horizontal scroll 5 cards in view */
 @media (min-width: 1440px) {
   .home-grid-movies {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    overflow: visible;
+    gap: 1rem;
+    padding-top: 1rem;
+    margin-top: -1rem;
+    padding-bottom: 3.5rem;
+    margin-bottom: -2.5rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
+  }
+  .home-grid-movies > * {
+    flex: 0 0 calc((100% - 4 * 1rem) / 5);
+    min-width: 160px;
+    max-width: 210px;
   }
 }
 
 .home-grid-movies-landscape {
-  display: grid;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-bottom: 0.75rem;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-grid-movies-landscape::-webkit-scrollbar {
+  display: none;
+}
+
+.home-grid-movies-landscape > * {
+  flex-shrink: 0;
 }
 
 /* Mobile: horizontal scroll */
 @media (max-width: 639.98px) {
   .home-grid-movies-landscape {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: visible;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     gap: 0.75rem;
     padding-bottom: 0.5rem;
     margin-left: -1rem;
     margin-right: -1rem;
     padding-left: 1rem;
     padding-right: 1rem;
-  }
-  .home-grid-movies-landscape::-webkit-scrollbar {
-    display: none;
   }
   .home-grid-movies-landscape > * {
     flex: 0 0 70%;
@@ -217,21 +241,12 @@ body {
 /* Tablets: horizontal scroll */
 @media (min-width: 640px) and (max-width: 1023.98px) {
   .home-grid-movies-landscape {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: visible;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     gap: 1rem;
-    padding-bottom: 1rem;
+    padding-bottom: 0.75rem;
     margin-left: -1.5rem;
     margin-right: -1.5rem;
     padding-left: 1.5rem;
     padding-right: 1.5rem;
-  }
-  .home-grid-movies-landscape::-webkit-scrollbar {
-    display: none;
   }
   .home-grid-movies-landscape > * {
     flex: 0 0 35%;
@@ -240,42 +255,51 @@ body {
   }
 }
 
-/* Laptops: 4 columns */
+/* Laptops: 4 columns in view */
 @media (min-width: 1024px) and (max-width: 1279.98px) {
   .home-grid-movies-landscape {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    overflow: visible;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
   }
+  .home-grid-movies-landscape > * {
+    flex: 0 0 calc((100% - 3 * 1rem) / 4);
+    min-width: 220px;
+  }
 }
 
-/* Desktop with sidebar: 5 columns */
+/* Desktop with sidebar: 4 columns in view */
 @media (min-width: 1280px) and (max-width: 1439.98px) {
   .home-grid-movies-landscape {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    overflow: visible;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
   }
+  .home-grid-movies-landscape > * {
+    flex: 0 0 calc((100% - 3 * 1rem) / 4);
+    min-width: 200px;
+  }
 }
 
-/* Large screens: 7 columns */
+/* Large screens: 5 columns in view */
 @media (min-width: 1440px) {
   .home-grid-movies-landscape {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    overflow: visible;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
+  }
+  .home-grid-movies-landscape > * {
+    flex: 0 0 calc((100% - 4 * 1rem) / 5);
+    min-width: 220px;
   }
 }
 
@@ -705,9 +729,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    Mobile grids keep their overflow:auto for horizontal scroll.
 */
 @media (min-width: 768px) {
-  .home-grid-movies,
   .grid-movies,
-  .home-grid-movies-landscape,
   .grid-movies-landscape {
     overflow: visible !important;
   }

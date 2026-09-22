@@ -1,11 +1,14 @@
 import { Link } from "react-router-dom";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, memo } from "react";
 import { Play, ChevronLeft, ChevronRight } from "lucide-react";
 import { getOptimizedPoster } from '@/utils/image-helper.js';
 import { isMobile } from '@/utils/responsive.js';
 
 const fallbackThumb =
   "https://placehold.co/1280x720/0f172a/94a3b8?text=No+Image";
+
+// Module-level cache để lưu URL ảnh chiếu rạp đã tải thành công trong phiên làm việc
+const loadedTheaterCache = new Set();
 
 /**
  * TheaterShowcase — Inspired by MotChill's "Đề Cử" section
@@ -17,6 +20,7 @@ const fallbackThumb =
  */
 const TheaterCard = ({ movie, priority = false }) => {
   const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef(null);
   const isMobileSize = isMobile();
 
   const thumbSrc =
@@ -25,6 +29,23 @@ const TheaterCard = ({ movie, priority = false }) => {
       isMobileSize ? 480 : 720,
       isMobileSize ? 70 : 80
     ) || fallbackThumb;
+
+  const isCached = Boolean(thumbSrc && loadedTheaterCache.has(thumbSrc));
+  const isImageReady = loaded || isCached;
+
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
+      if (thumbSrc) loadedTheaterCache.add(thumbSrc);
+      requestAnimationFrame(() => {
+        setLoaded(true);
+      });
+    }
+  }, [thumbSrc]);
+
+  const handleImageLoad = () => {
+    if (thumbSrc) loadedTheaterCache.add(thumbSrc);
+    setLoaded(true);
+  };
 
   const categories = (movie.category || [])
     .slice(0, 3)
@@ -43,18 +64,18 @@ const TheaterCard = ({ movie, priority = false }) => {
     >
       <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-800">
         {/* Shimmer */}
-        {!loaded && (
+        {!isImageReady && (
           <div className="absolute inset-0 mc-img-skeleton" />
         )}
         <img
+          ref={imgRef}
           src={thumbSrc}
           alt={movie.name}
-          className={`absolute inset-0 h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute inset-0 h-full w-full object-cover group-hover:scale-105 ${isImageReady ? "opacity-100" : "opacity-0"
+            } ${isCached ? "" : "transition-all duration-500"}`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          onLoad={() => setLoaded(true)}
+          onLoad={handleImageLoad}
           onError={(e) => {
             if (movie.poster_url && e.currentTarget.src !== movie.poster_url) {
               e.currentTarget.src = movie.poster_url;
@@ -62,7 +83,7 @@ const TheaterCard = ({ movie, priority = false }) => {
               e.currentTarget.onerror = null;
               e.currentTarget.src = fallbackThumb;
             }
-            setLoaded(true);
+            handleImageLoad();
           }}
         />
 
@@ -110,6 +131,8 @@ const TheaterCard = ({ movie, priority = false }) => {
     </Link>
   );
 };
+
+const MemoTheaterCard = memo(TheaterCard);
 
 const TheaterShowcase = ({ movies = [], loading = false }) => {
   const scrollRef = useRef(null);
@@ -180,7 +203,7 @@ const TheaterShowcase = ({ movies = [], loading = false }) => {
           className="flex gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-2"
         >
           {movies.map((movie, i) => (
-            <TheaterCard key={movie.slug} movie={movie} priority={i < 2} />
+            <MemoTheaterCard key={movie.slug} movie={movie} priority={i < 2} />
           ))}
         </div>
 

@@ -30,7 +30,7 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 xl:max-h-none rounded-xl bg-slate-900/40 border border-white/5 overflow-hidden xl:overflow-y-auto xl:custom-scrollbar">
+      <div className="flex-1 min-h-0 lg:max-h-none rounded-xl bg-slate-900/40 border border-white/5 overflow-hidden lg:overflow-y-auto lg:custom-scrollbar">
         <div className="divide-y divide-white/5">
           {displayMovies.map((movie, i) => {
             const isHiddenOnMobile = i >= 4;
@@ -63,7 +63,7 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
                 to={`/movie/${movie.slug}`}
                 state={{ movie }}
                 className={`${
-                  isHiddenOnMobile ? "hidden xl:flex" : "flex"
+                  isHiddenOnMobile ? "hidden lg:flex" : "flex"
                 } items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-white/5 transition-colors group`}
               >
                 {/* Rank number */}

@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from '@/firebase.config.js';
+import { useCallback, useMemo, useState } from "react";
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 
 export const useSavedMovie = (movieOrSlug) => {
-	const { user, saveMovie, removeSavedMovie } = useAuth();
-	const [isSaved, setIsSaved] = useState(false);
-	const [loading, setLoading] = useState(false);
+	const { user, saveMovie, removeSavedMovie, savedMovieSlugs, savedMoviesLoaded } = useAuth();
+	const [actionLoading, setActionLoading] = useState(false);
 	const [error, setError] = useState(null);
 	const [message, setMessage] = useState("");
 	const [lastAction, setLastAction] = useState(null); // 'save' | 'remove'
@@ -16,24 +13,12 @@ export const useSavedMovie = (movieOrSlug) => {
 		return movieOrSlug?.slug || null;
 	}, [movieOrSlug]);
 
-	useEffect(() => {
-		if (!user || !slug || !db) {
-			setIsSaved(false);
-			return undefined;
-		}
+	const isSaved = useMemo(() => {
+		if (!user || !slug || !savedMovieSlugs) return false;
+		return savedMovieSlugs.has(slug);
+	}, [user, slug, savedMovieSlugs]);
 
-		const ref = doc(db, "users", user.uid, "FavoriteMovies", slug);
-		const unsubscribe = onSnapshot(
-			ref,
-			(snapshot) => setIsSaved(snapshot.exists()),
-			(err) => {
-				setError(err);
-				setIsSaved(false);
-			}
-		);
-
-		return unsubscribe;
-	}, [user, slug]);
+	const loading = actionLoading || (Boolean(user) && !savedMoviesLoaded);
 
 	const toggleSave = useCallback(async () => {
 		if (!slug) {
@@ -45,7 +30,7 @@ export const useSavedMovie = (movieOrSlug) => {
 			return;
 		}
 
-		setLoading(true);
+		setActionLoading(true);
 		setError(null);
 		setMessage("");
 		try {
@@ -65,7 +50,7 @@ export const useSavedMovie = (movieOrSlug) => {
 		} catch (err) {
 			setError(err);
 		} finally {
-			setLoading(false);
+			setActionLoading(false);
 		}
 	}, [isSaved, movieOrSlug, removeSavedMovie, saveMovie, slug, user]);
 
