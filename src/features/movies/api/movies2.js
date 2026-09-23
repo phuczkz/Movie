@@ -244,17 +244,29 @@ export const getKKphimDetail = async (slug, options = {}) => {
     return { movie: null, episodes: [] };
   }
 
-  const episodesData = movieData?.episodes || [];
+  const episodesData = movieData?.episodes || data?.episodes || [];
   const episodes = Array.isArray(episodesData)
     ? episodesData.flatMap((server) => {
         const serverName = server?.server_name || server?.name || "";
         const list = server?.server_data || server || [];
         return Array.isArray(list)
-          ? list.map((ep, idx) => ({
-              ...ep,
-              server_name: serverName,
-              _serverIndex: idx,
-            }))
+          ? list
+              .filter((ep) => {
+                if (!ep || typeof ep !== "object") return false;
+                const hasName = Boolean(ep.name && String(ep.name).trim());
+                const hasSlug = Boolean(ep.slug && String(ep.slug).trim());
+                const hasLink = Boolean(
+                  (ep.link_m3u8 && String(ep.link_m3u8).trim()) ||
+                  (ep.link_embed && String(ep.link_embed).trim()) ||
+                  (ep.linkplay && String(ep.linkplay).trim())
+                );
+                return hasName || hasSlug || hasLink;
+              })
+              .map((ep, idx) => ({
+                ...ep,
+                server_name: serverName,
+                _serverIndex: idx,
+              }))
           : [];
       })
     : [];

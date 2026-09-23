@@ -333,7 +333,7 @@ const Watch = () => {
         notice: `Server lưu trữ video đang gặp vấn đề hoặc quá tải. Vui lòng quay lại sau.`
       };
     });
-  }, [activeProvider, activeProviderLabel, m3u8Providers, episodeProviders, playbackScopeKey, setAutoProviderState, params, setParams]);
+  }, [activeProvider, availableProviders, episodeProviders, playbackScopeKey, setAutoProviderState, params, setParams]);
 
   const handleServerChange = useCallback((serverLabel) => {
     const targetLabel = normalizeServerLabel(serverLabel);

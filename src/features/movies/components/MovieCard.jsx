@@ -19,6 +19,7 @@ const fallbackLandscape =
 const HoverCard = ({
   movie,
   isTrailer = false,
+  posterSrc,
   thumbSrc,
   thumbFallbacks,
   audioBadges,
@@ -117,6 +118,7 @@ const HoverCard = ({
         <div className="hc-actions">
           <Link
             to={isTrailerCard ? `/movie/${movie.slug}` : `/watch/${movie.slug}`}
+            state={{ movie, posterSrc, thumbSrc, isTrailer: isTrailerCard }}
             className="hc-btn-play"
             onClick={(e) => e.stopPropagation()}
           >
@@ -512,7 +514,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
     >
       <Link
         to={`/movie/${movie.slug}`}
-        state={{ movie, posterSrc, thumbSrc }}
+        state={{ movie, posterSrc, thumbSrc, isTrailer }}
         className="relative flex flex-col"
       >
         <div className="aspect-[2/3] w-full overflow-hidden rounded-2xl bg-slate-800 relative shadow-lg lg:group-hover:shadow-emerald-500/20 transition-all duration-300">
@@ -578,6 +580,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
         <MemoHoverCard
           movie={effectiveMovie}
           isTrailer={isTrailer}
+          posterSrc={posterSrc}
           thumbSrc={thumbSrc}
           thumbFallbacks={thumbFallbacks}
           audioBadges={audioBadges}

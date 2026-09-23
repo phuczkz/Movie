@@ -361,34 +361,69 @@ const Detail = () => {
     if (movieOverride?.mode === "trailer") return true;
     if (movieOverride?.mode === "full") return false;
 
-    // Detect "Trailer" status from API metadata (episode_current or status)
-    const rawEpCurrent = (movie?.episode_current || "").toLowerCase();
-    const rawStatus = (movie?.status || "").toLowerCase();
-    const isApiTrailer =
-      rawEpCurrent === "trailer" ||
-      rawEpCurrent.startsWith("trailer") ||
-      rawStatus === "trailer" ||
-      rawStatus.startsWith("trailer");
-    if (isApiTrailer) return true;
+    // 1. Navigation state from MovieCard (user clicked "Xem Trailer" or trailer card)
+    if (location.state?.isTrailer === true) return true;
 
-    // If we have actual episodes, it is NOT a trailer!
-    if (episodes && episodes.length > 0) return false;
+    // 2. Keyword detection across all metadata sources
+    const checkTrailerText = (text) => {
+      if (!text) return false;
+      const lower = String(text).toLowerCase();
+      return (
+        lower.includes("trailer") ||
+        lower.includes("teaser") ||
+        lower.includes("preview") ||
+        lower.includes("sap-chieu") ||
+        lower.includes("sắp chiếu")
+      );
+    };
 
-    const statusTextLower = (
-      movie?.status ||
-      movie?.episode_current ||
-      ""
-    ).toLowerCase();
+    if (
+      checkTrailerText(movie?.episode_current) ||
+      checkTrailerText(movie?.status) ||
+      checkTrailerText(passedMovie?.episode_current) ||
+      checkTrailerText(passedMovie?.status) ||
+      checkTrailerText(baseMovie?.episode_current) ||
+      checkTrailerText(baseMovie?.status)
+    ) {
+      return true;
+    }
 
-    return (
-      statusTextLower.includes("trailer") ||
-      (!isActuallyLoading && (!episodes || episodes.length === 0))
+    // 3. Filter valid episodes (ignoring empty placeholder items)
+    const validEpisodes = (episodes || []).filter(
+      (ep) =>
+        Boolean(ep?.name && String(ep.name).trim()) ||
+        Boolean(ep?.slug && String(ep.slug).trim()) ||
+        Boolean(ep?.link_m3u8 && String(ep.link_m3u8).trim()) ||
+        Boolean(ep?.link_embed && String(ep.link_embed).trim())
     );
+
+    if (!validEpisodes.length) {
+      return !isActuallyLoading;
+    }
+
+    // 4. If all fetched episodes are trailer / teaser / preview / bts
+    const allEpisodesAreTrailers = validEpisodes.every((ep) => {
+      const str = `${ep?.name || ""} ${ep?.slug || ""} ${ep?.filename || ""}`.toLowerCase();
+      return (
+        str.includes("trailer") ||
+        str.includes("teaser") ||
+        str.includes("preview") ||
+        str.includes("bts")
+      );
+    });
+    if (allEpisodesAreTrailers) return true;
+
+    return false;
   }, [
     movieOverride?.mode,
-    episodes,
+    location.state?.isTrailer,
     movie?.status,
     movie?.episode_current,
+    passedMovie?.status,
+    passedMovie?.episode_current,
+    baseMovie?.status,
+    baseMovie?.episode_current,
+    episodes,
     isActuallyLoading,
   ]);
 

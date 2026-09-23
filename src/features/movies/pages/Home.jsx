@@ -6,12 +6,13 @@ import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import Section from '@/components/Section.jsx';
 import GridSkeleton from '@/components/GridSkeleton.jsx';
 // removed useMoviesList import as it was unused
-import { useKKphimMovies } from '@/features/movies/hooks/useKKphimMovies.js';
+import { useKKphimMovies, useKKphimByCountry } from '@/features/movies/hooks/useKKphimMovies.js';
 import { useHoatHinhMerged } from '@/features/movies/hooks/useHoatHinhMerged.js';
 import { useChieuRapMerged } from '@/features/movies/hooks/useChieuRapMerged.js';
 import LoginBanner from '@/components/LoginBanner.jsx';
 import TrendingSection from '@/components/TrendingSection.jsx';
 import TheaterShowcase from '@/components/TheaterShowcase.jsx';
+import ChinaShowcase from '@/components/ChinaShowcase.jsx';
 import AnimeShowcase from '@/components/AnimeShowcase.jsx';
 import WeeklyRanking from '@/components/WeeklyRanking.jsx';
 import VietnamBanner from '@/components/VietnamBanner.jsx';
@@ -273,6 +274,7 @@ const Home = () => {
   const [refKKSeries, showKKSeries] = useSectionVisibility();
   const [refKKSingle, showKKSingle] = useSectionVisibility();
   const [refTheater, showTheater] = useSectionVisibility();
+  const [refChina, showChina] = useSectionVisibility();
   const [refRanking] = useSectionVisibility();
 
   const { data: latest = [] } = useKKphimMovies("latest", {
@@ -299,6 +301,14 @@ const Home = () => {
       enabled: showTheater,
       ...commonQueryOpts,
     });
+
+  const { data: chinaMovies = [], isLoading: loadingChina } = useKKphimByCountry(
+    "trung-quoc",
+    {
+      enabled: showChina,
+      ...commonQueryOpts,
+    }
+  );
 
   // For weekly ranking, reuse the latest movies data (sorted by recency ≈ popularity)
   const rankingMovies = latest.slice(0, 10);
@@ -369,7 +379,6 @@ const Home = () => {
         />
       </div>
 
-      {/* Phim chiếu rạp — landscape cards (MotChill "Đề Cử" pattern) */}
       <div ref={refTheater}>
         <TheaterShowcase
           movies={chieuRap.slice(0, 10)}
@@ -377,13 +386,18 @@ const Home = () => {
         />
       </div>
 
+      <div ref={refChina}>
+        <ChinaShowcase
+          movies={chinaMovies.slice(0, 10)}
+          loading={loadingChina}
+        />
+      </div>
+
       <div ref={refAnime} className="pb-2 sm:pb-6 lg:pb-8">
         <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
       </div>
 
-      {/* 2-column layout: 2/3 left for series & single movies, 1/3 right for weekly hot movies */}
       <div className="flex flex-col lg:grid lg:grid-cols-3 lg:gap-6 xl:gap-8 space-y-8 sm:space-y-10 lg:space-y-0">
-        {/* Left: Movie grid sections (2/3 width on Desktop, after Ranking on Mobile/Tablet) */}
         <div className="order-2 lg:order-1 lg:col-span-2 min-w-0 space-y-8 sm:space-y-10 lg:space-y-12">
           <div ref={refKKSeries}>
             <Section

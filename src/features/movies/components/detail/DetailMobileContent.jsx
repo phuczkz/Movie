@@ -31,7 +31,7 @@ const DetailMobileContent = ({
                       <span className="text-slate-200/80">{selectedEpisodes.length ? `${selectedEpisodes.length}${epTotal ? `/${epTotal}` : ""} tập` : ""}</span>
                     </span>
                   )}
-                  {isCompleted ? (<span className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">Hoàn tất</span>) : null}
+                  {isCompleted && !isTrailer ? (<span className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100">Hoàn tất</span>) : null}
                 </div>
               </div>
             </div>
@@ -54,8 +54,8 @@ const DetailMobileContent = ({
             {isTrailer || movieOverride?.mode === "trailer" ? (
               <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center space-y-2">
                 <div className="flex justify-center"><Info className="size-6 text-amber-400" /></div>
-                <p className="text-sm font-semibold text-amber-200">Phim hiện đang chưa có nguồn</p>
-                <p className="text-xs text-slate-400 leading-relaxed">Bộ phim này hiện tại chỉ có Trailer. Bạn có thể xem bản giới hạn bằng nút "Xem Trailer" ở trên.</p>
+                <p className="text-sm font-semibold text-amber-200">Chưa có phim hiện tại</p>
+                <p className="text-xs text-slate-400 leading-relaxed">Bộ phim này hiện tại chỉ có Trailer. Bản phát hành chính thức sẽ được cập nhật sớm nhất.</p>
               </div>
             ) : episodes.length ? (
               <div className="max-h-64 overflow-y-auto pr-1">

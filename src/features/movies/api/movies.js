@@ -357,40 +357,70 @@ export const getDetail = (slug) =>
         return { movie: null, episodes: [] };
       }
 
-      // Enrichment (Optional & Non-blocking):
-      // Actors and other enhanced meta will be handled by asynchronous hooks in the UI.
       if (movie && !movie.slug?.startsWith("tmdb-")) {
-        // You could fire enrichment here without await if mutation is acceptable,
-        // but it's cleaner to let the useActorsWithTmdbImages hook handle it.
       }
-
 
       if (movie && episodes && episodes.length > 0) {
-        let maxEpNum = -1;
-        for (const ep of episodes) {
-          const num = parseEpisodeNumber(ep.name || ep.slug);
-          if (num !== null && num > maxEpNum) maxEpNum = num;
-        }
-        if (
-          maxEpNum > 0 &&
-          String(movie.episode_current).toLowerCase() !== "full"
-        ) {
-          movie.episode_current = `Tập ${maxEpNum}`;
+        const currentEpLower = String(movie.episode_current || "").toLowerCase();
+        const statusLower = String(movie.status || "").toLowerCase();
+        const isTrailerMeta =
+          currentEpLower.includes("trailer") ||
+          currentEpLower.includes("teaser") ||
+          statusLower.includes("trailer") ||
+          statusLower.includes("teaser");
+
+        if (!isTrailerMeta) {
+          let maxEpNum = -1;
+          for (const ep of episodes) {
+            const num = parseEpisodeNumber(ep.name || ep.slug);
+            if (num !== null && num > maxEpNum) maxEpNum = num;
+          }
+          if (
+            maxEpNum > 0 &&
+            currentEpLower !== "full"
+          ) {
+            movie.episode_current = `Tập ${maxEpNum}`;
+          }
         }
       }
 
-      if ((!episodes || episodes.length === 0) && slug) {
+      const isTrailerMovie = Boolean(
+        String(movie?.episode_current || "").toLowerCase().includes("trailer") ||
+        String(movie?.status || "").toLowerCase().includes("trailer") ||
+        String(movie?.episode_current || "").toLowerCase().includes("teaser") ||
+        String(movie?.status || "").toLowerCase().includes("teaser")
+      );
+
+      if (!isTrailerMovie && (!episodes || episodes.length === 0) && slug) {
         try {
           const cleanKeyword = slug
             .replace(/[-_]/g, " ")
             .replace(/\b(and|va|full|hd|raw|sub|tap|phim)\b/gi, " ")
             .replace(/\s+/g, " ")
             .trim();
-          if (cleanKeyword) {
+          if (cleanKeyword && movie?.name) {
             const hits = await searchKKphim(cleanKeyword).catch(() => []);
-            const firstHit = hits.find((m) => m?.slug && m.slug !== slug);
-            if (firstHit?.slug) {
-              const altDetail = await getKKphimDetail(firstHit.slug).catch(
+            const normalized = (text) => (text || "").toLowerCase().trim();
+            const namesToMatch = [movie.name, movie.origin_name]
+              .filter(Boolean)
+              .map(normalized);
+            const targetYear = movie.year;
+
+            const bestHit = hits.find((m) => {
+              if (!m?.slug || m.slug === slug) return false;
+              const nameHit =
+                namesToMatch.includes(normalized(m.name)) ||
+                namesToMatch.includes(normalized(m.origin_name));
+              const mYear = m.year || m.publishYear || m.released;
+              const yearHit =
+                targetYear && mYear
+                  ? String(mYear) === String(targetYear)
+                  : true;
+              return nameHit && yearHit;
+            });
+
+            if (bestHit?.slug) {
+              const altDetail = await getKKphimDetail(bestHit.slug).catch(
                 () => null
               );
               if (altDetail && altDetail.episodes?.length) {

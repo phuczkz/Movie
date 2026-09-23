@@ -46,6 +46,10 @@ const DetailHero = ({
     : "0";
 
   const detailBadgeText = (() => {
+    if (isTrailer || movieOverride?.mode === "trailer") {
+      return "Trailer";
+    }
+
     const type = movie?.type || "";
     const totalEps = movie?.episode_total ? String(movie.episode_total).trim() : "";
     const currentEps = movie?.episode_current ? String(movie.episode_current).trim() : "";
@@ -291,32 +295,34 @@ const DetailHero = ({
 
             {/* Desktop Action Group (lg: và lớn hơn) */}
             <div className="hidden lg:flex lg:flex-wrap lg:items-center gap-3 pt-1">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const serverParam = selectedServer
-                    ? `?server=${encodeURIComponent(selectedServer)}`
-                    : "";
-                  navigate(`/watch/${slug}${serverParam}`);
-                }}
-                className={`inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-[1px] relative z-30 cursor-pointer ${
-                  episodes.length ? "" : "opacity-90"
-                }`}
-              >
-                {movieOverride?.mode === "trailer" || isTrailer ? (
-                  <>
-                    <Film className="size-4 fill-current" />
-                    Xem Trailer
-                  </>
-                ) : (
-                  <>
-                    <Play className="size-4 fill-current" />
-                    {episodes.length ? "Xem ngay" : "Mở trang xem"}
-                  </>
-                )}
-              </button>
+              {movieOverride?.mode === "trailer" || isTrailer ? (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 px-6 py-3 text-sm font-bold select-none cursor-default relative z-30 shadow-lg shadow-amber-950/20"
+                >
+                  <Film className="size-4 fill-current" />
+                  Trailer
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const serverParam = selectedServer
+                      ? `?server=${encodeURIComponent(selectedServer)}`
+                      : "";
+                    navigate(`/watch/${slug}${serverParam}`);
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 px-6 py-3 text-sm font-bold text-slate-950 transition hover:-translate-y-[1px] relative z-30 cursor-pointer ${
+                    episodes.length ? "" : "opacity-90"
+                  }`}
+                >
+                  <Play className="size-4 fill-current" />
+                  {episodes.length ? "Xem ngay" : "Mở trang xem"}
+                </button>
+              )}
 
               <button
                 type="button"
@@ -358,33 +364,34 @@ const DetailHero = ({
 
             {/* Mobile & Tablet Action Area (Màn hình dưới lg - Thiết kế theo hình tham khảo) */}
             <div className="flex lg:hidden flex-col gap-3.5 w-full pt-1">
-              {/* Nút Xem Ngay Full-width màu xanh lá emerald gốc */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const serverParam = selectedServer
-                    ? `?server=${encodeURIComponent(selectedServer)}`
-                    : "";
-                  navigate(`/watch/${slug}${serverParam}`);
-                }}
-                className={`w-full flex justify-center items-center gap-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 px-6 py-3.5 text-base font-bold active:scale-[0.98] transition-all cursor-pointer relative z-30 ${
-                  episodes.length ? "" : "opacity-90"
-                }`}
-              >
-                {movieOverride?.mode === "trailer" || isTrailer ? (
-                  <>
-                    <Film className="size-5 fill-current" />
-                    <span>Xem Trailer</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="size-5 fill-current" />
-                    <span>{episodes.length ? "Xem Ngay" : "Mở trang xem"}</span>
-                  </>
-                )}
-              </button>
+              {movieOverride?.mode === "trailer" || isTrailer ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full flex justify-center items-center gap-2.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 px-6 py-3.5 text-base font-bold select-none cursor-default relative z-30 shadow-lg shadow-amber-950/20"
+                >
+                  <Film className="size-5 fill-current" />
+                  <span>Trailer</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const serverParam = selectedServer
+                      ? `?server=${encodeURIComponent(selectedServer)}`
+                      : "";
+                    navigate(`/watch/${slug}${serverParam}`);
+                  }}
+                  className={`w-full flex justify-center items-center gap-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 px-6 py-3.5 text-base font-bold active:scale-[0.98] transition-all cursor-pointer relative z-30 ${
+                    episodes.length ? "" : "opacity-90"
+                  }`}
+                >
+                  <Play className="size-5 fill-current" />
+                  <span>{episodes.length ? "Xem Ngay" : "Mở trang xem"}</span>
+                </button>
+              )}
 
               {/* Hàng 3 icon bên dưới: Yêu thích, Chia sẻ và Đánh giá được CĂN GIỮA (center) đều nhau */}
               <div className="flex items-center justify-center gap-8 sm:gap-12 w-full pt-1">
