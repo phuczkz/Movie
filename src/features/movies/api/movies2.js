@@ -211,10 +211,6 @@ const fetchList = async (path, page = 1, extraParams = {}) => {
     return [];
   }
   const config = { params: { page, ...extraParams } };
-  if (path === "/danh-sach/phim-moi-cap-nhat") {
-    // This endpoint is hosted directly under the API base URL without the /v1/api prefix
-    config.baseURL = import.meta.env.VITE_KKPHIM_API_BASE;
-  }
   const { data } = await kkphim.get(path, config);
   const items = data?.data?.items || data?.items || [];
   const pagination = extractPagination(data, items.length, page);

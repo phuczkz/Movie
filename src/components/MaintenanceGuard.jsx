@@ -61,12 +61,12 @@ export default function MaintenanceGuard({ children }) {
     };
   }, [isActive]);
 
-  // Block render until BOTH Firebase Auth AND maintenance data are ready.
-  // Previously only auth (loading) was awaited, which caused a flash: children
-  // (Login/Register page) rendered for ~200-500ms while maintenance.isLoaded
-  // was still false (default enabled=false) before Firestore snapshot arrived.
-  // Now the AppLoader stays visible until both signals are resolved.
-  const showInitialLoading = loading || !maintenance?.isLoaded;
+  // Only block render on Firebase Auth if maintenance mode is enabled
+  // (to check if the current user is an admin or whitelisted to bypass it).
+  // In normal operation (maintenance off), render immediately for guests and users.
+  const showInitialLoading = maintenance?.enabled
+    ? (loading || !maintenance?.isLoaded)
+    : !maintenance?.isLoaded;
 
   return (
     <>
@@ -78,7 +78,7 @@ export default function MaintenanceGuard({ children }) {
         <SelectionScreen />
       )}
 
-      {/* Render children during loading (to preload lazy bundles in parallel) or when active normally */}
+      {/* Render children immediately when active normally or during loading to preload bundles */}
       {(!isActive || showInitialLoading) && (appMode || isLoginPath || showInitialLoading) && (
         <div style={{ display: showInitialLoading ? "none" : "contents" }}>
           {children}

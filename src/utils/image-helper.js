@@ -93,9 +93,8 @@ export const getOptimizedPoster = (url, w = 360, q = 80) => {
       return resizeTmdb(url, w);
     }
 
-    // Vietnamese CDNs: proxy through Worker /img/ route (1 hop, edge cached)
     if (isDirectCdnUrl(url)) {
-      return buildImageProxyUrl(url);
+      return url;
     }
 
     // Unknown domains: fallback to wsrv.nl for optimization
@@ -125,9 +124,9 @@ export const getOptimizedBanner = (url, w = 1280, q = 75) => {
       return resizeTmdb(url, w);
     }
 
-    // Vietnamese CDNs: proxy through Worker /img/ route
+    // Vietnamese CDNs: tải trực tiếp từ CDN gốc
     if (isDirectCdnUrl(url)) {
-      return buildImageProxyUrl(url);
+      return url;
     }
 
     // Unknown domains: fallback to wsrv.nl
@@ -150,13 +149,8 @@ export const getOptimizedPlayerPoster = (url) => {
   if (!url.startsWith("http")) return url;
 
   try {
-    if (isTmdbUrl(url)) {
+    if (isTmdbUrl(url) || isDirectCdnUrl(url)) {
       return url;
-    }
-
-    // Vietnamese CDNs: proxy through Worker /img/ route
-    if (isDirectCdnUrl(url)) {
-      return buildImageProxyUrl(url);
     }
 
     // Others: fallback to wsrv.nl
@@ -196,13 +190,8 @@ export const toOptimizedHeroImage = (url, w = 640, q = 85) => {
       return parsed.toString();
     }
 
-    if (isTmdbUrl(url)) {
+    if (isTmdbUrl(url) || isDirectCdnUrl(url)) {
       return url;
-    }
-
-    // Vietnamese CDNs: proxy through Worker /img/ route
-    if (isDirectCdnUrl(url)) {
-      return buildImageProxyUrl(url);
     }
 
     // Others: fallback to wsrv.nl
@@ -322,14 +311,17 @@ export const getMoviePosterFallbackChain = (movie, width = 360, quality = 80) =>
   const rawPoster = normalizeImageUrl(movie?.poster_url);
   const rawThumb = normalizeImageUrl(movie?.thumb_url || movie?.banner || movie?.backdrop_url);
 
-  // 1. Poster candidates
+  // 1. Poster candidates: Ưu tiên tải trực tiếp từ CDN gốc trước (0 request Worker, tốc độ nhanh nhất)
   if (rawPoster) {
     add(getOptimizedPoster(rawPoster, width, quality));
     add(rawPoster);
     getAlternateExtensionUrls(rawPoster).forEach((altUrl) => {
-      add(getOptimizedPoster(altUrl, width, quality));
       add(altUrl);
     });
+    // Worker proxy đóng vai trò phao cứu sinh dự phòng cuối cùng nếu link gốc bị lỗi
+    if (STREAM_PROXY && isDirectCdnUrl(rawPoster)) {
+      add(buildImageProxyUrl(rawPoster));
+    }
   }
 
   // 2. Thumb candidates (nếu poster lỗi hoặc không hiển thị, linh hoạt lấy thumb)
@@ -337,9 +329,11 @@ export const getMoviePosterFallbackChain = (movie, width = 360, quality = 80) =>
     add(getOptimizedPoster(rawThumb, width, quality));
     add(rawThumb);
     getAlternateExtensionUrls(rawThumb).forEach((altUrl) => {
-      add(getOptimizedPoster(altUrl, width, quality));
       add(altUrl);
     });
+    if (STREAM_PROXY && isDirectCdnUrl(rawThumb)) {
+      add(buildImageProxyUrl(rawThumb));
+    }
   }
 
   return chain;

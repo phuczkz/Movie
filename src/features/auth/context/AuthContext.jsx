@@ -97,12 +97,23 @@ export const AuthProvider = ({ children }) => {
     return currentUser;
   }, []);
 
-  const [maintenance, setMaintenance] = useState({
-    enabled: false,
-    title: "",
-    message: "",
-    statusText: "",
-    isLoaded: false,
+  const [maintenance, setMaintenance] = useState(() => {
+    try {
+      const cached = localStorage.getItem("app_maintenance_state");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return { ...parsed, isLoaded: true };
+      }
+    } catch {
+      /* ignore */
+    }
+    return {
+      enabled: false,
+      title: "",
+      message: "",
+      statusText: "",
+      isLoaded: true,
+    };
   });
 
   const firebaseStartedRef = useRef(false);
@@ -137,11 +148,17 @@ export const AuthProvider = ({ children }) => {
           maintenanceRef,
           (snap) => {
             if (!snap.exists()) {
-              setMaintenance((prev) => ({ ...prev, isLoaded: true }));
+              const normal = { enabled: false, title: "", message: "", statusText: "", isLoaded: true };
+              try {
+                localStorage.setItem("app_maintenance_state", JSON.stringify(normal));
+              } catch {
+                /* ignore */
+              }
+              setMaintenance(normal);
               return;
             }
             const data = snap.data();
-            setMaintenance({
+            const nextMaintenance = {
               enabled: data.enabled === true,
               title: data.title || "BẢO TRÌ HỆ THỐNG",
               message:
@@ -149,7 +166,13 @@ export const AuthProvider = ({ children }) => {
                 "Admin đang nghèo, ủng hộ Admin để duy trì website",
               statusText: data.statusText || "ĐANG NÂNG CẤP HỆ THỐNG",
               isLoaded: true,
-            });
+            };
+            try {
+              localStorage.setItem("app_maintenance_state", JSON.stringify(nextMaintenance));
+            } catch {
+              /* ignore */
+            }
+            setMaintenance(nextMaintenance);
           }
         );
       }

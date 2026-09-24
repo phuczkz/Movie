@@ -357,9 +357,6 @@ export const getDetail = (slug) =>
         return { movie: null, episodes: [] };
       }
 
-      if (movie && !movie.slug?.startsWith("tmdb-")) {
-      }
-
       if (movie && episodes && episodes.length > 0) {
         const currentEpLower = String(movie.episode_current || "").toLowerCase();
         const statusLower = String(movie.status || "").toLowerCase();

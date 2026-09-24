@@ -351,7 +351,9 @@ const Detail = () => {
     });
   }, [movie, baseMovie?.actor, baseMovie?.slug]);
 
-  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors);
+  const { data: actorsWithImages = actors } = useActorsWithTmdbImages(actors, {
+    enabled: deferLoad,
+  });
 
   const isActuallyLoading =
     (isLoading && !passedMovie) ||

@@ -5,7 +5,6 @@ import {
   useLocation,
   useNavigationType,
 } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 import PageTransition from '@/components/PageTransition.jsx';
 import Layout from '@/components/Layout.jsx';
 import ComicLayout from '@/features/comics/components/ComicLayout.jsx';
@@ -86,63 +85,61 @@ function App() {
         </div>
       }
     >
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname.split('/')[1] || 'root'}>
-          {/* Admin — own full-screen layout */}
-          <Route path="/admin" element={<PageTransition><AdminPanel /></PageTransition>} />
+      <Routes>
+        {/* Admin — own full-screen layout */}
+        <Route path="/admin" element={<PageTransition><AdminPanel /></PageTransition>} />
 
-          {/* Comic site layout - Đưa LÊN TRƯỚC để trình duyệt không nhận nhầm trang Phim */}
-          <Route
-            path="/comics/*"
-            element={
-              <ComicLayout>
-                <Routes>
-                  <Route path="/" element={<ComicHome />} />
-                  <Route path="/page/:page" element={<ComicHome />} />
-                  <Route path="/danh-sach/:type" element={<ComicList />} />
-                  <Route path="/danh-sach/:type/:page" element={<ComicList />} />
-                  <Route path="/the-loai/:slug" element={<ComicList />} />
-                  <Route path="/the-loai/:slug/:page" element={<ComicList />} />
-                  <Route path="/:slug" element={<ComicDetail />} />
-                  <Route path="/chapter/:chapterId" element={<ComicReader />} />
-                  <Route path="/favorites" element={<ComicFavorites />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </ComicLayout>
-            }
-          />
+        {/* Comic site layout - Đưa LÊN TRƯỚC để trình duyệt không nhận nhầm trang Phim */}
+        <Route
+          path="/comics/*"
+          element={
+            <ComicLayout>
+              <Routes>
+                <Route path="/" element={<ComicHome />} />
+                <Route path="/page/:page" element={<ComicHome />} />
+                <Route path="/danh-sach/:type" element={<ComicList />} />
+                <Route path="/danh-sach/:type/:page" element={<ComicList />} />
+                <Route path="/the-loai/:slug" element={<ComicList />} />
+                <Route path="/the-loai/:slug/:page" element={<ComicList />} />
+                <Route path="/:slug" element={<ComicDetail />} />
+                <Route path="/chapter/:chapterId" element={<ComicReader />} />
+                <Route path="/favorites" element={<ComicFavorites />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </ComicLayout>
+          }
+        />
 
-          {/* Main site layout - Catch-all dành cho Phim */}
-          <Route
-            path="/*"
-            element={
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/category/:category" element={<Category />} />
-                  <Route
-                    path="/category/:category/:page"
-                    element={<Category />}
-                  />
-                  <Route path="/country/:country" element={<Country />} />
-                  <Route path="/country/:country/:page" element={<Country />} />
-                  <Route path="/movie/:slug" element={<Detail />} />
-                  <Route path="/watch/:slug" element={<Watch />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/favorites" element={<Saved />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/actor/:id" element={<Actor />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Layout>
-            }
-          />
-        </Routes>
-      </AnimatePresence>
+        {/* Main site layout - Catch-all dành cho Phim */}
+        <Route
+          path="/*"
+          element={
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/category/:category" element={<Category />} />
+                <Route
+                  path="/category/:category/:page"
+                  element={<Category />}
+                />
+                <Route path="/country/:country" element={<Country />} />
+                <Route path="/country/:country/:page" element={<Country />} />
+                <Route path="/movie/:slug" element={<Detail />} />
+                <Route path="/watch/:slug" element={<Watch />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/favorites" element={<Saved />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/actor/:id" element={<Actor />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          }
+        />
+      </Routes>
     </Suspense>
   );
 }
