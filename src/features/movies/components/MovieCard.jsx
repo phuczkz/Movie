@@ -24,6 +24,7 @@ const HoverCard = ({
   thumbFallbacks,
   audioBadges,
   alignment,
+  showBadges = true,
 }) => {
   const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(movie);
   const [thumbLoaded, setThumbLoaded] = useState(false);
@@ -156,7 +157,7 @@ const HoverCard = ({
           {year && <span className="hc-meta-plain">{year}</span>}
           {qualityLabel && <span className="hc-meta-badge hc-meta-badge--blue">{qualityLabel}</span>}
           {statusLabel && <span className="hc-meta-badge hc-meta-badge--green">{statusLabel}</span>}
-          {audioBadges.map((b) => (
+          {showBadges && audioBadges.map((b) => (
             <span
               key={b.key}
               className={`hc-meta-badge ${b.code === "Trailer" ? "hc-meta-badge--red" : "hc-meta-badge--orange"
@@ -192,7 +193,7 @@ const MemoHoverCard = memo(HoverCard);
 const loadedPosterCache = new Set();
 
 // ─── Main MovieCard ──────────────────────────────────────────────────────────
-const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
+const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges = true }) => {
   const imgRef = useRef(null);
   const cardRef = useRef(null);
   const [isInView, setIsInView] = useState(false);
@@ -537,7 +538,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
             onError={handlePosterError}
           />
 
-          {audioBadges.length ? (
+          {showBadges && audioBadges.length ? (
             <div className="absolute inset-x-3 bottom-3 flex flex-nowrap items-center justify-center gap-1 overflow-hidden z-10">
               {audioBadges.map((badge) => (
                 <div
@@ -562,7 +563,9 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
             </div>
           ) : null}
 
-          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+          {showBadges && (
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
+          )}
         </div>
 
         <div className="mt-2.5 flex flex-col items-center text-center px-1">
@@ -585,6 +588,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false }) => {
           thumbFallbacks={thumbFallbacks}
           audioBadges={audioBadges}
           alignment={alignment}
+          showBadges={showBadges}
         />
       )}
     </div>

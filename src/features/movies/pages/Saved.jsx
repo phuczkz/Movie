@@ -52,7 +52,7 @@ const Saved = () => {
       ) : movies.length ? (
         <div className="grid-movies">
           {movies.map((movie) => (
-            <MovieCard key={movie.slug || movie.id} movie={movie} />
+            <MovieCard key={movie.slug || movie.id} movie={movie} showBadges={false} />
           ))}
         </div>
       ) : (
