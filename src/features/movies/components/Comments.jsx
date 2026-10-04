@@ -40,18 +40,36 @@ export default function Comments({ movieSlug, movieName }) {
     return () => unsubscribe();
   }, [movieSlug]);
 
-  // Tách top-level comments và replies bằng parentId
+  // Tách top-level comments và replies, gom tất cả phản hồi (kể cả rep của rep) vào thread của comment gốc
   const { topComments, repliesMap } = useMemo(() => {
     if (!allDocs) return { topComments: [], repliesMap: {} };
+
+    const docMap = new Map();
+    allDocs.forEach((d) => docMap.set(d.id, d));
+
+    // Tìm comment gốc (root comment) cho mọi cấp độ phản hồi
+    const findRootId = (doc) => {
+      let curr = doc;
+      const visited = new Set();
+      while (curr && curr.parentId && !visited.has(curr.id)) {
+        visited.add(curr.id);
+        const parent = docMap.get(curr.parentId);
+        if (!parent) return curr.parentId;
+        if (!parent.parentId) return parent.id;
+        curr = parent;
+      }
+      return curr ? curr.id : doc.parentId;
+    };
 
     const tops = [];
     const rMap = {};
 
     for (const d of allDocs) {
       if (d.parentId) {
-        // Đây là reply
-        if (!rMap[d.parentId]) rMap[d.parentId] = [];
-        rMap[d.parentId].push(d);
+        // Đây là reply - gom vào thread của root comment
+        const rootId = findRootId(d);
+        if (!rMap[rootId]) rMap[rootId] = [];
+        rMap[rootId].push(d);
       } else {
         // Đây là top-level comment
         tops.push(d);
@@ -65,7 +83,7 @@ export default function Comments({ movieSlug, movieName }) {
       return timeB - timeA;
     });
 
-    // Sort replies: cũ nhất trước (trong thread)
+    // Sort replies: cũ nhất trước (trong thread theo thứ tự thời gian)
     for (const key of Object.keys(rMap)) {
       rMap[key].sort((a, b) => {
         const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;

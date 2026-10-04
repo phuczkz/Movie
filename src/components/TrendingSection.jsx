@@ -55,6 +55,7 @@ const TrendingSection = ({ movies = EMPTY_MOVIES, loading = false }) => {
   return (
     <Section 
       title="Top 10 phim bộ hôm nay" 
+      accent="amber"
       action={<span className="text-sm font-semibold text-amber-500 uppercase tracking-wider">Hot</span>}
     >
       <div className="relative group/scroll">

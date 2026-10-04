@@ -3,6 +3,7 @@ import { useRef, useState, useEffect, memo } from "react";
 import { Play, ChevronLeft, ChevronRight } from "lucide-react";
 import { getOptimizedPoster } from '@/utils/image-helper.js';
 import { isMobile } from '@/utils/responsive.js';
+import Section from '@/components/Section.jsx';
 
 const fallbackThumb =
   "https://placehold.co/1280x720/0f172a/94a3b8?text=No+Image";
@@ -166,10 +167,7 @@ const TheaterShowcase = ({ movies = [], loading = false }) => {
 
   if (loading) {
     return (
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">Phim chiếu rạp</h2>
-        </div>
+      <Section title="Phim chiếu rạp" accent="amber">
         <div className="flex gap-4 overflow-hidden">
           {[1, 2, 3].map((k) => (
             <div
@@ -178,23 +176,25 @@ const TheaterShowcase = ({ movies = [], loading = false }) => {
             />
           ))}
         </div>
-      </section>
+      </Section>
     );
   }
 
   if (!movies.length) return null;
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-white">Phim chiếu rạp</h2>
+    <Section
+      title="Phim chiếu rạp"
+      accent="amber"
+      action={
         <Link
           to="/category/phim-chieu-rap"
           className="text-sm text-amber-400 hover:text-amber-300 transition-colors"
         >
           Xem tất cả
         </Link>
-      </div>
+      }
+    >
 
       {/* Scroll container */}
       <div className="relative group/theater">
@@ -228,11 +228,8 @@ const TheaterShowcase = ({ movies = [], loading = false }) => {
             <ChevronRight className="w-5 h-5" />
           </button>
         )}
-
-        {/* Edge fade - right */}
-        <div className="absolute top-0 right-0 bottom-2 w-12 bg-gradient-to-l from-[#0b0b15] to-transparent pointer-events-none hidden sm:block" />
       </div>
-    </section>
+    </Section>
   );
 };
 

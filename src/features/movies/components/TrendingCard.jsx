@@ -234,9 +234,11 @@ const TrendingCard = ({ movie, index }) => {
           <h3 className="text-lg font-bold text-white line-clamp-1 lg:group-hover:text-amber-400 transition-colors leading-tight">
             {movie.name}
           </h3>
-          <p className="text-sm text-slate-400 font-medium line-clamp-1 mt-0.5">
-            {movie.origin_name || movie.name}
-          </p>
+          {movie.origin_name && movie.origin_name !== movie.name && (
+            <p className="text-sm text-slate-400 font-medium line-clamp-1 mt-0.5">
+              {movie.origin_name}
+            </p>
+          )}
         </div>
       </div>
     </Link>

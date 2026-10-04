@@ -144,10 +144,7 @@ body {
 @media (min-width: 1024px) and (max-width: 1279.98px) {
   .home-grid-movies {
     gap: 1rem;
-    padding-top: 1rem;
-    margin-top: -1rem;
-    padding-bottom: 3.5rem;
-    margin-bottom: -2.5rem;
+    padding-bottom: 1.5rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
@@ -164,10 +161,7 @@ body {
 @media (min-width: 1280px) and (max-width: 1439.98px) {
   .home-grid-movies {
     gap: 1rem;
-    padding-top: 1rem;
-    margin-top: -1rem;
-    padding-bottom: 3.5rem;
-    margin-bottom: -2.5rem;
+    padding-bottom: 1.5rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
@@ -180,14 +174,11 @@ body {
   }
 }
 
-/* Large desktop 1440+: horizontal scroll 5 cards in view */
-@media (min-width: 1440px) {
+/* Large desktop 1440-2559: horizontal scroll 5 cards in view */
+@media (min-width: 1440px) and (max-width: 2559.98px) {
   .home-grid-movies {
     gap: 1rem;
-    padding-top: 1rem;
-    margin-top: -1rem;
-    padding-bottom: 3.5rem;
-    margin-bottom: -2.5rem;
+    padding-bottom: 1.5rem;
     margin-left: 0;
     margin-right: 0;
     padding-left: 0;
@@ -197,6 +188,23 @@ body {
     flex: 0 0 calc((100% - 4 * 1rem) / 5);
     min-width: 160px;
     max-width: 210px;
+  }
+}
+
+/* 4K / Ultra-wide 2560+: 6 cards in view */
+@media (min-width: 2560px) {
+  .home-grid-movies {
+    gap: 1.25rem;
+    padding-bottom: 1.5rem;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .home-grid-movies > * {
+    flex: 0 0 calc((100% - 5 * 1.25rem) / 6);
+    min-width: 200px;
+    max-width: 280px;
   }
 }
 
@@ -287,8 +295,8 @@ body {
   }
 }
 
-/* Large screens: 5 columns in view */
-@media (min-width: 1440px) {
+/* Large screens 1440-2559: 5 columns in view */
+@media (min-width: 1440px) and (max-width: 2559.98px) {
   .home-grid-movies-landscape {
     gap: 1rem;
     padding-bottom: 0.75rem;
@@ -300,6 +308,22 @@ body {
   .home-grid-movies-landscape > * {
     flex: 0 0 calc((100% - 4 * 1rem) / 5);
     min-width: 220px;
+  }
+}
+
+/* 4K / Ultra-wide 2560+: 6 columns in view */
+@media (min-width: 2560px) {
+  .home-grid-movies-landscape {
+    gap: 1.25rem;
+    padding-bottom: 0.75rem;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .home-grid-movies-landscape > * {
+    flex: 0 0 calc((100% - 5 * 1.25rem) / 6);
+    min-width: 280px;
   }
 }
 
@@ -504,6 +528,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     0 32px 80px rgba(0, 0, 0, 0.75),
     0 0 0 1px rgba(168, 85, 247, 0.08),
     0 12px 40px rgba(168, 85, 247, 0.12);
+}
+
+/* Portal popup specific styling: fixed positioning at computed coordinates */
+.hc-popup-portal {
+  position: fixed !important;
+  transform: none !important;
+  animation: hcPortalFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  transform-origin: center top !important;
+}
+
+@keyframes hcPortalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes hcFadeIn {

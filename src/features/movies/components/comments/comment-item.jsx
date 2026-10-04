@@ -32,6 +32,7 @@ import {
   MessageCircle,
   ChevronDown,
   ChevronUp,
+  X,
 } from "lucide-react";
 import { db } from "@/firebase.config.js";
 import { useAuth } from "@/features/auth/context/AuthContext";
@@ -98,8 +99,17 @@ function CommentItem({
   replies = EMPTY_REPLIES,
   onReplySubmitted,
   allDocs,
+  rootCommentId,
+  rootCommentUserId,
 }) {
   const { user, userProfile } = useAuth();
+  const effectiveRootId = isReply
+    ? rootCommentId || comment.parentId || comment.id
+    : comment.id;
+  const effectiveRootUserId = isReply
+    ? rootCommentUserId || null
+    : comment.userId;
+
   const currentUserAvatar =
     userProfile?.photoURL ||
     user?.photoURL ||
@@ -216,6 +226,8 @@ function CommentItem({
 
     setSubmittingReply(true);
     try {
+      const targetParentId = effectiveRootId;
+
       const newReplyRef = await addDoc(
         collection(db, `comments/${movieSlug}/items`),
         {
@@ -231,7 +243,9 @@ function CommentItem({
           likes: {},
           likeCount: 0,
           dislikeCount: 0,
-          parentId: comment.id,
+          parentId: targetParentId,
+          replyToId: comment.id,
+          replyToName: displayName || "Ẩn danh",
         }
       );
 
@@ -254,8 +268,18 @@ function CommentItem({
       }
 
       const userIdsToNotify = new Set();
+      // 1. Thông báo cho người trực tiếp sở hữu bình luận/phản hồi này
       if (comment.userId && comment.userId !== user.uid) {
         userIdsToNotify.add(comment.userId);
+      }
+
+      // 2. Thông báo cho người tạo comment gốc nếu đây là rep của rep và họ là người khác
+      if (
+        effectiveRootUserId &&
+        effectiveRootUserId !== user.uid &&
+        effectiveRootUserId !== comment.userId
+      ) {
+        userIdsToNotify.add(effectiveRootUserId);
       }
 
       mentions.forEach((m) => {
@@ -315,13 +339,12 @@ function CommentItem({
   const proxiedAvatarSrc = getProxiedAvatar(avatarSrc);
 
   return (
-    <div className={`${isReply ? "ml-10 sm:ml-14" : ""}`}>
+    <div className={isReply ? "relative" : ""}>
       <div className="flex gap-3 sm:gap-4">
         {/* Avatar */}
         <div
-          className={`shrink-0 overflow-hidden rounded-full border border-white/5 bg-white/5 ${
-            isReply ? "size-8" : "size-10"
-          }`}
+          className={`shrink-0 overflow-hidden rounded-full border border-white/5 bg-white/5 ${isReply ? "size-8" : "size-10"
+            }`}
         >
           {proxiedAvatarSrc ? (
             <img
@@ -358,11 +381,10 @@ function CommentItem({
             <button
               type="button"
               onClick={() => handleReaction("like")}
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${
-                myReaction === "like"
-                  ? "text-emerald-400 bg-emerald-500/10"
-                  : "text-slate-400 hover:text-emerald-400 hover:bg-white/5"
-              }`}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${myReaction === "like"
+                ? "text-emerald-400 bg-emerald-500/10"
+                : "text-slate-400 hover:text-emerald-400 hover:bg-white/5"
+                }`}
             >
               <ThumbsUp className="size-3.5" />
               {likeCount > 0 && (
@@ -374,11 +396,10 @@ function CommentItem({
             <button
               type="button"
               onClick={() => handleReaction("dislike")}
-              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${
-                myReaction === "dislike"
-                  ? "text-rose-400 bg-rose-500/10"
-                  : "text-slate-400 hover:text-rose-400 hover:bg-white/5"
-              }`}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${myReaction === "dislike"
+                ? "text-rose-400 bg-rose-500/10"
+                : "text-slate-400 hover:text-rose-400 hover:bg-white/5"
+                }`}
             >
               <ThumbsDown className="size-3.5" />
               {dislikeCount > 0 && (
@@ -386,26 +407,24 @@ function CommentItem({
               )}
             </button>
 
-            {/* Reply button (only for top-level) */}
-            {!isReply && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!user) return alert("Vui lòng đăng nhập để trả lời.");
-                  if (!showReplyInput) {
-                    const tagObj = displayName
-                      ? displayName.replace(/\s+/g, "")
-                      : "User";
-                    setReplyText(`@${tagObj} `);
-                  }
-                  setShowReplyInput((v) => !v);
-                }}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-slate-400 hover:text-sky-400 hover:bg-white/5 transition-colors"
-              >
-                <MessageCircle className="size-3.5" />
-                <span className="font-semibold">Trả lời</span>
-              </button>
-            )}
+            {/* Reply button (hiển thị cho cả comment gốc và các phản hồi) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!user) return alert("Vui lòng đăng nhập để trả lời.");
+                if (!showReplyInput) {
+                  const tagObj = displayName
+                    ? displayName.replace(/\s+/g, "")
+                    : "User";
+                  setReplyText(`@${tagObj} `);
+                }
+                setShowReplyInput((v) => !v);
+              }}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-slate-400 hover:text-sky-400 hover:bg-white/5 transition-colors"
+            >
+              <MessageCircle className="size-3.5" />
+              <span className="font-semibold">Trả lời</span>
+            </button>
 
             {/* Delete button (Owner or Admin) */}
             {canDelete && (
@@ -441,7 +460,7 @@ function CommentItem({
           {showReplyInput && (
             <form
               onSubmit={handleSubmitReply}
-              className="flex items-center gap-2 pt-1"
+              className="flex items-center gap-2 pt-2"
             >
               <div className="size-7 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5">
                 {finalAvatar ? (
@@ -464,8 +483,13 @@ function CommentItem({
                   onChange={(e) => setReplyText(e.target.value)}
                   placeholder=""
                   aria-label="Viết phản hồi"
-                  ref={(input) => input && input.focus()}
-                  className="w-full rounded-full border border-white/10 bg-white/5 pl-3.5 pr-10 py-2 text-[13px] text-transparent caret-white focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all relative z-10"
+                  ref={(input) => {
+                    if (input) {
+                      input.focus();
+                      input.selectionStart = input.selectionEnd = input.value.length;
+                    }
+                  }}
+                  className="w-full rounded-full border border-white/10 bg-white/5 pl-3.5 pr-16 py-2 text-[13px] text-transparent caret-white focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition-all relative z-10"
                   onScroll={(e) => {
                     const overlay = document.getElementById(
                       `reply-overlay-${comment.id}`
@@ -475,23 +499,37 @@ function CommentItem({
                 />
                 <div
                   id={`reply-overlay-${comment.id}`}
-                  className="absolute inset-0 pointer-events-none pl-3.5 pr-10 py-2 text-[13px] text-white overflow-hidden whitespace-pre z-20"
+                  className="absolute inset-0 pointer-events-none pl-3.5 pr-16 py-2 text-[13px] text-white overflow-hidden whitespace-pre z-20"
                 >
                   {!replyText ? (
                     <span className="text-slate-400">
-                      Viết phản hồi... (Gõ @admin để tag quản trị viên)
+                      Comment... (Tag @admin để góp ý)
                     </span>
                   ) : (
                     renderTextWithMentions(replyText)
                   )}
                 </div>
-                <button
-                  type="submit"
-                  disabled={submittingReply || !replyText.trim()}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 transition-colors z-30"
-                >
-                  <Send className="size-3.5" />
-                </button>
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 z-30">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReplyInput(false);
+                      setReplyText("");
+                    }}
+                    className="rounded-full p-1 text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors"
+                    title="Hủy"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingReply || !replyText.trim()}
+                    className="rounded-full p-1.5 text-emerald-400 hover:bg-emerald-400/10 disabled:opacity-30 transition-colors"
+                    title="Gửi phản hồi"
+                  >
+                    <Send className="size-3.5" />
+                  </button>
+                </div>
               </div>
             </form>
           )}
@@ -501,7 +539,7 @@ function CommentItem({
             <button
               type="button"
               onClick={() => setShowReplies((v) => !v)}
-              className="flex items-center gap-1 text-[12px] font-semibold text-sky-400 hover:text-sky-300 pl-1 pt-0.5 transition-colors"
+              className="flex items-center gap-1.5 text-[12px] font-semibold text-sky-400 hover:text-sky-300 pl-1 pt-1 transition-colors"
             >
               {showReplies ? (
                 <>
@@ -517,18 +555,21 @@ function CommentItem({
             </button>
           )}
 
-          {/* Nested replies */}
+          {/* Nested replies list (Xếp chồng theo phong cách Facebook) */}
           {!isReply && showReplies && (
-            <div className="space-y-3 pt-1">
+            <div className="space-y-3 pt-2 mt-1 border-l-2 border-white/10 pl-3 sm:pl-4">
               {replies.map((reply) => (
                 <CommentItem
                   key={reply.id}
                   comment={reply}
                   movieSlug={movieSlug}
                   movieName={movieName}
-                  isReply
-                  replies={[]}
+                  isReply={true}
+                  replies={EMPTY_REPLIES}
                   allDocs={allDocs}
+                  rootCommentId={effectiveRootId}
+                  rootCommentUserId={effectiveRootUserId}
+                  onReplySubmitted={() => setShowReplies(true)}
                 />
               ))}
             </div>

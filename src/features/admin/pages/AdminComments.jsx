@@ -71,10 +71,13 @@ function AdminCommentRow({
   onDelete,
   onReply,
   showMovieContext = false,
+  rootCommentId,
 }) {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const effectiveRootId = rootCommentId || comment.parentId || comment.id;
 
   // Helper to extract movie title from slug
   const displayContext = showMovieContext && comment.movieSlug ? (
@@ -89,7 +92,7 @@ function AdminCommentRow({
     if (!replyText.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await onReply(comment.id, replyText, movieSlug);
+      await onReply(effectiveRootId, replyText, movieSlug, comment);
       setReplyText("");
       setShowReplyInput(false);
     } finally {
@@ -136,15 +139,21 @@ function AdminCommentRow({
           </p>
 
           <div className="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {!isReply && (
-              <button
-                type="button"
-                onClick={() => setShowReplyInput(!showReplyInput)}
-                className="text-[11px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-wider"
-              >
-                Trả lời
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (!showReplyInput && isReply) {
+                  const tag = comment.displayName
+                    ? comment.displayName.replace(/\s+/g, "")
+                    : "User";
+                  setReplyText(`@${tag} `);
+                }
+                setShowReplyInput(!showReplyInput);
+              }}
+              className="text-[11px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-wider"
+            >
+              Trả lời
+            </button>
             <button
               type="button"
               onClick={() => onDelete(comment.id, movieSlug)}
@@ -189,6 +198,7 @@ function AdminCommentRow({
                   isReply={true}
                   onDelete={onDelete}
                   onReply={onReply}
+                  rootCommentId={effectiveRootId}
                 />
               ))}
             </div>
@@ -392,23 +402,41 @@ export default function AdminComments() {
     return unsub;
   }, [movieSlug, view, viewMode, dateFilter, selectedDate]);
 
-  // 3. Threading logic
+  // 3. Threading logic - Gom nhóm toàn bộ reply theo root comment (chuỗi thảo luận xếp chồng)
   const { topComments, repliesMap } = useMemo(() => {
+    const docMap = new Map();
+    allComments.forEach((d) => docMap.set(d.id, d));
+
+    const findRootId = (doc) => {
+      let curr = doc;
+      const visited = new Set();
+      while (curr && curr.parentId && !visited.has(curr.id)) {
+        visited.add(curr.id);
+        const parent = docMap.get(curr.parentId);
+        if (!parent) return curr.parentId;
+        if (!parent.parentId) return parent.id;
+        curr = parent;
+      }
+      return curr ? curr.id : doc.parentId;
+    };
+
     const tops = [];
     const rMap = {};
     allComments.forEach((c) => {
       if (c.parentId) {
-        if (!rMap[c.parentId]) rMap[c.parentId] = [];
-        rMap[c.parentId].push(c);
+        const rootId = findRootId(c);
+        if (!rMap[rootId]) rMap[rootId] = [];
+        rMap[rootId].push(c);
       } else {
         tops.push(c);
       }
     });
-    // Sort
+    // Sort top-level: mới nhất trước
     tops.sort(
       (a, b) =>
         (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
     );
+    // Sort replies: cũ nhất trước
     Object.keys(rMap).forEach((key) => {
       rMap[key].sort(
         (a, b) =>
@@ -418,20 +446,22 @@ export default function AdminComments() {
     return { topComments: tops, repliesMap: rMap };
   }, [allComments]);
 
-  const handleReply = async (parentId, text, targetSlug) => {
+  const handleReply = async (parentId, text, targetSlug, repliedComment = null) => {
     const activeSlug = targetSlug || movieSlug;
     if (!activeSlug) return;
 
     try {
-      // 1. Add the reply & 2. Ensure the parent document in 'comments' is NOT virtual (add a dummy field) in parallel
-      await Promise.all([
+      // 1. Add the reply & 2. Ensure the parent document in 'comments' is NOT virtual in parallel
+      const [newReplyRef] = await Promise.all([
         addDoc(collection(db, `comments/${activeSlug}/items`), {
           userId: user.uid,
-          displayName: userProfile?.displayName || "Admin",
-          photoURL: userProfile?.photoURL || null,
+          displayName: userProfile?.displayName || user?.displayName || "Admin",
+          photoURL: userProfile?.photoURL || user?.photoURL || null,
           content: text.trim(),
           createdAt: serverTimestamp(),
           parentId,
+          replyToId: repliedComment?.id || null,
+          replyToName: repliedComment?.displayName || null,
           likes: {},
           likeCount: 0,
           dislikeCount: 0,
@@ -452,6 +482,24 @@ export default function AdminComments() {
         },
         { merge: true }
       );
+
+      // 4. Gửi thông báo cho người dùng được reply nếu họ không phải admin
+      if (repliedComment && repliedComment.userId && repliedComment.userId !== user.uid) {
+        await addDoc(collection(db, "notifications"), {
+          userId: repliedComment.userId,
+          senderId: user.uid,
+          senderName:
+            userProfile?.displayName || user?.displayName || "Quản trị viên",
+          senderAvatar: userProfile?.photoURL || user?.photoURL || null,
+          type: "reply",
+          movieSlug: activeSlug,
+          movieName: movieName || cleanName(activeSlug),
+          content: text.trim(),
+          isRead: false,
+          createdAt: serverTimestamp(),
+          commentId: newReplyRef.id,
+        });
+      }
     } catch (err) {
       showToast("Lỗi phản hồi: " + err.message, "error");
     }
@@ -481,8 +529,8 @@ export default function AdminComments() {
       const idsToDelete = [commentId];
 
       // 2. Delete replies (if any)
-      const replies = allComments.filter(c => c.parentId === commentId);
-      replies.forEach(r => {
+      const threadReplies = repliesMap[commentId] || allComments.filter(c => c.parentId === commentId);
+      threadReplies.forEach(r => {
         const rRef = doc(db, "comments", targetSlug, "items", r.id);
         batch.delete(rRef);
         idsToDelete.push(r.id);
@@ -805,6 +853,7 @@ export default function AdminComments() {
                     onDelete={handleDelete}
                     onReply={handleReply}
                     showMovieContext={viewMode === "all"}
+                    rootCommentId={c.id}
                   />
                 ))}
               </div>

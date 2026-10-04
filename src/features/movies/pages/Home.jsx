@@ -318,7 +318,7 @@ const Home = () => {
   const cap = (list) => list.slice(0, 16);
 
   return (
-    <div className="space-y-6 sm:space-y-8 lg:space-y-12">
+    <div className="space-y-8 sm:space-y-10 lg:space-y-14">
       <SEO />
 
       <AnnouncementModal
@@ -336,9 +336,9 @@ const Home = () => {
       <VietnamBanner />
 
       <section className="!mt-0 rounded-3xl p-0 relative">
-        <div className="mb-3 sm:mb-4 flex items-center gap-2.5 sm:gap-3 pt-2 sm:pt-4">
-          <span className="h-6 sm:h-7 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold text-white tracking-tight">
+        <div className="mb-4 sm:mb-5 flex items-center gap-2.5">
+          <span className="h-6 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-purple-500 flex-shrink-0 shadow-[0_0_12px_rgba(99,102,241,0.5)]" />
+          <h2 className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
             Bạn đang quan tâm gì?
           </h2>
         </div>
@@ -393,7 +393,7 @@ const Home = () => {
         />
       </div>
 
-      <div ref={refAnime} className="pb-2 sm:pb-6 lg:pb-8">
+      <div ref={refAnime} className="pb-12 sm:pb-16 lg:pb-20">
         <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
       </div>
 
@@ -402,6 +402,7 @@ const Home = () => {
           <div ref={refKKSeries}>
             <Section
               title="Phim bộ mới cập nhật"
+              accent="indigo"
               action={
                 <Link className="text-sm text-amber-300 hover:text-amber-200 transition-colors" to="/category/phim-bo">
                   Xem tất cả
@@ -421,6 +422,7 @@ const Home = () => {
           <div ref={refKKSingle}>
             <Section
               title="Phim lẻ mới"
+              accent="emerald"
               action={
                 <Link className="text-sm text-amber-300 hover:text-amber-200 transition-colors" to="/category/phim-le">
                   Xem tất cả
@@ -439,8 +441,8 @@ const Home = () => {
         </div>
 
         {/* Right: Weekly ranking (1/3 width on Desktop, first on Mobile/Tablet) */}
-        <div ref={refRanking} className="order-1 lg:order-2 lg:col-span-1 min-w-0 lg:relative">
-          <div className="lg:absolute lg:inset-0 w-full h-full">
+        <div ref={refRanking} className="order-1 lg:order-2 lg:col-span-1 min-w-0">
+          <div className="w-full">
             <WeeklyRanking movies={rankingMovies} />
           </div>
         </div>

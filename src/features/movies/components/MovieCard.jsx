@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Play, Calendar, Film, Globe, Heart, Info, ChevronDown } from "lucide-react";
 
@@ -23,7 +24,9 @@ const HoverCard = ({
   thumbSrc,
   thumbFallbacks,
   audioBadges,
-  alignment,
+  coords,
+  onMouseEnter,
+  onMouseLeave,
   showBadges = true,
 }) => {
   const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(movie);
@@ -64,8 +67,6 @@ const HoverCard = ({
     return episodeStatus;
   })();
 
-  const alignmentClass = alignment === "left" ? "hc-popup--left" : alignment === "right" ? "hc-popup--right" : "";
-
   // Build a unique, ordered list of fallback URLs to try on error
   const fallbackChain = useMemo(() => {
     const seen = new Set();
@@ -92,10 +93,26 @@ const HoverCard = ({
     }
   };
 
-  return (
-    <div className={`hc-popup ${alignmentClass}`} onClick={(e) => e.stopPropagation()}>
+  if (!coords || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="hc-popup hc-popup-portal"
+      style={{
+        left: `${coords.left}px`,
+        top: `${coords.top}px`,
+        width: `${coords.width}px`,
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       {/* ── Landscape image ── */}
-      <div className="hc-thumb">
+      <Link
+        to={`/movie/${movie.slug}`}
+        state={{ movie, posterSrc, thumbSrc, isTrailer: isTrailerCard }}
+        className="hc-thumb block group/thumb"
+      >
         {!thumbLoaded && <div className="absolute inset-0 mc-img-skeleton" />}
         <img
           src={thumbSrc}
@@ -105,12 +122,20 @@ const HoverCard = ({
           onError={handleThumbError}
         />
         <div className="hc-thumb-gradient" />
-      </div>
+      </Link>
 
       {/* ── Body ── */}
       <div className="hc-body">
         {/* Title */}
-        <h3 className="hc-title">{movie.name}</h3>
+        <Link
+          to={`/movie/${movie.slug}`}
+          state={{ movie, posterSrc, thumbSrc, isTrailer: isTrailerCard }}
+          className="group/title"
+        >
+          <h3 className="hc-title group-hover/title:text-emerald-400 transition-colors">
+            {movie.name}
+          </h3>
+        </Link>
         {movie.origin_name && movie.origin_name !== movie.name && (
           <p className="hc-origin">{movie.origin_name}</p>
         )}
@@ -160,8 +185,9 @@ const HoverCard = ({
           {showBadges && audioBadges.map((b) => (
             <span
               key={b.key}
-              className={`hc-meta-badge ${b.code === "Trailer" ? "hc-meta-badge--red" : "hc-meta-badge--orange"
-                }`}
+              className={`hc-meta-badge ${
+                b.code === "Trailer" ? "hc-meta-badge--red" : "hc-meta-badge--orange"
+              }`}
             >
               {b.code}
             </span>
@@ -181,7 +207,8 @@ const HoverCard = ({
           </p>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -199,7 +226,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
   const [isInView, setIsInView] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const [alignment, setAlignment] = useState("center");
+  const [coords, setCoords] = useState(null);
   const [apiReady, setApiReady] = useState(false);
 
   const slug = movie?.slug;
@@ -218,31 +245,49 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
   }, []);
 
   const hoverTimerRef = useRef(null);
+  const leaveTimerRef = useRef(null);
 
-  const handleMouseEnter = (e) => {
+  const handleMouseEnter = () => {
     if (suppressHover || !isHoverDevice.current || window.innerWidth < 1024) return;
 
-    // Trigger API fetch only if user stays on the card for 250ms
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+
+    if (hovered) return;
+
     hoverTimerRef.current = setTimeout(() => {
+      if (!cardRef.current) return;
+      const rect = cardRef.current.getBoundingClientRect();
+
+      const POPUP_WIDTH = 320;
+      const ESTIMATED_HEIGHT = 440;
+      const PADDING = 16;
+
+      const cardCenter = rect.left + rect.width / 2;
+      let left = cardCenter - POPUP_WIDTH / 2;
+
+      // Clamping horizontally to prevent bleeding off screen edges
+      if (left < PADDING) {
+        left = PADDING;
+      } else if (left + POPUP_WIDTH > window.innerWidth - PADDING) {
+        left = window.innerWidth - POPUP_WIDTH - PADDING;
+      }
+
+      // Clamping vertically to prevent popup from cutting off at viewport top/bottom
+      let top = rect.top - 8;
+      if (top + ESTIMATED_HEIGHT > window.innerHeight - PADDING) {
+        top = Math.max(PADDING, window.innerHeight - ESTIMATED_HEIGHT - PADDING);
+      }
+      if (top < PADDING) {
+        top = PADDING;
+      }
+
+      setCoords({ left, top, width: POPUP_WIDTH });
       setApiReady(true);
       setHovered(true);
     }, 250);
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const center = rect.left + rect.width / 2;
-    const scrollParent = e.currentTarget.closest(".home-grid-movies") || e.currentTarget.closest(".overflow-x-auto");
-    const parentRect = scrollParent ? scrollParent.getBoundingClientRect() : null;
-    const rightBound = parentRect ? Math.min(window.innerWidth, parentRect.right) : window.innerWidth;
-    const leftBound = parentRect ? Math.max(0, parentRect.left) : 0;
-    const threshold = 160;
-
-    if (center - leftBound < threshold) {
-      setAlignment("left");
-    } else if (rightBound - center < threshold) {
-      setAlignment("right");
-    } else {
-      setAlignment("center");
-    }
   };
 
   const handleMouseLeave = () => {
@@ -250,8 +295,49 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
       clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;
     }
-    setHovered(false);
+
+    leaveTimerRef.current = setTimeout(() => {
+      setHovered(false);
+    }, 150);
   };
+
+  const handlePopupMouseEnter = useCallback(() => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  }, []);
+
+  const handlePopupMouseLeave = useCallback(() => {
+    leaveTimerRef.current = setTimeout(() => {
+      setHovered(false);
+    }, 150);
+  }, []);
+
+  // Đóng hover preview ngay khi cuộn trang hoặc cuộn thanh danh sách
+  useEffect(() => {
+    if (!hovered) return;
+
+    const handleDismiss = () => {
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+      setHovered(false);
+    };
+
+    window.addEventListener("scroll", handleDismiss, { passive: true, capture: true });
+    window.addEventListener("resize", handleDismiss, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleDismiss, { capture: true });
+      window.removeEventListener("resize", handleDismiss);
+    };
+  }, [hovered]);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    };
+  }, []);
 
   // Chỉ fetch chi tiết phim khi người dùng hover (apiReady).
   // priority chỉ dùng để ưu tiên tải ảnh (loading="eager", fetchPriority="high"),
@@ -572,14 +658,16 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
           <h3 className="text-sm sm:text-[15px] font-semibold text-white line-clamp-1 lg:group-hover:text-emerald-400 transition-colors">
             {movie.name}
           </h3>
-          <p className="text-xs sm:text-[13px] font-medium text-slate-400 line-clamp-1 mt-0.5">
-            {movie.origin_name || movie.name}
-          </p>
+          {movie.origin_name && movie.origin_name !== movie.name && (
+            <p className="text-xs sm:text-[13px] font-medium text-slate-400 line-clamp-1 mt-0.5">
+              {movie.origin_name}
+            </p>
+          )}
         </div>
       </Link>
 
-      {/* Hover Preview — overlays directly on the card, centered */}
-      {hovered && (
+      {/* Hover Preview — rendered via Portal to escape parent overflow container */}
+      {hovered && coords && (
         <MemoHoverCard
           movie={effectiveMovie}
           isTrailer={isTrailer}
@@ -587,7 +675,9 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
           thumbSrc={thumbSrc}
           thumbFallbacks={thumbFallbacks}
           audioBadges={audioBadges}
-          alignment={alignment}
+          coords={coords}
+          onMouseEnter={handlePopupMouseEnter}
+          onMouseLeave={handlePopupMouseLeave}
           showBadges={showBadges}
         />
       )}

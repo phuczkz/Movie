@@ -99,21 +99,11 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
                     </p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
-                    {movie.year && (
-                      <span className="text-[11px] text-slate-500">
-                        {movie.year}
-                      </span>
-                    )}
                     {episodeText && (
                       <span className="text-[11px] text-emerald-500 font-medium">
                         {episodeText}
                       </span>
                     )}
-                    {/* {movie.quality && (
-                      <span className="text-[10px] font-bold text-amber-500 uppercase">
-                        {movie.quality}
-                      </span>
-                    )} */}
                   </div>
                 </div>
               </Link>
