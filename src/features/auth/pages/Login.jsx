@@ -1,25 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ShieldAlert } from "lucide-react";
 import { auth, isFirebaseConfigured } from '@/firebase.config.js';
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, loginEmail, loginGoogle, loading, maintenance } = useAuth();
+  const { user, userProfile, loginEmail, loginGoogle, loading, maintenance } = useAuth();
   const maintenanceEnabled = maintenance?.enabled || false;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-
   useEffect(() => {
     if (!user) return;
     const isAdmin = user.email === import.meta.env.VITE_ADMIN_EMAIL;
-    if (isAdmin || !maintenanceEnabled) {
+    const isWhitelisted = userProfile?.isWhitelisted === true;
+    if (isAdmin || isWhitelisted || !maintenanceEnabled) {
       navigate("/profile");
     }
-  }, [user, navigate, maintenanceEnabled]);
+  }, [user, userProfile, navigate, maintenanceEnabled]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -78,10 +79,18 @@ const Login = () => {
         </p>
       </div>
 
+      {maintenanceEnabled && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-200 p-4 text-sm flex items-start gap-3 shadow-lg shadow-amber-500/5">
+          <ShieldAlert className="size-5 shrink-0 text-amber-400 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-amber-300">Hệ thống đang trong chế độ bảo trì</p>
+          </div>
+        </div>
+      )}
+
       {!isFirebaseConfigured && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-100 px-4 py-3 text-sm">
-          Firebase chưa được cấu hình. Thêm các biến VITE_FIREBASE_* để kích
-          hoạt.
+          Firebase chưa được cấu hình.
         </div>
       )}
 

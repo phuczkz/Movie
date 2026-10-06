@@ -9,21 +9,26 @@ import AppLoader from '@/components/app-loader.jsx';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 export default function MaintenanceGuard({ children }) {
-  const { userProfile, maintenance, loading } = useAuth();
+  const { user, userProfile, maintenance, loading, profileLoading } = useAuth();
   const { appMode } = useAppMode();
   const location = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
 
-  const isAdmin = userProfile?.email === ADMIN_EMAIL;
-  const isWhitelisted = userProfile?.isWhitelisted;
+  const isAdmin = userProfile?.email === ADMIN_EMAIL || user?.email === ADMIN_EMAIL;
+  const isWhitelisted = userProfile?.isWhitelisted === true;
+  const isBypassed = isAdmin || isWhitelisted;
   const isLoginPath = location.pathname === "/login";
 
-  const isActive =
+  // Khi bảo trì đang bật:
+  // - Admin và thành viên trong Whitelist được vào bình thường.
+  // - Người đã đăng nhập nhưng KHÔNG phải Admin & KHÔNG thuộc Whitelist -> BỊ CHẶN 100% TRÊN MỌI TRANG (kể cả /login).
+  // - Khách vãng lai (chưa đăng nhập): Chỉ được phép xem form /login để Admin/Whitelist có chỗ đăng nhập; bị chặn ở tất cả các trang khác.
+  const isActive = Boolean(
     maintenance?.enabled &&
-    !isAdmin &&
-    !isWhitelisted &&
-    !isLoginPath;
+    !isBypassed &&
+    !(isLoginPath && !user)
+  );
 
   const { pathname } = location;
 
@@ -35,7 +40,7 @@ export default function MaintenanceGuard({ children }) {
     }
   }, [appMode, navigate, navigationType, pathname]);
 
-  // Block DevTools shortcuts
+  // Chặn phím tắt DevTools khi đang hiển thị màn hình bảo trì
   useEffect(() => {
     if (!isActive) return;
 
@@ -61,29 +66,32 @@ export default function MaintenanceGuard({ children }) {
     };
   }, [isActive]);
 
-  // Only block render on Firebase Auth if maintenance mode is enabled
-  // (to check if the current user is an admin or whitelisted to bypass it).
-  // In normal operation (maintenance off), render immediately for guests and users.
-  const showInitialLoading = maintenance?.enabled
-    ? (loading || !maintenance?.isLoaded)
-    : !maintenance?.isLoaded;
-
-  return (
-    <>
-      {showInitialLoading && <AppLoader />}
-
-      {!showInitialLoading && isActive && <MaintenanceNew />}
-
-      {!showInitialLoading && !isActive && !appMode && !isLoginPath && (
-        <SelectionScreen />
-      )}
-
-      {/* Render children immediately when active normally or during loading to preload bundles */}
-      {(!isActive || showInitialLoading) && (appMode || isLoginPath || showInitialLoading) && (
-        <div style={{ display: showInitialLoading ? "none" : "contents" }}>
-          {children}
-        </div>
-      )}
-    </>
+  // Điều kiện chờ tải ban đầu (Không mount giao diện con khi chưa xác định xong):
+  // 1. Chờ Firestore xác nhận trạng thái bảo trì (!maintenance?.isLoaded).
+  // 2. Nếu có bảo trì: chờ kiểm tra xong Auth & Profile để xác định quyền Admin/Whitelist.
+  const isCheckingMaintenance = !maintenance?.isLoaded;
+  const isCheckingUserAuth = Boolean(
+    maintenance?.enabled &&
+    (loading || (user && profileLoading && !isAdmin))
   );
+  const showInitialLoading = isCheckingMaintenance || isCheckingUserAuth;
+
+  // 1. Đang tải -> Chỉ render AppLoader, tuyệt đối không rò rỉ bất kỳ giao diện nào
+  if (showInitialLoading) {
+    return <AppLoader />;
+  }
+
+  // 2. Chế độ bảo trì kích hoạt -> Render duy nhất MaintenanceNew
+  if (isActive) {
+    return <MaintenanceNew />;
+  }
+
+  // 3. Khách chưa chọn chế độ Phim/Truyện và không ở trang Login -> Render SelectionScreen
+  if (!appMode && !isLoginPath) {
+    return <SelectionScreen />;
+  }
+
+  // 4. Đủ điều kiện -> Render ứng dụng
+  return children;
 }
+

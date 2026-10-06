@@ -102,17 +102,21 @@ export const AuthProvider = ({ children }) => {
       const cached = localStorage.getItem("app_maintenance_state");
       if (cached) {
         const parsed = JSON.parse(cached);
-        return { ...parsed, isLoaded: true };
+        // Nếu cache trước đó là ĐANG BẢO TRÌ (enabled: true), giữ nguyên để chặn ngay lập tức
+        if (parsed.enabled === true) {
+          return { ...parsed, isLoaded: true };
+        }
       }
     } catch {
       /* ignore */
     }
+    // Nếu chưa có cache hoặc cache là enabled: false, PHẢI để isLoaded: false để đợi Firestore xác nhận
     return {
       enabled: false,
       title: "",
       message: "",
       statusText: "",
-      isLoaded: true,
+      isLoaded: false,
     };
   });
 
