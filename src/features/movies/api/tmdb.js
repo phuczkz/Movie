@@ -54,21 +54,48 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
     status = "Full";
   } else if (status === "Returning Series") {
     status = "Tập mới";
+  } else {
+    // When status is not explicitly present (e.g. combined_credits or search results)
+    const releaseTime = year ? new Date(year).getTime() : 0;
+    const now = Date.now();
+    if (releaseTime > now) {
+      status = "Trailer";
+      isTrailer = true;
+    } else if (releaseTime > 0) {
+      status =
+        mediaType === "tv"
+          ? raw.episode_count
+            ? `${raw.episode_count} Tập`
+            : "Trọn bộ"
+          : "Full";
+    } else {
+      status = mediaType === "tv" ? "Trọn bộ" : "Full";
+    }
   }
+
+  const episodeCurrent = status || "Full";
+  const episodeTotal =
+    raw.number_of_episodes ||
+    (isTrailer
+      ? "?"
+      : status === "Full"
+      ? "1"
+      : raw.episode_count
+      ? String(raw.episode_count)
+      : "");
 
   return {
     slug,
     name: raw.title || raw.name || null,
+    origin_name: raw.original_title || raw.original_name || null,
     poster_url,
     thumb_url,
     backdrop_url: thumb_url,
     year: year ? year.slice(0, 4) : undefined,
-    episode_current: status,
-    episode_total:
-      raw.number_of_episodes ||
-      (isTrailer ? "?" : raw.status === "Released" ? "1" : ""),
+    episode_current: episodeCurrent,
+    episode_total: episodeTotal,
     quality: isTrailer ? "Trailer" : "HD",
-    lang: isTrailer ? "Trailer" : "",
+    lang: isTrailer ? "Trailer" : "Vietsub",
     time: runtime ? `${runtime} phút` : undefined,
     category: raw.genres?.map((g) => g.name) || raw.genre_ids || [],
     content: raw.overview,
@@ -80,7 +107,7 @@ const normalizeTmdbMovie = (raw = {}, mediaType = "movie") => {
 };
 
 const fetchTmdbDetail = async (id) => {
-  const params = { append_to_response: "credits" };
+  const params = { append_to_response: "credits", language: "vi-VN" };
 
   let detail = null;
   let mediaType = "movie";
@@ -123,7 +150,7 @@ export const getTmdbDetailBySlug = async (slug) => {
   } else {
     // Direct fetch using the known media type from the slug
     try {
-      const params = { append_to_response: "credits" };
+      const params = { append_to_response: "credits", language: "vi-VN" };
       const res = await tmdb.get(`${mediaType}/${id}`, { params });
       detail = res.data;
     } catch (err) {
@@ -385,9 +412,15 @@ export const searchTmdbPerson = async (query) => {
   if (!query) return null;
   try {
     const { data } = await tmdb.get("search/person", {
-      params: { query },
+      params: { query, language: "vi-VN" },
     });
-    return data?.results?.[0] || null;
+    const results = data?.results || [];
+    if (!results.length) return null;
+    // Sort by popularity descending to pick the most prominent person match
+    const sorted = [...results].sort(
+      (a, b) => (b.popularity || 0) - (a.popularity || 0)
+    );
+    return sorted[0] || null;
   } catch (error) {
     console.warn("[tmdb] person search failed", error.message);
     return null;
@@ -397,13 +430,15 @@ export const searchTmdbPerson = async (query) => {
 export const getTmdbPersonCredits = async (personId) => {
   if (!personId) return [];
   try {
-    const { data } = await tmdb.get(`person/${personId}/combined_credits`);
+    const { data } = await tmdb.get(`person/${personId}/combined_credits`, {
+      params: { language: "vi-VN" },
+    });
     const cast = data?.cast || [];
     // Filter and normalize
     const normalized = cast
       .filter((c) => c.poster_path || c.backdrop_path)
       .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-      .slice(0, 40)
+      .slice(0, 60)
       .map((c) => normalizeTmdbMovie(c, c.media_type));
 
     const filtered = filterAdultMovies(normalized);
@@ -420,16 +455,33 @@ export const getTmdbPersonCredits = async (personId) => {
     return [];
   }
 };
+
 export const getTmdbPersonDetail = async (personId) => {
   if (!personId) return null;
   try {
-    const { data } = await tmdb.get(`person/${personId}`);
+    const { data } = await tmdb.get(`person/${personId}`, {
+      params: { language: "vi-VN" },
+    });
+    let biography = data.biography;
+    // Fallback to English biography if Vietnamese biography is empty
+    if (!biography) {
+      try {
+        const { data: enData } = await tmdb.get(`person/${personId}`, {
+          params: { language: "en-US" },
+        });
+        biography = enData.biography;
+      } catch {}
+    }
     return {
       id: data.id,
       name: data.name,
-      biography: data.biography,
+      biography,
       birthday: data.birthday,
+      deathday: data.deathday,
       place_of_birth: data.place_of_birth,
+      known_for_department: data.known_for_department,
+      gender: data.gender,
+      also_known_as: data.also_known_as,
       profile_path: data.profile_path
         ? buildImage(data.profile_path, profileBase)
         : null,

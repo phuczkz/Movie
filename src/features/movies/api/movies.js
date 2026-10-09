@@ -270,7 +270,16 @@ export const getDetail = (slug) =>
         try {
           const q = tmdbData.movie.name;
           if (q) {
-            const items = await searchKKphim(q).catch(() => []);
+            let items = await searchKKphim(q).catch(() => []);
+            if (
+              (!items || items.length === 0) &&
+              tmdbData.movie.origin_name &&
+              tmdbData.movie.origin_name !== q
+            ) {
+              items = await searchKKphim(tmdbData.movie.origin_name).catch(
+                () => []
+              );
+            }
 
             const normalized = (text) => (text || "").toLowerCase().trim();
             const namesToMatch = [
@@ -281,7 +290,7 @@ export const getDetail = (slug) =>
               .filter(Boolean);
             const targetYear = tmdbData.movie.year;
 
-            const bestMatch = items.find((m) => {
+            const bestMatch = (items || []).find((m) => {
               const mYear = m.year || m.publishYear || m.released;
               const nameHit =
                 namesToMatch.includes(normalized(m.name)) ||
@@ -297,6 +306,18 @@ export const getDetail = (slug) =>
               const altDetail = await getDetail(bestMatch.slug);
               if (altDetail && altDetail.episodes?.length) {
                 tmdbData.episodes = altDetail.episodes;
+                if (altDetail.movie) {
+                  // Keep accurate episode/status from KKphim if available
+                  if (altDetail.movie.episode_current) {
+                    tmdbData.movie.episode_current = altDetail.movie.episode_current;
+                  }
+                  if (altDetail.movie.quality) {
+                    tmdbData.movie.quality = altDetail.movie.quality;
+                  }
+                  if (altDetail.movie.lang) {
+                    tmdbData.movie.lang = altDetail.movie.lang;
+                  }
+                }
               }
             }
           }
@@ -305,9 +326,15 @@ export const getDetail = (slug) =>
         }
 
         if (!tmdbData.episodes || tmdbData.episodes.length === 0) {
-          tmdbData.movie.episode_current = "Trailer";
-          tmdbData.movie.quality = "Trailer";
-          tmdbData.movie.lang = "Trailer";
+          // Only tag as Trailer if it is truly unreleased or marked as Trailer
+          const isActuallyTrailer =
+            tmdbData.movie.episode_current === "Trailer" ||
+            tmdbData.movie.quality === "Trailer";
+          if (isActuallyTrailer) {
+            tmdbData.movie.episode_current = "Trailer";
+            tmdbData.movie.quality = "Trailer";
+            tmdbData.movie.lang = "Trailer";
+          }
         }
 
         return tmdbData;

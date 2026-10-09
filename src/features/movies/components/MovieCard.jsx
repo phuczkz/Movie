@@ -494,6 +494,8 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
       if (badges.length === 0) {
         if (hasEpisodeSignal) {
           badges.push({ key: "vietsub-fallback", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
+        } else if (!isTrailer) {
+          badges.push({ key: "hd-fallback", code: "HD", label: "HD", episodeText: null });
         } else {
           badges.push({ key: "trailer", code: "Trailer", label: "Trailer", episodeText: null });
         }
