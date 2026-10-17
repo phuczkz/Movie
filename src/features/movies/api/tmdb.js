@@ -470,7 +470,9 @@ export const getTmdbPersonDetail = async (personId) => {
           params: { language: "en-US" },
         });
         biography = enData.biography;
-      } catch {}
+      } catch {
+        // Fallback biography fetch failed, ignore and keep empty
+      }
     }
     return {
       id: data.id,

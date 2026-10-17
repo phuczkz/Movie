@@ -65,7 +65,14 @@ const comicGenreOptions = [
   { label: "Manhwa", to: "/comics/the-loai/manhwa" },
 ];
 
-const Dropdown = ({ label, options, variant = "default", isWide = false }) => {
+const Dropdown = ({
+  label,
+  options,
+  variant = "default",
+  isWide = false,
+  isLoading = false,
+  onTrigger,
+}) => {
   const [open, setOpen] = useState(false);
   const timerRef = useRef(null);
   const isHoverDevice = useRef(
@@ -80,6 +87,7 @@ const Dropdown = ({ label, options, variant = "default", isWide = false }) => {
   }, []);
 
   const openNow = () => {
+    onTrigger?.();
     if (!isHoverDevice.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     setOpen(true);
@@ -91,9 +99,10 @@ const Dropdown = ({ label, options, variant = "default", isWide = false }) => {
     timerRef.current = setTimeout(() => setOpen(false), 150);
   };
 
-  const handleButtonClick = () => {
-    if (isHoverDevice.current) return;
-    setOpen(!open);
+  const handleButtonClick = (e) => {
+    e.stopPropagation();
+    onTrigger?.();
+    setOpen((prev) => !prev);
   };
 
   // Close when clicking outside
@@ -126,7 +135,7 @@ const Dropdown = ({ label, options, variant = "default", isWide = false }) => {
       className="relative"
       onMouseEnter={openNow}
       onMouseLeave={closeLater}
-      onClick={(e) => !isHoverDevice.current && e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       role="none"
     >
       <button
@@ -142,16 +151,24 @@ const Dropdown = ({ label, options, variant = "default", isWide = false }) => {
       {open && (
         <div className={`absolute z-40 mt-2 pt-1 ${containerClasses}`}>
           <div className={`rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl p-4 custom-scrollbar overflow-y-auto ${gridClasses}`}>
-            {options.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setOpen(false)}
-                className="flex items-center px-2.5 py-1.5 rounded-lg text-xs xl:text-sm text-slate-300 hover:text-white hover:bg-emerald-500/20 hover:border-emerald-500/30 border border-transparent transition-all truncate"
-              >
-                <span className="truncate">{item.label}</span>
-              </Link>
-            ))}
+            {isLoading && options.length <= 6 ? (
+              <div className="col-span-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 py-2">
+                {[...Array(8)].map((_, idx) => (
+                  <div key={idx} className="h-8 rounded-lg bg-white/5 animate-pulse border border-white/5" />
+                ))}
+              </div>
+            ) : (
+              options.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center px-2.5 py-1.5 rounded-lg text-xs xl:text-sm text-slate-300 hover:text-white hover:bg-emerald-500/20 hover:border-emerald-500/30 border border-transparent transition-all truncate"
+                >
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -159,39 +176,58 @@ const Dropdown = ({ label, options, variant = "default", isWide = false }) => {
   );
 };
 
-const MobileDropdown = ({ label, options, onNavigate }) => {
+const MobileDropdown = ({
+  label,
+  options,
+  onNavigate,
+  isLoading = false,
+  onTrigger,
+}) => {
   const [open, setOpen] = useState(false);
+
+  const handleToggle = () => {
+    if (!open) {
+      onTrigger?.();
+    }
+    setOpen((v) => !v);
+  };
 
   return (
     <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 shadow-inner shadow-black/20">
       <button
         type="button"
         className="flex w-full items-center justify-between text-left text-base font-semibold text-white"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
       >
         <span>{label}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-normal">
-            ({options.length})
-          </span>
-          <ChevronDown
-            className={`size-4 transition-transform duration-200 ${open ? "rotate-180" : "rotate-0"}`}
-          />
-        </div>
+        <ChevronDown
+          className={`size-4 transition-transform duration-200 ${open ? "rotate-180" : "rotate-0"}`}
+        />
       </button>
       {open && (
-        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-white/90 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
-          {options.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={onNavigate}
-              className="rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:text-emerald-300 px-2.5 py-2 text-center text-xs font-medium text-slate-200 transition-all active:scale-95 truncate"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
+        isLoading && options.length <= 6 ? (
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[...Array(6)].map((_, idx) => (
+              <div
+                key={idx}
+                className="h-9 rounded-xl bg-white/5 border border-white/5 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-white/90 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+            {options.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={onNavigate}
+                className="rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:text-emerald-300 px-2.5 py-2 text-center text-xs font-medium text-slate-200 transition-all active:scale-95 truncate"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )
       )}
     </div>
   );
@@ -235,8 +271,24 @@ const Header = () => {
   const { appMode, setAppMode } = useAppMode();
   const isAdmin = user && user.email === ADMIN_EMAIL;
   const navigate = useNavigate();
-  // Defer genre/country API calls until user hovers the nav for the first time
-  const [navHovered, setNavHovered] = useState(false);
+  // Defer genre/country API calls until user interacts (hover, menu open, click) or idle prefetch
+  const [navInteracted, setNavInteracted] = useState(false);
+  const triggerNavFetch = () => {
+    setNavInteracted(true);
+  };
+
+  // Prefetch when browser is idle so data is ready for mobile/tablet users
+  useEffect(() => {
+    if (navInteracted) return;
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(() => setNavInteracted(true), { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    } else {
+      const timer = setTimeout(() => setNavInteracted(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [navInteracted]);
+
   const avatarUrl =
     userProfile?.photoURL ||
     user?.photoURL ||
@@ -246,7 +298,7 @@ const Header = () => {
 
   const isComicMode = appMode === "comic";
 
-  const { data: apiGenreOptionsData } = useQuery({
+  const { data: apiGenreOptionsData, isLoading: isLoadingComicGenres } = useQuery({
     queryKey: ["comic-genres"],
     queryFn: async () => {
       try {
@@ -270,8 +322,13 @@ const Header = () => {
 
   const apiGenreOptions = apiGenreOptionsData || [];
 
-  const { data: apiMovieGenres = [] } = useMovieGenres({ enabled: !isComicMode && navHovered });
-  const { data: apiMovieCountries = [] } = useMovieCountries({ enabled: !isComicMode && navHovered });
+  const shouldFetchMovieNav = !isComicMode && (navInteracted || menuOpen);
+  const { data: apiMovieGenres = [], isLoading: isLoadingMovieGenres } = useMovieGenres({
+    enabled: shouldFetchMovieNav,
+  });
+  const { data: apiMovieCountries = [], isLoading: isLoadingMovieCountries } = useMovieCountries({
+    enabled: shouldFetchMovieNav,
+  });
 
   const dynamicMovieGenreOptions = useMemo(() => {
     if (apiMovieGenres.length > 0) {
@@ -362,6 +419,7 @@ const Header = () => {
             type="button"
             aria-label="Toggle menu"
             onClick={() => {
+              triggerNavFetch();
               dispatch({ type: "SET_MENU_OPEN", payload: !menuOpen });
               dispatch({ type: "SET_SEARCH_OPEN", payload: false });
             }}
@@ -429,7 +487,9 @@ const Header = () => {
 
           <nav
             className="flex flex-shrink-0 items-center gap-0.5 xl:gap-1 text-white"
-            onMouseEnter={() => !navHovered && setNavHovered(true)}
+            onMouseEnter={triggerNavFetch}
+            onTouchStart={triggerNavFetch}
+            onFocus={triggerNavFetch}
           >
             {primaryNav.map((item) => (
               <NavLink
@@ -448,12 +508,16 @@ const Header = () => {
               label="Thể Loại"
               options={genreOptions}
               variant={isComicMode ? "comic-genre" : "movie-genre"}
+              isLoading={isComicMode ? isLoadingComicGenres : isLoadingMovieGenres}
+              onTrigger={triggerNavFetch}
             />
             {!isComicMode && (
               <Dropdown
                 label="Quốc Gia"
                 options={countryOptions}
                 variant="movie-country"
+                isLoading={isLoadingMovieCountries}
+                onTrigger={triggerNavFetch}
               />
             )}
           </nav>
@@ -653,12 +717,16 @@ const Header = () => {
                   label="Thể Loại"
                   options={genreOptions}
                   onNavigate={closeAll}
+                  isLoading={isComicMode ? isLoadingComicGenres : isLoadingMovieGenres}
+                  onTrigger={triggerNavFetch}
                 />
                 {!isComicMode && (
                   <MobileDropdown
                     label="Quốc Gia"
                     options={countryOptions}
                     onNavigate={closeAll}
+                    isLoading={isLoadingMovieCountries}
+                    onTrigger={triggerNavFetch}
                   />
                 )}
               </div>

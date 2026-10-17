@@ -50,6 +50,7 @@ const AuthContext = createContext({
   logout: async () => { },
   saveMovie: async () => { },
   removeSavedMovie: async () => { },
+  updateSavedMovie: async () => false,
   savedMovieSlugs: new Set(),
   savedMoviesLoaded: false,
   saveComic: async () => { },
@@ -545,6 +546,31 @@ export const AuthProvider = ({ children }) => {
         );
         await firestoreMod.deleteDoc(ref);
         return true;
+      },
+      // Cập nhật ngầm thông tin tập mới nhất cho phim yêu thích (không thay đổi các trường khác)
+      updateSavedMovie: async (slug, updateData) => {
+        if (!slug || !updateData) return false;
+        try {
+          const { config, firestoreMod } = await loadFirebaseSdk();
+          if (!config.db || !config.auth) return false;
+          const currentUser = config.auth.currentUser;
+          if (!currentUser) return false;
+          const ref = firestoreMod.doc(
+            config.db,
+            "users",
+            currentUser.uid,
+            "FavoriteMovies",
+            slug
+          );
+          await firestoreMod.setDoc(ref, {
+            ...updateData,
+            updatedAt: firestoreMod.serverTimestamp(),
+          }, { merge: true });
+          return true;
+        } catch {
+          // Silent fail — không làm ảnh hưởng UX nếu sync thất bại
+          return false;
+        }
       },
       saveComic: async (comic) => {
         if (!comic || !comic.slug)

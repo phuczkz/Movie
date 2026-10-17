@@ -9,6 +9,7 @@ import { normalizeServerLabel, parseEpisodeNumber } from '@/utils/episodes.js';
 import { isMobile } from '@/utils/responsive.js';
 import { getOptimizedPoster } from '@/utils/image-helper.js';
 import { usePosterFallback } from '@/features/movies/hooks/usePosterFallback.js';
+import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 
 const fallbackPoster =
   "https://placehold.co/600x900/0f172a/94a3b8?text=loading";
@@ -220,7 +221,7 @@ const MemoHoverCard = memo(HoverCard);
 const loadedPosterCache = new Set();
 
 // ─── Main MovieCard ──────────────────────────────────────────────────────────
-const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges = true }) => {
+const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges = true, autoSyncEpisode = false }) => {
   const imgRef = useRef(null);
   const cardRef = useRef(null);
   const [isInView, setIsInView] = useState(false);
@@ -228,6 +229,10 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
   const [hovered, setHovered] = useState(false);
   const [coords, setCoords] = useState(null);
   const [apiReady, setApiReady] = useState(false);
+  // Đảm bảo mỗi card chỉ sync Firestore 1 lần/phiên để tránh write dư thừa
+  const syncedRef = useRef(false);
+
+  const { updateSavedMovie } = useAuth();
 
   const slug = movie?.slug;
   const episodeCurrentText = movie?.episode_current;
@@ -339,11 +344,12 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
     };
   }, []);
 
-  // Chỉ fetch chi tiết phim khi người dùng hover (apiReady).
-  // priority chỉ dùng để ưu tiên tải ảnh (loading="eager", fetchPriority="high"),
-  // KHÔNG kích hoạt gọi API để tránh 12-16 request đồng loạt khi load trang.
+  // Fetch chi tiết phim khi:
+  // 1. Người dùng hover vào card (apiReady) — mọi trang
+  // 2. Card đã vào viewport VÀ autoSyncEpisode=true (chỉ trang Favorites)
+  //    → không gây ra 12-16 request đồng loạt vì IntersectionObserver throttle tự nhiên
   const { data: detailData, isFetched } = useMovieDetail(slug, {
-    enabled: apiReady && !!slug,
+    enabled: !!slug && (apiReady || (autoSyncEpisode && isInView)),
   });
   const detailMovie = detailData?.movie;
 
@@ -359,6 +365,39 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
   }, [movie, detailMovie]);
 
   const episodeList = useMemo(() => detailData?.episodes || [], [detailData?.episodes]);
+
+  // ── Background Firestore sync ────────────────────────────────────────────────
+  // Khi autoSyncEpisode=true (trang Favorites) và detail API trả về tập mới hơn,
+  // âm thầm cập nhật document Firestore để lần mở tiếp theo hiển thị đúng ngay.
+  useEffect(() => {
+    if (!autoSyncEpisode || !isFetched || !detailMovie || !slug || syncedRef.current) return;
+    if (typeof updateSavedMovie !== "function") return;
+
+    const oldEp = (movie?.episode_current || "").toLowerCase().trim();
+    const newEp = (detailMovie?.episode_current || "").toLowerCase().trim();
+    const hasChanged = newEp && newEp !== oldEp;
+
+    // So sánh số tập thực tế từ danh sách episode API
+    const latestEpNum = episodeList.reduce((max, ep) => {
+      const n = parseEpisodeNumber(ep?.name || ep?.slug);
+      return Number.isFinite(n) ? Math.max(max, n) : max;
+    }, -1);
+    const oldEpNum = parseEpisodeNumber(movie?.episode_current);
+    const hasMoreEpisodes = latestEpNum > 0 && (!Number.isFinite(oldEpNum) || latestEpNum > oldEpNum);
+
+    if (hasChanged || hasMoreEpisodes) {
+      syncedRef.current = true;
+      const updatePayload = {};
+      if (detailMovie.episode_current) updatePayload.episode_current = detailMovie.episode_current;
+      if (detailMovie.episode_total) updatePayload.episode_total = detailMovie.episode_total;
+      if (detailMovie.quality) updatePayload.quality = detailMovie.quality;
+      if (detailMovie.lang) updatePayload.lang = detailMovie.lang;
+      updateSavedMovie(slug, updatePayload);
+    } else {
+      // Không có gì thay đổi — vẫn đánh dấu đã sync để tránh re-check
+      syncedRef.current = true;
+    }
+  }, [autoSyncEpisode, isFetched, detailMovie, slug, movie?.episode_current, episodeList, updateSavedMovie]);
 
   const isTrailer = useMemo(() => {
     // 1. Check original movie object from list
@@ -417,13 +456,14 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
     }
 
     // Helper to compute episode text for a given list of episodes
+    // Luôn dùng effectiveMovie (đã merge dữ liệu mới nhất từ Detail API)
     const computeEpisodeText = (eps) => {
       const latestFromList = eps.reduce((max, ep) => {
         const n = parseEpisodeNumber(ep?.name || ep?.slug);
         return Number.isFinite(n) ? Math.max(max, n) : max;
       }, -1);
 
-      const epTotalNum = parseEpisodeNumber(movie?.episode_total);
+      const epTotalNum = parseEpisodeNumber(effectiveMovie?.episode_total);
       const formatEp = (num) => (num < 10 && num > 0 ? `${num}` : num);
 
       if (latestFromList >= 0) {
@@ -433,7 +473,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
         return `${formatEp(latestFromList)}`;
       }
 
-      const current = (movie?.episode_current || "").toLowerCase();
+      const current = (effectiveMovie?.episode_current || "").toLowerCase();
       const isCompleted = current.includes("full") || current.includes("hoàn tất");
 
       const parsedCurrent = parseEpisodeNumber(current);
@@ -474,10 +514,14 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
         badges.push({ key: "longtieng", code: "LT", label: "Lồng tiếng", episodeText: makeEpText("Lồng Tiếng") });
     }
 
-    // Fallback/Initial logic: use metadata from the movie object
+    // Fallback/Initial logic: dùng effectiveMovie để luôn hiển thị số tập mới nhất từ API
     if (badges.length === 0) {
       const fallbackEpText = computeEpisodeText([]);
-      const text = `${episodeCurrentText || ""} ${movieLang || ""} ${movie?.status || ""}`.toLowerCase();
+      // Dùng effectiveMovie.lang và effectiveMovie.status thay vì movie cũ từ Firestore
+      const effectiveLang = effectiveMovie?.lang || movieLang || "";
+      const effectiveStatus = effectiveMovie?.status || movie?.status || "";
+      const effectiveEpCurrent = effectiveMovie?.episode_current || episodeCurrentText || "";
+      const text = `${effectiveEpCurrent} ${effectiveLang} ${effectiveStatus}`.toLowerCase();
       const hasEpisodeSignal = Boolean(fallbackEpText);
 
       const hasVietsub = text.includes("vietsub") || text.includes("phụ đề") || text.includes("phu de");
@@ -503,7 +547,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
     }
 
     return badges;
-  }, [isTrailer, episodeList, episodeCurrentText, movieLang, movie.status, movie.episode_total, movie.episode_current, isFetched]);
+  }, [isTrailer, episodeList, episodeCurrentText, movieLang, effectiveMovie, isFetched, movie?.status]);
 
   useEffect(() => {
     if (!cardRef.current || isInView) return undefined;
