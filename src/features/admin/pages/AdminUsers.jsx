@@ -14,6 +14,8 @@ import {
   Search,
   Play,
   BookOpen,
+  Crown,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from '@/features/auth/context/AuthContext';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -37,9 +39,11 @@ export default function AdminUsers() {
   });
 
   const {
+    isSuperAdmin,
     maintenance,
     toggleMaintenanceMode,
     toggleUserWhitelist,
+    toggleUserRole,
     createAccountByAdmin,
     deleteUserByAdmin,
   } = useAuth();
@@ -101,6 +105,32 @@ export default function AdminUsers() {
     }
   };
 
+  const handleToggleRole = async (uid, currentRole, email) => {
+    if (!isSuperAdmin) {
+      alert("Chỉ Chủ sở hữu (Super Admin) mới có quyền thay đổi vai trò người dùng.");
+      return;
+    }
+    if (email === import.meta.env.VITE_ADMIN_EMAIL) {
+      alert("Không thể thay đổi vai trò của Chủ sở hữu!");
+      return;
+    }
+    const newRole = currentRole === "admin" ? "user" : "admin";
+    const confirmMsg =
+      newRole === "admin"
+        ? `Bạn có chắc muốn cấp quyền Quản trị viên (Admin) cho tài khoản ${email}?`
+        : `Bạn có chắc muốn hủy quyền Quản trị viên của tài khoản ${email}?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await toggleUserRole(uid, newRole);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === uid ? { ...u, role: newRole } : u))
+      );
+    } catch (err) {
+      alert("Lỗi cập nhật vai trò: " + err.message);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -120,7 +150,11 @@ export default function AdminUsers() {
     });
   }, [users, normalizedQuery]);
 
-  const handleDelete = (uid) => {
+  const handleDelete = (uid, email) => {
+    if (email === import.meta.env.VITE_ADMIN_EMAIL) {
+      alert("Không thể xóa tài khoản của Super Admin!");
+      return;
+    }
     setConfirmModal({
       isOpen: true,
       userId: uid,
@@ -311,57 +345,97 @@ export default function AdminUsers() {
                 <th className="px-4 py-3 text-xs uppercase tracking-widest text-slate-500 font-semibold hidden md:table-cell">
                   Email
                 </th>
+                <th className="px-4 py-3 text-xs uppercase tracking-widest text-slate-500 font-semibold hidden sm:table-cell text-center">
+                  Vai trò
+                </th>
                 <th className="px-4 py-3 text-xs uppercase tracking-widest text-slate-500 font-semibold hidden lg:table-cell text-center">
                   Whitelist
                 </th>
                 <th className="px-4 py-3 text-xs uppercase tracking-widest text-slate-500 font-semibold hidden lg:table-cell">
                   Ngày tạo
                 </th>
-                <th className="px-4 py-3 w-20 hidden md:table-cell" aria-label="Thao tác" />
+                <th className="px-4 py-3 w-24 hidden md:table-cell text-right" aria-label="Thao tác">
+                  Thao tác
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((u) => (
-                <tr
-                  key={u.id}
-                  className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors align-top"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="size-9 rounded-full overflow-hidden bg-white/5 border border-white/10 shrink-0">
-                        {u.photoURL ? (
-                          <img
-                            src={u.photoURL}
-                            alt={u.displayName}
-                            className="h-full w-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : (
-                          <UserCircle className="h-full w-full text-slate-500" />
-                        )}
+              {filteredUsers.map((u) => {
+                const isSuperAdminUser = u.email === import.meta.env.VITE_ADMIN_EMAIL;
+                const isAdminUser = isSuperAdminUser || u.role === "admin";
+                return (
+                  <tr
+                    key={u.id}
+                    className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors align-middle"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 rounded-full overflow-hidden bg-white/5 border border-white/10 shrink-0">
+                          {u.photoURL ? (
+                            <img
+                              src={u.photoURL}
+                              alt={u.displayName}
+                              className="h-full w-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <UserCircle className="h-full w-full text-slate-500" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium text-slate-200 truncate max-w-[140px] sm:max-w-[220px]">
+                              {u.displayName || "Ẩn danh"}
+                            </span>
+                            {isSuperAdminUser && (
+                              <span className="inline-flex sm:hidden items-center gap-1 text-[10px] text-amber-400 font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
+                                <Crown className="size-3" /> Chủ sở hữu
+                              </span>
+                            )}
+                            {!isSuperAdminUser && isAdminUser && (
+                              <span className="inline-flex sm:hidden items-center gap-1 text-[10px] text-purple-400 font-semibold px-1.5 py-0.5 rounded bg-purple-500/15 border border-purple-500/30">
+                                <ShieldCheck className="size-3" /> Admin
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400 truncate md:hidden">
+                            {u.email || "Không có email"}
+                          </p>
+                        </div>
                       </div>
-                      <span className="font-medium text-slate-200 truncate max-w-[140px] sm:max-w-[220px]">
-                        {u.displayName || "Ẩn danh"}
-                      </span>
-                    </div>
 
-                    <div className="mt-2 space-y-2 md:hidden">
-                      <p className="text-xs text-slate-400 truncate">
-                        {u.email || "Không có email"}
-                      </p>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-slate-500">
-                          {u.createdAt
-                            ?.toDate?.()
-                            ?.toLocaleDateString("vi-VN") ?? "—"}
-                        </span>
-
-                        {u.email === import.meta.env.VITE_ADMIN_EMAIL ? (
-                          <span className="text-xs text-amber-400 font-semibold px-2 py-1 rounded-lg bg-amber-500/10">
-                            Admin
+                      {/* Mobile controls */}
+                      <div className="mt-2 space-y-2 md:hidden">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] text-slate-500">
+                            {u.createdAt
+                              ?.toDate?.()
+                              ?.toLocaleDateString("vi-VN") ?? "—"}
                           </span>
-                        ) : (
+
                           <div className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1.5">
+                            {/* Nút phân quyền nhanh trên mobile cho Super Admin */}
+                            {isSuperAdmin && !isSuperAdminUser && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleToggleRole(u.id, u.role, u.email)
+                                }
+                                className={`inline-flex size-8 items-center justify-center rounded-lg transition-colors ${
+                                  isAdminUser
+                                    ? "bg-purple-500/20 text-purple-300"
+                                    : "text-slate-400 hover:bg-white/10"
+                                }`}
+                                aria-label={
+                                  isAdminUser ? "Hạ quyền Admin" : "Cấp quyền Admin"
+                                }
+                                title={
+                                  isAdminUser ? "Hạ quyền Admin" : "Cấp quyền Admin"
+                                }
+                              >
+                                <ShieldCheck className="size-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() =>
@@ -405,62 +479,114 @@ export default function AdminUsers() {
                             >
                               <History className="size-4" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(u.id)}
-                              className="inline-flex size-8 items-center justify-center rounded-lg text-white/60 hover:bg-rose-500/15 hover:text-rose-300 transition-colors"
-                              aria-label="Xóa user"
-                              title="Xóa user"
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
+                            {!isSuperAdminUser && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(u.id, u.email)}
+                                className="inline-flex size-8 items-center justify-center rounded-lg text-white/60 hover:bg-rose-500/15 hover:text-rose-300 transition-colors"
+                                aria-label="Xóa user"
+                                title="Xóa user"
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-400 hidden md:table-cell truncate max-w-[200px]">
-                    {u.email}
-                  </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
-                    <div className="flex justify-center">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleToggleWhitelist(u.id, u.isWhitelisted)
-                        }
-                        className={`p-2 rounded-xl transition-all ${
-                          u.isWhitelisted
-                            ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 shadow-inner"
-                            : "bg-white/5 text-slate-600 hover:bg-white/10"
-                        }`}
-                        aria-label={u.isWhitelisted ? "Bỏ Whitelist" : "Thêm vào Whitelist"}
-                        title={
-                          u.isWhitelisted
-                            ? "Bỏ Whitelist"
-                            : "Thêm vào Whitelist"
-                        }
-                      >
-                        <ShieldCheck
-                          className={`size-5 ${
-                            u.isWhitelisted ? "animate-pulse" : "opacity-30"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
-                    {u.createdAt?.toDate?.()?.toLocaleDateString("vi-VN") ??
-                      "—"}
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell">
-                    {u.email === import.meta.env.VITE_ADMIN_EMAIL ? (
-                      <div className="flex items-center gap-1 justify-end">
-                        <span className="text-xs text-amber-400 font-semibold px-2 py-1 rounded-lg bg-amber-500/10">
-                          Admin
+                    </td>
+
+                    <td className="px-4 py-3 text-slate-400 hidden md:table-cell truncate max-w-[200px]">
+                      {u.email}
+                    </td>
+
+                    {/* Vai trò (Role) */}
+                    <td className="px-4 py-3 hidden sm:table-cell text-center">
+                      {isSuperAdminUser ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-amber-400 font-semibold px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                          <Crown className="size-3.5" /> Chủ sở hữu
                         </span>
+                      ) : isSuperAdmin ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRole(u.id, u.role, u.email)}
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                            isAdminUser
+                              ? "bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/30"
+                              : "bg-white/5 text-slate-400 border-white/10 hover:bg-emerald-500/15 hover:text-emerald-300 hover:border-emerald-500/30"
+                          }`}
+                          title={
+                            isAdminUser
+                              ? "Click để thu hồi quyền Quản trị viên"
+                              : "Click để thăng cấp thành Quản trị viên"
+                          }
+                        >
+                          {isAdminUser ? (
+                            <>
+                              <ShieldCheck className="size-3.5" /> Quản trị viên
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="size-3.5" /> Thành viên
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border ${
+                            isAdminUser
+                              ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
+                              : "bg-white/5 text-slate-400 border-white/10"
+                          }`}
+                        >
+                          {isAdminUser ? (
+                            <>
+                              <ShieldCheck className="size-3.5" /> Quản trị viên
+                            </>
+                          ) : (
+                            "Thành viên"
+                          )}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleToggleWhitelist(u.id, u.isWhitelisted)
+                          }
+                          className={`p-2 rounded-xl transition-all ${
+                            u.isWhitelisted
+                              ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 shadow-inner"
+                              : "bg-white/5 text-slate-600 hover:bg-white/10"
+                          }`}
+                          aria-label={
+                            u.isWhitelisted
+                              ? "Bỏ Whitelist"
+                              : "Thêm vào Whitelist"
+                          }
+                          title={
+                            u.isWhitelisted
+                              ? "Bỏ Whitelist"
+                              : "Thêm vào Whitelist"
+                          }
+                        >
+                          <ShieldCheck
+                            className={`size-5 ${
+                              u.isWhitelisted ? "animate-pulse" : "opacity-30"
+                            }`}
+                          />
+                        </button>
                       </div>
-                    ) : (
+                    </td>
+
+                    <td className="px-4 py-3 text-slate-500 hidden lg:table-cell">
+                      {u.createdAt?.toDate?.()?.toLocaleDateString("vi-VN") ??
+                        "—"}
+                    </td>
+
+                    <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex items-center gap-1 justify-end">
                         <button
                           type="button"
@@ -478,24 +604,26 @@ export default function AdminUsers() {
                         >
                           <History className="size-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(u.id)}
-                          className="p-2 rounded-lg text-white/50 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                          aria-label="Xóa user"
-                          title="Xóa user"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                        {!isSuperAdminUser && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(u.id, u.email)}
+                            className="p-2 rounded-lg text-white/50 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            aria-label="Xóa user"
+                            title="Xóa user"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredUsers.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-4 py-12 text-center text-slate-500"
                   >
                     {normalizedQuery

@@ -28,6 +28,7 @@ const Profile = () => {
     userProfile,
     profileLoading,
     loading,
+    isAdmin,
     updateProfileData,
     logout,
   } = useAuth();
@@ -145,7 +146,7 @@ const Profile = () => {
           </p>
 
           <div className="pt-4 flex flex-wrap justify-center sm:justify-start gap-3">
-            {user?.email === import.meta.env.VITE_ADMIN_EMAIL && (
+            {isAdmin && (
               <button
                 type="button"
                 onClick={() => navigate("/admin")}

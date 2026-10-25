@@ -5,6 +5,7 @@ import Footer from '@/components/Footer.jsx';
 import BackToTop from '@/components/BackToTop.jsx';
 import { AnimatePresence } from "framer-motion";
 import PageTransition from '@/components/PageTransition.jsx';
+import PullToRefresh from '@/components/PullToRefresh.jsx';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -16,6 +17,8 @@ const Layout = ({ children }) => {
 
   return (
     <div className="bg-background text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+      {/* Pull-to-Refresh: chỉ hiển thị trên mobile/tablet */}
+      <PullToRefresh />
       <div
         className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(52,211,153,0.08),transparent_25%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.08),transparent_25%)]"
         aria-hidden="true"

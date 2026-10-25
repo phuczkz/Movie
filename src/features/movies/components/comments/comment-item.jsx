@@ -102,7 +102,7 @@ function CommentItem({
   rootCommentId,
   rootCommentUserId,
 }) {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, isAdmin } = useAuth();
   const effectiveRootId = isReply
     ? rootCommentId || comment.parentId || comment.id
     : comment.id;
@@ -127,8 +127,6 @@ function CommentItem({
   const [deleting, setDeleting] = useState(false);
 
   // Admin access
-  const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-  const isAdmin = user?.email === ADMIN_EMAIL;
   const canDelete = isAdmin || user?.uid === comment.userId;
 
   // Reaction state

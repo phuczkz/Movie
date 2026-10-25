@@ -19,7 +19,6 @@ import { useMovieGenres, useMovieCountries } from '@/features/movies/hooks/useKK
 import { isForbiddenGenre } from '@/utils/filter.js';
 import SearchBar from '@/components/SearchBar.jsx';
 import Notifications from '@/components/Notifications.jsx';
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 const moviePrimaryNav = [
   { label: "Trang Chủ", to: "/" },
@@ -267,9 +266,8 @@ const Header = () => {
   const [headerState, dispatch] = useReducer(headerReducer, initialHeaderState);
   const { menuOpen, searchOpen, scrolled, isHidden } = headerState;
   const location = useLocation();
-  const { user, userProfile, logout } = useAuth();
+  const { user, userProfile, logout, isAdmin } = useAuth();
   const { appMode, setAppMode } = useAppMode();
-  const isAdmin = user && user.email === ADMIN_EMAIL;
   const navigate = useNavigate();
   // Defer genre/country API calls until user interacts (hover, menu open, click) or idle prefetch
   const [navInteracted, setNavInteracted] = useState(false);

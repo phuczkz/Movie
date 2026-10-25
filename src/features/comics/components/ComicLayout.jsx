@@ -4,6 +4,7 @@ import Header from '@/components/Header.jsx';
 import { AnimatePresence } from "framer-motion";
 import PageTransition from '@/components/PageTransition.jsx';
 import BackToTop from '@/components/BackToTop.jsx';
+import PullToRefresh from '@/components/PullToRefresh.jsx';
 
 const ComicLayout = ({ children }) => {
   const location = useLocation();
@@ -17,6 +18,8 @@ const ComicLayout = ({ children }) => {
 
   return (
     <div className="bg-slate-950 text-slate-100 min-h-screen overflow-x-hidden font-sans">
+      {/* Pull-to-Refresh: chỉ hiển thị trên mobile/tablet */}
+      <PullToRefresh />
       <div
         className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_20%,rgba(168,85,247,0.08),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(236,72,153,0.05),transparent_35%)]"
         aria-hidden="true"

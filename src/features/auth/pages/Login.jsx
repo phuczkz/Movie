@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
-import { auth, isFirebaseConfigured } from '@/firebase.config.js';
+import { isFirebaseConfigured } from '@/firebase.config.js';
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, userProfile, loginEmail, loginGoogle, loading, maintenance } = useAuth();
+  const { user, userProfile, loginEmail, loginGoogle, loading, maintenance, isAdmin } = useAuth();
   const maintenanceEnabled = maintenance?.enabled || false;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,12 +15,11 @@ const Login = () => {
 
   useEffect(() => {
     if (!user) return;
-    const isAdmin = user.email === import.meta.env.VITE_ADMIN_EMAIL;
     const isWhitelisted = userProfile?.isWhitelisted === true;
     if (isAdmin || isWhitelisted || !maintenanceEnabled) {
       navigate("/profile");
     }
-  }, [user, userProfile, navigate, maintenanceEnabled]);
+  }, [user, userProfile, navigate, maintenanceEnabled, isAdmin]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -34,8 +33,7 @@ const Login = () => {
     setError("");
     try {
       await loginEmail(email, password);
-      // Admin always goes to profile, User only if no maintenance
-      if (email === import.meta.env.VITE_ADMIN_EMAIL || !maintenanceEnabled) {
+      if (!maintenanceEnabled) {
         navigate("/profile");
       }
     } catch (err) {
@@ -56,8 +54,7 @@ const Login = () => {
     setError("");
     try {
       await loginGoogle();
-      const isAdmin = auth?.currentUser?.email === import.meta.env.VITE_ADMIN_EMAIL;
-      if (isAdmin || !maintenanceEnabled) {
+      if (!maintenanceEnabled) {
         navigate("/profile");
       }
     } catch (err) {

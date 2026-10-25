@@ -36,11 +36,15 @@ const awaitAuthStateInit = async (authMod, auth) => {
   });
 };
 
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
+
 const AuthContext = createContext({
   user: null,
   userProfile: null,
   loading: true,
   profileLoading: false,
+  isSuperAdmin: false,
+  isAdmin: false,
   maintenance: { enabled: false, title: "", message: "", statusText: "" },
   loginGoogle: async () => { },
   loginEmail: async () => { },
@@ -59,6 +63,7 @@ const AuthContext = createContext({
   deleteUserByAdmin: async () => { },
   toggleMaintenanceMode: async () => { },
   toggleUserWhitelist: async () => { },
+  toggleUserRole: async () => { },
   markAnnouncementAsRead: async () => { },
 });
 
@@ -74,6 +79,7 @@ const buildDefaultProfile = (currentUser, serverTimestamp) => ({
   phoneNumber: currentUser.phoneNumber || "",
   birthday: "",
   photoURL: currentUser.photoURL || "",
+  role: currentUser.email === ADMIN_EMAIL ? "admin" : "user",
   isWhitelisted: false,
   readAnnouncements: [],
   createdAt: serverTimestamp(),
@@ -272,6 +278,10 @@ export const AuthProvider = ({ children }) => {
                 return "";
               };
 
+              const role =
+                data.role ||
+                (currentUser.email === ADMIN_EMAIL ? "admin" : "user");
+
               const profile = {
                 id: snapshot.id,
                 email: data.email || currentUser.email,
@@ -282,6 +292,7 @@ export const AuthProvider = ({ children }) => {
                     ? data.phoneNumber.trim()
                     : "",
                 birthday: normalizeDate(data.birthday),
+                role,
                 isWhitelisted: data.isWhitelisted === true,
                 readAnnouncements: data.readAnnouncements || [],
                 photoURL: data.photoURL || currentUser.photoURL || "",
@@ -330,12 +341,21 @@ export const AuthProvider = ({ children }) => {
     startFirebaseListeners();
   }, [startFirebaseListeners]);
 
+  const isSuperAdmin = Boolean(
+    user && ADMIN_EMAIL && user.email === ADMIN_EMAIL
+  );
+  const isAdmin = Boolean(
+    isSuperAdmin || userProfile?.role === "admin"
+  );
+
   const value = useMemo(
     () => ({
       user,
       userProfile,
       loading,
       profileLoading,
+      isSuperAdmin,
+      isAdmin,
       maintenance,
       savedMovieSlugs,
       savedMoviesLoaded,
@@ -684,6 +704,15 @@ export const AuthProvider = ({ children }) => {
           updatedAt: firestoreMod.serverTimestamp(),
         });
       },
+      toggleUserRole: async (userId, newRole) => {
+        const { config, firestoreMod } = await loadFirebaseSdk();
+        if (!config.db) return;
+        const ref = firestoreMod.doc(config.db, "users", userId);
+        await firestoreMod.updateDoc(ref, {
+          role: newRole,
+          updatedAt: firestoreMod.serverTimestamp(),
+        });
+      },
       markAnnouncementAsRead: async (announcementId) => {
         const { config, firestoreMod } = await loadFirebaseSdk();
         if (!config.db) return;
@@ -706,6 +735,8 @@ export const AuthProvider = ({ children }) => {
       loading,
       userProfile,
       profileLoading,
+      isSuperAdmin,
+      isAdmin,
       maintenance,
       savedMovieSlugs,
       savedMoviesLoaded,

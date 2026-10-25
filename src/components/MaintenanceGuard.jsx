@@ -6,16 +6,13 @@ import SelectionScreen from '@/components/SelectionScreen.jsx';
 import MaintenanceNew from '@/components/MaintenanceNew.jsx';
 import AppLoader from '@/components/app-loader.jsx';
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-
 export default function MaintenanceGuard({ children }) {
-  const { user, userProfile, maintenance, loading, profileLoading } = useAuth();
+  const { user, userProfile, maintenance, loading, profileLoading, isAdmin } = useAuth();
   const { appMode } = useAppMode();
   const location = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
 
-  const isAdmin = userProfile?.email === ADMIN_EMAIL || user?.email === ADMIN_EMAIL;
   const isWhitelisted = userProfile?.isWhitelisted === true;
   const isBypassed = isAdmin || isWhitelisted;
   const isLoginPath = location.pathname === "/login";

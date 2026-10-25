@@ -17,8 +17,6 @@ import {
 } from "lucide-react";
 import AdminQuickSearchModal from "../components/AdminQuickSearchModal";
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-
 const AdminUsers = lazy(() => import("./AdminUsers"));
 const AdminComments = lazy(() => import("./AdminComments"));
 const AdminMovieStatus = lazy(() => import("./AdminMovieStatus"));
@@ -42,7 +40,7 @@ const PAGE_MAP = {
 };
 
 export default function AdminPanel() {
-  const { user, userProfile, maintenance, loading } = useAuth();
+  const { user, userProfile, maintenance, loading, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState("reports");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -72,7 +70,7 @@ export default function AdminPanel() {
     );
   }
 
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-white">
         <p className="text-xl font-semibold">

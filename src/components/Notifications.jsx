@@ -15,20 +15,18 @@ import { db } from "@/firebase.config.js";
 import { useAuth, useAnnouncements } from "@/features/auth/context/AuthContext";
 
 export default function Notifications() {
-  const { user, userProfile, markAnnouncementAsRead } = useAuth();
+  const { user, userProfile, markAnnouncementAsRead, isAdmin } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const { data: announcements = [] } = useAnnouncements();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-
   useEffect(() => {
     if (!user || !db) return;
 
     const recipientIds = [user.uid];
-    if (user.email === ADMIN_EMAIL) {
+    if (isAdmin) {
       recipientIds.push("admin");
     }
 
@@ -49,7 +47,7 @@ export default function Notifications() {
     );
 
     return () => unsubscribe();
-  }, [user, ADMIN_EMAIL]);
+  }, [user, isAdmin]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
