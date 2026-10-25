@@ -12,6 +12,7 @@ import { usePosterFallback } from "@/features/movies/hooks/usePosterFallback.js"
 import { useMovieRating } from "@/features/movies/hooks/useMovieRating.js";
 import RatingModal from "./RatingModal.jsx";
 import ShareButton from '@/components/ShareButton.jsx';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const DetailHero = ({
   movie,
@@ -287,7 +288,7 @@ const DetailHero = ({
                 <div
                   className="text-slate-300 leading-relaxed text-[15px]"
                   dangerouslySetInnerHTML={{
-                    __html: movie.content || "Chưa có mô tả.",
+                    __html: sanitizeHtml(movie.content || "Chưa có mô tả."),
                   }}
                 />
               </div>

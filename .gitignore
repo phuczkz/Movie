@@ -25,6 +25,7 @@ dist-ssr
 *.sw?
 .env
 .firebase/
+firestore.rules
 
 # Agent Rules & Configs (Local only)
 .agent_rules/

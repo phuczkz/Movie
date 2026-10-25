@@ -1,6 +1,7 @@
 import React, { memo } from "react";
 import { Link } from "react-router-dom";
 import { Info } from "lucide-react";
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const WatchSidebar = memo(
   ({ movie, episodes, countryText, categoriesText }) => {
@@ -71,7 +72,7 @@ const WatchSidebar = memo(
           <div
             className="text-slate-300 leading-relaxed text-[15px] prose prose-invert prose-sm max-w-none prose-a:text-emerald-400 hover:prose-a:text-emerald-300"
             dangerouslySetInnerHTML={{
-              __html: movie?.content || "Chưa có mô tả.",
+              __html: sanitizeHtml(movie?.content || "Chưa có mô tả."),
             }}
           />
         </div>

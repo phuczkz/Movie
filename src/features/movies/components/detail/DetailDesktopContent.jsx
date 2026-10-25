@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { User, Info } from "lucide-react";
 import { lazy, Suspense } from "react";
+import { sanitizeHtml } from '@/utils/sanitize';
 import EpisodeList from '@/components/EpisodeList.jsx';
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import SeasonSelector from '@/components/SeasonSelector.jsx';
@@ -22,7 +23,7 @@ const DetailDesktopContent = ({
             <p className="text-sm uppercase tracking-[0.14em] text-slate-300">Giới thiệu</p>
           </div>
           {/* oxc-disable-next-line react/no-danger */}
-          <div className="text-slate-300 leading-relaxed text-[15px]" dangerouslySetInnerHTML={{ __html: movie.content || "Chưa có mô tả." }} />
+          <div className="text-slate-300 leading-relaxed text-[15px]" dangerouslySetInnerHTML={{ __html: sanitizeHtml(movie.content || "Chưa có mô tả.") }} />
         </div>
       </div>
 

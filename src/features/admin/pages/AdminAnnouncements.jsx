@@ -16,6 +16,7 @@ import {
 import { Plus, Trash2, Edit, CheckCircle2, XCircle, Image as ImageIcon, Search } from "lucide-react";
 import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
 import { getOptimizedPoster } from '@/utils/image-helper.js';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 export default function AdminAnnouncements() {
   const [announcements, setAnnouncements] = useState([]);
@@ -368,7 +369,7 @@ export default function AdminAnnouncements() {
                   </p>
                   <div 
                     className="text-sm text-slate-300 mt-2 line-clamp-2 prose prose-sm prose-invert"
-                    dangerouslySetInnerHTML={{ __html: item.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.content) }}
                   />
                   {item.image && (
                     <div className="mt-3 flex items-center gap-2">

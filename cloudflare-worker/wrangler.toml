@@ -10,3 +10,8 @@ compatibility_date = "2024-09-01"
 routes = [
     { pattern = "stream.khophim.io.vn/*", zone_name = "khophim.io.vn" }
 ]
+
+[vars]
+ALLOW_ALL_HOSTS = "false"
+ALLOWED_HOSTS = "kkphimplayer7.com,phimapi.com,phimimg.com"
+

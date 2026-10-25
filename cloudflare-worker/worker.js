@@ -15,6 +15,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
 const DEFAULT_ALLOWED_HOSTS = [
   "kkphimplayer7.com",
   "opstream11.com",
+  "phimapi.com",
+  "phimimg.com",
 ];
 
 function getListFromEnv(env, key, fallback = []) {
@@ -254,11 +256,6 @@ function isMediaSegment(pathname) {
  */
 const IMAGE_ALLOWED_HOSTS = [
   "phimimg.com",
-  "img.ophim.live",
-  "ophim1.com",
-  "ophim.live",
-  "otruyenapi.com",
-  "img.otruyenapi.com",
   "image.tmdb.org",
   "images.unsplash.com",
 ];
@@ -566,7 +563,7 @@ export default {
       DEFAULT_ALLOWED_HOSTS
     );
 
-    const allowAllHosts = env?.ALLOW_ALL_HOSTS !== "false";
+    const allowAllHosts = env?.ALLOW_ALL_HOSTS === "true";
 
     if (!allowAllHosts && !isAllowedHost(parsedTarget.hostname, allowedHosts)) {
       return jsonResponse(

@@ -5,6 +5,7 @@ import { Check, Play } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import { sanitizeHtml } from '@/utils/sanitize';
 
 export default function AnnouncementModal({ announcement, onConfirm, onClose }) {
   const [isConfirming, setIsConfirming] = useState(false);
@@ -103,7 +104,7 @@ export default function AnnouncementModal({ announcement, onConfirm, onClose }) 
                              prose-img:rounded-xl prose-img:shadow-lg
                              [&>*:last-child]:mb-0 [&>*:first-child]:mt-0
                              overflow-x-hidden"
-                  dangerouslySetInnerHTML={{ __html: announcement.content }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(announcement.content) }}
                 />
               </div>
 

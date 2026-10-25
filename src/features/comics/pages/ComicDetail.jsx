@@ -5,6 +5,7 @@ import { BookOpen, List, Info, AlertCircle, Heart, ChevronDown } from "lucide-re
 import { useSavedComic } from '@/features/comics/hooks/useSavedComic';
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import { useNavigate } from "react-router-dom";
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const IMAGE_CDN = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
 
@@ -94,7 +95,7 @@ export default function ComicDetail() {
                 </h3>
                 <div
                   className="text-slate-400 leading-relaxed text-sm md:text-base bg-slate-950/40 p-4 rounded-xl border border-white/5"
-                  dangerouslySetInnerHTML={{ __html: comic.content || "Chưa có nội dung mô tả." }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(comic.content || "Chưa có nội dung mô tả.") }}
                 />
               </div>
             </div>
@@ -127,7 +128,7 @@ export default function ComicDetail() {
                   <h3 className="font-semibold text-slate-100 text-base mb-2">Nội Dung</h3>
                   <div
                     className="text-slate-400 leading-relaxed text-sm"
-                    dangerouslySetInnerHTML={{ __html: comic.content || "Chưa có nội dung mô tả." }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(comic.content || "Chưa có nội dung mô tả.") }}
                   />
                 </div>
               </div>
