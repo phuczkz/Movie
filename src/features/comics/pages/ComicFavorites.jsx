@@ -5,9 +5,19 @@ import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import ComicCard from '@/features/comics/components/ComicCard';
 
 export default function ComicFavorites() {
-  const { user } = useAuth();
-  const { comics, loading, error } = useSavedComicsList();
+  const { user, loading: authLoading } = useAuth();
+  const { comics, loading: comicsLoading, error } = useSavedComicsList();
   const { removeSavedComic } = useAuth();
+
+  const loading = authLoading || (Boolean(user) && comicsLoading);
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-20 min-h-[60vh]">
+        <div className="loader-orbit" />
+      </div>
+    );
+  }
 
   if (!user) {
     return (

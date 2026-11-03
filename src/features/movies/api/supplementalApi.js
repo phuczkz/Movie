@@ -359,9 +359,13 @@ export const searchSecondaryApi = async (keyword, page = 1) => {
 export const getSecondaryDetail = async (slug, options = {}) => {
   if (!slug || !SECONDARY_API_BASE) return null;
   try {
-    const { data } = await secondaryClient.get(`/film/${slug}`, {
+    const response = await secondaryClient.get(`/film/${slug}`, {
       signal: options.signal,
+      validateStatus: (status) => (status >= 200 && status < 300) || status === 404,
     });
+
+    if (response?.status === 404) return null;
+    const data = response?.data;
 
     const movieData = data?.movie || data?.data?.movie || data?.data || data;
     const rawEpisodes = movieData?.episodes || data?.episodes || [];

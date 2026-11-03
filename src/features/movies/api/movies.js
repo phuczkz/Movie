@@ -410,7 +410,15 @@ export const getDetail = (slug) =>
             kkMovie.year
           );
         } catch (e) {
-          console.warn("[getDetail] Secondary source fetch failed", e?.message);
+          if (
+            e?.response?.status !== 404 &&
+            e?.status !== 404 &&
+            e?.code !== "ERR_CANCELED" &&
+            e?.name !== "CanceledError" &&
+            e?.name !== "AbortError"
+          ) {
+            console.warn("[getDetail] Secondary source fetch failed", e?.message);
+          }
         }
       } else {
         // KKphim has no movie for this slug (movie only exists on secondary source).
@@ -436,7 +444,15 @@ export const getDetail = (slug) =>
             }
           }
         } catch (e) {
-          console.warn("[getDetail] Secondary direct detail fetch failed", e?.message);
+          if (
+            e?.response?.status !== 404 &&
+            e?.status !== 404 &&
+            e?.code !== "ERR_CANCELED" &&
+            e?.name !== "CanceledError" &&
+            e?.name !== "AbortError"
+          ) {
+            console.warn("[getDetail] Secondary direct detail fetch failed", e?.message);
+          }
         }
       }
 

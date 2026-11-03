@@ -6,8 +6,19 @@ import { useSavedMoviesList } from '@/features/movies/hooks/useSavedMoviesList.j
 import SEO from '@/components/SEO.jsx';
 
 const Saved = () => {
-  const { user } = useAuth();
-  const { movies, loading, error } = useSavedMoviesList();
+  const { user, loading: authLoading } = useAuth();
+  const { movies, loading: moviesLoading, error } = useSavedMoviesList();
+
+  const loading = authLoading || (Boolean(user) && moviesLoading);
+
+  if (authLoading) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <SEO title="Phim yêu thích" />
+        <div className="loader-orbit loader-orbit-md"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -52,7 +63,7 @@ const Saved = () => {
       ) : movies.length ? (
         <div className="grid-movies">
           {movies.map((movie) => (
-            <MovieCard key={movie.slug || movie.id} movie={movie} autoSyncEpisode={true} />
+            <MovieCard key={movie.slug || movie.id} movie={movie} />
           ))}
         </div>
       ) : (
