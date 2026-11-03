@@ -12,7 +12,7 @@ const DetailDesktopContent = ({
   movie, episodes, selectedEpisodes, serverGroups, selectedServer,
   setUserSelectedServer, isMovie, isCompleted, epTotal, upcomingNotice,
   movieOverride, isTrailer, isTmdb, actorsWithImages, relatedMovies, groups,
-  currentSeason, hasVietsub, hasLongTieng, hasThuyetMinh,
+  currentSeason, hasVietsub, hasLongTieng, hasThuyetMinh, visibleTags,
 }) => {
   return (
     <div className="relative z-10 w-full max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 grid gap-x-6 gap-y-6 lg:grid-cols-[1fr,380px] xl:grid-cols-[1fr,420px] lg:grid-rows-[auto_1fr] items-start">
@@ -50,9 +50,20 @@ const DetailDesktopContent = ({
 
           {Object.keys(serverGroups).length > 1 && !isMovie && !isTrailer ? (
             <div className="flex flex-wrap items-center gap-2">
-              {hasVietsub ? (<button type="button" onClick={() => setUserSelectedServer("Vietsub")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Vietsub" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Vietsub</button>) : null}
-              {hasLongTieng ? (<button type="button" onClick={() => setUserSelectedServer("Lồng Tiếng")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Lồng Tiếng" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Lồng Tiếng</button>) : null}
-              {hasThuyetMinh ? (<button type="button" onClick={() => setUserSelectedServer("Thuyết Minh")} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === "Thuyết Minh" ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}>Thuyết Minh</button>) : null}
+              {(visibleTags || [
+                ...(hasVietsub ? ["Vietsub"] : []),
+                ...(hasLongTieng ? ["Lồng Tiếng"] : []),
+                ...(hasThuyetMinh ? ["Thuyết Minh"] : []),
+              ]).map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setUserSelectedServer(tag)}
+                  className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${selectedServer === tag ? "border-emerald-400/70 bg-emerald-400 text-emerald-950" : "border-white/10 bg-white/5 text-slate-100 hover:border-emerald-400/50 hover:text-emerald-100"}`}
+                >
+                  {tag}
+                </button>
+              ))}
             </div>
           ) : null}
 

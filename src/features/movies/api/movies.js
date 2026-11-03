@@ -17,6 +17,12 @@ import {
   getKKphimByYear,
 } from "./movies2";
 import { isAdultMovie } from "@/utils/filter";
+import {
+  getSecondaryEpisodes,
+  getSecondaryDetail,
+  searchSecondaryApi,
+  SECONDARY_PROVIDER_KEY,
+} from "./supplementalApi";
 
 
 
@@ -58,7 +64,8 @@ const normalizeServerName = (name) => {
   return raw;
 };
 
-const normalizeProvider = () => {
+const normalizeProvider = (provider) => {
+  if (provider === SECONDARY_PROVIDER_KEY) return SECONDARY_PROVIDER_KEY;
   return "kkphim";
 };
 
@@ -93,12 +100,6 @@ const getEpisodeEmbedLink = (ep = {}) => {
   return "";
 };
 
-const getEpisodeSourceKind = (ep = {}) => {
-  const link = getEpisodePlayableLink(ep);
-  if (link) return "m3u8";
-  return "unknown";
-};
-
 const normalizeEpisodeSlug = (value = "") =>
   String(value)
     .trim()
@@ -108,9 +109,8 @@ const normalizeEpisodeSlug = (value = "") =>
 
 
 
-const mergeEpisodes = (kkList = []) => {
+const mergeEpisodes = (kkList = [], secondaryList = []) => {
   const map = new Map();
-
 
   const isEndEpisodeName = (name = "") => {
     const clean = name.toLowerCase();
@@ -134,6 +134,12 @@ const mergeEpisodes = (kkList = []) => {
   };
 
   const primaryEndNum = getEndEpisodeNumber(kkList);
+
+  // Highest episode number from secondary source
+  const secondaryLatestEpNum = secondaryList.reduce((max, ep) => {
+    const n = parseEpisodeNumber(ep?.name || ep?.slug);
+    return n !== null && n !== undefined ? Math.max(max, n) : max;
+  }, -1);
 
   const add = (list, priority, providerHint) => {
     const listEndNum = getEndEpisodeNumber(list);
@@ -161,23 +167,30 @@ const mergeEpisodes = (kkList = []) => {
       if (!baseKey) return;
 
       const current = map.get(key);
-      const prefers = !current || priority < current.priority;
       const playableLink = getEpisodePlayableLink(ep);
-      const hasLink = Boolean(playableLink);
+      const embedLink = getEpisodeEmbedLink(ep);
+      const effectiveLink = playableLink || embedLink || ep.link || "";
+      const hasLink = Boolean(effectiveLink);
+
       const nextSources = {
         ...(current?.sources || {}),
+        ...(ep._providers || {}),
       };
-      if (hasLink) {
+
+      if (playableLink) {
         nextSources[provider] = {
           link: playableLink,
-          kind: getEpisodeSourceKind(ep),
+          kind: "m3u8",
+        };
+      } else if (embedLink) {
+        nextSources[provider] = {
+          link: embedLink,
+          kind: "embed",
         };
       }
 
       // Lưu link embed như một nguồn dự phòng (fallback provider).
-      // Tên key: 'backup'. Loại: 'embed'. Dùng khi nguồn m3u8 chính gặp sự cố.
-      const embedLink = getEpisodeEmbedLink(ep);
-      if (embedLink) {
+      if (embedLink && !nextSources["backup"]) {
         nextSources["backup"] = {
           link: embedLink,
           kind: "embed",
@@ -185,33 +198,48 @@ const mergeEpisodes = (kkList = []) => {
       }
 
       const currentHasLink = Boolean(
-        Object.values(nextSources).some((item) => item?.link) ||
+        Object.values(current?.sources || {}).some((item) => item?.link) ||
           current?.ep?.link_m3u8 ||
-          current?.ep?.m3u8 ||
-          current?.ep?.linkplay ||
+          current?.ep?.link_embed ||
           current?.ep?.link
       );
+
+      const prefers = !current || priority < current.priority;
+
+      // "khi click vào tập mới nhất của API 2 thì lúc đó sẽ dùng nguồn 2 để phát"
+      const isSecondaryLatest =
+        provider === SECONDARY_PROVIDER_KEY &&
+        epNum !== null &&
+        epNum >= secondaryLatestEpNum &&
+        secondaryLatestEpNum > 0;
 
       if (prefers || (!currentHasLink && hasLink)) {
         map.set(key, {
           ep: {
             ...ep,
             server_name: serverLabel,
-            _provider: provider,
-            _preferredProvider: provider,
+            _provider: isSecondaryLatest ? SECONDARY_PROVIDER_KEY : provider,
+            _preferredProvider: isSecondaryLatest
+              ? SECONDARY_PROVIDER_KEY
+              : (ep._preferredProvider || provider),
             _providers: nextSources,
           },
           priority,
           epNum: epNum ?? -1,
           sources: nextSources,
         });
-      } else if ((hasLink || embedLink) && current) {
+      } else if (current) {
+        const targetPreferred = isSecondaryLatest
+          ? SECONDARY_PROVIDER_KEY
+          : current.ep._preferredProvider || current.ep._provider;
+
         map.set(key, {
           ...current,
           sources: nextSources,
           ep: {
             ...current.ep,
             _providers: nextSources,
+            _preferredProvider: targetPreferred,
           },
         });
       }
@@ -219,6 +247,8 @@ const mergeEpisodes = (kkList = []) => {
   };
 
   add(kkList, 0, "kkphim");
+  // Merge secondary source episodes (priority 1)
+  add(secondaryList, 1, SECONDARY_PROVIDER_KEY);
 
   const merged = Array.from(map.values()).map(({ ep, sources }) => ({
     ...ep,
@@ -369,7 +399,51 @@ export const getDetail = (slug) =>
 
       const { movie: kkMovie, episodes: kkEpisodes = [] } = kkResult || {};
 
-      const mergedEpisodes = mergeEpisodes(kkEpisodes);
+      let secondaryResult = null;
+      if (kkMovie?.name) {
+        // Fetch supplemental episodes from secondary source (non-blocking, best-effort)
+        try {
+          secondaryResult = await getSecondaryEpisodes(
+            slug,
+            kkMovie.name,
+            kkMovie.origin_name,
+            kkMovie.year
+          );
+        } catch (e) {
+          console.warn("[getDetail] Secondary source fetch failed", e?.message);
+        }
+      } else {
+        // KKphim has no movie for this slug (movie only exists on secondary source).
+        // Fetch movie details and episodes directly from secondary source.
+        try {
+          secondaryResult = await getSecondaryDetail(slug, { signal: abortController.signal });
+          if (!secondaryResult?.movie) {
+            const cleanSlug = slug
+              .replace(/[-_]/g, " ")
+              .replace(/\b(and|va|full|hd|raw|sub|tap|phim)\b/gi, " ")
+              .replace(/\s+/g, " ")
+              .trim();
+            if (cleanSlug) {
+              const hits = await searchSecondaryApi(cleanSlug);
+              const bestHit = hits?.find(
+                (h) => h?.slug === slug || (h?.name && cleanSlug.includes(h.name.toLowerCase()))
+              );
+              if (bestHit?.slug) {
+                secondaryResult = await getSecondaryDetail(bestHit.slug, {
+                  signal: abortController.signal,
+                });
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[getDetail] Secondary direct detail fetch failed", e?.message);
+        }
+      }
+
+      const secondaryEpisodes = secondaryResult?.episodes || [];
+      const secMovie = secondaryResult?.movie || null;
+
+      const mergedEpisodes = mergeEpisodes(kkEpisodes, secondaryEpisodes);
 
       const episodes = (mergedEpisodes.length ? mergedEpisodes : []).map(
         (ep) => ({
@@ -378,7 +452,7 @@ export const getDetail = (slug) =>
         })
       );
 
-      const movie = kkMovie?.name ? kkMovie : null;
+      const movie = kkMovie?.name ? kkMovie : (secMovie?.name ? secMovie : null);
 
       if (isAdultMovie(movie)) {
         return { movie: null, episodes: [] };

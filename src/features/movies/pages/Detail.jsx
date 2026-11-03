@@ -275,6 +275,18 @@ const Detail = () => {
   const hasLongTieng = !!serverGroups["Lồng Tiếng"]?.length;
   const hasThuyetMinh = !!serverGroups["Thuyết Minh"]?.length;
 
+  // Build a de-duplicated, capped list of language tags (max 3).
+  // Tags come from ALL merged episodes (both primary & secondary sources).
+  const visibleTags = useMemo(() => {
+    const allTagLabels = ["Vietsub", "Thuyết Minh", "Lồng Tiếng"];
+    const available = allTagLabels.filter((tag) => !!serverGroups[tag]?.length);
+    const knownSet = new Set(allTagLabels);
+    const extra = Object.keys(serverGroups)
+      .filter((label) => !knownSet.has(label) && serverGroups[label]?.length)
+      .slice(0, Math.max(0, 3 - available.length));
+    return [...available, ...extra].slice(0, 3);
+  }, [serverGroups]);
+
   const preferredServer = useMemo(() => {
     if (hasVietsub) return "Vietsub";
     if (hasLongTieng) return "Lồng Tiếng";
@@ -679,6 +691,7 @@ const Detail = () => {
           toggleSave={toggleSave}
           mobileSection={mobileSection}
           setMobileSection={setMobileSection}
+          visibleTags={visibleTags}
         />
 
         <DetailMobileContent
@@ -703,6 +716,7 @@ const Detail = () => {
           hasVietsub={hasVietsub}
           hasLongTieng={hasLongTieng}
           hasThuyetMinh={hasThuyetMinh}
+          visibleTags={visibleTags}
         />
 
         <DetailDesktopContent
@@ -726,6 +740,7 @@ const Detail = () => {
           hasVietsub={hasVietsub}
           hasLongTieng={hasLongTieng}
           hasThuyetMinh={hasThuyetMinh}
+          visibleTags={visibleTags}
         />
       </div>
 

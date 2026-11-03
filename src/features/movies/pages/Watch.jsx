@@ -39,17 +39,20 @@ import SEO from '@/components/SEO.jsx';
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
+  nguon2: "Nguồn 2",
   backup: "Dự phòng",
 };
 
 const PROVIDER_SOURCE_NAMES = {
   kkphim: "Nguồn chính",
+  nguon2: "Nguồn 2",
   backup: "Dự phòng",
 };
 
 const normalizeProviderParam = (value) => {
   const lower = (value || "").toString().trim().toLowerCase();
   if (lower === "kkphim") return "kkphim";
+  if (lower === "nguon2") return "nguon2";
   if (lower === "backup" || lower === "embed") return "backup";
   return null;
 };
@@ -265,8 +268,14 @@ const Watch = () => {
   );
   // Tất cả providers kể cả embed — hiển thị trên UI cho người dùng chứ
   const availableProviders = Object.entries(episodeProviders).flatMap(([k, v]) => v?.link ? [k] : []);
-  // preferredProvider luôn là m3u8, không auto-chọn embed
-  const preferredProvider = normalizeProviderParam(activeEpisode?._preferredProvider) || m3u8Providers[0] || null;
+  // preferredProvider ưu tiên theo _preferredProvider của tập, nếu không có thì lấy m3u8 đầu tiên hoặc provider đầu tiên có sẵn
+  const preferredProvider =
+    (activeEpisode?._preferredProvider && episodeProviders[activeEpisode._preferredProvider]?.link
+      ? normalizeProviderParam(activeEpisode._preferredProvider)
+      : null) ||
+    m3u8Providers[0] ||
+    availableProviders[0] ||
+    null;
   const activeProvider = (selectedProviderParam && episodeProviders[selectedProviderParam]?.link ? selectedProviderParam : null) || (autoProviderOverride && episodeProviders[autoProviderOverride]?.link ? autoProviderOverride : null) || preferredProvider;
   const activeProviderLabel = PROVIDER_LABELS[activeProvider] || "Mặc định";
 
@@ -319,10 +328,11 @@ const Watch = () => {
 
       // If a working fallback provider is found
       if (fallbackProvider) {
+        const fallbackLabel = PROVIDER_LABELS[fallbackProvider] || fallbackProvider;
         return {
           key: playbackScopeKey,
-          provider: "backup",
-          notice: `Nguồn m3u8 đang gặp sự cố. Đã tự động chuyển sang nguồn Dự phòng.`
+          provider: fallbackProvider,
+          notice: `Nguồn phát gặp sự cố. Đã tự động chuyển sang ${fallbackLabel}.`
         };
       }
 

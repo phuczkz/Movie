@@ -1,6 +1,18 @@
 import axios from "axios";
 import { filterAdultMovies, isAdultMovie, isForbiddenGenre } from '@/utils/filter';
 import { normalizeImageUrl } from '@/utils/image-helper';
+import {
+  getSecondaryLatest,
+  getSecondarySeries,
+  getSecondarySingle,
+  getSecondaryDangChieu,
+  getSecondaryHoatHinh,
+  getSecondaryByCategory,
+  getSecondaryByCountry,
+  getSecondaryByYear,
+  searchSecondaryApi,
+  cancelAllSecondaryRequests,
+} from "./supplementalApi";
 
 // Helpers to escape and decode HTML entities for search queries and display names
 const decodeHtmlEntities = (str = "") => {
@@ -14,6 +26,14 @@ const decodeHtmlEntities = (str = "") => {
     .replace(/&apos;/g, "'");
 };
 
+const normalizeCompareText = (text = "") =>
+  (text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 
 const apiBase = import.meta.env.VITE_KKPHIM_API;
 const imageCdn = (import.meta.env.VITE_KKPHIM_IMAGE_CDN || "").replace(
@@ -120,13 +140,14 @@ kkphim.interceptors.response.use(
 );
 
 /**
- * Cancel all pending KKphim API requests.
+ * Cancel all pending KKphim and Secondary API requests.
  */
 export const cancelAllKKphimRequests = () => {
   _pendingControllers.forEach((controller) => {
     try { controller.abort(); } catch { /* ignore */ }
   });
   _pendingControllers.clear();
+  cancelAllSecondaryRequests();
 };
 
 const normalizePosterUrl = (url = "") => {
@@ -165,6 +186,7 @@ const normalizeKKphimMovie = (raw = {}) => {
     // Expose TMDB metadata (id, type, etc.) for direct asset lookup
     tmdb: raw.tmdb || null,
     origin: raw,
+    _source: "kkphim",
   };
 };
 
@@ -206,11 +228,110 @@ const attachPagination = (list, pagination) => {
   return list;
 };
 
+/**
+ * Merges primary (KKphim) and secondary (NguonC) list results.
+ * - Spans totalPages and totalItems across both sources (e.g. 33,612 items, 1,401 pages).
+ * - Serves KKphim items first on available pages and supplements missing movies from NguonC.
+ * - When KKphim has no items (e.g. page > 1271 or failed), seamlessly supplies from NguonC.
+ */
+const mergeListResults = (kkResult = [], secResult = [], page = 1) => {
+  const kkPagination = kkResult.pagination || {
+    totalPages: kkResult.totalPages || (kkResult.length ? 1 : 0),
+    totalItems: kkResult.totalItems || kkResult.length,
+    currentPage: page,
+  };
+  const secPagination = secResult.pagination || {
+    totalPages: secResult.totalPages || (secResult.length ? 1 : 0),
+    totalItems: secResult.totalItems || secResult.length,
+    currentPage: page,
+  };
+
+  const totalPages = Math.max(
+    Number(kkPagination.totalPages) || 0,
+    Number(secPagination.totalPages) || 0,
+    1
+  );
+  const totalItems = Math.max(
+    Number(kkPagination.totalItems) || 0,
+    Number(secPagination.totalItems) || 0,
+    kkResult.length + secResult.length
+  );
+
+  const pagination = {
+    totalPages,
+    totalItems,
+    currentPage: page,
+    totalItemsPerPage: 24,
+    hasNext: totalPages > page,
+  };
+
+  // Case 1: KKphim has no items for this page (e.g. page > 1271 or KKphim errored/empty)
+  if (!kkResult.length) {
+    return attachPagination(secResult, pagination);
+  }
+
+  // Case 2: Secondary source has no items
+  if (!secResult.length) {
+    return attachPagination(kkResult, pagination);
+  }
+
+  // Case 3: Both have items. KKphim is primary; supplement any movies from secondary not present in KKphim.
+  const seenSlugs = new Set();
+  const seenNames = new Set();
+  for (const it of kkResult) {
+    if (it.slug) seenSlugs.add(it.slug.toLowerCase().trim());
+    if (it.name) seenNames.add(normalizeCompareText(it.name));
+  }
+
+  const supplemental = [];
+  for (const it of secResult) {
+    const s = (it.slug || "").toLowerCase().trim();
+    const n = normalizeCompareText(it.name || "");
+    if (s && !seenSlugs.has(s) && n && !seenNames.has(n)) {
+      seenSlugs.add(s);
+      seenNames.add(n);
+      supplemental.push(it);
+    }
+  }
+
+  const combinedItems = [...kkResult, ...supplemental];
+  return attachPagination(combinedItems, pagination);
+};
+
+const SECONDARY_LIST_MAP = {
+  "/danh-sach/phim-moi-cap-nhat": getSecondaryLatest,
+  "/danh-sach/phim-bo": getSecondarySeries,
+  "/danh-sach/phim-le": getSecondarySingle,
+  "/danh-sach/phim-chieu-rap": getSecondaryDangChieu,
+  "/danh-sach/hoat-hinh": getSecondaryHoatHinh,
+};
+
 const fetchList = async (path, page = 1, extraParams = {}) => {
   if (extraParams.category && isForbiddenGenre(extraParams.category)) {
     return [];
   }
   const config = { params: { page, ...extraParams } };
+  const secFetcher = SECONDARY_LIST_MAP[path];
+
+  if (secFetcher) {
+    const [kkRes, secRes] = await Promise.allSettled([
+      kkphim.get(path, config).then((res) => {
+        const items = res?.data?.data?.items || res?.data?.items || [];
+        const pagination = extractPagination(res.data, items.length, page);
+        const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+        return attachPagination(filtered, pagination);
+      }),
+      secFetcher(page, extraParams).catch(() => []),
+    ]);
+
+    const kkList =
+      kkRes.status === "fulfilled" && Array.isArray(kkRes.value) ? kkRes.value : [];
+    const secList =
+      secRes.status === "fulfilled" && Array.isArray(secRes.value) ? secRes.value : [];
+
+    return mergeListResults(kkList, secList, page);
+  }
+
   const { data } = await kkphim.get(path, config);
   const items = data?.data?.items || data?.items || [];
   const pagination = extractPagination(data, items.length, page);
@@ -284,40 +405,66 @@ export const searchKKphim = async (keyword, page = 1, limit = 24) => {
   const cleanKeyword = (keyword || "").toString().trim();
   if (!cleanKeyword) return attachPagination([], extractPagination(null, 0, page));
 
-  const { data } = await kkphim.get("/tim-kiem", {
-    params: { keyword: cleanKeyword, page, limit },
-  });
-  const items = data?.data?.items || data?.items || [];
-  const pagination = extractPagination(data, items.length, page);
-  const filtered = filterAdultMovies(items.map(normalizeKKphimMovie));
-  return attachPagination(filtered, pagination);
+  const [kkRes, secRes] = await Promise.allSettled([
+    kkphim
+      .get("/tim-kiem", {
+        params: { keyword: cleanKeyword, page, limit },
+      })
+      .then((res) => {
+        const items = res?.data?.data?.items || res?.data?.items || [];
+        const pagination = extractPagination(res.data, items.length, page);
+        const filtered = filterAdultMovies(items.map(normalizeKKphimMovie));
+        return attachPagination(filtered, pagination);
+      }),
+    searchSecondaryApi(cleanKeyword, page).catch(() => []),
+  ]);
+
+  const kkList =
+    kkRes.status === "fulfilled" && Array.isArray(kkRes.value) ? kkRes.value : [];
+  const secList =
+    secRes.status === "fulfilled" && Array.isArray(secRes.value) ? secRes.value : [];
+
+  return mergeListResults(kkList, secList, page);
 };
 
 export const getKKphimByYear = async (year, page = 1) => {
-  const [le, bo] = await Promise.all([
-    kkphim
-      .get("/danh-sach/phim-le", { params: { year, page } })
-      .catch(() => ({ data: null })),
-    kkphim
-      .get("/danh-sach/phim-bo", { params: { year, page } })
-      .catch(() => ({ data: null })),
+  const [kkRes, secRes] = await Promise.allSettled([
+    Promise.all([
+      kkphim
+        .get("/danh-sach/phim-le", { params: { year, page } })
+        .catch(() => ({ data: null })),
+      kkphim
+        .get("/danh-sach/phim-bo", { params: { year, page } })
+        .catch(() => ({ data: null })),
+    ]).then(([le, bo]) => {
+      const items = [
+        ...(le?.data?.data?.items || le?.data?.items || []),
+        ...(bo?.data?.data?.items || bo?.data?.items || []),
+      ];
+      const leTotalPages = Number(le?.data?.data?.params?.pagination?.totalPages) || 0;
+      const boTotalPages = Number(bo?.data?.data?.params?.pagination?.totalPages) || 0;
+      const totalPages = Math.max(1, leTotalPages, boTotalPages);
+      const totalItems =
+        (Number(le?.data?.data?.params?.pagination?.totalItems) || 0) +
+        (Number(bo?.data?.data?.params?.pagination?.totalItems) || 0);
+      const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+      return attachPagination(filtered, {
+        totalPages,
+        totalItems,
+        currentPage: page,
+        totalItemsPerPage: 24,
+        hasNext: totalPages > page,
+      });
+    }),
+    getSecondaryByYear(year, page).catch(() => []),
   ]);
-  const items = [
-    ...(le?.data?.data?.items || le?.data?.items || []),
-    ...(bo?.data?.data?.items || bo?.data?.items || []),
-  ];
-  const leTotalPages = Number(le?.data?.data?.params?.pagination?.totalPages) || 0;
-  const boTotalPages = Number(bo?.data?.data?.params?.pagination?.totalPages) || 0;
-  const totalPages = Math.max(1, leTotalPages, boTotalPages);
-  const totalItems = (Number(le?.data?.data?.params?.pagination?.totalItems) || 0) + (Number(bo?.data?.data?.params?.pagination?.totalItems) || 0);
-  const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
-  return attachPagination(filtered, {
-    totalPages,
-    totalItems,
-    currentPage: page,
-    totalItemsPerPage: 24,
-    hasNext: totalPages > page,
-  });
+
+  const kkList =
+    kkRes.status === "fulfilled" && Array.isArray(kkRes.value) ? kkRes.value : [];
+  const secList =
+    secRes.status === "fulfilled" && Array.isArray(secRes.value) ? secRes.value : [];
+
+  return mergeListResults(kkList, secList, page);
 };
 
 const KNOWN_COUNTRIES = new Set([
@@ -348,17 +495,35 @@ export const isValidCategorySlug = (slug) => {
 };
 
 export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
-  if (!slug || !isValidCategorySlug(slug) || isForbiddenGenre(slug) || (extraParams.category && isForbiddenGenre(extraParams.category))) {
+  if (
+    !slug ||
+    !isValidCategorySlug(slug) ||
+    isForbiddenGenre(slug) ||
+    (extraParams.category && isForbiddenGenre(extraParams.category))
+  ) {
     return [];
   }
   try {
-    const { data } = await kkphim.get(`/the-loai/${slug}`, {
-      params: { page, ...extraParams },
-    });
-    const items = data?.data?.items || data?.items || [];
-    const pagination = extractPagination(data, items.length, page);
-    const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
-    return attachPagination(filtered, pagination);
+    const [kkRes, secRes] = await Promise.allSettled([
+      kkphim
+        .get(`/the-loai/${slug}`, {
+          params: { page, ...extraParams },
+        })
+        .then((res) => {
+          const items = res?.data?.data?.items || res?.data?.items || [];
+          const pagination = extractPagination(res.data, items.length, page);
+          const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+          return attachPagination(filtered, pagination);
+        }),
+      getSecondaryByCategory(slug, page, extraParams).catch(() => []),
+    ]);
+
+    const kkList =
+      kkRes.status === "fulfilled" && Array.isArray(kkRes.value) ? kkRes.value : [];
+    const secList =
+      secRes.status === "fulfilled" && Array.isArray(secRes.value) ? secRes.value : [];
+
+    return mergeListResults(kkList, secList, page);
   } catch (error) {
     if (error?.response?.status === 404) return [];
     throw error;
@@ -366,17 +531,34 @@ export const getKKphimByCategory = async (slug, page = 1, extraParams = {}) => {
 };
 
 export const getKKphimByCountry = async (slug, page = 1, extraParams = {}) => {
-  if (!slug || !isValidCountrySlug(slug) || (extraParams.category && isForbiddenGenre(extraParams.category))) {
+  if (
+    !slug ||
+    !isValidCountrySlug(slug) ||
+    (extraParams.category && isForbiddenGenre(extraParams.category))
+  ) {
     return [];
   }
   try {
-    const { data } = await kkphim.get(`/quoc-gia/${slug}`, {
-      params: { page, ...extraParams },
-    });
-    const items = data?.data?.items || data?.items || [];
-    const pagination = extractPagination(data, items.length, page);
-    const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
-    return attachPagination(filtered, pagination);
+    const [kkRes, secRes] = await Promise.allSettled([
+      kkphim
+        .get(`/quoc-gia/${slug}`, {
+          params: { page, ...extraParams },
+        })
+        .then((res) => {
+          const items = res?.data?.data?.items || res?.data?.items || [];
+          const pagination = extractPagination(res.data, items.length, page);
+          const filtered = filterAdultMovies(uniqueBySlug(items).map(normalizeKKphimMovie));
+          return attachPagination(filtered, pagination);
+        }),
+      getSecondaryByCountry(slug, page, extraParams).catch(() => []),
+    ]);
+
+    const kkList =
+      kkRes.status === "fulfilled" && Array.isArray(kkRes.value) ? kkRes.value : [];
+    const secList =
+      secRes.status === "fulfilled" && Array.isArray(secRes.value) ? secRes.value : [];
+
+    return mergeListResults(kkList, secList, page);
   } catch (error) {
     if (error?.response?.status === 404) return [];
     throw error;

@@ -35,6 +35,7 @@ const DetailHero = ({
   toggleSave,
   mobileSection,
   setMobileSection,
+  visibleTags,
 }) => {
   const [bannerLoaded, setBannerLoaded] = useState(false);
   const [posterLoaded, setPosterLoaded] = useState(false);
@@ -209,11 +210,17 @@ const DetailHero = ({
                   {movie.quality}
                 </span>
               )}
-              {showLang && (
+              {visibleTags && visibleTags.length > 0 ? (
+                visibleTags.map((tag) => (
+                  <span key={tag} className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
+                    {tag}
+                  </span>
+                ))
+              ) : showLang ? (
                 <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                   {movie.lang}
                 </span>
-              )}
+              ) : null}
               {movie?.time && (
                 <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                   {movie.time}
@@ -257,11 +264,17 @@ const DetailHero = ({
                     {movie.quality}
                   </span>
                 )}
-                {showLang && (
+                {visibleTags && visibleTags.length > 0 ? (
+                  visibleTags.map((tag) => (
+                    <span key={tag} className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
+                      {tag}
+                    </span>
+                  ))
+                ) : showLang ? (
                   <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                     {movie.lang}
                   </span>
-                )}
+                ) : null}
                 {movie?.time && (
                   <span className="rounded-full bg-black/30 backdrop-blur-sm border border-white/10 px-3 py-1">
                     {movie.time}

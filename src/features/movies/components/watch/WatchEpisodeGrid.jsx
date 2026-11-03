@@ -19,6 +19,7 @@ const formatEpisodeName = (name = "") => {
 
 const PROVIDER_LABELS = {
   kkphim: "Nguồn 1",
+  nguon2: "Nguồn 2",
   backup: "Dự phòng",
 };
 
