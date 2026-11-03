@@ -145,9 +145,11 @@ export const extractEmbedLink = (ep = {}) => {
 export const normalizeSecondaryMovie = (raw = {}) => {
   if (!raw || typeof raw !== "object") return null;
 
-  const poster_url = normalizePosterUrl(raw.poster_url || raw.thumb_url);
+  const poster_url = normalizePosterUrl(
+    raw.poster_url || raw.poster_url_webp || raw.thumb_url || raw.thumb_url_webp
+  );
   const thumb_url = normalizePosterUrl(
-    raw.thumb_url || raw.poster_url || raw.banner || raw.backdrop_url
+    raw.thumb_url || raw.thumb_url_webp || raw.poster_url || raw.poster_url_webp || raw.banner || raw.backdrop_url
   );
 
   // Categories in NguonC: can be array or object (e.g. { "1": { id, name, slug } })

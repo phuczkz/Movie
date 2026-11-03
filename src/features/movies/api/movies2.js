@@ -230,11 +230,15 @@ const attachPagination = (list, pagination) => {
 
 /**
  * Merges primary (KKphim) and secondary (NguonC) list results.
- * - Spans totalPages and totalItems across both sources (e.g. 33,612 items, 1,401 pages).
- * - Serves KKphim items first on available pages and supplements missing movies from NguonC.
- * - When KKphim has no items (e.g. page > 1271 or failed), seamlessly supplies from NguonC.
+ * - Spans totalPages and totalItems across both sources.
+ * - For category / list browsing: serves KKphim items on available pages.
+ *   Does NOT append secondary items to the bottom of the page when KKphim already has items,
+ *   preventing mismatched posters / different image styles.
+ * - When KKphim has no items (e.g. page beyond KKphim range or KKphim errored/empty),
+ *   seamlessly supplies from NguonC.
+ * - For search (isSearch = true): combines KKphim results with unique matches from NguonC.
  */
-const mergeListResults = (kkResult = [], secResult = [], page = 1) => {
+const mergeListResults = (kkResult = [], secResult = [], page = 1, isSearch = false) => {
   const kkPagination = kkResult.pagination || {
     totalPages: kkResult.totalPages || (kkResult.length ? 1 : 0),
     totalItems: kkResult.totalItems || kkResult.length,
@@ -265,7 +269,7 @@ const mergeListResults = (kkResult = [], secResult = [], page = 1) => {
     hasNext: totalPages > page,
   };
 
-  // Case 1: KKphim has no items for this page (e.g. page > 1271 or KKphim errored/empty)
+  // Case 1: KKphim has no items for this page (e.g. page beyond KKphim range or KKphim errored/empty)
   if (!kkResult.length) {
     return attachPagination(secResult, pagination);
   }
@@ -275,7 +279,14 @@ const mergeListResults = (kkResult = [], secResult = [], page = 1) => {
     return attachPagination(kkResult, pagination);
   }
 
-  // Case 3: Both have items. KKphim is primary; supplement any movies from secondary not present in KKphim.
+  // For category/list browsing: When KKphim (primary) already has items,
+  // do NOT append secondary items to the bottom of the page.
+  // This ensures 100% consistent 24 posters from KKphim without weird/different images at the bottom.
+  if (!isSearch) {
+    return attachPagination(kkResult, pagination);
+  }
+
+  // Case 3 (Only for search): Combine KKphim results with unique matches from secondary source
   const seenSlugs = new Set();
   const seenNames = new Set();
   for (const it of kkResult) {
@@ -424,7 +435,7 @@ export const searchKKphim = async (keyword, page = 1, limit = 24) => {
   const secList =
     secRes.status === "fulfilled" && Array.isArray(secRes.value) ? secRes.value : [];
 
-  return mergeListResults(kkList, secList, page);
+  return mergeListResults(kkList, secList, page, true);
 };
 
 export const getKKphimByYear = async (year, page = 1) => {

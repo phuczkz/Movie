@@ -1,8 +1,81 @@
 import { Link } from "react-router-dom";
-import { getOptimizedPoster } from '@/utils/image-helper.js';
+import { usePosterFallback } from "@/features/movies/hooks/usePosterFallback.js";
 
 const fallbackPoster =
   "https://placehold.co/120x180/0f172a/94a3b8?text=N/A";
+
+const RankingItem = ({ movie, index, isHiddenOnMobile }) => {
+  const { posterSrc, handlePosterError } = usePosterFallback(
+    movie,
+    100,
+    70,
+    fallbackPoster
+  );
+
+  const episodeText = (() => {
+    const raw = (movie.episode_current || "").toLowerCase();
+    if (raw.includes("full") || raw.includes("hoàn tất")) return "Full";
+    if (raw.includes("tập")) return movie.episode_current;
+    return movie.episode_current || "";
+  })();
+
+  const rankColor =
+    index === 0
+      ? "text-amber-400"
+      : index === 1
+        ? "text-slate-300"
+        : index === 2
+          ? "text-amber-700"
+          : "text-slate-500";
+
+  return (
+    <Link
+      to={`/movie/${movie.slug}`}
+      state={{ movie }}
+      className={`${
+        isHiddenOnMobile ? "hidden lg:flex" : "flex"
+      } items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-white/5 transition-colors group`}
+    >
+      {/* Rank number */}
+      <span
+        className={`flex-shrink-0 w-7 text-center text-lg font-black tabular-nums ${rankColor}`}
+      >
+        {index + 1}
+      </span>
+
+      {/* Small poster */}
+      <div className="flex-shrink-0 w-10 h-[60px] sm:w-12 sm:h-[72px] rounded overflow-hidden bg-slate-800">
+        <img
+          src={posterSrc}
+          alt={movie.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={handlePosterError}
+        />
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <h3 className="text-sm font-semibold text-white line-clamp-1 group-hover:text-emerald-400 transition-colors">
+          {movie.name}
+        </h3>
+        {movie.origin_name && movie.origin_name !== movie.name && (
+          <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+            {movie.origin_name}
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-1">
+          {episodeText && (
+            <span className="text-[11px] text-emerald-500 font-medium">
+              {episodeText}
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+};
 
 /**
  * WeeklyRanking — Modeled directly on MotChill's "Phim Hot Trong Tuần"
@@ -32,83 +105,14 @@ const WeeklyRanking = ({ movies = [], title = "Phim hot trong tuần" }) => {
 
       <div className="flex-1 min-h-0 lg:max-h-none rounded-xl bg-slate-900/40 border border-white/5 overflow-hidden lg:overflow-y-auto lg:custom-scrollbar">
         <div className="divide-y divide-white/5">
-          {displayMovies.map((movie, i) => {
-            const isHiddenOnMobile = i >= 4;
-            const posterSrc =
-              getOptimizedPoster(
-                movie.poster_url || movie.thumb_url,
-                100,
-                70
-              ) || fallbackPoster;
-
-            const episodeText = (() => {
-              const raw = (movie.episode_current || "").toLowerCase();
-              if (raw.includes("full") || raw.includes("hoàn tất")) return "Full";
-              if (raw.includes("tập")) return movie.episode_current;
-              return movie.episode_current || "";
-            })();
-
-            const rankColor =
-              i === 0
-                ? "text-amber-400"
-                : i === 1
-                  ? "text-slate-300"
-                  : i === 2
-                    ? "text-amber-700"
-                    : "text-slate-500";
-
-            return (
-              <Link
-                key={movie.slug}
-                to={`/movie/${movie.slug}`}
-                state={{ movie }}
-                className={`${
-                  isHiddenOnMobile ? "hidden lg:flex" : "flex"
-                } items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-white/5 transition-colors group`}
-              >
-                {/* Rank number */}
-                <span
-                  className={`flex-shrink-0 w-7 text-center text-lg font-black tabular-nums ${rankColor}`}
-                >
-                  {i + 1}
-                </span>
-
-                {/* Small poster */}
-                <div className="flex-shrink-0 w-10 h-[60px] sm:w-12 sm:h-[72px] rounded overflow-hidden bg-slate-800">
-                  <img
-                    src={posterSrc}
-                    alt={movie.name}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = fallbackPoster;
-                    }}
-                  />
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-white line-clamp-1 group-hover:text-emerald-400 transition-colors">
-                    {movie.name}
-                  </h3>
-                  {movie.origin_name && movie.origin_name !== movie.name && (
-                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                      {movie.origin_name}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    {episodeText && (
-                      <span className="text-[11px] text-emerald-500 font-medium">
-                        {episodeText}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+          {displayMovies.map((movie, i) => (
+            <RankingItem
+              key={movie.slug || i}
+              movie={movie}
+              index={i}
+              isHiddenOnMobile={i >= 4}
+            />
+          ))}
         </div>
       </div>
     </section>

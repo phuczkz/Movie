@@ -340,12 +340,33 @@ async function handleImage(request, env, ctx, corsHeaders) {
     // Accept any image format from origin
     upstreamHeaders.set("Accept", "image/webp,image/avif,image/*,*/*");
 
-    const upstream = await fetch(targetUrl, {
-      method: "GET",
-      headers: upstreamHeaders,
-      redirect: "follow",
-      signal: request.signal,
-    });
+    // Timeout upstream fetch after 4 seconds to prevent hanging on throttled origins
+    const timeoutController = new AbortController();
+    const timer = setTimeout(() => timeoutController.abort(), 4000);
+
+    const onClientAbort = () => timeoutController.abort();
+    if (request.signal) {
+      request.signal.addEventListener("abort", onClientAbort);
+    }
+
+    let upstream;
+    try {
+      upstream = await fetch(targetUrl, {
+        method: "GET",
+        headers: upstreamHeaders,
+        redirect: "follow",
+        signal: timeoutController.signal,
+        cf: {
+          cacheEverything: true,
+          cacheTtl: 2592000, // Cache for 30 days on Cloudflare edge
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+      if (request.signal) {
+        request.signal.removeEventListener("abort", onClientAbort);
+      }
+    }
 
     if (!upstream.ok) {
       return jsonResponse(

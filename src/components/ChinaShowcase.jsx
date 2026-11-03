@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useRef, useState, useEffect, memo } from "react";
 import { Play, ChevronLeft, ChevronRight } from "lucide-react";
-import { getOptimizedPoster } from '@/utils/image-helper.js';
+import { usePosterFallback } from "@/features/movies/hooks/usePosterFallback.js";
 import { isMobile } from '@/utils/responsive.js';
 import Section from '@/components/Section.jsx';
 
@@ -21,15 +21,22 @@ const ChinaCard = ({ movie, priority = false }) => {
   const imgRef = useRef(null);
   const isMobileSize = isMobile();
 
-  const thumbSrc =
-    getOptimizedPoster(
-      movie.thumb_url || movie.poster_url,
-      isMobileSize ? 480 : 720,
-      isMobileSize ? 70 : 80
-    ) || fallbackThumb;
+  const {
+    posterSrc: thumbSrc,
+    handlePosterError,
+    handlePosterLoad,
+    isLoaded: hookLoaded,
+  } = usePosterFallback(
+    movie,
+    isMobileSize ? 480 : 720,
+    isMobileSize ? 70 : 80,
+    fallbackThumb,
+    () => setLoaded(true),
+    "thumb"
+  );
 
   const isCached = Boolean(thumbSrc && loadedChinaCache.has(thumbSrc));
-  const isImageReady = loaded || isCached;
+  const isImageReady = loaded || isCached || hookLoaded;
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
@@ -74,16 +81,11 @@ const ChinaCard = ({ movie, priority = false }) => {
           } ${isCached ? "" : "transition-all duration-500"}`}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          onLoad={handleImageLoad}
-          onError={(e) => {
-            if (movie.poster_url && e.currentTarget.src !== movie.poster_url) {
-              e.currentTarget.src = movie.poster_url;
-            } else {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = fallbackThumb;
-            }
+          onLoad={() => {
             handleImageLoad();
+            handlePosterLoad();
           }}
+          onError={handlePosterError}
         />
 
         {/* Bottom gradient overlay */}

@@ -31,8 +31,15 @@ const HoverCard = ({
   showBadges = true,
 }) => {
   const { isSaved, toggleSave, loading: favLoading } = useSavedMovie(movie);
+  const [prevThumbSrc, setPrevThumbSrc] = useState(thumbSrc);
+  const [thumbRetryIndex, setThumbRetryIndex] = useState(0);
   const [thumbLoaded, setThumbLoaded] = useState(false);
-  const thumbRetryIndex = useRef(0);
+
+  if (prevThumbSrc !== thumbSrc) {
+    setPrevThumbSrc(thumbSrc);
+    setThumbRetryIndex(0);
+    setThumbLoaded(false);
+  }
 
   const categories = useMemo(() => {
     const cats = movie?.category || [];
@@ -82,16 +89,26 @@ const HoverCard = ({
     return chain;
   }, [thumbFallbacks]);
 
-  const handleThumbError = (e) => {
-    const idx = thumbRetryIndex.current;
-    if (idx < fallbackChain.length) {
-      thumbRetryIndex.current = idx + 1;
-      e.currentTarget.src = fallbackChain[idx];
-    } else {
-      e.currentTarget.onerror = null;
-      e.currentTarget.src = fallbackLandscape;
-      setThumbLoaded(true);
-    }
+  const currentThumbSrc = useMemo(() => {
+    if (thumbRetryIndex === 0) return thumbSrc || fallbackLandscape;
+    const chainIdx = thumbRetryIndex - 1;
+    if (chainIdx < fallbackChain.length) return fallbackChain[chainIdx];
+    return fallbackLandscape;
+  }, [thumbRetryIndex, thumbSrc, fallbackChain]);
+
+  const isExhausted = thumbRetryIndex > fallbackChain.length;
+  const isThumbReady = thumbLoaded || isExhausted || currentThumbSrc === fallbackLandscape;
+
+  useEffect(() => {
+    if (isThumbReady || !currentThumbSrc || currentThumbSrc === fallbackLandscape) return;
+    const timer = setTimeout(() => {
+      setThumbRetryIndex((idx) => idx + 1);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [isThumbReady, currentThumbSrc]);
+
+  const handleThumbError = () => {
+    setThumbRetryIndex((idx) => idx + 1);
   };
 
   if (!coords || typeof document === "undefined") return null;
@@ -111,12 +128,12 @@ const HoverCard = ({
       {/* ── Landscape image ── */}
       <Link
         to={`/movie/${movie.slug}`}
-        state={{ movie, posterSrc, thumbSrc, isTrailer: isTrailerCard }}
+        state={{ movie, posterSrc, thumbSrc: currentThumbSrc, isTrailer: isTrailerCard }}
         className="hc-thumb block group/thumb"
       >
-        {!thumbLoaded && <div className="absolute inset-0 mc-img-skeleton" />}
+        {!isThumbReady && <div className="absolute inset-0 mc-img-skeleton" />}
         <img
-          src={thumbSrc}
+          src={currentThumbSrc}
           alt={movie.name}
           loading="eager"
           onLoad={() => setThumbLoaded(true)}

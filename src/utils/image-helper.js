@@ -6,7 +6,11 @@ const DIRECT_CDN_HOSTS = [
   "phimimg.com",
 ];
 
-const STREAM_PROXY = (import.meta.env.VITE_STREAM_PROXY || "").trim().replace(/\/$/, "");
+const STREAM_PROXY = (
+  (typeof import.meta !== "undefined" && import.meta?.env?.VITE_STREAM_PROXY) ||
+  (typeof globalThis !== "undefined" && globalThis.process?.env?.VITE_STREAM_PROXY) ||
+  ""
+).trim().replace(/\/$/, "");
 
 /**
  * Check if a URL belongs to a known Vietnamese CDN that should be proxied
@@ -246,7 +250,9 @@ export const getProxiedAvatar = (url, size = 100) => {
 
 export const normalizeImageUrl = (
   url,
-  fallbackCdn = import.meta.env.VITE_KKPHIM_IMAGE_CDN || "https://phimimg.com"
+  fallbackCdn = (typeof import.meta !== "undefined" && import.meta?.env?.VITE_KKPHIM_IMAGE_CDN) ||
+    (typeof globalThis !== "undefined" && globalThis.process?.env?.VITE_KKPHIM_IMAGE_CDN) ||
+    "https://phimimg.com"
 ) => {
   if (!url || typeof url !== "string") return "";
   const trimmed = url.trim();
@@ -288,51 +294,94 @@ export const getAlternateExtensionUrls = (url) => {
 };
 
 /**
- * Builds an ordered fallback chain of candidate URLs to load a movie poster.
- * Prioritizes:
- * 1. Optimized poster URL (Worker /img/ proxy or wsrv.nl fallback)
- * 2. Raw poster URL (direct)
- * 3. Alternate extensions of poster (.jpg <-> .webp)
- * 4. Optimized thumb URL (fallback to thumb if poster fails)
- * 5. Raw thumb URL
- * 6. Alternate extensions of thumb (.webp <-> .jpg)
+ * Detects if a URL belongs to the legacy/syndicated VOD origin
+ * (/upload/vod/...), which suffers from 13-40s TTFB throttling.
+ * @param {string} url
+ * @returns {boolean}
  */
-export const getMoviePosterFallbackChain = (movie, width = 360, quality = 80) => {
+export const isSlowVodUrl = (url) => {
+  if (!url || typeof url !== "string") return false;
+  return url.includes("/upload/vod/") || url.includes("upload/vod/");
+};
+
+/**
+ * Builds an ordered fallback chain of candidate URLs to load a movie poster/thumb.
+ * Prioritizes:
+ * - Direct CDN for fast images (/uploads/movies/...)
+ * - Worker proxy for slow/throttled VOD images (/upload/vod/...) to leverage edge cache
+ * - Thumb/Landscape fallback of the EXACT same movie
+ * - Alternate extensions (.jpg <-> .webp)
+ * NOTE: Strictly avoids blind text-based TMDB search to prevent showing wrong movie posters.
+ *
+ * @param {Object} movie
+ * @param {number} [width=360]
+ * @param {number} [quality=80]
+ * @param {"poster"|"thumb"} [preferred="poster"]
+ * @returns {string[]}
+ */
+export const getMoviePosterFallbackChain = (
+  movie,
+  width = 360,
+  quality = 80,
+  preferred = "poster"
+) => {
   const chain = [];
   const seen = new Set();
 
   const add = (u) => {
-    if (u && typeof u === "string" && !seen.has(u)) {
-      seen.add(u);
-      chain.push(u);
+    if (u && typeof u === "string") {
+      const clean = u.trim();
+      if (clean && !seen.has(clean)) {
+        seen.add(clean);
+        chain.push(clean);
+      }
     }
   };
 
   const rawPoster = normalizeImageUrl(movie?.poster_url);
-  const rawThumb = normalizeImageUrl(movie?.thumb_url || movie?.banner || movie?.backdrop_url);
+  const rawThumb = normalizeImageUrl(
+    movie?.thumb_url || movie?.banner || movie?.backdrop_url
+  );
 
-  // 1. Poster candidates: Ưu tiên tải trực tiếp từ CDN gốc trước (0 request Worker, tốc độ nhanh nhất)
-  if (rawPoster) {
-    add(getOptimizedPoster(rawPoster, width, quality));
-    add(rawPoster);
-    getAlternateExtensionUrls(rawPoster).forEach((altUrl) => {
-      add(altUrl);
-    });
-    // Worker proxy đóng vai trò phao cứu sinh dự phòng cuối cùng nếu link gốc bị lỗi
-    if (STREAM_PROXY && isDirectCdnUrl(rawPoster)) {
-      add(buildImageProxyUrl(rawPoster));
+  const primary = preferred === "thumb" ? (rawThumb || rawPoster) : (rawPoster || rawThumb);
+  const secondary = primary === rawPoster ? rawThumb : rawPoster;
+
+  // 1. Process primary image candidate
+  if (primary) {
+    if (isSlowVodUrl(primary)) {
+      // Đối với link upload/vod/ bị nghẽn:
+      // Thử qua Worker proxy trước (nếu worker đã có Cloudflare edge cache thì tải siêu nhanh 50ms)
+      if (STREAM_PROXY && isDirectCdnUrl(primary)) {
+        add(buildImageProxyUrl(primary));
+      }
+      // Tiếp theo là link gốc (sẽ bị timeout 2.0s kiểm soát ngắt kết nối)
+      add(primary);
+    } else {
+      // Link nhanh (/uploads/movies/...): ưu tiên trực tiếp từ CDN gốc
+      add(getOptimizedPoster(primary, width, quality));
+      add(primary);
+      getAlternateExtensionUrls(primary).forEach(add);
+      if (STREAM_PROXY && isDirectCdnUrl(primary)) {
+        add(buildImageProxyUrl(primary));
+      }
     }
   }
 
-  // 2. Thumb candidates (nếu poster lỗi hoặc không hiển thị, linh hoạt lấy thumb)
-  if (rawThumb && rawThumb !== rawPoster) {
-    add(getOptimizedPoster(rawThumb, width, quality));
-    add(rawThumb);
-    getAlternateExtensionUrls(rawThumb).forEach((altUrl) => {
-      add(altUrl);
-    });
-    if (STREAM_PROXY && isDirectCdnUrl(rawThumb)) {
-      add(buildImageProxyUrl(rawThumb));
+  // 2. Process secondary image candidate (thumb nếu đang lấy poster, hoặc poster nếu đang lấy thumb)
+  if (secondary && secondary !== primary) {
+    if (isSlowVodUrl(secondary)) {
+      if (STREAM_PROXY && isDirectCdnUrl(secondary)) {
+        add(buildImageProxyUrl(secondary));
+      }
+      add(secondary);
+    } else {
+      // Nếu secondary là ảnh nhanh (/uploads/movies/...), nó là ứng viên cực tốt
+      add(getOptimizedPoster(secondary, width, quality));
+      add(secondary);
+      getAlternateExtensionUrls(secondary).forEach(add);
+      if (STREAM_PROXY && isDirectCdnUrl(secondary)) {
+        add(buildImageProxyUrl(secondary));
+      }
     }
   }
 

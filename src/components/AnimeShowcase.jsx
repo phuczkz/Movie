@@ -6,9 +6,39 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-mo
 /* eslint-enable no-unused-vars */
 import { useMovieDetail } from "@/features/movies/hooks/useMovieDetail.js";
 import { useSavedMovie } from "@/features/movies/hooks/useSavedMovie.js";
-import { getOptimizedBanner, getOptimizedPoster } from "@/utils/image-helper.js";
+import { usePosterFallback } from "@/features/movies/hooks/usePosterFallback.js";
+import { getOptimizedBanner } from "@/utils/image-helper.js";
 
 const fallbackImage = "https://placehold.co/1280x720/0f172a/94a3b8?text=Anime";
+
+const AnimeThumbnailButton = ({ mItem, isActive, onClick, fallbackImg }) => {
+    const { posterSrc, handlePosterError } = usePosterFallback(
+        mItem,
+        140,
+        85,
+        fallbackImg
+    );
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`group relative flex-shrink-0 rounded-xl overflow-hidden transition-all duration-300 focus:outline-none shadow-md ${isActive
+                ? "w-[68px] sm:w-[76px] md:w-[82px] aspect-[2/3] border-2 border-white ring-2 ring-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.8)] -translate-y-1 z-10"
+                : "w-[58px] sm:w-[66px] md:w-[72px] aspect-[2/3] border border-white/20 opacity-90 hover:opacity-100 hover:border-white/50 hover:-translate-y-0.5"
+                }`}
+        >
+            <img
+                src={posterSrc}
+                alt={mItem?.name || ""}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+                decoding="async"
+                onError={handlePosterError}
+            />
+        </button>
+    );
+};
 
 const stripHtml = (html = "") => {
     if (!html) return "";
@@ -685,37 +715,16 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
                                 : "justify-start"
                                 }`}
                         >
-                            {movies.map((mItem, idx) => {
-                                const isActive = idx === activeIndex;
-                                const posterUrl = getOptimizedPoster(
-                                    mItem.poster_url || mItem.thumb_url,
-                                    140,
-                                    85
-                                );
-
-                                return (
-                                    <button
-                                        key={mItem.slug || idx}
-                                        type="button"
-                                        onClick={() => setActiveIndex(idx)}
-                                        className={`group relative flex-shrink-0 rounded-xl overflow-hidden transition-all duration-300 focus:outline-none shadow-md ${isActive
-                                            ? "w-[68px] sm:w-[76px] md:w-[82px] aspect-[2/3] border-2 border-white ring-2 ring-emerald-400 shadow-[0_0_18px_rgba(52,211,153,0.8)] -translate-y-1 z-10"
-                                            : "w-[58px] sm:w-[66px] md:w-[72px] aspect-[2/3] border border-white/20 opacity-90 hover:opacity-100 hover:border-white/50 hover:-translate-y-0.5"
-                                            }`}
-                                    >
-                                        <img
-                                            src={posterUrl}
-                                            alt={mItem.name}
-                                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                            loading="lazy"
-                                            onError={(e) => {
-                                                e.currentTarget.onerror = null;
-                                                e.currentTarget.src = fallbackImage;
-                                            }}
-                                        />
-                                    </button>
-                                );
-                            })}
+                            {movies.map((mItem, idx) => (
+                                <AnimeThumbnailButton
+                                    key={mItem.slug || idx}
+                                    mItem={mItem}
+                                    idx={idx}
+                                    isActive={idx === activeIndex}
+                                    onClick={() => setActiveIndex(idx)}
+                                    fallbackImg={fallbackImage}
+                                />
+                            ))}
                         </div>
 
                         {/* Right Arrow */}
