@@ -3,11 +3,19 @@ import { filterAdultMovies, isAdultMovie, isForbiddenGenre } from "@/utils/filte
 import { normalizeImageUrl } from "@/utils/image-helper";
 
 // ── Config ──────────────────────────────────────────────────────────────────
-// Read API base URL from environment variables; fallback if undefined.
-const SECONDARY_API_BASE =
-  import.meta.env.VITE_SECONDARY_API || "https://phim.nguonc.com/api";
+const SECONDARY_API_BASE = (import.meta.env.VITE_SECONDARY_API || "").trim();
 const SECONDARY_PROVIDER_KEY = "nguon2"; // Internal provider key (no domain name)
 const placeholder = "https://placehold.co/600x900/0f172a/94a3b8?text=No+Image";
+
+const getSecondaryOrigin = () => {
+  if (!SECONDARY_API_BASE) return "";
+  try {
+    return new URL(SECONDARY_API_BASE).origin;
+  } catch {
+    return "";
+  }
+};
+const SECONDARY_ORIGIN = getSecondaryOrigin();
 
 const decodeHtmlEntities = (str = "") => {
   if (!str) return "";
@@ -73,7 +81,7 @@ export const cancelAllSecondaryRequests = () => {
 const normalizePosterUrl = (url = "") => {
   const trimmed = (url || "").trim();
   if (!trimmed) return placeholder;
-  return normalizeImageUrl(trimmed, "https://phim.nguonc.com");
+  return normalizeImageUrl(trimmed, SECONDARY_ORIGIN);
 };
 
 /**
@@ -253,7 +261,7 @@ const uniqueBySlug = (items = []) => {
 // ── Public List Functions ───────────────────────────────────────────────────
 
 export const fetchSecondaryList = async (path, page = 1, extraParams = {}) => {
-  if (extraParams.category && isForbiddenGenre(extraParams.category)) {
+  if (!SECONDARY_API_BASE || (extraParams.category && isForbiddenGenre(extraParams.category))) {
     return attachSecondaryPagination([], extractSecondaryPagination(null, 0, page));
   }
   try {
@@ -321,7 +329,7 @@ export const getSecondaryByYear = (year, page = 1) =>
  */
 export const searchSecondaryApi = async (keyword, page = 1) => {
   const cleanKeyword = (keyword || "").toString().trim();
-  if (!cleanKeyword) return attachSecondaryPagination([], extractSecondaryPagination(null, 0, page));
+  if (!cleanKeyword || !SECONDARY_API_BASE) return attachSecondaryPagination([], extractSecondaryPagination(null, 0, page));
   try {
     const { data } = await secondaryClient.get("/films/search", {
       params: { keyword: cleanKeyword, page },
@@ -349,7 +357,7 @@ export const searchSecondaryApi = async (keyword, page = 1) => {
  * @returns {Promise<{ movie: object|null, episodes: Array } | null>}
  */
 export const getSecondaryDetail = async (slug, options = {}) => {
-  if (!slug) return null;
+  if (!slug || !SECONDARY_API_BASE) return null;
   try {
     const { data } = await secondaryClient.get(`/film/${slug}`, {
       signal: options.signal,
