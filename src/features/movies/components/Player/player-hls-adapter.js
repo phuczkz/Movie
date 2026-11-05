@@ -351,7 +351,7 @@ function setupDesyncWatchdog({ videoEl, url, hlsInstanceRef }) {
               }
             }
             videoEl.currentTime = target;
-          } catch (e) {
+          } catch {
             /* ignore */
           }
         }
@@ -363,7 +363,7 @@ function setupDesyncWatchdog({ videoEl, url, hlsInstanceRef }) {
           );
           try {
             videoEl.currentTime += 0.1;
-          } catch (e) {
+          } catch {
             /* ignore */
           }
         }
