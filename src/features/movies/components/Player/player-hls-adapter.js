@@ -155,9 +155,19 @@ export function createHlsCustomType({
             data.details === Hls.ErrorDetails.FRAG_PARSING_ERROR
           ) {
             console.debug("[HLS] Non-fatal recovery:", data.details);
-            // KHÔNG GỌI hls.startLoad() Ở ĐÂY.
-            // Nếu gọi startLoad() lúc mạng đang chậm, nó sẽ hủy (cancel) segment đang tải dở
-            // và bắt tải lại từ đầu (0%), gây ra tình trạng delay rất lâu và request bị canceled!
+            // Khi gặp buffer stall, tự động nhích nhẹ playhead để vượt qua micro-gap
+            if (
+              data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR &&
+              videoEl &&
+              !videoEl.paused &&
+              !videoEl.seeking
+            ) {
+              try {
+                videoEl.currentTime += 0.05;
+              } catch {
+                /* ignore */
+              }
+            }
           }
           return;
         }
@@ -255,7 +265,10 @@ export function createHlsCustomType({
 
 /**
  * Thiết lập watchdog phát hiện A/V desync và buffer bị đứng.
- * Tự động recovery khi phát hiện video freeze.
+ * Sử dụng chiến thuật Fast Micro-Nudge thông minh:
+ * - Sau ~1.0s bị đứng: Nhích nhẹ 0.05s hoặc lướt qua buffer gap để mở khóa Video Decoder ngay lập tức.
+ * - Sau ~2.0s: Nudge lần 2 thêm 0.1s.
+ * - Chỉ sau ~3.2s không gỡ được mới kích hoạt recoverMediaError() để tránh gián đoạn luồng phát.
  */
 function setupDesyncWatchdog({ videoEl, url, hlsInstanceRef }) {
   let lastWatchdogTime = 0;
@@ -264,6 +277,7 @@ function setupDesyncWatchdog({ videoEl, url, hlsInstanceRef }) {
   let desyncFreezeStartTime = 0;
   let lastSeekTime = 0;
   let desyncRecoveryAttempts = 0;
+  let microNudgeCount = 0;
 
   if (videoEl && videoEl._desyncWatchdog) {
     clearInterval(videoEl._desyncWatchdog);
@@ -282,6 +296,7 @@ function setupDesyncWatchdog({ videoEl, url, hlsInstanceRef }) {
       now - lastSeekTime < 2000
     ) {
       desyncFreezeStartTime = 0;
+      microNudgeCount = 0;
       return;
     }
 
@@ -307,9 +322,8 @@ function setupDesyncWatchdog({ videoEl, url, hlsInstanceRef }) {
 
     const timeDelta = currentTime - lastWatchdogTime;
     const frameDelta = totalFrames - lastTotalFrames;
-    const playbackRate = videoEl.playbackRate || 1;
-    const freezeTimeout = playbackRate > 1 ? 4000 : 3000;
 
+    // Điều kiện video freeze: Tiếng vẫn chạy (timeDelta > 0.05) nhưng khung hình không tăng (frameDelta === 0)
     if (
       totalFrames > 0 &&
       lastTotalFrames > 0 &&
@@ -318,40 +332,77 @@ function setupDesyncWatchdog({ videoEl, url, hlsInstanceRef }) {
     ) {
       if (desyncFreezeStartTime === 0) {
         desyncFreezeStartTime = now;
-      } else if (now - desyncFreezeStartTime > freezeTimeout) {
-        desyncRecoveryAttempts += 1;
-        console.warn(
-          `[Player] Video freeze detected at ${currentTime.toFixed(
-            1
-          )}s. Recovery #${desyncRecoveryAttempts}`
-        );
-        desyncFreezeStartTime = 0;
+      } else {
+        const frozenDuration = now - desyncFreezeStartTime;
 
-        if (hlsInstanceRef.current) {
-          if (desyncRecoveryAttempts <= 2) {
-            hlsInstanceRef.current.recoverMediaError();
-          } else {
-            desyncRecoveryAttempts = 0;
-            hlsInstanceRef.current.loadSource(url);
-            hlsInstanceRef.current.attachMedia(videoEl);
-            if (currentTime > 0) videoEl.currentTime = currentTime;
-            videoEl.play().catch(() => { });
+        // Cấp độ 1: Sau 1.0s khựng, kích hoạt Fast Micro-Nudge để giải phóng decoder chỉ sau 30-50ms
+        if (frozenDuration > 1000 && microNudgeCount === 0) {
+          microNudgeCount++;
+          console.warn(
+            `[Player] Video freeze detected (~1s) at ${currentTime.toFixed(1)}s. Fast micro-nudge...`
+          );
+          try {
+            let target = currentTime + 0.05;
+            const buf = videoEl.buffered;
+            for (let i = 0; i < buf.length; i++) {
+              if (buf.start(i) > currentTime && buf.start(i) - currentTime <= 1.2) {
+                target = buf.start(i) + 0.02;
+                break;
+              }
+            }
+            videoEl.currentTime = target;
+          } catch (e) {
+            /* ignore */
           }
+        }
+        // Cấp độ 2: Sau 2.0s vẫn kẹt, thử nudge thêm 0.1s
+        else if (frozenDuration > 2000 && microNudgeCount === 1) {
+          microNudgeCount++;
+          console.warn(
+            `[Player] Video freeze persisted (~2s) at ${currentTime.toFixed(1)}s. Second nudge...`
+          );
+          try {
+            videoEl.currentTime += 0.1;
+          } catch (e) {
+            /* ignore */
+          }
+        }
+        // Cấp độ 3: Sau 3.2s không gỡ được bằng micro-nudge, mới gọi recoverMediaError
+        else if (frozenDuration > 3200) {
+          desyncRecoveryAttempts += 1;
+          console.warn(
+            `[Player] Video freeze unrecovered (~3.2s) at ${currentTime.toFixed(1)}s. Recovery #${desyncRecoveryAttempts}`
+          );
+          desyncFreezeStartTime = 0;
+          microNudgeCount = 0;
 
-          lastWatchdogTime = videoEl.currentTime;
-          lastTotalFrames = totalFrames;
-          lastCheckRealTime = performance.now();
+          if (hlsInstanceRef.current) {
+            if (desyncRecoveryAttempts <= 2) {
+              hlsInstanceRef.current.recoverMediaError();
+            } else {
+              desyncRecoveryAttempts = 0;
+              hlsInstanceRef.current.loadSource(url);
+              hlsInstanceRef.current.attachMedia(videoEl);
+              if (currentTime > 0) videoEl.currentTime = currentTime;
+              videoEl.play().catch(() => { });
+            }
+
+            lastWatchdogTime = videoEl.currentTime;
+            lastTotalFrames = totalFrames;
+            lastCheckRealTime = performance.now();
+          }
         }
       }
     } else {
       desyncFreezeStartTime = 0;
+      microNudgeCount = 0;
       if (frameDelta > 0) desyncRecoveryAttempts = 0;
     }
 
     lastWatchdogTime = currentTime;
     lastTotalFrames = totalFrames;
     lastCheckRealTime = now;
-  }, 500);
+  }, 400);
 
   videoEl._desyncWatchdog = desyncWatchdog;
 

@@ -89,6 +89,9 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
         hasOnlyAdsInBlock &&
         (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60)
       ) {
+        // Giữ lại 1 nhãn DISCONTINUITY để HLS.js đồng bộ lại mốc thời gian (PTS/DTS) của âm thanh và hình ảnh,
+        // ngăn chặn triệt để tình trạng video bị khựng đứng do lệch timestamp khi cắt quảng cáo.
+        out.push("#EXT-X-DISCONTINUITY");
         i = nextDiscontinuityIndex + 1;
         accumulatedTime += blockDuration;
         continue;
@@ -111,6 +114,7 @@ export const stripAdSegmentsFromPlaylist = (text = "", sourceUrl = "") => {
       const nextLine = (lines[i + 1] || "").trim();
       if (nextLine && isAdSegment(nextLine)) {
         if (accumulatedTime < 2 * 60 || accumulatedTime >= 13 * 60) {
+          out.push("#EXT-X-DISCONTINUITY");
           i += 2;
           accumulatedTime += segmentDuration;
           continue;

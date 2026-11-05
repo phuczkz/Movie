@@ -102,71 +102,53 @@ export const useHlsHandler = (source, isHls) => {
 
     const config = {
       // ── FORWARD BUFFER ──
-      // Giữ buffer ở mức vừa đủ để prefetch liên tục mà không làm ngập connection pool.
-      // 20s (desktop) / 12s (mobile) = ~4–10 segment prefetch đồng thời.
-      // Quá lớn (60s+) sẽ gửi quá nhiều request cùng lúc → mỗi .ts chờ nhau → chậm.
-      // hls.js tự scale lên maxMaxBufferLength khi mạng cho phép.
-      maxBufferLength: isMobile ? 30 : 60,
-      maxMaxBufferLength: isMobile ? 60 : 120,
-      maxBufferSize: isMobile ? 60_000_000 : 120_000_000,
+      // Giữ buffer ở mức tối ưu (30s desktop / 20s mobile) để tránh vượt ngưỡng bộ nhớ MSE SourceBuffer
+      // của trình duyệt (tránh QuotaExceededError gây rớt frame video trong khi audio vẫn nạp tiếp).
+      maxBufferLength: isMobile ? 20 : 30,
+      maxMaxBufferLength: isMobile ? 40 : 60,
+      maxBufferSize: isMobile ? 30_000_000 : 60_000_000,
 
       // ── BACK BUFFER ──
-      // Retain buffer for smooth backward seeking without excessive memory usage.
-      // 90s (desktop) / 30s (mobile) allows instant rewinding within recent minutes.
-      backBufferLength: isMobile ? 30 : 90,
+      // Đệm lùi 30s (desktop) / 15s (mobile) vừa đủ để tua lại mà không giữ thừa rác trong RAM
+      backBufferLength: isMobile ? 15 : 30,
 
       // ── GAP & STALL HANDLING ──
-      // After ad segments are stripped, there may be small gaps in the
-      // timeline at discontinuity boundaries. These settings ensure hls.js
-      // automatically skips over those gaps instead of freezing video.
-      maxBufferHole: 1.0,          // skip gaps up to 1s (was 0.5 — too tight after ad removal)
-      nudgeMaxRetry: 8,            // more retries before giving up on stall recovery 
-      nudgeOffset: 0.2,            // 200ms nudge per retry
-      maxFragLookUpTolerance: 0.5, // wider tolerance for fragment matching after discontinuity
+      maxBufferHole: 0.8,          // tự động lướt qua các khe hở đệm dưới 0.8s
+      nudgeMaxRetry: 8,            // số lần thử vi chỉnh tự động khi gặp stall
+      nudgeOffset: 0.15,           // nhích 150ms mỗi lần retry
+      maxFragLookUpTolerance: 0.5, // dung sai tìm fragment
 
       // ── ABR ──
       startLevel: -1,
-      // Estimate băng thông ban đầu cao hơn để hls.js chọn quality tốt ngay từ segment đầu.
-      // 3Mbps (desktop) / 1.5Mbps (mobile) → tránh bị kẹt ở quality thấp rồi mới scale lên.
       abrEwmaDefaultEstimate: isMobile ? 1_000_000 : 3_000_000,
       abrBandWidthFactor: 0.8,
       abrBandWidthUpFactor: 0.6,
       testBandwidth: true,
 
       // ── LOADING — balanced timeouts for stable failure recovery ──
-      // Kiến trúc hệ thống: Chỉ áp dụng ngắt sớm (12s) cho KKphim vì server này có cơ chế bóp băng thông.
-      // Với Ophim và các nguồn khác, giữ nguyên 30s (chuẩn HLS) để tránh việc tự ngắt liên tục khi mạng người dùng yếu.
       fragLoadingTimeOut: isKkphim ? 12000 : 30000,
       fragLoadingMaxRetry: 10,
       fragLoadingRetryDelay: 1000,
-      // Timeout tối đa giữa 2 lần thử lại (Exponential backoff).
-      // Giới hạn ở 64s (chuẩn gốc) để tránh việc dồn dập gọi lại server khi mạng đang chết hẳn.
       fragLoadingMaxRetryTimeout: 64000,
       
       manifestLoadingTimeOut: 10000,
-      manifestLoadingMaxRetry: 5, // Tăng từ 3 lên 5 để chống rớt mạng tạm thời lúc mới vào phim
+      manifestLoadingMaxRetry: 5,
       levelLoadingTimeOut: 10000,
-      levelLoadingMaxRetry: 5, // Tăng từ 3 lên 5
-      appendErrorMaxRetry: 5, // Thêm mới: Cho phép thử lại nhiều lần hơn khi SourceBuffer gặp lỗi giải mã
+      levelLoadingMaxRetry: 5,
+      appendErrorMaxRetry: 5,
 
       // ── PERFORMANCE CORE ──
       enableWorker: true,
-      lowLatencyMode: false, // Optimized: Enable low latency mode to optimize buffer management
-      // progressive: true — Fetch and append data to SourceBuffer incrementally.
-      // This is the default and provides optimal buffering performance on most networks.
-      progressive: true,
+      lowLatencyMode: false,
+      // progressive: false — Cực kỳ quan trọng với MPEG-TS (.ts)!
+      // Tránh việc audio nạp trước qua stream chunk trong khi video bị kẹt GOP/keyframe.
+      progressive: false,
       startFragPrefetch: true,
       stretchShortVideoTrack: true,
-      forceKeyFrameOnDiscontinuity: true, // Force keyframe at discontinuity to prevent decoder stall after ad-strip seek
+      forceKeyFrameOnDiscontinuity: true,
 
       // ── FETCH API — replaces xhrSetup ──
-      // Benefits of fetchSetup over xhrSetup:
-      //   • No CORS preflight for credentialless requests (saves 50-200ms per req)
-      //   • Native HTTP/2 multiplexing + connection reuse with no extra overhead
-      // "omit" credentials = browser never attaches cookies to CDN requests,
-      // which would otherwise force a costly OPTIONS preflight on every fragment.
       fetchSetup: (context, initParams) => {
-        // Truyền lại tín hiệu abort (signal) để hls.js có thể ngắt kết nối tải thừa khi tua
         return new Request(context.url, {
           ...initParams,
           signal: initParams.signal,
@@ -177,11 +159,9 @@ export const useHlsHandler = (source, isHls) => {
       },
 
       // ── EARLY PLAYBACK TRIGGER ──
-      // maxStarvationDelay: thời gian tối đa chờ buffer đủ trước khi un-stall.
-      // 1.5s — khôi phục phát lại nhanh hơn sau khi tua
-      maxStarvationDelay: 1.5,
-      highBufferWatchdogPeriod: 1,  // check buffer health every 1s (default: 3)
-      liveSyncDurationCount: 3,     // keep sync in live streams
+      maxStarvationDelay: 2.5,
+      highBufferWatchdogPeriod: 2,
+      liveSyncDurationCount: 3,
     };
 
     // Ad-stripping via pLoader (playlist-only, no proxy, just text filter)
