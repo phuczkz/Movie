@@ -7,6 +7,7 @@ import {
   X,
   User,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
@@ -681,6 +682,23 @@ const Header = () => {
               <h3 className="px-2 mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 select-none">
                 Danh mục
               </h3>
+
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  onClick={handleNavigation}
+                  className="group flex items-center justify-between rounded-2xl bg-emerald-500/10 border border-emerald-500/25 p-3.5 text-sm sm:text-base font-semibold text-emerald-400 hover:bg-emerald-500/20 active:scale-[0.98] transition-all mb-2.5 shadow-sm"
+                >
+                  <span className="flex items-center gap-3">
+                    <ShieldCheck className="size-5 text-emerald-400" />
+                    Quản trị hệ thống
+                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300">
+                    Admin
+                  </span>
+                </Link>
+              )}
+
               <div className="grid grid-cols-1 gap-2">
                 {primaryNav.map((item) => (
                   <Link

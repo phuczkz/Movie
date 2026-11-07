@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '@/features/auth/context/AuthContext';
 import {
@@ -45,6 +45,46 @@ export default function AdminPanel() {
   const [section, setSection] = useState("reports");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const isNavigatingRef = useRef(false);
+
+  // Close sidebar with history sync for Android back button
+  const closeSidebar = () => {
+    if (window.history.state?.adminSidebar) {
+      window.history.back();
+    } else {
+      setSidebarOpen(false);
+    }
+  };
+
+  // Android Back button listener
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isNavigatingRef.current) return;
+      if (sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [sidebarOpen]);
+
+  // Sync history state and lock body scroll when sidebar opens
+  useEffect(() => {
+    if (sidebarOpen) {
+      if (!window.history.state?.adminSidebar) {
+        window.history.pushState({ adminSidebar: true }, "");
+      }
+      const originalOverflow = document.body.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.touchAction = originalTouchAction;
+      };
+    }
+  }, [sidebarOpen]);
 
   // Global Keyboard listener for Ctrl+K or Cmd+K or Slash (/) to open quick search
   useEffect(() => {
@@ -64,7 +104,7 @@ export default function AdminPanel() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-slate-950">
         <div className="loader-orbit loader-orbit-md" />
       </div>
     );
@@ -72,14 +112,14 @@ export default function AdminPanel() {
 
   if (!user || !isAdmin) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-950 text-white">
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-4 bg-slate-950 text-white px-4 text-center">
         <p className="text-xl font-semibold">
           Bạn không có quyền truy cập trang này.
         </p>
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-colors"
+          className="rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
         >
           Về trang chủ
         </button>
@@ -90,30 +130,45 @@ export default function AdminPanel() {
   const ActivePage = PAGE_MAP[section] || AdminReports;
 
   const handleNav = (id) => {
+    isNavigatingRef.current = true;
+    if (window.history.state?.adminSidebar) {
+      window.history.replaceState(null, "");
+    }
     setSection(id);
     setSidebarOpen(false);
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 100);
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-950 flex">
+    <div className="h-[100dvh] w-screen overflow-hidden bg-slate-950 flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <button
           type="button"
-          className="fixed inset-0 z-30 bg-black/70 lg:hidden cursor-default backdrop-blur-sm transition-opacity"
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/75 lg:hidden cursor-default backdrop-blur-sm transition-opacity"
+          onClick={closeSidebar}
           aria-label="Đóng sidebar"
         />
       )}
 
       {/* Sidebar Navigation - Fixed / Sticky Viewport */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 z-40 bg-slate-900/95 border-r border-white/5 flex flex-col transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-[100dvh] w-72 max-w-[85vw] z-40 bg-slate-900/98 border-r border-white/10 shadow-[24px_0_60px_rgba(0,0,0,0.8)] flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:shrink-0`}
+        } lg:translate-x-0 lg:sticky lg:top-0 lg:h-[100dvh] lg:w-64 lg:shrink-0 lg:shadow-none`}
+        style={{
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+        }}
       >
         {/* Sidebar Header Logo */}
-        <div className="flex items-center justify-between p-5 border-b border-white/5 shrink-0">
+        <div
+          className="flex items-center justify-between p-5 border-b border-white/5 shrink-0"
+          style={{
+            paddingTop: "max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))",
+          }}
+        >
           <div className="flex items-center gap-3">
             <div className="size-9 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-slate-950 font-black">
               <ShieldCheck className="size-5" />
@@ -127,8 +182,8 @@ export default function AdminPanel() {
           </div>
           <button
             type="button"
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-slate-500 hover:text-white p-1 rounded-lg"
+            onClick={closeSidebar}
+            className="lg:hidden text-slate-400 hover:text-white p-2 rounded-xl bg-white/5 active:scale-95 transition-all"
             aria-label="Đóng sidebar"
           >
             <X className="size-5" />
@@ -136,7 +191,7 @@ export default function AdminPanel() {
         </div>
 
         {/* Nav Items List */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 custom-scrollbar overscroll-y-contain touch-pan-y">
           {NAV_ITEMS.map((item) => {
             const isActive = section === item.id;
             return (
@@ -144,7 +199,7 @@ export default function AdminPanel() {
                 key={item.id}
                 type="button"
                 onClick={() => handleNav(item.id)}
-                className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
+                className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98] ${
                   isActive
                     ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shadow-inner"
                     : "text-slate-400 hover:text-white hover:bg-white/5"
@@ -158,11 +213,21 @@ export default function AdminPanel() {
         </nav>
 
         {/* Bottom Back Button */}
-        <div className="p-3 border-t border-white/5 bg-slate-950/40 shrink-0">
+        <div
+          className="p-3 border-t border-white/5 bg-slate-950/40 shrink-0"
+          style={{
+            paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))",
+          }}
+        >
           <button
             type="button"
-            onClick={() => navigate("/")}
-            className="w-full flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition-all group"
+            onClick={() => {
+              if (window.history.state?.adminSidebar) {
+                window.history.replaceState(null, "");
+              }
+              navigate("/");
+            }}
+            className="w-full flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold text-slate-400 hover:text-white hover:bg-white/5 active:scale-[0.98] transition-all group"
           >
             <span className="flex items-center gap-2">
               <ArrowLeft className="size-4 group-hover:-translate-x-1 transition-transform" />
@@ -174,14 +239,21 @@ export default function AdminPanel() {
       </aside>
 
       {/* Main Administrative Workplace Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden">
         {/* Top Header Bar for Desktop & Mobile */}
-        <header className="shrink-0 sticky top-0 z-20 flex items-center justify-between gap-4 px-4 sm:px-6 py-3.5 border-b border-white/5 bg-slate-900/80 backdrop-blur-md">
-          <div className="flex items-center gap-3">
+        <header
+          className="shrink-0 sticky top-0 z-20 flex items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-2.5 sm:py-3.5 border-b border-white/5 bg-slate-900/80 backdrop-blur-md"
+          style={{
+            paddingTop: "max(0.6rem, env(safe-area-inset-top, 0px))",
+            paddingLeft: "max(1rem, env(safe-area-inset-left, 0px))",
+            paddingRight: "max(1rem, env(safe-area-inset-right, 0px))",
+          }}
+        >
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="lg:hidden size-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white active:scale-95 transition-all"
               aria-label="Mở menu admin"
             >
               <Menu className="size-5" />
@@ -191,10 +263,10 @@ export default function AdminPanel() {
             <button
               type="button"
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-2 text-slate-400 hover:text-white hover:border-white/20 transition-all text-xs sm:text-sm w-44 sm:w-72 lg:w-96"
+              className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-2xl px-3.5 py-2 text-slate-400 hover:text-white hover:border-white/20 active:scale-[0.98] transition-all text-xs sm:text-sm flex-1 max-w-[200px] sm:max-w-xs md:max-w-sm lg:max-w-md"
             >
               <Search className="size-4 text-emerald-400 shrink-0" />
-              <span className="truncate text-left flex-1">Tìm nhanh (User, Phim, Menu)...</span>
+              <span className="truncate text-left flex-1">Tìm nhanh...</span>
               <span className="hidden sm:flex items-center gap-0.5 text-[10px] font-bold text-slate-400 bg-white/10 px-1.5 py-0.5 rounded-md border border-white/10">
                 <Command className="size-2.5" /> K
               </span>
@@ -202,7 +274,7 @@ export default function AdminPanel() {
           </div>
 
           {/* Right Header Controls (Maintenance Status & Profile Info) */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Maintenance Mode Status Indicator */}
             <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold ${
               maintenance?.enabled 
@@ -214,8 +286,8 @@ export default function AdminPanel() {
             </div>
 
             {/* Admin Avatar Badge */}
-            <div className="flex items-center gap-2.5 bg-white/5 border border-white/10 p-1.5 pr-3 rounded-2xl">
-              <div className="size-7 rounded-xl bg-emerald-500 text-slate-950 font-bold flex items-center justify-center overflow-hidden">
+            <div className="flex items-center gap-2 sm:gap-2.5 bg-white/5 border border-white/10 p-1 sm:p-1.5 sm:pr-3 rounded-2xl">
+              <div className="size-8 sm:size-7 rounded-xl bg-emerald-500 text-slate-950 font-bold flex items-center justify-center overflow-hidden shrink-0">
                 {userProfile?.photoURL ? (
                   <img src={userProfile.photoURL} alt="" className="size-full object-cover" />
                 ) : (
@@ -231,7 +303,12 @@ export default function AdminPanel() {
         </header>
 
         {/* Page Content Container */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+        <main
+          className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar overscroll-y-contain"
+          style={{
+            paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))",
+          }}
+        >
           <Suspense
             fallback={
               <div className="flex justify-center py-20">
