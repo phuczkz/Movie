@@ -399,10 +399,10 @@ const Header = () => {
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 z-30 border-b transition-all duration-300 ${isHidden ? "-translate-y-full" : "translate-y-0"
+        className={`fixed inset-x-0 top-0 z-30 transition-all duration-300 border-b border-transparent bg-transparent backdrop-blur-none ${isHidden ? "-translate-y-full" : "translate-y-0"
           } ${showTransparent
-            ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
-            : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
+            ? "[text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
+            : "lg:border-white/5 lg:bg-gradient-to-b lg:from-slate-950/90 lg:via-slate-950/75 lg:to-slate-950/50 lg:backdrop-blur-xl"
           }`}
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",

@@ -108,7 +108,7 @@ const DetailHero = ({
   return (
     <>
       {heroImage ? (
-        <div className="relative left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none pointer-events-none">
+        <div className="relative left-1/2 -translate-x-1/2 mt-0 md:mt-[-96px] lg:mt-[-200px] w-screen max-w-none pointer-events-none">
           {/* Spacer: Giữ nguyên khoảng trống gốc để không đẩy content đi chỗ khác */}
           <div className="aspect-[16/10] md:aspect-[2/1] xl:aspect-[21/9] w-full invisible pointer-events-none" />
 
