@@ -6,15 +6,10 @@ import {
   Search,
   X,
   User,
-  Film,
-  BookOpen,
   LogOut,
 } from "lucide-react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
-import { useAppMode } from '@/context/AppModeContext';
-import { comicApi } from '@/features/comics/api/comicApi';
 import { useMovieGenres, useMovieCountries } from '@/features/movies/hooks/useKKphimMovies.js';
 import { isForbiddenGenre } from '@/utils/filter.js';
 import SearchBar from '@/components/SearchBar.jsx';
@@ -27,8 +22,6 @@ const moviePrimaryNav = [
   { label: "Phim Lẻ", to: "/category/phim-le" },
   { label: "Yêu Thích", to: "/favorites" },
 ];
-
-
 
 const movieGenreOptions = [
   { label: "Hành Động", to: "/category/hanh-dong" },
@@ -48,27 +41,10 @@ const movieCountryOptions = [
   { label: "Thái Lan", to: "/country/thai-lan" },
 ];
 
-const comicPrimaryNav = [
-  { label: "MangaHub", to: "/comics" },
-  { label: "Đang phát hành", to: "/comics/danh-sach/dang-phat-hanh" },
-  { label: "Hoàn thành", to: "/comics/danh-sach/hoan-thanh" },
-  { label: "Yêu Thích", to: "/comics/favorites" },
-];
-
-const comicGenreOptions = [
-  { label: "Action", to: "/comics/the-loai/action" },
-  { label: "Adventure", to: "/comics/the-loai/adventure" },
-  { label: "Fantasy", to: "/comics/the-loai/fantasy" },
-  { label: "Romance", to: "/comics/the-loai/romance" },
-  { label: "Manga", to: "/comics/the-loai/manga" },
-  { label: "Manhwa", to: "/comics/the-loai/manhwa" },
-];
-
 const Dropdown = ({
   label,
   options,
   variant = "default",
-  isWide = false,
   isLoading = false,
   onTrigger,
 }) => {
@@ -112,21 +88,16 @@ const Dropdown = ({
     return () => window.removeEventListener("click", handleClickOutside);
   }, [open]);
 
-  // Determine container placement and grid classes based on variant or isWide
+  // Determine container placement and grid classes based on variant
   let containerClasses = "left-1/2 -translate-x-1/2 w-48";
   let gridClasses = "space-y-1 max-h-[400px]";
 
-  const effectiveVariant = variant !== "default" ? variant : (isWide ? "comic-genre" : "default");
-
-  if (effectiveVariant === "movie-genre") {
+  if (variant === "movie-genre") {
     containerClasses = "fixed inset-x-4 top-[64px] sm:top-[70px] lg:absolute lg:top-full lg:inset-x-auto lg:right-[-60px] xl:right-[-20px] 2xl:right-0 lg:w-[620px] xl:w-[700px] max-w-[calc(100vw-2rem)]";
     gridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-1.5 max-h-[380px]";
-  } else if (effectiveVariant === "movie-country") {
+  } else if (variant === "movie-country") {
     containerClasses = "fixed inset-x-4 top-[64px] sm:top-[70px] lg:absolute lg:top-full lg:inset-x-auto lg:right-0 lg:w-[660px] xl:w-[760px] max-w-[calc(100vw-2rem)]";
     gridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 max-h-[380px]";
-  } else if (effectiveVariant === "comic-genre") {
-    containerClasses = "fixed inset-x-4 top-[64px] sm:top-[70px] lg:absolute lg:top-full lg:inset-x-auto lg:right-[-120px] xl:right-[-50px] 2xl:right-0 lg:w-[800px] xl:w-[1050px] 2xl:w-[1200px] max-w-[calc(100vw-2rem)]";
-    gridClasses = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-1.5 max-h-[380px]";
   }
 
   return (
@@ -195,7 +166,7 @@ const MobileDropdown = ({
     <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3 shadow-inner shadow-black/20">
       <button
         type="button"
-        className="flex w-full items-center justify-between text-left text-base font-semibold text-white"
+        className="flex w-full items-center justify-between text-left text-base font-semibold text-white active:opacity-75 transition-opacity"
         onClick={handleToggle}
       >
         <span>{label}</span>
@@ -214,13 +185,13 @@ const MobileDropdown = ({
             ))}
           </div>
         ) : (
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-white/90 max-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm text-white/90 max-h-[320px] overflow-y-auto overscroll-y-contain custom-scrollbar pr-1 touch-pan-y">
             {options.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
                 onClick={onNavigate}
-                className="rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:text-emerald-300 px-2.5 py-2 text-center text-xs font-medium text-slate-200 transition-all active:scale-95 truncate"
+                className="rounded-xl bg-white/5 border border-white/10 hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:text-emerald-300 px-2.5 py-2.5 text-center text-xs font-medium text-slate-200 transition-all active:scale-95 active:bg-emerald-500/20 truncate"
               >
                 {item.label}
               </Link>
@@ -267,8 +238,7 @@ const Header = () => {
   const { menuOpen, searchOpen, scrolled, isHidden } = headerState;
   const location = useLocation();
   const { user, userProfile, logout, isAdmin } = useAuth();
-  const { appMode, setAppMode } = useAppMode();
-  const navigate = useNavigate();
+
   // Defer genre/country API calls until user interacts (hover, menu open, click) or idle prefetch
   const [navInteracted, setNavInteracted] = useState(false);
   const triggerNavFetch = () => {
@@ -294,33 +264,7 @@ const Header = () => {
       ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${user.uid}`
       : null);
 
-  const isComicMode = appMode === "comic";
-
-  const { data: apiGenreOptionsData, isLoading: isLoadingComicGenres } = useQuery({
-    queryKey: ["comic-genres"],
-    queryFn: async () => {
-      try {
-        const data = await comicApi.getCategoryList();
-        if (data?.status === "success" && data?.data?.items) {
-          return data.data.items.map((item) => ({
-            label: item.name,
-            to: `/comics/the-loai/${item.slug}`,
-          }));
-        }
-        return [];
-      } catch (err) {
-        console.warn("Comic API getCategoryList failed, fallback to default genres:", err);
-        return [];
-      }
-    },
-    enabled: isComicMode,
-    retry: 1,
-    staleTime: 60 * 60 * 1000, // 1 hour cache
-  });
-
-  const apiGenreOptions = apiGenreOptionsData || [];
-
-  const shouldFetchMovieNav = !isComicMode && (navInteracted || menuOpen);
+  const shouldFetchMovieNav = navInteracted || menuOpen;
   const { data: apiMovieGenres = [], isLoading: isLoadingMovieGenres } = useMovieGenres({
     enabled: shouldFetchMovieNav,
   });
@@ -350,9 +294,80 @@ const Header = () => {
     return movieCountryOptions;
   }, [apiMovieCountries]);
 
-  const closeAll = () => {
-    dispatch({ type: "CLOSE_ALL" });
+  // Android back button integration & clean navigation
+  const isNavigatingRef = useRef(false);
+
+  const closeMenu = () => {
+    if (window.history.state?.modal === "mobile-menu") {
+      window.history.back();
+    } else {
+      dispatch({ type: "SET_MENU_OPEN", payload: false });
+    }
   };
+
+  const closeSearch = () => {
+    if (window.history.state?.modal === "mobile-search") {
+      window.history.back();
+    } else {
+      dispatch({ type: "SET_SEARCH_OPEN", payload: false });
+    }
+  };
+
+  const handleNavigation = () => {
+    isNavigatingRef.current = true;
+    if (window.history.state?.modal === "mobile-menu") {
+      window.history.replaceState(null, "");
+    }
+    dispatch({ type: "CLOSE_ALL" });
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 150);
+  };
+
+  // Android Hardware / Gesture Back listener
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isNavigatingRef.current) return;
+      if (menuOpen) {
+        dispatch({ type: "SET_MENU_OPEN", payload: false });
+      }
+      if (searchOpen) {
+        dispatch({ type: "SET_SEARCH_OPEN", payload: false });
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [menuOpen, searchOpen]);
+
+  // Sync history state & lock body scroll when sidebar opens
+  useEffect(() => {
+    if (menuOpen) {
+      if (window.history.state?.modal !== "mobile-menu") {
+        window.history.pushState({ modal: "mobile-menu" }, "");
+      }
+
+      // Lock body scroll on iOS & Android
+      const originalOverflow = document.body.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.touchAction = originalTouchAction;
+      };
+    }
+  }, [menuOpen]);
+
+  // Sync history state when mobile search opens
+  useEffect(() => {
+    if (searchOpen) {
+      if (window.history.state?.modal !== "mobile-search") {
+        window.history.pushState({ modal: "mobile-search" }, "");
+      }
+    }
+  }, [searchOpen]);
 
   const lastScrollY = useRef(0);
 
@@ -361,24 +376,9 @@ const Header = () => {
       const currentScrollY = window.scrollY;
       const nextScrolled = currentScrollY > 40;
 
-      // Read location.pathname inside handler (not from closure/dep)
-      const currentPathname = window.location.pathname;
-      const isReadingComic = currentPathname.includes("/comics/chapter/");
-
-      let nextIsHidden = false;
-      if (isReadingComic) {
-        if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-          nextIsHidden = true;
-        } else if (currentScrollY < lastScrollY.current) {
-          nextIsHidden = false;
-        }
-      } else {
-        nextIsHidden = false;
-      }
-
       dispatch({
         type: "SET_SCROLL_STATE",
-        payload: { scrolled: nextScrolled, isHidden: nextIsHidden },
+        payload: { scrolled: nextScrolled, isHidden: false },
       });
 
       lastScrollY.current = currentScrollY;
@@ -388,18 +388,12 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const primaryNav = isComicMode ? comicPrimaryNav : moviePrimaryNav;
-  const genreOptions = isComicMode
-    ? apiGenreOptions.length > 0
-      ? apiGenreOptions
-      : comicGenreOptions
-    : dynamicMovieGenreOptions;
+  const primaryNav = moviePrimaryNav;
+  const genreOptions = dynamicMovieGenreOptions;
   const countryOptions = dynamicMovieCountryOptions;
 
-  const isHome = location.pathname === "/" || location.pathname === "/comics";
-  const isDetail =
-    location.pathname.startsWith("/movie/") ||
-    location.pathname.startsWith("/comics/");
+  const isHome = location.pathname === "/";
+  const isDetail = location.pathname.startsWith("/movie/");
   const showTransparent = (isHome || isDetail) && !scrolled;
 
   return (
@@ -410,57 +404,56 @@ const Header = () => {
             ? "border-transparent bg-transparent backdrop-blur-none [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
             : "border-white/5 bg-gradient-to-b from-slate-950/90 via-slate-950/75 to-slate-950/50 backdrop-blur-xl"
           }`}
+        style={{
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
+        }}
       >
-        {/* Mobile top bar */}
-        <div className="lg:hidden relative px-4 py-3 flex items-center justify-between">
+        {/* Mobile top bar with Notch/Dynamic Island protection (Center completely clear for Dynamic Island) */}
+        <div className="lg:hidden relative px-4 py-2.5 sm:py-3 flex items-center justify-between min-h-[56px]">
+          {/* Menu button - Glass circle */}
           <button
             type="button"
             aria-label="Toggle menu"
             onClick={() => {
               triggerNavFetch();
-              dispatch({ type: "SET_MENU_OPEN", payload: !menuOpen });
-              dispatch({ type: "SET_SEARCH_OPEN", payload: false });
+              if (!menuOpen) {
+                dispatch({ type: "SET_MENU_OPEN", payload: true });
+                dispatch({ type: "SET_SEARCH_OPEN", payload: false });
+              } else {
+                closeMenu();
+              }
             }}
-            className="size-10 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+            className="size-11 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md border border-white/15 text-white shadow-lg active:scale-95 transition-all focus:outline-none"
           >
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
 
-          {/* Removed Mobile Logo as per user request to only show in sidebar and desktop */}
+          {/* Center is left completely clear so Dynamic Island / Notch sits without any obstruction */}
 
-          <div className="flex items-center gap-1 sm:gap-2">
-            <Notifications />
+          {/* Right Action Group - Glass circles */}
+          <div className="flex items-center gap-2">
+            <Notifications
+              buttonClassName="size-11 inline-flex flex-shrink-0 items-center justify-center rounded-full bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md border border-white/15 text-white shadow-lg active:scale-95 transition-all relative"
+            />
             <button
               type="button"
               aria-label="Open search"
               onClick={() => {
-                dispatch({ type: "SET_SEARCH_OPEN", payload: !searchOpen });
-                dispatch({ type: "SET_MENU_OPEN", payload: false });
+                if (!searchOpen) {
+                  dispatch({ type: "SET_SEARCH_OPEN", payload: true });
+                  if (menuOpen) closeMenu();
+                } else {
+                  closeSearch();
+                }
               }}
-              className="inline-flex flex-shrink-0 items-center justify-center text-white p-2"
+              className="size-11 inline-flex flex-shrink-0 items-center justify-center rounded-full bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md border border-white/15 text-white shadow-lg active:scale-95 transition-all focus:outline-none"
             >
               {searchOpen ? (
                 <X className="size-5" />
               ) : (
                 <Search className="size-5" />
-              )}
-            </button>
-
-            {/* Mobile Toggle Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setAppMode(appMode === "movie" ? "comic" : "movie");
-                if (appMode === "movie") navigate("/comics");
-                else navigate("/");
-              }}
-              className="inline-flex flex-shrink-0 items-center justify-center p-2 text-white bg-slate-800/80 rounded-full border border-white/10"
-              title={`Chuyển sang ${appMode === "movie" ? "MangaHub" : "Xem Phim"}`}
-            >
-              {appMode === "movie" ? (
-                <BookOpen className="size-5 text-purple-400" />
-              ) : (
-                <Film className="size-5 text-blue-400" />
               )}
             </button>
           </div>
@@ -469,16 +462,14 @@ const Header = () => {
         {/* Desktop / tablet bar */}
         <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
           {/* Desktop Logo */}
-          <Link to={isComicMode ? "/comics" : "/"} className="flex flex-shrink-0 items-center">
+          <Link to="/" className="flex flex-shrink-0 items-center">
             <img src="/icons/logo.webp" alt="Logo" className="h-[56px] lg:h-[76px] -my-4 lg:-my-6 w-auto object-contain drop-shadow-md" />
           </Link>
 
           {/* SearchBar wrapper with specific widths per device */}
           <div className="flex-1 min-w-0 max-w-[200px] lg:max-w-[240px] xl:max-w-[320px] 2xl:max-w-[400px] mr-auto">
             <SearchBar
-              placeholder={
-                isComicMode ? "Tìm kiếm truyện..." : "Tìm phim, diễn viên..."
-              }
+              placeholder="Tìm phim, diễn viên..."
               className="w-full"
             />
           </div>
@@ -505,50 +496,25 @@ const Header = () => {
             <Dropdown
               label="Thể Loại"
               options={genreOptions}
-              variant={isComicMode ? "comic-genre" : "movie-genre"}
-              isLoading={isComicMode ? isLoadingComicGenres : isLoadingMovieGenres}
+              variant="movie-genre"
+              isLoading={isLoadingMovieGenres}
               onTrigger={triggerNavFetch}
             />
-            {!isComicMode && (
-              <Dropdown
-                label="Quốc Gia"
-                options={countryOptions}
-                variant="movie-country"
-                isLoading={isLoadingMovieCountries}
-                onTrigger={triggerNavFetch}
-              />
-            )}
+            <Dropdown
+              label="Quốc Gia"
+              options={countryOptions}
+              variant="movie-country"
+              isLoading={isLoadingMovieCountries}
+              onTrigger={triggerNavFetch}
+            />
           </nav>
 
           <div className="flex flex-shrink-0 items-center gap-2">
-            {/* Desktop Toggle Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setAppMode(appMode === "movie" ? "comic" : "movie");
-                if (appMode === "movie") navigate("/comics");
-                else navigate("/");
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/80 hover:bg-slate-700/80 text-sm font-semibold transition-colors mr-2"
-            >
-              {appMode === "movie" ? (
-                <>
-                  <BookOpen className="size-4 text-purple-400" />
-                  <span className="text-slate-200">Truyện</span>
-                </>
-              ) : (
-                <>
-                  <Film className="size-4 text-blue-400" />
-                  <span className="text-slate-200">Phim</span>
-                </>
-              )}
-            </button>
-
             {user ? (
               <div className="flex items-center gap-2">
                 <Notifications />
                 <Link
-                  to={isComicMode ? "/comics/profile" : "/profile"}
+                  to="/profile"
                   className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
                 >
                   {avatarUrl ? (
@@ -580,12 +546,16 @@ const Header = () => {
 
         {/* Mobile search overlay */}
         {searchOpen && (
-          <div className="lg:hidden absolute left-0 right-0 top-full px-4 pb-3 z-40">
-            <div className="rounded-2xl bg-slate-900/90 border border-white/10 shadow-xl shadow-black/30 p-3">
+          <div
+            className="lg:hidden absolute left-0 right-0 top-full px-4 pb-3 z-40 animate-in fade-in slide-in-from-top-2 duration-200"
+            style={{
+              paddingLeft: "max(1rem, env(safe-area-inset-left, 0px))",
+              paddingRight: "max(1rem, env(safe-area-inset-right, 0px))",
+            }}
+          >
+            <div className="rounded-2xl bg-slate-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/50 p-3">
               <SearchBar
-                placeholder={
-                  isComicMode ? "Tìm kiếm truyện" : "Tìm kiếm phim, diễn viên"
-                }
+                placeholder="Tìm kiếm phim, diễn viên..."
                 className="w-full"
               />
             </div>
@@ -596,33 +566,44 @@ const Header = () => {
 
       {/* Mobile Sidebar & Backdrop - Moved outside header for proper stacking and to avoid clipping */}
       <div
-        className={`lg:hidden fixed inset-0 z-[100] transition-all duration-300 ${menuOpen ? "visible" : "invisible"
+        className={`lg:hidden fixed inset-0 z-[100] transition-all duration-300 ${menuOpen ? "visible" : "invisible pointer-events-none"
           }`}
+        style={{
+          touchAction: menuOpen ? "none" : "auto",
+        }}
       >
         {/* Backdrop */}
         <button
           type="button"
           className={`absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 w-full h-full border-none cursor-default ${menuOpen ? "opacity-100" : "opacity-0"
             }`}
-          onClick={closeAll}
+          onClick={closeMenu}
           aria-label="Đóng menu"
         />
 
         {/* Sidebar Container */}
         <div
-          className={`absolute inset-y-0 left-0 w-[300px] sm:w-[350px] bg-[#0b0b15] border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.5)] transform transition-transform duration-300 ease-out flex flex-col h-[100dvh] ${menuOpen ? "translate-x-0" : "-translate-x-full"
+          className={`absolute inset-y-0 left-0 w-[310px] sm:w-[350px] max-w-[85vw] bg-[#0b0b15] border-r border-white/10 shadow-[24px_0_60px_rgba(0,0,0,0.7)] transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] flex flex-col h-[100dvh] will-change-transform ${menuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
+          style={{
+            paddingLeft: "env(safe-area-inset-left, 0px)",
+          }}
         >
-          {/* Sidebar Header (Profile Section) */}
-          <div className="p-6 border-b border-white/5 bg-white/[0.02]">
-            <div className="flex items-center justify-between mb-6">
-              <Link to={isComicMode ? "/comics" : "/"} onClick={closeAll} className="flex items-center">
-                <img src="/icons/logo.webp" alt="Logo" className="h-[48px] md:h-[56px] -my-3 w-auto object-contain" />
+          {/* Sidebar Header (Profile & Brand Section - Safe for iPhone Notch & Dynamic Island) */}
+          <div
+            className="p-5 sm:p-6 border-b border-white/5 bg-white/[0.02] flex-shrink-0"
+            style={{
+              paddingTop: "max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.75rem))",
+            }}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <Link to="/" onClick={handleNavigation} className="flex items-center active:scale-95 transition-transform">
+                <img src="/icons/logo.webp" alt="Logo" className="h-[44px] sm:h-[50px] -my-2 w-auto object-contain drop-shadow" />
               </Link>
               <button
                 type="button"
-                onClick={closeAll}
-                className="p-2 rounded-xl bg-white/5 text-slate-400 hover:text-white transition-colors"
+                onClick={closeMenu}
+                className="size-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-400 hover:text-white active:scale-95 active:bg-white/10 transition-all border border-white/5"
                 aria-label="Đóng menu"
               >
                 <X className="size-5" />
@@ -630,13 +611,13 @@ const Header = () => {
             </div>
 
             {user ? (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <Link
-                  to={isComicMode ? "/comics/profile" : "/profile"}
-                  onClick={closeAll}
-                  className="flex items-center gap-4 group cursor-pointer"
+                  to="/profile"
+                  onClick={handleNavigation}
+                  className="flex items-center gap-3.5 group cursor-pointer active:scale-[0.98] transition-transform"
                 >
-                  <div className="size-14 rounded-2xl border-2 border-emerald-500/20 bg-slate-800 p-0.5 shadow-xl group-hover:border-emerald-500/40 transition-all">
+                  <div className="size-13 sm:size-14 rounded-2xl border-2 border-emerald-500/20 bg-slate-800 p-0.5 shadow-xl group-hover:border-emerald-500/40 transition-all shrink-0">
                     <div className="h-full w-full rounded-[14px] overflow-hidden bg-slate-700">
                       {avatarUrl ? (
                         <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
@@ -648,13 +629,17 @@ const Header = () => {
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-lg font-semibold text-white truncate leading-tight group-hover:text-emerald-400 transition-colors">
+                    <p className="text-base sm:text-lg font-semibold text-white truncate leading-tight group-hover:text-emerald-400 transition-colors">
                       {userProfile?.displayName || user.displayName || "Người dùng"}
                     </p>
-                    {isAdmin && (
-                      <p className="text-[10px] inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-semibold uppercase tracking-wider mt-1 border border-emerald-500/20">
+                    {isAdmin ? (
+                      <span className="text-[10px] inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-semibold uppercase tracking-wider mt-1 border border-emerald-500/20">
                         Admin
-                      </p>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 truncate block mt-0.5">
+                        {user.email || "Thành viên"}
+                      </span>
                     )}
                   </div>
                 </Link>
@@ -663,9 +648,9 @@ const Header = () => {
                   type="button"
                   onClick={async () => {
                     await logout();
-                    closeAll();
+                    handleNavigation();
                   }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-[0.98]"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 py-2.5 text-xs sm:text-sm font-semibold text-red-400 hover:bg-red-500 hover:text-white transition-all active:scale-[0.98]"
                 >
                   <LogOut className="size-4" />
                   <span>Đăng xuất</span>
@@ -674,8 +659,8 @@ const Header = () => {
             ) : (
               <Link
                 to="/login"
-                onClick={closeAll}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-all active:scale-[0.98]"
+                onClick={handleNavigation}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-all active:scale-[0.98] shadow-lg shadow-emerald-500/20"
               >
                 <User className="size-4" />
                 <span>Đăng nhập ngay</span>
@@ -683,23 +668,28 @@ const Header = () => {
             )}
           </div>
 
-          {/* Sidebar Content */}
+          {/* Sidebar Content (Scrollable Categories & Filters - Protected for iPhone Home Bar & Android Nav Bar) */}
           <div
-            className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}
+            className="flex-1 overflow-y-auto overscroll-y-contain custom-scrollbar p-5 space-y-7 touch-pan-y"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2.5rem)",
+            }}
           >
             {/* Primary Navigation Section */}
             <div>
-              <h3 className="px-2 mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Danh mục</h3>
-              <div className="grid grid-cols-1 gap-2.5">
+              <h3 className="px-2 mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 select-none">
+                Danh mục
+              </h3>
+              <div className="grid grid-cols-1 gap-2">
                 {primaryNav.map((item) => (
                   <Link
                     key={item.to}
                     to={item.to}
-                    onClick={closeAll}
-                    className="group flex items-center gap-4 rounded-2xl bg-white/5 border border-white/5 p-4 text-base font-semibold text-slate-100 hover:bg-white/10 hover:border-white/10 active:scale-[0.98] transition-all"
+                    onClick={handleNavigation}
+                    className="group flex items-center gap-3.5 rounded-2xl bg-white/5 border border-white/5 p-3.5 text-sm sm:text-base font-semibold text-slate-100 hover:bg-white/10 hover:border-white/10 active:scale-[0.98] active:bg-white/10 transition-all"
                   >
-                    <div className="size-1.5 rounded-full bg-emerald-500 opacity-50 group-hover:scale-150 group-hover:opacity-100 transition-all" />
+                    <div className="size-1.5 rounded-full bg-emerald-500 opacity-60 group-hover:scale-150 group-hover:opacity-100 transition-all" />
                     {item.label}
                   </Link>
                 ))}
@@ -708,25 +698,24 @@ const Header = () => {
 
             {/* Filters Section */}
             <div className="space-y-4">
-              <h3 className="px-2 mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Lọc & Phân loại</h3>
-              <div className="space-y-3.5">
-
+              <h3 className="px-2 mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 select-none">
+                Lọc & Phân loại
+              </h3>
+              <div className="space-y-3">
                 <MobileDropdown
                   label="Thể Loại"
                   options={genreOptions}
-                  onNavigate={closeAll}
-                  isLoading={isComicMode ? isLoadingComicGenres : isLoadingMovieGenres}
+                  onNavigate={handleNavigation}
+                  isLoading={isLoadingMovieGenres}
                   onTrigger={triggerNavFetch}
                 />
-                {!isComicMode && (
-                  <MobileDropdown
-                    label="Quốc Gia"
-                    options={countryOptions}
-                    onNavigate={closeAll}
-                    isLoading={isLoadingMovieCountries}
-                    onTrigger={triggerNavFetch}
-                  />
-                )}
+                <MobileDropdown
+                  label="Quốc Gia"
+                  options={countryOptions}
+                  onNavigate={handleNavigation}
+                  isLoading={isLoadingMovieCountries}
+                  onTrigger={triggerNavFetch}
+                />
               </div>
             </div>
           </div>

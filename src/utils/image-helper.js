@@ -1,6 +1,4 @@
 const DIRECT_CDN_HOSTS = [
-  "img.otruyenapi.com",
-  "otruyenapi.com",
   "ophim.live",
   "ophim1.com",
   "phimimg.com",
@@ -77,7 +75,7 @@ const buildImageProxyUrl = (url) => {
 };
 
 /**
- * Get an optimized poster URL for movie/comic cards.
+ * Get an optimized poster URL for movie cards.
  *
  * - TMDB: resize via TMDB path.
  * - Vietnamese CDNs: proxy through Worker /img/ route (direct fetch + edge cache).
@@ -227,8 +225,7 @@ export const getProxiedAvatar = (url, size = 100) => {
     // If the avatar host is in our Worker whitelist, use /img/ route
     const IMAGE_PROXY_HOSTS = [
       "phimimg.com", "img.ophim.live", "ophim1.com", "ophim.live",
-      "otruyenapi.com", "img.otruyenapi.com", "image.tmdb.org",
-      "images.unsplash.com",
+      "image.tmdb.org", "images.unsplash.com",
     ];
 
     const isProxyable = IMAGE_PROXY_HOSTS.some(

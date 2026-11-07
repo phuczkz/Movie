@@ -41,7 +41,7 @@ export default function AppLoader() {
             Kho<span className="text-emerald-400">Phim</span>
           </h1>
           <p className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-slate-400 uppercase">
-            XEM PHIM – ĐỌC TRUYỆN – TRẢI NGHIỆM
+            XEM PHIM – GIẢI TRÍ – TRẢI NGHIỆM
           </p>
         </div>
 

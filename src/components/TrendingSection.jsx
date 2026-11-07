@@ -22,7 +22,11 @@ const TrendingSection = ({ movies = EMPTY_MOVIES, loading = false }) => {
     if (!el) return;
     checkScroll();
     el.addEventListener("scroll", checkScroll, { passive: true });
-    return () => el.removeEventListener("scroll", checkScroll);
+    window.addEventListener("resize", checkScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+    };
   }, [movies]);
 
   const scroll = (direction) => {
@@ -70,12 +74,15 @@ const TrendingSection = ({ movies = EMPTY_MOVIES, loading = false }) => {
           ))}
         </div>
         
+        {/* Optional: Add gradient fades on edges for mobile */}
+        <div className="absolute top-0 right-0 bottom-8 w-16 bg-gradient-to-l from-[#0b0b15] to-transparent pointer-events-none opacity-0 group-hover/scroll:opacity-100 transition-opacity hidden sm:block z-10" />
+
         {/* Nav arrows - desktop only */}
         {canScrollLeft && (
           <button
             type="button"
             onClick={() => scroll("left")}
-            className="hidden lg:flex absolute left-2 top-[calc(50%-16px)] -translate-y-1/2 z-20 items-center justify-center w-10 h-10 rounded-full bg-black/60 border border-white/10 text-white backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-black/80"
+            className="hidden lg:flex absolute left-2 top-[calc(50%-16px)] -translate-y-1/2 z-40 items-center justify-center w-10 h-10 rounded-full bg-black/70 border border-white/20 text-white backdrop-blur-md opacity-0 group-hover/scroll:opacity-100 hover:opacity-100 focus:opacity-100 transition-all duration-300 hover:bg-black/90 hover:scale-110 active:scale-95 shadow-lg shadow-black/50 cursor-pointer"
             aria-label="Cuộn trái"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -85,15 +92,12 @@ const TrendingSection = ({ movies = EMPTY_MOVIES, loading = false }) => {
           <button
             type="button"
             onClick={() => scroll("right")}
-            className="hidden lg:flex absolute right-2 top-[calc(50%-16px)] -translate-y-1/2 z-20 items-center justify-center w-10 h-10 rounded-full bg-black/60 border border-white/10 text-white backdrop-blur-sm opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-black/80"
+            className="hidden lg:flex absolute right-2 top-[calc(50%-16px)] -translate-y-1/2 z-40 items-center justify-center w-10 h-10 rounded-full bg-black/70 border border-white/20 text-white backdrop-blur-md opacity-0 group-hover/scroll:opacity-100 hover:opacity-100 focus:opacity-100 transition-all duration-300 hover:bg-black/90 hover:scale-110 active:scale-95 shadow-lg shadow-black/50 cursor-pointer"
             aria-label="Cuộn phải"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         )}
-
-        {/* Optional: Add gradient fades on edges for mobile */}
-        <div className="absolute top-0 right-0 bottom-8 w-16 bg-gradient-to-l from-[#0b0b15] to-transparent pointer-events-none opacity-0 group-hover/scroll:opacity-100 transition-opacity hidden sm:block" />
       </div>
     </Section>
   );

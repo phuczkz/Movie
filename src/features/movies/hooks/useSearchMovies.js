@@ -7,7 +7,6 @@ import {
   isValidCategorySlug,
   isValidCountrySlug,
 } from '@/features/movies/api/movies2';
-import { comicApi } from '@/features/comics/api/comicApi';
 import { filterAdultMovies } from '@/utils/filter';
 
 const slugify = (text = "") =>
@@ -150,21 +149,7 @@ export const useSearchMovies = (query, appMode = "movie", page = 1) =>
         }
       };
 
-      if (appMode === "comic") {
-        const res = await safe(() => comicApi.search(q, page));
-        const items = res?.data?.items || [];
-        const p = res?.data?.params?.pagination || {};
-        const pagination = {
-          totalPages: Number(p.totalPages) || 1,
-          totalItems: Number(p.totalItems) || items.length,
-          currentPage: Number(p.currentPage) || page,
-          hasNext: (Number(p.totalPages) || 1) > page,
-        };
-        const sorted = items.slice().sort((a, b) => calculateRelevance(b, q) - calculateRelevance(a, q));
-        return attachPagination(filterAdultMovies(sorted), pagination);
-      }
-
-      // Default: Movie search
+      // Search movies
       const isYear = /^\d{4}$/.test(q);
       const slug = slugify(q);
 

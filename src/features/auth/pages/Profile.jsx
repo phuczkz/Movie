@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Timestamp } from "firebase/firestore";
-import { Camera, Check, Shield, BookOpen, Play } from "lucide-react";
+import { Camera, Check, Shield } from "lucide-react";
 import { isFirebaseConfigured } from '@/firebase.config.js';
 import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import AvatarModal from '@/components/AvatarModal.jsx';
-import { useAppMode } from '@/context/AppModeContext';
 import { getProxiedAvatar } from "@/utils/image-helper.js";
 import ProfileStatsCard from '@/features/auth/components/profile-stats-card.jsx';
 
 const WatchHistory = lazy(() => import('@/features/movies/components/WatchHistory.jsx'));
-const ComicHistory = lazy(() => import('@/features/comics/components/ComicHistory.jsx'));
 
 const formatDate = (value) => {
   if (!value) return "";
@@ -32,7 +30,6 @@ const Profile = () => {
     updateProfileData,
     logout,
   } = useAuth();
-  const { appMode } = useAppMode();
   const [displayName, setDisplayName] = useState("");
   const [birthday, setBirthday] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -133,16 +130,15 @@ const Profile = () => {
 
         <div className="flex-1 text-center sm:text-left space-y-2">
           <div>
-            <p className={`text-[10px] sm:text-xs uppercase tracking-[0.2em] font-black mb-1 ${appMode === 'comic' ? 'text-purple-500' : 'text-emerald-500'}`}>
-              Thành viên {appMode === 'comic' ? 'MangaHub' : 'Movie'}
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.2em] font-black mb-1 text-emerald-500">
+              Thành viên Movie
             </p>
             <h1 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight break-words">
               {displayName || "Người dùng"}
             </h1>
           </div>
           <p className="text-slate-400 text-sm sm:text-base max-w-md mx-auto sm:mx-0">
-            Quản lý thông tin cá nhân, cập nhật ảnh đại diện và xem lại lịch sử
-            {appMode === 'comic' ? ' đọc truyện' : ' xem phim'} của bạn.
+            Quản lý thông tin cá nhân, cập nhật ảnh đại diện và xem lại lịch sử xem phim của bạn.
           </p>
 
           <div className="pt-4 flex flex-wrap justify-center sm:justify-start gap-3">
@@ -167,21 +163,10 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* 2 cột: Cột 1 (Bạn đang ở chế độ gì & thông tin user) và Cột 2 (Tổng quan tài khoản) */}
+      {/* 2 cột: Cột 1 (thông tin user) và Cột 2 (Tổng quan tài khoản) */}
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-[1fr_360px]">
-        {/* Cột 1: Hiển thị Bạn đang ở chế độ gì và form thông tin user */}
+        {/* Cột 1: Form thông tin user */}
         <div className="space-y-6">
-          {appMode === 'comic' ? (
-            <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 px-4 py-3 text-purple-200 text-sm flex items-center gap-3">
-              <BookOpen size={16} className="text-purple-500 shrink-0" />
-              <span>Bạn đang ở chế độ <b>MangaHub</b> (Đọc truyện)</span>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-emerald-200 text-sm flex items-center gap-3">
-              <Play size={16} className="text-emerald-500 shrink-0" />
-              <span>Bạn đang ở chế độ <b>Movie</b> (Xem phim)</span>
-            </div>
-          )}
 
           {!isFirebaseConfigured && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 text-red-100 px-4 py-3 text-sm">
@@ -291,7 +276,7 @@ const Profile = () => {
       </div>
 
       <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải lịch sử...</div>}>
-        {appMode === 'comic' ? <ComicHistory /> : <WatchHistory />}
+        <WatchHistory />
       </Suspense>
 
       <AvatarModal

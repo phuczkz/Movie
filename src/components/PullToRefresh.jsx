@@ -20,7 +20,7 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
  * @param {object}  props
  * @param {() => Promise<void>} [props.onRefresh] - Override hàm refresh mặc định
  */
-const DISABLED_PATH_PREFIXES = ['/watch/', '/chapter/', '/admin'];
+const DISABLED_PATH_PREFIXES = ['/watch/', '/admin'];
 
 const THRESHOLD = 70;
 

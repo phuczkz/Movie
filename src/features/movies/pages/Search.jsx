@@ -1,19 +1,15 @@
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
-import ComicCard from '@/features/comics/components/ComicCard.jsx';
 import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
 import { useSearchParams } from "react-router-dom";
 import { Search as SearchIcon } from "lucide-react";
-import { useAppMode } from '@/context/AppModeContext.jsx';
 import Pagination from '@/components/Pagination.jsx';
 
 const Search = () => {
   const [params, setSearchParams] = useSearchParams();
   const query = (params.get("q") || "").trim();
   const page = Math.max(1, parseInt(params.get("page") || "1", 10));
-  const { appMode } = useAppMode();
-  const isComicMode = appMode === "comic";
   
-  const { data = [], isFetching } = useSearchMovies(query, appMode, page);
+  const { data = [], isFetching } = useSearchMovies(query, "movie", page);
 
   const totalPages = data.totalPages || data.pagination?.totalPages || 1;
   const totalItems = data.totalItems || data.pagination?.totalItems || data.length;
@@ -39,7 +35,7 @@ const Search = () => {
         </h1>
         {query && totalItems > 0 && (
           <p className="text-sm text-slate-400">
-            Tìm thấy {totalItems} {isComicMode ? "truyện" : "phim"} {totalPages > 1 ? `• Trang ${page}/${totalPages}` : ""}
+            Tìm thấy {totalItems} phim {totalPages > 1 ? `• Trang ${page}/${totalPages}` : ""}
           </p>
         )}
       </div>
@@ -59,13 +55,9 @@ const Search = () => {
       {query ? (
         data.length ? (
           <>
-            <div className={isComicMode ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 xl:gap-6" : "grid-movies"}>
+            <div className="grid-movies">
               {data.map((item) => (
-                isComicMode ? (
-                  <ComicCard key={item.slug} comic={item} />
-                ) : (
-                  <MovieCard key={item.slug} movie={item} />
-                )
+                <MovieCard key={item.slug} movie={item} />
               ))}
             </div>
 

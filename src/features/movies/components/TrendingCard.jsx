@@ -152,7 +152,7 @@ const TrendingCard = ({ movie, index }) => {
       state={{ movie }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="group relative flex flex-col min-w-[200px] sm:min-w-[240px] max-w-[240px] transition-all duration-300 lg:hover:z-30 snap-start"
+      className="group relative flex flex-col min-w-[200px] sm:min-w-[240px] max-w-[240px] transition-all duration-300 lg:hover:z-10 snap-start"
     >
       {/* Slanted Poster Container using EXACT custom polygon for all edges and rounded corners */}
       <div

@@ -57,8 +57,6 @@ const AuthContext = createContext({
   updateSavedMovie: async () => false,
   savedMovieSlugs: new Set(),
   savedMoviesLoaded: false,
-  saveComic: async () => { },
-  removeSavedComic: async () => { },
   createAccountByAdmin: async () => { },
   deleteUserByAdmin: async () => { },
   toggleMaintenanceMode: async () => { },
@@ -591,56 +589,6 @@ export const AuthProvider = ({ children }) => {
           // Silent fail — không làm ảnh hưởng UX nếu sync thất bại
           return false;
         }
-      },
-      saveComic: async (comic) => {
-        if (!comic || !comic.slug)
-          throw new Error("Thiếu thông tin truyện để lưu.");
-        const { config, firestoreMod } = await loadFirebaseSdk();
-        if (!config.db || !config.auth) return rejectIfMissing();
-        const currentUser = await ensureCurrentUser();
-
-        const ref = firestoreMod.doc(
-          config.db,
-          "users",
-          currentUser.uid,
-          "FavoriteComics",
-          comic.slug
-        );
-
-        // Extract necessary fields for card display, handling both API detail and card-like objects
-        const payload = {
-          slug: comic.slug,
-          name: comic.name || comic.origin_name || "Truyện không tên",
-          thumb_url: comic.thumb_url || comic.poster_url || "",
-          status: comic.status || null,
-          category: comic.category || null,
-          author: comic.author || null,
-          updatedAt: comic.updatedAt || firestoreMod.serverTimestamp(),
-          // Store latest chapter if available
-          chaptersLatest: comic.chapters?.[0]?.server_data?.length > 0
-            ? [{ chapter_name: comic.chapters[0].server_data[comic.chapters[0].server_data.length - 1].chapter_name }]
-            : (Array.isArray(comic.chaptersLatest) ? comic.chaptersLatest : []),
-          createdAt: firestoreMod.serverTimestamp(),
-        };
-
-        console.log("Saving comic to Firestore:", payload);
-        await firestoreMod.setDoc(ref, payload, { merge: true });
-        return true;
-      },
-      removeSavedComic: async (slug) => {
-        if (!slug) throw new Error("Thiếu slug truyện cần xoá.");
-        const { config, firestoreMod } = await loadFirebaseSdk();
-        if (!config.db || !config.auth) return rejectIfMissing();
-        const currentUser = await ensureCurrentUser();
-        const ref = firestoreMod.doc(
-          config.db,
-          "users",
-          currentUser.uid,
-          "FavoriteComics",
-          slug
-        );
-        await firestoreMod.deleteDoc(ref);
-        return true;
       },
       createAccountByAdmin: async (email, password, displayName) => {
         const [{ config, authMod, firestoreMod }, { initializeApp, getAuth }] = await Promise.all([

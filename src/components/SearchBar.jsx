@@ -2,30 +2,13 @@ import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSearchMovies } from '@/features/movies/hooks/useSearchMovies.js';
-import { useAppMode } from '@/context/AppModeContext';
-import { getOptimizedPoster } from '@/utils/image-helper.js';
 import { usePosterFallback } from '@/features/movies/hooks/usePosterFallback.js';
 
 const MOBILE_WIDTH = 640;
 const FALLBACK_POSTER =
   "https://placehold.co/120x180/0f172a/94a3b8?text=No+Image";
 
-// Wrapper to handle comic CDN prefix before passing to centralized helper
-const getSearchPoster = (url, w = 360, isComic = false) => {
-  if (!url) return FALLBACK_POSTER;
-  let fullUrl = url;
-  if (isComic && !url.startsWith("http")) {
-    const comicCdn = import.meta.env.VITE_COMIC_IMAGE_CDN || "https://img.otruyenapi.com/uploads/comics/";
-    fullUrl = `${comicCdn}${url}`;
-  }
-  return getOptimizedPoster(fullUrl, w) || FALLBACK_POSTER;
-};
-
-const SearchResultItem = ({ movie, isComicMode, onSelect }) => {
-  const comicPoster = isComicMode
-    ? getSearchPoster(movie.poster_url || movie.thumb_url, 360, true)
-    : null;
-
+const SearchResultItem = ({ movie, onSelect }) => {
   const { posterSrc, handlePosterError } = usePosterFallback(
     movie,
     120,
@@ -40,18 +23,11 @@ const SearchResultItem = ({ movie, isComicMode, onSelect }) => {
       className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-700/70 transition-colors"
     >
       <img
-        src={isComicMode ? (comicPoster || FALLBACK_POSTER) : posterSrc}
+        src={posterSrc}
         alt={movie.name}
         className="w-12 h-16 rounded-md object-cover flex-shrink-0 bg-slate-800"
         loading="lazy"
-        onError={
-          isComicMode
-            ? (e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = FALLBACK_POSTER;
-              }
-            : handlePosterError
-        }
+        onError={handlePosterError}
       />
       <div className="min-w-0">
         <p className="text-sm font-semibold text-white line-clamp-1">
@@ -71,11 +47,7 @@ const SearchBar = ({
   className = "",
 }) => {
   const navigate = useNavigate();
-  const { appMode } = useAppMode();
-  const isComicMode = appMode === "comic";
-  const placeholder =
-    customPlaceholder ||
-    (isComicMode ? "Tìm truyện tranh..." : "Tìm phim, diễn viên...");
+  const placeholder = customPlaceholder || "Tìm phim, diễn viên...";
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") || "");
   const [debouncedQuery, setDebouncedQuery] = useState(() => (params.get("q") || "").trim());
@@ -126,24 +98,23 @@ const SearchBar = ({
     setDebouncedQuery(nextQ);
   }
 
-  const { data = [], isFetching } = useSearchMovies(debouncedQuery, appMode);
+  const { data = [], isFetching } = useSearchMovies(debouncedQuery, "movie");
   const hasQuery = Boolean(debouncedQuery);
   const limit = isMobile ? 5 : 8;
   const results = data.slice(0, limit);
   const shouldShowDropdown = open && hasQuery;
-  const searchPath = isComicMode ? "/comics/search" : "/search";
 
   const onSubmit = (event) => {
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) return;
-    navigate(`${searchPath}?q=${encodeURIComponent(trimmed)}`);
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
     setOpen(false);
   };
 
   const handleSelect = (movieObj) => {
     if (!movieObj || !movieObj.slug) return;
-    navigate(isComicMode ? `/comics/${movieObj.slug}` : `/movie/${movieObj.slug}`, {
+    navigate(`/movie/${movieObj.slug}`, {
       state: { movie: movieObj }
     });
     setOpen(false);
@@ -152,7 +123,7 @@ const SearchBar = ({
   const viewAll = () => {
     const trimmed = query.trim();
     if (!trimmed) return;
-    navigate(`${searchPath}?q=${encodeURIComponent(trimmed)}`);
+    navigate(`/search?q=${encodeURIComponent(trimmed)}`);
     setOpen(false);
   };
 
@@ -189,14 +160,13 @@ const SearchBar = ({
           <div className="max-h-[400px] overflow-y-auto divide-y divide-white/5">
             {results.length === 0 && !isFetching ? (
               <div className="px-4 py-3 text-sm text-slate-400">
-                No results found
+                Không tìm thấy kết quả
               </div>
             ) : (
               results.map((movie) => (
                 <SearchResultItem
                   key={movie.slug}
                   movie={movie}
-                  isComicMode={isComicMode}
                   onSelect={handleSelect}
                 />
               ))
@@ -209,7 +179,7 @@ const SearchBar = ({
               onClick={viewAll}
               className="w-full px-4 py-3 text-center text-sm font-semibold text-emerald-300 hover:text-emerald-200 bg-slate-800/60 rounded-b-2xl"
             >
-              View all results
+              Xem tất cả kết quả
             </button>
           )}
         </div>

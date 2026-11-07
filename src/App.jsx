@@ -1,14 +1,12 @@
 import { Suspense, lazy, useEffect } from "react";
 import {
+  Navigate,
   Route,
   Routes,
   useLocation,
-  useNavigationType,
 } from "react-router-dom";
 import PageTransition from '@/components/PageTransition.jsx';
 import Layout from '@/components/Layout.jsx';
-import ComicLayout from '@/features/comics/components/ComicLayout.jsx';
-import { useAppMode } from '@/context/AppModeContext';
 import { cancelAllPendingRequests } from '@/api/client';
 import { cancelAllKKphimRequests } from '@/features/movies/api/movies2';
 
@@ -26,17 +24,8 @@ const Actor = lazy(() => import('@/features/movies/pages/Actor.jsx'));
 const AdminPanel = lazy(() => import('@/features/admin/pages/AdminPanel.jsx'));
 const NotFound = lazy(() => import('@/components/NotFound.jsx'));
 
-// Comics
-const ComicHome = lazy(() => import('@/features/comics/pages/ComicHome.jsx'));
-const ComicDetail = lazy(() => import('@/features/comics/pages/ComicDetail.jsx'));
-const ComicReader = lazy(() => import('@/features/comics/pages/ComicReader.jsx'));
-const ComicList = lazy(() => import('@/features/comics/pages/ComicList.jsx'));
-const ComicFavorites = lazy(() => import('@/features/comics/pages/ComicFavorites.jsx'));
-
 function App() {
   const location = useLocation();
-  const navigationType = useNavigationType();
-  const { appMode, setAppMode } = useAppMode();
 
   // ── Cancel stale API requests on route change ──
   // When user navigates away, all in-flight Ophim/KKphim requests are aborted
@@ -45,31 +34,6 @@ function App() {
     cancelAllPendingRequests();
     cancelAllKKphimRequests();
   }, [location.pathname]);
-
-  useEffect(() => {
-    // Read location.pathname inside effect body — not as deps — to avoid mutable-in-deps warning
-    const path = location.pathname;
-
-    // Tự động nhận diện chế độ dựa trên URL, nhưng tôn trọng lựa chọn comic đã lưu ở trang "/"
-    if (path.startsWith("/comics")) {
-      if (appMode !== "comic") setAppMode("comic");
-      return;
-    }
-
-    if (path === "/login" || path === "/register" || path === "/profile") {
-      return;
-    }
-
-    // Keep comic mode at root only on direct entry/refresh.
-    // For in-app navigation to "/", switch to movie mode so Header state stays in sync.
-    if (path === "/" && appMode === "comic" && navigationType === "POP") {
-      return;
-    }
-
-    if (appMode !== "movie") {
-      setAppMode("movie");
-    }
-  }, [location, setAppMode, appMode, navigationType]);
 
   return (
     <Suspense
@@ -89,30 +53,10 @@ function App() {
         {/* Admin — own full-screen layout */}
         <Route path="/admin" element={<PageTransition><AdminPanel /></PageTransition>} />
 
-        {/* Comic site layout - Đưa LÊN TRƯỚC để trình duyệt không nhận nhầm trang Phim */}
-        <Route
-          path="/comics/*"
-          element={
-            <ComicLayout>
-              <Routes>
-                <Route path="/" element={<ComicHome />} />
-                <Route path="/page/:page" element={<ComicHome />} />
-                <Route path="/danh-sach/:type" element={<ComicList />} />
-                <Route path="/danh-sach/:type/:page" element={<ComicList />} />
-                <Route path="/the-loai/:slug" element={<ComicList />} />
-                <Route path="/the-loai/:slug/:page" element={<ComicList />} />
-                <Route path="/:slug" element={<ComicDetail />} />
-                <Route path="/chapter/:chapterId" element={<ComicReader />} />
-                <Route path="/favorites" element={<ComicFavorites />} />
-                <Route path="/search" element={<Search />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </ComicLayout>
-          }
-        />
+        {/* Chuyển hướng các URL comic cũ về trang chủ */}
+        <Route path="/comics/*" element={<Navigate to="/" replace />} />
 
-        {/* Main site layout - Catch-all dành cho Phim */}
+        {/* Main site layout - Dành cho Phim */}
         <Route
           path="/*"
           element={

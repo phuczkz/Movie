@@ -1,17 +1,12 @@
 import { useEffect } from "react";
 import { useAuth } from '@/features/auth/context/AuthContext';
-import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { useAppMode } from '@/context/AppModeContext';
-import SelectionScreen from '@/components/SelectionScreen.jsx';
+import { useLocation } from "react-router-dom";
 import MaintenanceNew from '@/components/MaintenanceNew.jsx';
 import AppLoader from '@/components/app-loader.jsx';
 
 export default function MaintenanceGuard({ children }) {
   const { user, userProfile, maintenance, loading, profileLoading, isAdmin } = useAuth();
-  const { appMode } = useAppMode();
   const location = useLocation();
-  const navigate = useNavigate();
-  const navigationType = useNavigationType();
 
   const isWhitelisted = userProfile?.isWhitelisted === true;
   const isBypassed = isAdmin || isWhitelisted;
@@ -26,16 +21,6 @@ export default function MaintenanceGuard({ children }) {
     !isBypassed &&
     !(isLoginPath && !user)
   );
-
-  const { pathname } = location;
-
-  useEffect(() => {
-    // Only auto-redirect on direct entry/refresh. Do not override explicit in-app navigation.
-    if (navigationType !== "POP") return;
-    if (appMode === "comic" && pathname === "/") {
-      navigate("/comics", { replace: true });
-    }
-  }, [appMode, navigate, navigationType, pathname]);
 
   // Chặn phím tắt DevTools khi đang hiển thị màn hình bảo trì
   useEffect(() => {
@@ -83,12 +68,6 @@ export default function MaintenanceGuard({ children }) {
     return <MaintenanceNew />;
   }
 
-  // 3. Khách chưa chọn chế độ Phim/Truyện và không ở trang Login -> Render SelectionScreen
-  if (!appMode && !isLoginPath) {
-    return <SelectionScreen />;
-  }
-
-  // 4. Đủ điều kiện -> Render ứng dụng
+  // 3. Đủ điều kiện -> Render ứng dụng
   return children;
 }
-

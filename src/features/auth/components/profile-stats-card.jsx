@@ -2,10 +2,9 @@
  * profile-stats-card.jsx
  *
  * Card thống kê hoạt động người dùng, hiển thị ở cột phải trang Profile.
- * Hỗ trợ cả chế độ Movie (phim) và Comic (MangaHub).
  *
  * Nội dung:
- * - Thống kê tổng quan: phim/truyện đã xem, yêu thích, ngày tham gia
+ * - Thống kê tổng quan: phim đã xem, yêu thích, ngày tham gia
  * - Huy hiệu cấp bậc người dùng
  * - Lối tắt thao tác nhanh (Quick Actions)
  */
@@ -19,7 +18,6 @@ import {
 import {
   Film,
   Heart,
-  BookOpen,
   Star,
   Trophy,
   Sparkles,
@@ -28,7 +26,6 @@ import {
 } from "lucide-react";
 import { db } from "@/firebase.config.js";
 import { useAuth } from "@/features/auth/context/AuthContext.jsx";
-import { useAppMode } from "@/context/AppModeContext";
 
 /* ── Badge tiers dựa trên tổng hoạt động ── */
 const MOVIE_TIERS = [
@@ -38,17 +35,9 @@ const MOVIE_TIERS = [
   { min: 50, label: "Huyền thoại", icon: Sparkles, color: "text-purple-400", bg: "bg-purple-500/10" },
 ];
 
-const COMIC_TIERS = [
-  { min: 0, label: "Thành viên mới", icon: Star, color: "text-slate-400", bg: "bg-slate-500/10" },
-  { min: 5, label: "Mọt truyện", icon: BookOpen, color: "text-purple-400", bg: "bg-purple-500/10" },
-  { min: 20, label: "Siêu mọt truyện", icon: Trophy, color: "text-amber-400", bg: "bg-amber-500/10" },
-  { min: 50, label: "Huyền thoại", icon: Sparkles, color: "text-rose-400", bg: "bg-rose-500/10" },
-];
-
-function getTier(count, isComic) {
-  const tiers = isComic ? COMIC_TIERS : MOVIE_TIERS;
-  let matched = tiers[0];
-  for (const tier of tiers) {
+function getTier(count) {
+  let matched = MOVIE_TIERS[0];
+  for (const tier of MOVIE_TIERS) {
     if (count >= tier.min) matched = tier;
   }
   return matched;
@@ -90,39 +79,31 @@ function StatItem({ icon, label, value, accentColor = "text-emerald-400" }) {
 /* ── Main Component ── */
 export default function ProfileStatsCard() {
   const { user, userProfile } = useAuth();
-  const { appMode } = useAppMode();
-  const isComic = appMode === "comic";
 
   const [watchCount, setWatchCount] = useState(null);
   const [favCount, setFavCount] = useState(null);
 
   const uid = user?.uid;
 
-  // Đếm số phim/truyện đã xem (dùng để tính cấp bậc tier)
+  // Đếm số phim đã xem (dùng để tính cấp bậc tier)
   useEffect(() => {
     if (!uid || !db) return;
-    const collPath = isComic
-      ? `users/${uid}/ReadProgress`
-      : `users/${uid}/WatchProgress`;
-    const col = collection(db, collPath);
+    const col = collection(db, `users/${uid}/WatchProgress`);
 
     // Dùng getCountFromServer để không phải download toàn bộ docs
     getCountFromServer(col)
       .then((snap) => setWatchCount(snap.data().count))
       .catch(() => setWatchCount(0));
-  }, [uid, isComic]);
+  }, [uid]);
 
-  // Đếm số phim/truyện yêu thích
+  // Đếm số phim yêu thích
   useEffect(() => {
     if (!uid || !db) return;
-    const collPath = isComic
-      ? `users/${uid}/FavoriteComics`
-      : `users/${uid}/FavoriteMovies`;
-    const col = collection(db, collPath);
+    const col = collection(db, `users/${uid}/FavoriteMovies`);
     getCountFromServer(col)
       .then((snap) => setFavCount(snap.data().count))
       .catch(() => setFavCount(0));
-  }, [uid, isComic]);
+  }, [uid]);
 
   // Ngày tham gia
   const joinDate = useMemo(() => {
@@ -134,15 +115,11 @@ export default function ProfileStatsCard() {
 
   // Huy hiệu / cấp bậc
   const totalActivity = (watchCount || 0) + (favCount || 0);
-  const tier = getTier(totalActivity, isComic);
+  const tier = getTier(totalActivity);
   const TierIcon = tier.icon;
 
-  // Accent color theo chế độ
-  const accentBorder = isComic ? "border-purple-500/20" : "border-emerald-500/20";
-  const accentBg = isComic ? "bg-purple-500/5" : "bg-emerald-500/5";
-
   return (
-    <div className={`rounded-2xl border ${accentBorder} ${accentBg} p-5 space-y-5`}>
+    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className={`p-2.5 rounded-xl ${tier.bg}`}>
@@ -182,7 +159,7 @@ export default function ProfileStatsCard() {
           >
             <span className="flex items-center gap-2.5">
               <Heart size={16} className="text-rose-400" />
-              Kho {isComic ? "truyện" : "phim"} yêu thích
+              Kho phim yêu thích
             </span>
             <ArrowRight
               size={16}

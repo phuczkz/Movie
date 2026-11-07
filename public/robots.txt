@@ -9,9 +9,6 @@ Disallow: /register
 Disallow: /profile
 Disallow: /favorites
 Disallow: /search
-Disallow: /comics/search
-Disallow: /comics/profile
-Disallow: /comics/favorites
 Disallow: /*?*
 
 Allow: /
@@ -20,5 +17,3 @@ Allow: /country/
 Allow: /movie/
 Allow: /watch/
 Allow: /actor/
-Allow: /comics/
-

@@ -13,7 +13,6 @@ import {
   History,
   Search,
   Play,
-  BookOpen,
   Crown,
   UserCheck,
 } from "lucide-react";
@@ -21,7 +20,6 @@ import { useAuth } from '@/features/auth/context/AuthContext';
 import ConfirmModal from '@/components/ConfirmModal';
 
 const WatchHistory = lazy(() => import('@/features/movies/components/WatchHistory.jsx'));
-const ComicHistory = lazy(() => import('@/features/comics/components/ComicHistory'));
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -35,7 +33,6 @@ export default function AdminUsers() {
     isOpen: false,
     userId: null,
     userName: "",
-    activeTab: "movie", // 'movie' or 'comic'
   });
 
   const {
@@ -677,40 +674,9 @@ export default function AdminUsers() {
               </button>
             </div>
 
-            <div className="px-6 border-b border-white/5 flex gap-6">
-              <button
-                type="button"
-                onClick={() => setHistoryModal(prev => ({ ...prev, activeTab: 'movie' }))}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 transition-all font-semibold text-sm ${
-                  historyModal.activeTab === 'movie'
-                    ? "border-emerald-500 text-emerald-400"
-                    : "border-transparent text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                <Play className="size-4" fill="currentColor" />
-                Lịch sử xem phim
-              </button>
-              <button
-                type="button"
-                onClick={() => setHistoryModal(prev => ({ ...prev, activeTab: 'comic' }))}
-                className={`flex items-center gap-2 py-4 px-1 border-b-2 transition-all font-semibold text-sm ${
-                  historyModal.activeTab === 'comic'
-                    ? "border-purple-500 text-purple-400"
-                    : "border-transparent text-slate-500 hover:text-slate-300"
-                }`}
-              >
-                <BookOpen className="size-4" />
-                Lịch sử đọc truyện
-              </button>
-            </div>
-
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
               <Suspense fallback={<div className="text-slate-400 text-sm">Đang tải lịch sử...</div>}>
-                {historyModal.activeTab === 'movie' ? (
-                  <WatchHistory userId={historyModal.userId} adminView={true} />
-                ) : (
-                  <ComicHistory userId={historyModal.userId} adminView={true} />
-                )}
+                <WatchHistory userId={historyModal.userId} adminView={true} />
               </Suspense>
             </div>
 
@@ -718,7 +684,7 @@ export default function AdminUsers() {
               <button
                 type="button"
                 onClick={() =>
-                  setHistoryModal({ isOpen: false, userId: null, userName: "", activeTab: "movie" })
+                  setHistoryModal({ isOpen: false, userId: null, userName: "" })
                 }
                 className="px-6 py-2 rounded-xl bg-white/5 text-slate-300 hover:bg-white/10 font-semibold transition-all"
               >

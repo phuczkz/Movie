@@ -115,7 +115,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
 
   if (!activeMovie) {
     return (
-      <section className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-900/40 h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px] animate-pulse">
+      <section className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-0 md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-900/40 h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px] animate-pulse">
         <div className="absolute inset-0 bg-slate-800/50" />
         <div className="relative z-10 flex h-full flex-col justify-end px-4 pb-14 md:px-10 md:pb-24 lg:px-16 lg:pb-12 gap-6">
           <div className="h-12 w-1/3 bg-slate-700/50 rounded-lg" />
@@ -164,239 +164,231 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
   const background1920 = isTmdb ? tmdbResize(background, "original") : toOptimizedHeroImage(background, 1920, qVal);
   const background2560 = background1920;
   const background3840 = background1920;
-  // const ratingValue =
-  //   typeof activeMovie.rating === "number"
-  //     ? activeMovie.rating
-  //     : typeof activeMovie.vote_average === "number"
-  //       ? activeMovie.vote_average
-  //       : undefined;
-  // const rating =
-  //   typeof ratingValue === "number" ? ratingValue.toFixed(1) : undefined;
 
   const partMatch = activeMovie?.name?.match(/(Phần\s+\d+|Part\s+\d+|Mùa\s+\d+|Season\s+\d+)/i);
   const partString = partMatch ? partMatch[0] : null;
 
   return (
     <section
-      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-[-72px] md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px]"
+      className="relative isolate w-screen max-w-none left-1/2 -translate-x-1/2 mt-0 md:mt-[-96px] lg:mt-[-200px] overflow-hidden rounded-none bg-slate-950/80 shadow-[0_40px_140px_-70px_rgba(0,0,0,0.95)] h-[60vh] sm:h-[65vh] md:h-[70vh] lg:h-[85vh] xl:h-[90vh] 2xl:h-[95vh] min-h-[450px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[800px] max-h-[600px] sm:max-h-[650px] md:max-h-[750px] lg:max-h-[1000px] xl:max-h-[1200px] 2xl:max-h-[1400px]"
     >
-        <div className="absolute inset-0">
-          <AnimatePresence mode="popLayout">
-            <m.img
+      <div className="absolute inset-0">
+        <AnimatePresence mode="popLayout">
+          <m.img
+            key={activeMovie?.slug}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
+            src={isMobileSize ? background640 : background1280}
+            srcSet={`${background640} 640w, ${background1280} 1280w, ${background1920} 1920w, ${background2560} 2560w, ${background3840} 3840w`}
+            sizes="100vw"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-top brightness-105 contrast-[1.08]"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+            aria-hidden="true"
+            onError={(e) => {
+              if (!e.currentTarget.dataset.fallback) {
+                e.currentTarget.dataset.fallback = 'true';
+                e.currentTarget.src = `https://img.ophim.live/uploads/movies/${activeMovie?.slug}-thumb.jpg`;
+                e.currentTarget.srcset = "";
+              } else {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = background;
+                e.currentTarget.srcset = "";
+              }
+            }}
+          />
+        </AnimatePresence>
+        {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/65 via-slate-950/35 to-slate-950/10 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_60%,rgba(244,114,182,0.15),transparent_45%),radial-gradient(circle_at_78%_20%,rgba(52,211,153,0.15),transparent_42%)] pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
+      </div>
+
+      <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-14 pt-12 sm:pb-16 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
+        <div className="max-w-3xl space-y-3 md:space-y-6">
+          <AnimatePresence mode="wait">
+            <m.div
               key={activeMovie?.slug}
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
-              src={isMobileSize ? background640 : background1280}
-              srcSet={`${background640} 640w, ${background1280} 1280w, ${background1920} 1920w, ${background2560} 2560w, ${background3840} 3840w`}
-              sizes="100vw"
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover object-top brightness-105 contrast-[1.08]"
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-              aria-hidden="true"
-              onError={(e) => {
-                if (!e.currentTarget.dataset.fallback) {
-                  e.currentTarget.dataset.fallback = 'true';
-                  e.currentTarget.src = `https://img.ophim.live/uploads/movies/${activeMovie?.slug}-thumb.jpg`;
-                  e.currentTarget.srcset = "";
-                } else {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = background;
-                  e.currentTarget.srcset = "";
-                }
-              }}
-            />
-          </AnimatePresence>
-          {/* Lớp phủ mỏng để dịu mắt, làm nổi bật thông tin */}
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/65 via-slate-950/35 to-slate-950/10 pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_60%,rgba(244,114,182,0.15),transparent_45%),radial-gradient(circle_at_78%_20%,rgba(52,211,153,0.15),transparent_42%)] pointer-events-none" />
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/80 to-transparent pointer-events-none" />
-        </div>
-
-        <div className="relative z-10 flex h-full flex-col justify-end items-center md:items-start text-center md:text-left gap-6 md:gap-7 px-4 pb-14 pt-12 sm:pb-16 md:px-10 md:pb-24 lg:px-16 lg:pb-12">
-          <div className="max-w-3xl space-y-3 md:space-y-6">
-            <AnimatePresence mode="wait">
-              <m.div
-                key={activeMovie?.slug}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-                className="space-y-3 md:space-y-6"
-              >
-                <div className="gap-1.5 md:gap-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[75px]">
-                  {activeLogo ? (
-                    <img
-                      src={activeLogo}
-                      alt={activeMovie.name}
-                      className="mx-auto md:mx-0 min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[70px] max-h-[95px] sm:max-h-[110px] md:max-h-[130px] lg:max-h-[150px] 2xl:max-h-[175px] max-w-[85%] sm:max-w-[75%] md:max-w-[440px] lg:max-w-[500px] 2xl:max-w-[560px] w-auto h-auto object-contain object-center md:object-left drop-shadow-[0_10px_30px_rgba(0,0,0,1)] filter brightness-110 contrast-110 select-none"
-                      draggable={false}
-                      fetchPriority="high"
-                      decoding="async"
-                    />
-                  ) : (
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-normal sm:leading-[1.28] text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)] line-clamp-2 pb-2">
-                      {activeMovie.name}
-                    </h1>
-                  )}
-                  {(() => {
-                    let subText = null;
-                    if (activeLogo) {
-                      subText = activeLogoLang !== "vi" ? activeMovie.name : activeMovie.origin_name;
-                    } else {
-                      subText = activeMovie.origin_name;
-                    }
-                    if (!subText || subText === activeMovie.name && !activeLogo) return null;
-                    return (
-                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left line-clamp-1 pb-1">
-                        {subText}
-                      </h2>
-                    );
-                  })()}
-                </div>
-
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[14px] font-medium text-white">
-                  {activeMovie.year ? (
-                    <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
-                      {activeMovie.year}
-                    </span>
-                  ) : null}
-                  {partString ? (
-                    <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
-                      {partString}
-                    </span>
-                  ) : null}
-                  {heroBadgeText ? (
-                    <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
-                      {heroBadgeText}
-                    </span>
-                  ) : null}
-                  {displayMovie.time ? (
-                    <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
-                      {displayMovie.time}
-                    </span>
-                  ) : null}
-                </div>
-              </m.div>
-            </AnimatePresence>
-
-            <div className="hidden md:flex flex-wrap items-center justify-center md:justify-start gap-4 pt-1">
-              {/* Nút Play Tròn - Chỉnh icon chính giữa chuẩn xác */}
-              <Link
-                to={secondaryLink}
-                title={primaryLabel}
-                className="group hidden md:flex items-center justify-center rounded-full bg-[rgb(16,185,129)] size-14 md:size-[60px] text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition duration-300 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
-              >
-                <Play className="size-6 md:size-[26px] translate-x-[1.5px]" fill="currentColor" />
-              </Link>
-
-              {/* Pill Container cho Yêu thích & Thông tin (Trong suốt theo thiết kế) */}
-              <div className="hidden md:flex items-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md h-14 md:h-[60px] shadow-lg shadow-black/20 overflow-hidden">
-                {/* Nút Yêu Thích - Tính năng lưu Firebase/User + Màu Đỏ khi đã thích */}
-                <button
-                  type="button"
-                  title={isSaved ? "Xóa khỏi danh sách yêu thích" : "Thêm vào danh sách yêu thích"}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleSave();
-                  }}
-                  disabled={favLoading}
-                  className="flex items-center justify-center w-16 md:w-[72px] h-full text-white hover:bg-white/10 transition duration-300 focus-visible:outline-none group/fav disabled:opacity-50"
-                >
-                  <Heart
-                    className={`size-5 md:size-[24px] transition-all duration-300 ${isSaved
-                      ? "text-rose-500 fill-rose-500 drop-shadow-[0_0_12px_rgba(244,63,94,0.7)] scale-110"
-                      : "text-white fill-white group-hover/fav:scale-110"
-                      }`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+              className="space-y-3 md:space-y-6"
+            >
+              <div className="gap-1.5 md:gap-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[75px]">
+                {activeLogo ? (
+                  <img
+                    src={activeLogo}
+                    alt={activeMovie.name}
+                    className="mx-auto md:mx-0 min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[70px] max-h-[95px] sm:max-h-[110px] md:max-h-[130px] lg:max-h-[150px] 2xl:max-h-[175px] max-w-[85%] sm:max-w-[75%] md:max-w-[440px] lg:max-w-[500px] 2xl:max-w-[560px] w-auto h-auto object-contain object-center md:object-left drop-shadow-[0_10px_30px_rgba(0,0,0,1)] filter brightness-110 contrast-110 select-none"
+                    draggable={false}
+                    fetchPriority="high"
+                    decoding="async"
                   />
-                </button>
-
-                {/* Vạch ngăn cách (Divider) */}
-                <div className="h-[32px] w-px bg-white/20" />
-
-                {/* Nút Thông tin Detail */}
-                <Link
-                  to={primaryLink}
-                  state={{ movie: activeMovie }}
-                  title="Thông tin phim"
-                  className="flex items-center justify-center w-16 md:w-[72px] h-full text-white hover:bg-white/10 transition duration-300 focus-visible:outline-none group/info"
-                >
-                  <Info className="size-5 md:size-[24px] text-white transition-transform duration-300 group-hover/info:scale-110" />
-                </Link>
+                ) : (
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-semibold leading-normal sm:leading-[1.28] text-white drop-shadow-[0_14px_28px_rgba(0,0,0,0.55)] line-clamp-2 pb-2">
+                    {activeMovie.name}
+                  </h1>
+                )}
+                {(() => {
+                  let subText = null;
+                  if (activeLogo) {
+                    subText = activeLogoLang !== "vi" ? activeMovie.name : activeMovie.origin_name;
+                  } else {
+                    subText = activeMovie.origin_name;
+                  }
+                  if (!subText || subText === activeMovie.name && !activeLogo) return null;
+                  return (
+                    <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left line-clamp-1 pb-1">
+                      {subText}
+                    </h2>
+                  );
+                })()}
               </div>
+
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[14px] font-medium text-white">
+                {activeMovie.year ? (
+                  <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
+                    {activeMovie.year}
+                  </span>
+                ) : null}
+                {partString ? (
+                  <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
+                    {partString}
+                  </span>
+                ) : null}
+                {heroBadgeText ? (
+                  <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
+                    {heroBadgeText}
+                  </span>
+                ) : null}
+                {displayMovie.time ? (
+                  <span className="rounded-md border border-white bg-transparent px-2 py-0.5 sm:px-2.5 sm:py-1 font-bold shadow-black/50 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] backdrop-blur-[2px]">
+                    {displayMovie.time}
+                  </span>
+                ) : null}
+              </div>
+            </m.div>
+          </AnimatePresence>
+
+          <div className="hidden md:flex flex-wrap items-center justify-center md:justify-start gap-4 pt-1">
+            {/* Nút Play Tròn - Chỉnh icon chính giữa chuẩn xác */}
+            <Link
+              to={secondaryLink}
+              title={primaryLabel}
+              className="group hidden md:flex items-center justify-center rounded-full bg-[rgb(16,185,129)] size-14 md:size-[60px] text-slate-950 shadow-[0_18px_40px_-14px_rgba(16,185,129,0.7)] transition duration-300 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80"
+            >
+              <Play className="size-6 md:size-[26px] translate-x-[1.5px]" fill="currentColor" />
+            </Link>
+
+            {/* Pill Container cho Yêu thích & Thông tin (Trong suốt theo thiết kế) */}
+            <div className="hidden md:flex items-center rounded-full border border-white/20 bg-black/20 backdrop-blur-md h-14 md:h-[60px] shadow-lg shadow-black/20 overflow-hidden">
+              {/* Nút Yêu Thích - Tính năng lưu Firebase/User + Màu Đỏ khi đã thích */}
+              <button
+                type="button"
+                title={isSaved ? "Xóa khỏi danh sách yêu thích" : "Thêm vào danh sách yêu thích"}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleSave();
+                }}
+                disabled={favLoading}
+                className="flex items-center justify-center w-16 md:w-[72px] h-full text-white hover:bg-white/10 transition duration-300 focus-visible:outline-none group/fav disabled:opacity-50"
+              >
+                <Heart
+                  className={`size-5 md:size-[24px] transition-all duration-300 ${isSaved
+                    ? "text-rose-500 fill-rose-500 drop-shadow-[0_0_12px_rgba(244,63,94,0.7)] scale-110"
+                    : "text-white fill-white group-hover/fav:scale-110"
+                    }`}
+                />
+              </button>
+
+              {/* Vạch ngăn cách (Divider) */}
+              <div className="h-[32px] w-px bg-white/20" />
+
+              {/* Nút Thông tin Detail */}
+              <Link
+                to={primaryLink}
+                state={{ movie: activeMovie }}
+                title="Thông tin phim"
+                className="flex items-center justify-center w-16 md:w-[72px] h-full text-white hover:bg-white/10 transition duration-300 focus-visible:outline-none group/info"
+              >
+                <Info className="size-5 md:size-[24px] text-white transition-transform duration-300 group-hover/info:scale-110" />
+              </Link>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Lớp phủ click cho mobile */}
-        <Link
-          to={primaryLink}
-          state={{ movie: activeMovie }}
-          className="absolute inset-0 z-[5] md:hidden"
-          aria-label={`Xem chi tiết ${activeMovie.name}`}
-        />
+      {/* Lớp phủ click cho mobile */}
+      <Link
+        to={primaryLink}
+        state={{ movie: activeMovie }}
+        className="absolute inset-0 z-[5] md:hidden"
+        aria-label={`Xem chi tiết ${activeMovie.name}`}
+      />
 
-        {slides.length > 1 ? (
-          <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex items-center gap-1.5 md:gap-2 rounded-2xl p-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
-            {slides.slice(0, 6).map((item, idx) => {
-              const isActive = idx === safeIndex;
-              const thumbSource =
-                item.backdrop_url ||
-                item.banner ||
-                (item.thumb_url !== item.poster_url ? item.thumb_url : null) ||
-                item.thumb_url ||
-                item.poster_url ||
-                "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
-              const hasLandscape = Boolean(
-                item.backdrop_url ||
-                item.banner ||
-                item.thumb_url !== item.poster_url
-              );
-              const fitClass = hasLandscape ? "object-cover" : "object-contain";
-              return (
-                <button
-                  key={item.slug}
-                  type="button"
-                  onClick={() => setActiveIndex(idx)}
-                  className={`group relative transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${isActive
-                    ? "w-4 h-1.5 bg-[rgb(16,185,129)] lg:w-32 lg:h-auto lg:aspect-video lg:bg-transparent lg:border-[rgb(16,185,129)]/80 lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
-                    : "w-1.5 h-1.5 bg-white/25 hover:bg-white/40 lg:w-32 lg:h-auto lg:aspect-video lg:bg-transparent lg:border-white/15 lg:hover:border-white/25"
-                    } rounded-full lg:rounded-lg lg:border overflow-hidden`}
-                  aria-label={`Chọn ${item.name}`}
-                >
-                  <div className="hidden lg:block absolute inset-0">
-                    <img
-                      src={withWidthParam(thumbSource, 320) || thumbSource}
-                      alt={item.name}
-                      className={`h-full w-full ${fitClass} transition duration-500 group-hover:scale-105`}
-                      loading="lazy"
-                      onError={(e) => {
-                        if (!e.target.dataset.fallback) {
-                          e.target.dataset.fallback = 'true';
-                          e.target.src = `https://img.ophim.live/uploads/movies/${item.slug}-thumb.jpg`;
-                        } else {
-                          e.target.src = '/apple-touch-icon.png';
-                        }
-                      }}
+      {slides.length > 1 ? (
+        <div className="absolute z-20 left-1/2 -translate-x-1/2 bottom-3 md:bottom-4 flex items-center gap-1.5 md:gap-2 rounded-2xl p-2 lg:right-3 lg:left-auto lg:translate-x-0 lg:bottom-5">
+          {slides.slice(0, 6).map((item, idx) => {
+            const isActive = idx === safeIndex;
+            const thumbSource =
+              item.backdrop_url ||
+              item.banner ||
+              (item.thumb_url !== item.poster_url ? item.thumb_url : null) ||
+              item.thumb_url ||
+              item.poster_url ||
+              "https://placehold.co/1600x900/0f172a/94a3b8?text=No+Image";
+            const hasLandscape = Boolean(
+              item.backdrop_url ||
+              item.banner ||
+              item.thumb_url !== item.poster_url
+            );
+            const fitClass = hasLandscape ? "object-cover" : "object-contain";
+            return (
+              <button
+                key={item.slug}
+                type="button"
+                onClick={() => setActiveIndex(idx)}
+                className={`group relative transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(16,185,129)]/80 ${isActive
+                  ? "w-4 h-1.5 bg-[rgb(16,185,129)] lg:w-32 lg:h-auto lg:aspect-video lg:bg-transparent lg:border-[rgb(16,185,129)]/80 lg:shadow-[0_10px_30px_-10px_rgba(16,185,129,0.65)]"
+                  : "w-1.5 h-1.5 bg-white/25 hover:bg-white/40 lg:w-32 lg:h-auto lg:aspect-video lg:bg-transparent lg:border-white/15 lg:hover:border-white/25"
+                  } rounded-full lg:rounded-lg lg:border overflow-hidden`}
+                aria-label={`Chọn ${item.name}`}
+              >
+                <div className="hidden lg:block absolute inset-0">
+                  <img
+                    src={withWidthParam(thumbSource, 320) || thumbSource}
+                    alt={item.name}
+                    className={`h-full w-full ${fitClass} transition duration-500 group-hover:scale-105`}
+                    loading="lazy"
+                    onError={(e) => {
+                      if (!e.target.dataset.fallback) {
+                        e.target.dataset.fallback = 'true';
+                        e.target.src = `https://img.ophim.live/uploads/movies/${item.slug}-thumb.jpg`;
+                      } else {
+                        e.target.src = '/apple-touch-icon.png';
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                  {isActive ? (
+                    <span
+                      className="absolute inset-0 ring-2 ring-[rgb(16,185,129)]/90"
+                      aria-hidden="true"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-                    {isActive ? (
-                      <span
-                        className="absolute inset-0 ring-2 ring-[rgb(16,185,129)]/90"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </section>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
   );
 };
 
