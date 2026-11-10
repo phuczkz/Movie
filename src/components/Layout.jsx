@@ -26,7 +26,7 @@ const Layout = ({ children }) => {
       />
       <Header />
       <main
-        className={`relative z-10 mx-auto w-full max-w-[1680px] flex-1 flex flex-col px-4 sm:px-5 md:px-6 lg:px-6 xl:px-8 2xl:px-10 ${
+        className={`relative z-10 mx-auto w-full max-w-[1680px] flex-1 flex flex-col px-4 sm:px-5 md:px-6 lg:px-6 xl:px-6 2xl:px-8 ${
           isHome || isDetail
             ? "pt-0 md:pt-0 lg:pt-24"
             : "pt-[calc(3.5rem+env(safe-area-inset-top,0px))] md:pt-24"

@@ -90,8 +90,9 @@ const PlayerStyle = () => {
               width: 100% !important;
               box-sizing: border-box !important;
               overflow: hidden !important;
-              padding-right: 4px !important;
-              padding-left: 4px !important;
+              padding-right: 12px !important;
+              padding-left: 12px !important;
+              padding-bottom: 4px !important;
             }
             .art-controls-left, .art-controls-right {
               display: flex !important;
@@ -148,8 +149,9 @@ const PlayerStyle = () => {
               letter-spacing: -0.5px !important;
             }
             .art-bottom {
-              padding-right: 2px !important;
-              padding-left: 2px !important;
+              padding-right: 10px !important;
+              padding-left: 10px !important;
+              padding-bottom: 3px !important;
             }
           }
 
@@ -176,6 +178,10 @@ const PlayerStyle = () => {
               font-size: 8px !important;
               letter-spacing: -1px !important;
               padding: 0 1px !important;
+            }
+            .art-bottom {
+              padding-right: 6px !important;
+              padding-left: 6px !important;
             }
           }
 

@@ -671,7 +671,7 @@ const Player = ({
     onNextEpisode,
   ]);
 
-  const containerClass = `relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 z-10 rounded-2xl border border-white/10`;
+  const containerClass = `relative w-full overflow-hidden bg-black shadow-2xl transition-all duration-500 z-10 rounded-xl sm:rounded-2xl border border-white/10`;
 
   if (canUseIframe) {
     return (
@@ -751,8 +751,9 @@ const Player = ({
               width: 100% !important;
               box-sizing: border-box !important;
               overflow: hidden !important;
-              padding-right: 4px !important;
-              padding-left: 4px !important;
+              padding-right: 12px !important;
+              padding-left: 12px !important;
+              padding-bottom: 4px !important;
             }
             .art-controls-left, .art-controls-right {
               display: flex !important;
@@ -811,8 +812,9 @@ const Player = ({
               letter-spacing: -0.5px !important;
             }
             .art-bottom {
-              padding-right: 2px !important;
-              padding-left: 2px !important;
+              padding-right: 10px !important;
+              padding-left: 10px !important;
+              padding-bottom: 3px !important;
             }
           }
 
@@ -839,6 +841,10 @@ const Player = ({
               font-size: 8px !important;
               letter-spacing: -1px !important;
               padding: 0 1px !important;
+            }
+            .art-bottom {
+              padding-right: 6px !important;
+              padding-left: 6px !important;
             }
           }
 

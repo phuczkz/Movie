@@ -371,23 +371,45 @@ const Header = () => {
   }, [searchOpen]);
 
   const lastScrollY = useRef(0);
+  const isHiddenRef = useRef(false);
+  const scrolledRef = useRef(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const nextScrolled = currentScrollY > 40;
+      if (menuOpen || searchOpen) return;
 
-      dispatch({
-        type: "SET_SCROLL_STATE",
-        payload: { scrolled: nextScrolled, isHidden: false },
-      });
+      const currentScrollY = Math.max(0, window.scrollY);
+      const diff = currentScrollY - lastScrollY.current;
+      const nextScrolled = currentScrollY > 40;
+      let nextIsHidden = isHiddenRef.current;
+
+      if (currentScrollY <= 60) {
+        // Gần đỉnh trang -> luôn hiển thị header
+        nextIsHidden = false;
+      } else if (diff > 8) {
+        // Thanh scroll đi xuống (vuốt lên) -> ẩn header
+        nextIsHidden = true;
+      } else if (diff < -8) {
+        // Thanh scroll đi lên (vuốt xuống) -> hiện header
+        nextIsHidden = false;
+      }
+
+      if (nextIsHidden !== isHiddenRef.current || nextScrolled !== scrolledRef.current) {
+        isHiddenRef.current = nextIsHidden;
+        scrolledRef.current = nextScrolled;
+        dispatch({
+          type: "SET_SCROLL_STATE",
+          payload: { scrolled: nextScrolled, isHidden: nextIsHidden },
+        });
+      }
 
       lastScrollY.current = currentScrollY;
     };
+
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [menuOpen, searchOpen]);
 
   const primaryNav = moviePrimaryNav;
   const genreOptions = dynamicMovieGenreOptions;
@@ -400,11 +422,13 @@ const Header = () => {
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 z-30 transition-all duration-300 border-b border-transparent bg-transparent backdrop-blur-none ${isHidden ? "-translate-y-full" : "translate-y-0"
-          } ${showTransparent
+        className={`fixed inset-x-0 top-0 z-30 transition-transform duration-300 ease-in-out border-b border-transparent bg-transparent backdrop-blur-none ${
+          isHidden ? "-translate-y-full lg:translate-y-0" : "translate-y-0"
+        } ${
+          showTransparent
             ? "[text-shadow:0_1px_8px_rgba(0,0,0,0.6)]"
             : "lg:border-white/5 lg:bg-gradient-to-b lg:from-slate-950/90 lg:via-slate-950/75 lg:to-slate-950/50 lg:backdrop-blur-xl"
-          }`}
+        }`}
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",
           paddingLeft: "env(safe-area-inset-left, 0px)",
@@ -412,8 +436,8 @@ const Header = () => {
         }}
       >
         {/* Mobile top bar with Notch/Dynamic Island protection (Center completely clear for Dynamic Island) */}
-        <div className="lg:hidden relative px-4 py-2.5 sm:py-3 flex items-center justify-between min-h-[56px]">
-          {/* Menu button - Glass circle */}
+        <div className="lg:hidden relative px-4 py-1.5 sm:py-2 flex items-center justify-between min-h-[48px]">
+          {/* Menu button - icon only, no background with high contrast drop-shadow */}
           <button
             type="button"
             aria-label="Toggle menu"
@@ -426,17 +450,22 @@ const Header = () => {
                 closeMenu();
               }
             }}
-            className="size-11 flex-shrink-0 inline-flex items-center justify-center rounded-full bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md border border-white/15 text-white shadow-lg active:scale-95 transition-all focus:outline-none"
+            className="size-10 flex-shrink-0 inline-flex items-center justify-center text-white active:opacity-60 transition-opacity focus:outline-none"
           >
-            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            {menuOpen ? (
+              <X className="size-6 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]" />
+            ) : (
+              <Menu className="size-6 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]" />
+            )}
           </button>
 
           {/* Center is left completely clear so Dynamic Island / Notch sits without any obstruction */}
 
-          {/* Right Action Group - Glass circles */}
-          <div className="flex items-center gap-2">
+          {/* Right Action Group - icons only, no background with high contrast drop-shadow */}
+          <div className="flex items-center gap-1">
             <Notifications
-              buttonClassName="size-11 inline-flex flex-shrink-0 items-center justify-center rounded-full bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md border border-white/15 text-white shadow-lg active:scale-95 transition-all relative"
+              buttonClassName="size-10 inline-flex flex-shrink-0 items-center justify-center text-white active:opacity-60 transition-opacity relative"
+              iconClassName="size-6 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]"
             />
             <button
               type="button"
@@ -449,19 +478,19 @@ const Header = () => {
                   closeSearch();
                 }
               }}
-              className="size-11 inline-flex flex-shrink-0 items-center justify-center rounded-full bg-slate-900/40 hover:bg-slate-900/60 backdrop-blur-md border border-white/15 text-white shadow-lg active:scale-95 transition-all focus:outline-none"
+              className="size-10 inline-flex flex-shrink-0 items-center justify-center text-white active:opacity-60 transition-opacity focus:outline-none"
             >
               {searchOpen ? (
-                <X className="size-5" />
+                <X className="size-6 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]" />
               ) : (
-                <Search className="size-5" />
+                <Search className="size-6 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]" />
               )}
             </button>
           </div>
         </div>
 
         {/* Desktop / tablet bar */}
-        <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-4 xl:px-8">
+        <div className="mx-auto w-full max-w-[1680px] px-4 py-3 hidden lg:flex items-center gap-2 xl:gap-4 md:px-6 lg:px-6 xl:px-6 2xl:px-8">
           {/* Desktop Logo */}
           <Link to="/" className="flex flex-shrink-0 items-center">
             <img src="/icons/logo.webp" alt="Logo" className="h-[56px] lg:h-[76px] -my-4 lg:-my-6 w-auto object-contain drop-shadow-md" />

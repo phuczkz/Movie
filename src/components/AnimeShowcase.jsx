@@ -410,7 +410,7 @@ const AnimeShowcase = ({ movies = [], loading = false }) => {
             {/* ========================================================= */}
             {/* MOBILE & TABLET: CardStack Design Layout                  */}
             {/* ========================================================= */}
-            <div className="block xl:hidden relative w-full pt-1 pb-2">
+            <div className="block xl:hidden relative w-full pt-1 pb-0">
                 {/* Ambient glow background */}
                 <div className="absolute -inset-x-2 -inset-y-4 bg-gradient-to-tr from-emerald-500/15 via-transparent to-teal-500/10 rounded-[36px] blur-3xl pointer-events-none -z-10" />
 

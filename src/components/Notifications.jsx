@@ -14,7 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { db } from "@/firebase.config.js";
 import { useAuth, useAnnouncements } from "@/features/auth/context/AuthContext";
 
-export default function Notifications({ buttonClassName = "" }) {
+export default function Notifications({ buttonClassName = "", iconClassName = "" }) {
   const { user, userProfile, markAnnouncementAsRead, isAdmin } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const { data: announcements = [] } = useAnnouncements();
@@ -240,7 +240,7 @@ export default function Notifications({ buttonClassName = "" }) {
         aria-label="Thông báo"
         className={buttonClassName || "relative flex items-center justify-center p-2 rounded-full text-white hover:bg-white/10 transition-colors"}
       >
-        <Bell className="size-5 filter drop-shadow-[0_1px_6px_rgba(0,0,0,0.85)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]" />
+        <Bell className={iconClassName || "size-5 filter drop-shadow-[0_1px_6px_rgba(0,0,0,0.85)] drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"} />
         {unreadCount > 0 && (
           <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] ring-2 ring-slate-950" />
         )}

@@ -62,7 +62,7 @@ const ContinueWatching = () => {
       </div>
 
       {/* Horizontal scroll list */}
-      <div className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 sm:-mx-5 sm:px-5">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar pb-2">
         {items.map((item) => {
           const progress = item.duration > 0 ? Math.min((item.currentTime / item.duration) * 100, 100) : 0;
           const posterSrc = getOptimizedPoster(item.posterUrl, 300, 75) || item.posterUrl;
@@ -126,8 +126,8 @@ const ContinueWatching = () => {
               </div>
 
               {/* Title */}
-              <div className="mt-2 px-0.5">
-                <h3 className="text-sm font-semibold text-white line-clamp-1 group-hover:text-emerald-400 transition-colors">
+              <div className="mt-2 px-0.5 text-center">
+                <h3 className="text-sm font-semibold text-white line-clamp-1 group-hover:text-emerald-400 transition-colors text-center">
                   {item.movieName || item.slug}
                 </h3>
               </div>

@@ -357,8 +357,15 @@ const Watch = () => {
     setParams(nextParams, { replace: true });
   }, [activeServer, serverGroups, params, setParams]);
 
+  const isFirstEpisodeMountRef = useRef(true);
   useEffect(() => {
-    if (selectedEpisode && playerRef.current) playerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (isFirstEpisodeMountRef.current) {
+      isFirstEpisodeMountRef.current = false;
+      return;
+    }
+    if (selectedEpisode && playerRef.current) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [selectedEpisode]);
 
   // Delegate all Watch Together Firebase logic to dedicated hook

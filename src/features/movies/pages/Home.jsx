@@ -343,7 +343,7 @@ const Home = () => {
           </h2>
         </div>
 
-        <div className="flex overflow-x-auto gap-3 sm:gap-4 pb-2 sm:pb-4 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-4 xl:grid-cols-8 lg:gap-4">
+        <div className="flex overflow-x-auto gap-3 sm:gap-4 pb-2 sm:pb-4 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-8 lg:gap-4">
           {quickFocusCards.map((item) => (
             <Link
               key={item.title}
@@ -393,7 +393,7 @@ const Home = () => {
         />
       </div>
 
-      <div ref={refAnime} className="pb-12 sm:pb-16 lg:pb-20">
+      <div ref={refAnime}>
         <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
       </div>
 

@@ -60,10 +60,13 @@ const PlayerSection = memo(
     }, [player, subtitles, showSubtitleOverlay]);
 
     return (
-      <div ref={playerRef} className="relative z-10">
+      <div
+        ref={playerRef}
+        className="relative z-10 scroll-mt-[calc(4.5rem+env(safe-area-inset-top,0px))] mt-2.5 sm:mt-3.5 lg:mt-0 -mx-2 sm:-mx-2.5 lg:mx-0"
+      >
         {movieOverride?.mode === "trailer" ? (
           <div
-            className="relative w-full overflow-hidden rounded-2xl bg-slate-900 border border-white/10 shadow-2xl"
+            className="relative w-full overflow-hidden rounded-xl sm:rounded-2xl bg-slate-900 border border-white/10 shadow-2xl"
             style={{ aspectRatio: "16/9" }}
           >
             {movieOverride.trailerUrl ? (
