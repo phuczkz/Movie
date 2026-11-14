@@ -1,25 +1,25 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Hero from '@/components/Hero.jsx';
 import MovieCard from '@/features/movies/components/MovieCard.jsx';
 import Section from '@/components/Section.jsx';
 import GridSkeleton from '@/components/GridSkeleton.jsx';
-// removed useMoviesList import as it was unused
 import { useKKphimMovies, useKKphimByCountry } from '@/features/movies/hooks/useKKphimMovies.js';
 import { useHoatHinhMerged } from '@/features/movies/hooks/useHoatHinhMerged.js';
 import { useChieuRapMerged } from '@/features/movies/hooks/useChieuRapMerged.js';
 import LoginBanner from '@/components/LoginBanner.jsx';
-import TrendingSection from '@/components/TrendingSection.jsx';
-import TheaterShowcase from '@/components/TheaterShowcase.jsx';
-import ChinaShowcase from '@/components/ChinaShowcase.jsx';
-import AnimeShowcase from '@/components/AnimeShowcase.jsx';
-import WeeklyRanking from '@/components/WeeklyRanking.jsx';
 import VietnamBanner from '@/components/VietnamBanner.jsx';
 import SEO from '@/components/SEO.jsx';
 import { useAuth, useAnnouncements } from '@/features/auth/context/AuthContext.jsx';
 import AnnouncementModal from '@/components/AnnouncementModal.jsx';
-import ContinueWatching from '@/components/ContinueWatching.jsx';
+
+const ContinueWatching = lazy(() => import('@/components/ContinueWatching.jsx'));
+const TrendingSection = lazy(() => import('@/components/TrendingSection.jsx'));
+const TheaterShowcase = lazy(() => import('@/components/TheaterShowcase.jsx'));
+const ChinaShowcase = lazy(() => import('@/components/ChinaShowcase.jsx'));
+const AnimeShowcase = lazy(() => import('@/components/AnimeShowcase.jsx'));
+const WeeklyRanking = lazy(() => import('@/components/WeeklyRanking.jsx'));
 
 
 const quickFocusCards = [
@@ -275,7 +275,7 @@ const Home = () => {
   const [refKKSingle, showKKSingle] = useSectionVisibility();
   const [refTheater, showTheater] = useSectionVisibility();
   const [refChina, showChina] = useSectionVisibility();
-  const [refRanking] = useSectionVisibility();
+  const [refRanking, showRanking] = useSectionVisibility();
 
   const { data: latest = [] } = useKKphimMovies("latest", {
     enabled: true,
@@ -331,7 +331,9 @@ const Home = () => {
 
       <Hero movies={heroMovies} />
 
-      <ContinueWatching />
+      <Suspense fallback={null}>
+        <ContinueWatching />
+      </Suspense>
 
       <VietnamBanner />
 
@@ -373,28 +375,52 @@ const Home = () => {
       </section>
 
       <div ref={refTrending}>
-        <TrendingSection
-          movies={kkSeries.slice(0, 10)}
-          loading={loadingKKSeries}
-        />
+        {showTrending ? (
+          <Suspense fallback={<div className="h-64 bg-slate-900/20 rounded-3xl animate-pulse" />}>
+            <TrendingSection
+              movies={kkSeries.slice(0, 10)}
+              loading={loadingKKSeries}
+            />
+          </Suspense>
+        ) : (
+          <div className="min-h-[100px]" />
+        )}
       </div>
 
       <div ref={refTheater}>
-        <TheaterShowcase
-          movies={chieuRap.slice(0, 10)}
-          loading={loadingChieuRap}
-        />
+        {showTheater ? (
+          <Suspense fallback={<div className="h-64 bg-slate-900/20 rounded-3xl animate-pulse" />}>
+            <TheaterShowcase
+              movies={chieuRap.slice(0, 10)}
+              loading={loadingChieuRap}
+            />
+          </Suspense>
+        ) : (
+          <div className="min-h-[100px]" />
+        )}
       </div>
 
       <div ref={refChina}>
-        <ChinaShowcase
-          movies={chinaMovies.slice(0, 10)}
-          loading={loadingChina}
-        />
+        {showChina ? (
+          <Suspense fallback={<div className="h-64 bg-slate-900/20 rounded-3xl animate-pulse" />}>
+            <ChinaShowcase
+              movies={chinaMovies.slice(0, 10)}
+              loading={loadingChina}
+            />
+          </Suspense>
+        ) : (
+          <div className="min-h-[100px]" />
+        )}
       </div>
 
       <div ref={refAnime}>
-        <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
+        {showAnime ? (
+          <Suspense fallback={<div className="h-64 bg-slate-900/20 rounded-3xl animate-pulse" />}>
+            <AnimeShowcase movies={anime.slice(0, 16)} loading={loadingAnime} />
+          </Suspense>
+        ) : (
+          <div className="min-h-[100px]" />
+        )}
       </div>
 
       <div className="flex flex-col lg:grid lg:grid-cols-3 lg:gap-6 xl:gap-8 space-y-8 sm:space-y-10 lg:space-y-0">
@@ -410,9 +436,7 @@ const Home = () => {
               }
             >
               {loadingKKSeries ? (
-                <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
-                  <div className="loader-orbit loader-orbit-md"></div>
-                </div>
+                <GridSkeleton baseClass="home-grid-movies" count={6} />
               ) : (
                 <Grid items={cap(kkSeries)} priorityCount={4} />
               )}
@@ -430,9 +454,7 @@ const Home = () => {
               }
             >
               {loadingKKSingle ? (
-                <div className="flex h-[280px] w-full items-center justify-center bg-slate-900/10 rounded-3xl border border-white/5 backdrop-blur-sm">
-                  <div className="loader-orbit loader-orbit-md"></div>
-                </div>
+                <GridSkeleton baseClass="home-grid-movies" count={6} />
               ) : (
                 <Grid items={cap(kkSingle)} priorityCount={4} />
               )}
@@ -443,7 +465,13 @@ const Home = () => {
         {/* Right: Weekly ranking (1/3 width on Desktop, first on Mobile/Tablet) */}
         <div ref={refRanking} className="order-1 lg:order-2 lg:col-span-1 min-w-0">
           <div className="w-full">
-            <WeeklyRanking movies={rankingMovies} />
+            {showRanking ? (
+              <Suspense fallback={<div className="h-80 bg-slate-900/20 rounded-3xl animate-pulse" />}>
+                <WeeklyRanking movies={rankingMovies} />
+              </Suspense>
+            ) : (
+              <div className="min-h-[200px]" />
+            )}
           </div>
         </div>
       </div>

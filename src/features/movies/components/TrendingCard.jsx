@@ -60,7 +60,7 @@ const TrendingCard = ({ movie, index }) => {
     const foundCodes = new Set();
     const result = [];
 
-    // 1. Check from episode list (accurate)
+    // 1. Check from episode list (accurate when fetched)
     if (episodeList && episodeList.length > 0) {
       episodeList.forEach((ep) => {
         const label = normalizeServerLabel(ep?.server_name);
@@ -69,12 +69,24 @@ const TrendingCard = ({ movie, index }) => {
         else foundCodes.add("PĐ");
       });
     } else {
-      // 2. Fallback to movie.lang if list not yet loaded or empty
-      const raw = (movie.lang || "").toLowerCase();
-      if (raw.includes("viet") || raw.includes("phu de")) foundCodes.add("PĐ");
-      if (raw.includes("thuyet") || raw.includes("thuy minh"))
-        foundCodes.add("TM");
-      if (raw.includes("long") && raw.includes("tieng")) foundCodes.add("LT");
+      // 2. Check from last_episodes (available immediately in list API)
+      const rawLastEpisodes = movie?.last_episodes || movie?.origin?.last_episodes;
+      if (Array.isArray(rawLastEpisodes) && rawLastEpisodes.length > 0) {
+        rawLastEpisodes.forEach((item) => {
+          const label = normalizeServerLabel(item?.server_name);
+          if (label === "Thuyết Minh") foundCodes.add("TM");
+          else if (label === "Lồng Tiếng") foundCodes.add("LT");
+          else if (label === "Vietsub") foundCodes.add("PĐ");
+        });
+      } else {
+        // 3. Fallback to lang_key & movie.lang
+        const langKeys = Array.isArray(movie?.lang_key) ? movie.lang_key : (Array.isArray(movie?.origin?.lang_key) ? movie.origin.lang_key : []);
+        const raw = (movie?.lang || "").toLowerCase();
+        if (raw.includes("viet") || raw.includes("phu de") || langKeys.includes("vs")) foundCodes.add("PĐ");
+        if (raw.includes("thuyet") || raw.includes("thuy minh") || /\b(tm)\b/.test(raw) || langKeys.includes("tm"))
+          foundCodes.add("TM");
+        if (raw.includes("long") && raw.includes("tieng") || /\b(lt)\b/.test(raw) || langKeys.includes("lt")) foundCodes.add("LT");
+      }
     }
 
     if (foundCodes.has("PĐ"))
@@ -85,7 +97,7 @@ const TrendingCard = ({ movie, index }) => {
     // Final fallback
     if (result.length === 0) result.push({ code: "PĐ", bg: "bg-slate-800/90" });
     return result;
-  }, [episodeList, movie.lang]);
+  }, [episodeList, movie]);
 
   const episodeText = (() => {
     const latestFromList = episodeList.reduce((max, ep) => {

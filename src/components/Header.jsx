@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useReducer, useMemo } from "react";
+import { useEffect, useRef, useState, useReducer, useMemo, lazy, Suspense } from "react";
 import {
   ChevronDown,
   LogIn,
@@ -14,7 +14,7 @@ import { useAuth } from '@/features/auth/context/AuthContext.jsx';
 import { useMovieGenres, useMovieCountries } from '@/features/movies/hooks/useKKphimMovies.js';
 import { isForbiddenGenre } from '@/utils/filter.js';
 import SearchBar from '@/components/SearchBar.jsx';
-import Notifications from '@/components/Notifications.jsx';
+const Notifications = lazy(() => import('@/components/Notifications.jsx'));
 
 const moviePrimaryNav = [
   { label: "Trang Chủ", to: "/" },
@@ -463,10 +463,12 @@ const Header = () => {
 
           {/* Right Action Group - icons only, no background with high contrast drop-shadow */}
           <div className="flex items-center gap-1">
-            <Notifications
-              buttonClassName="size-10 inline-flex flex-shrink-0 items-center justify-center text-white active:opacity-60 transition-opacity relative"
-              iconClassName="size-6 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]"
-            />
+            <Suspense fallback={<div className="size-10" />}>
+              <Notifications
+                buttonClassName="size-10 inline-flex flex-shrink-0 items-center justify-center text-white active:opacity-60 transition-opacity relative"
+                iconClassName="size-6 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.7)]"
+              />
+            </Suspense>
             <button
               type="button"
               aria-label="Open search"
@@ -542,7 +544,9 @@ const Header = () => {
           <div className="flex flex-shrink-0 items-center gap-2">
             {user ? (
               <div className="flex items-center gap-2">
-                <Notifications />
+                <Suspense fallback={<div className="size-10" />}>
+                  <Notifications />
+                </Suspense>
                 <Link
                   to="/profile"
                   className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"

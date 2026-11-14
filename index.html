@@ -17,9 +17,14 @@
   <link rel="dns-prefetch" href="https://phimimg.com" />
 
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts: Async load to avoid render-blocking LCP delay -->
   <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Manrope:wght@200..800&display=swap" />
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Manrope:wght@200..800&display=swap"
+    media="print" onload="this.media='all'" />
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Manrope:wght@200..800&display=swap" />
+  </noscript>
 
 
   <meta name="theme-color" content="#0b0b15" />

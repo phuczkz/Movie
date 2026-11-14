@@ -11,11 +11,17 @@ const VietnamBanner = () => {
         {/* Flag Section */}
         <div className="relative z-10 flex-shrink-0">
           <div className="w-[85px] h-[53px] min-[375px]:w-[100px] min-[375px]:h-[62px] sm:w-[130px] sm:h-[80px] md:w-[150px] md:h-[95px] lg:w-[180px] lg:h-[110px] rounded-md overflow-hidden relative shadow-[0_4px_15px_rgba(0,0,0,0.5)]">
-            <img
-              src="https://i.ytimg.com/vi/GQgyCJWQhsI/maxresdefault.jpg"
-              alt="Cờ Việt Nam"
+            <svg
+              viewBox="0 0 3 2"
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            />
+              aria-label="Cờ Việt Nam"
+            >
+              <rect width="3" height="2" fill="#da251d" />
+              <polygon
+                points="1.5,0.3 1.65,0.75 2.1,0.75 1.72,1.0 1.87,1.45 1.5,1.2 1.13,1.45 1.28,1.0 0.9,0.75 1.35,0.75"
+                fill="#ffff00"
+              />
+            </svg>
             {/* Vignette / grunge overlay effect */}
             <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_40%,rgba(0,0,0,0.6))]" />
             <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />

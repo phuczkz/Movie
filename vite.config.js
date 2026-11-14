@@ -25,7 +25,8 @@ export default defineConfig({
           return (
             !dep.includes("vendor-hls") &&
             !dep.includes("vendor-artplayer") &&
-            !dep.includes("dash.all")
+            !dep.includes("dash.all") &&
+            !dep.includes("vendor-firebase")
           );
         });
       },
@@ -39,12 +40,19 @@ export default defineConfig({
           if (id.includes("firebase")) {
             return "vendor-firebase";
           }
+          if (id.includes("framer-motion")) {
+            return "vendor-framer-motion";
+          }
+          if (id.includes("@tanstack")) {
+            return "vendor-tanstack";
+          }
           if (id.includes("node_modules")) {
             // Group core React dependencies together as they are used everywhere
             if (
               id.includes("react-dom") ||
               id.includes("react/jsx-runtime") ||
-              id.includes("react/")
+              id.includes("react/") ||
+              id.includes("react-router-dom")
             ) {
               return "vendor-react";
             }

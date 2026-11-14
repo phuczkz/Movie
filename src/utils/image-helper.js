@@ -357,7 +357,6 @@ export const getMoviePosterFallbackChain = (
       // Link nhanh (/uploads/movies/...): ưu tiên trực tiếp từ CDN gốc
       add(getOptimizedPoster(primary, width, quality));
       add(primary);
-      getAlternateExtensionUrls(primary).forEach(add);
       if (STREAM_PROXY && isDirectCdnUrl(primary)) {
         add(buildImageProxyUrl(primary));
       }
@@ -375,11 +374,18 @@ export const getMoviePosterFallbackChain = (
       // Nếu secondary là ảnh nhanh (/uploads/movies/...), nó là ứng viên cực tốt
       add(getOptimizedPoster(secondary, width, quality));
       add(secondary);
-      getAlternateExtensionUrls(secondary).forEach(add);
       if (STREAM_PROXY && isDirectCdnUrl(secondary)) {
         add(buildImageProxyUrl(secondary));
       }
     }
+  }
+
+  // 3. Cuối cùng mới thử các đuôi mở rộng thay thế (.jpg <-> .webp) nếu các link ảnh chuẩn ở trên đều lỗi
+  if (primary && !isSlowVodUrl(primary)) {
+    getAlternateExtensionUrls(primary).forEach(add);
+  }
+  if (secondary && secondary !== primary && !isSlowVodUrl(secondary)) {
+    getAlternateExtensionUrls(secondary).forEach(add);
   }
 
   return chain;

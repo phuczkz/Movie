@@ -474,14 +474,14 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
 
     // Helper to compute episode text for a given list of episodes
     // Luôn dùng effectiveMovie (đã merge dữ liệu mới nhất từ Detail API)
+    const epTotalNum = parseEpisodeNumber(effectiveMovie?.episode_total);
+    const formatEp = (num) => (num < 10 && num > 0 ? `${num}` : num);
+
     const computeEpisodeText = (eps) => {
-      const latestFromList = eps.reduce((max, ep) => {
+      const latestFromList = (eps || []).reduce((max, ep) => {
         const n = parseEpisodeNumber(ep?.name || ep?.slug);
         return Number.isFinite(n) ? Math.max(max, n) : max;
       }, -1);
-
-      const epTotalNum = parseEpisodeNumber(effectiveMovie?.episode_total);
-      const formatEp = (num) => (num < 10 && num > 0 ? `${num}` : num);
 
       if (latestFromList >= 0) {
         if (Number.isFinite(epTotalNum) && epTotalNum > 0) {
@@ -507,7 +507,7 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
 
     const badges = [];
 
-    // Use actual episode data if fetched
+    // 1. Nguồn ưu tiên cao nhất: Dữ liệu tập đầy đủ từ Detail API (khi đã fetch)
     if (isFetched && episodeList.length > 0) {
       const serverEpisodesMap = new Map();
       episodeList.forEach((ep) => {
@@ -531,7 +531,39 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
         badges.push({ key: "longtieng", code: "LT", label: "Lồng tiếng", episodeText: makeEpText("Lồng Tiếng") });
     }
 
-    // Fallback/Initial logic: dùng effectiveMovie để luôn hiển thị số tập mới nhất từ API
+    // 2. Nguồn thứ hai: last_episodes có sẵn từ API danh sách (hiển thị tức thì cả TM, LT, PĐ trên Mobile & Desktop mà không cần hover)
+    if (badges.length === 0) {
+      const rawLastEpisodes = effectiveMovie?.last_episodes || effectiveMovie?.origin?.last_episodes;
+      if (Array.isArray(rawLastEpisodes) && rawLastEpisodes.length > 0) {
+        const serverMap = new Map();
+        rawLastEpisodes.forEach((item) => {
+          const label = normalizeServerLabel(item?.server_name);
+          if (label && !serverMap.has(label)) {
+            serverMap.set(label, item);
+          }
+        });
+
+        const makeLastEpText = (item) => {
+          const n = parseEpisodeNumber(item?.name);
+          if (n !== null && n > 0) {
+            if (Number.isFinite(epTotalNum) && epTotalNum > 0) {
+              return `${formatEp(Math.min(n, epTotalNum))}/${epTotalNum}`;
+            }
+            return `${formatEp(n)}`;
+          }
+          return computeEpisodeText([]);
+        };
+
+        if (serverMap.has("Vietsub"))
+          badges.push({ key: "vietsub-le", code: "PĐ", label: "Phụ đề", episodeText: makeLastEpText(serverMap.get("Vietsub")) });
+        if (serverMap.has("Thuyết Minh"))
+          badges.push({ key: "thuyetminh-le", code: "TM", label: "Thuyết minh", episodeText: makeLastEpText(serverMap.get("Thuyết Minh")) });
+        if (serverMap.has("Lồng Tiếng"))
+          badges.push({ key: "longtieng-le", code: "LT", label: "Lồng tiếng", episodeText: makeLastEpText(serverMap.get("Lồng Tiếng")) });
+      }
+    }
+
+    // 3. Nguồn thứ ba: lang_key, text phân tích từ lang/status/episode_current (phim lẻ, API cũ)
     if (badges.length === 0) {
       const fallbackEpText = computeEpisodeText([]);
       // Dùng effectiveMovie.lang và effectiveMovie.status thay vì movie cũ từ Firestore
@@ -539,21 +571,26 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
       const effectiveStatus = effectiveMovie?.status || movie?.status || "";
       const effectiveEpCurrent = effectiveMovie?.episode_current || episodeCurrentText || "";
       const text = `${effectiveEpCurrent} ${effectiveLang} ${effectiveStatus}`.toLowerCase();
-      const hasEpisodeSignal = Boolean(fallbackEpText);
+      const langKeys = Array.isArray(effectiveMovie?.lang_key)
+        ? effectiveMovie.lang_key
+        : Array.isArray(effectiveMovie?.origin?.lang_key)
+        ? effectiveMovie.origin.lang_key
+        : [];
 
-      const hasVietsub = text.includes("vietsub") || text.includes("phụ đề") || text.includes("phu de");
-      const hasThuyetMinh = text.includes("thuyết minh") || text.includes("thuy minh") || text.includes("tm");
-      const hasLongTieng = text.includes("lồng tiếng") || text.includes("long tieng") || text.includes("lt");
+      const hasVietsub = text.includes("vietsub") || text.includes("phụ đề") || text.includes("phu de") || langKeys.includes("vs");
+      const hasThuyetMinh = text.includes("thuyết minh") || text.includes("thuy minh") || /\b(tm)\b/.test(text) || langKeys.includes("tm");
+      const hasLongTieng = text.includes("lồng tiếng") || text.includes("long tieng") || /\b(lt)\b/.test(text) || langKeys.includes("lt");
 
-      if (hasEpisodeSignal && hasVietsub)
+      // Với phim có PĐ / TM / LT, luôn hiển thị badge cho dù có số tập hay không (ví dụ phim lẻ có TM vẫn hiện TM)
+      if (hasVietsub)
         badges.push({ key: "vietsub-f", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
-      if (hasEpisodeSignal && hasThuyetMinh)
+      if (hasThuyetMinh)
         badges.push({ key: "thuyetminh-f", code: "TM", label: "Thuyết minh", episodeText: fallbackEpText });
-      if (hasEpisodeSignal && hasLongTieng)
+      if (hasLongTieng)
         badges.push({ key: "longtieng-f", code: "LT", label: "Lồng tiếng", episodeText: fallbackEpText });
 
       if (badges.length === 0) {
-        if (hasEpisodeSignal) {
+        if (fallbackEpText) {
           badges.push({ key: "vietsub-fallback", code: "PĐ", label: "Phụ đề", episodeText: fallbackEpText });
         } else if (!isTrailer) {
           badges.push({ key: "hd-fallback", code: "HD", label: "HD", episodeText: null });
@@ -717,14 +754,16 @@ const MovieCard = ({ movie, priority = false, suppressHover = false, showBadges 
           )}
         </div>
 
-        <div className="mt-2.5 flex flex-col items-center text-center px-1">
+        <div className="mt-2.5 flex flex-col items-center text-center px-1 min-h-[42px] justify-start">
           <h3 className="text-sm sm:text-[15px] font-semibold text-white line-clamp-1 lg:group-hover:text-emerald-400 transition-colors">
             {movie.name}
           </h3>
-          {movie.origin_name && movie.origin_name !== movie.name && (
+          {movie.origin_name && movie.origin_name !== movie.name ? (
             <p className="text-xs sm:text-[13px] font-medium text-slate-400 line-clamp-1 mt-0.5">
               {movie.origin_name}
             </p>
+          ) : (
+            <div className="h-4" />
           )}
         </div>
       </Link>

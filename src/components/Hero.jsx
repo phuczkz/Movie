@@ -192,7 +192,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
             onError={(e) => {
               if (!e.currentTarget.dataset.fallback) {
                 e.currentTarget.dataset.fallback = 'true';
-                e.currentTarget.src = `https://img.ophim.live/uploads/movies/${activeMovie?.slug}-thumb.jpg`;
+                e.currentTarget.src = activeMovie?.thumb_url || activeMovie?.poster_url || background;
                 e.currentTarget.srcset = "";
               } else {
                 e.currentTarget.onerror = null;
@@ -219,7 +219,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
               transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
               className="space-y-3 md:space-y-6"
             >
-              <div className="gap-1.5 md:gap-2 flex flex-col items-center md:items-start w-full min-h-[40px] sm:min-h-[50px] md:min-h-[60px] lg:min-h-[75px]">
+              <div className="gap-1.5 md:gap-2 flex flex-col items-center md:items-start w-full min-h-[64px] sm:min-h-[80px] md:min-h-[100px] lg:min-h-[120px]">
                 {activeLogo ? (
                   <img
                     src={activeLogo}
@@ -234,20 +234,22 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                     {activeMovie.name}
                   </h1>
                 )}
-                {(() => {
-                  let subText = null;
-                  if (activeLogo) {
-                    subText = activeLogoLang !== "vi" ? activeMovie.name : activeMovie.origin_name;
-                  } else {
-                    subText = activeMovie.origin_name;
-                  }
-                  if (!subText || subText === activeMovie.name && !activeLogo) return null;
-                  return (
-                    <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left line-clamp-1 pb-1">
-                      {subText}
-                    </h2>
-                  );
-                })()}
+                <div className="min-h-[24px] flex items-center">
+                  {(() => {
+                    let subText = null;
+                    if (activeLogo) {
+                      subText = activeLogoLang !== "vi" ? activeMovie.name : activeMovie.origin_name;
+                    } else {
+                      subText = activeMovie.origin_name;
+                    }
+                    if (!subText || subText === activeMovie.name && !activeLogo) return null;
+                    return (
+                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-medium text-white/80 drop-shadow-md text-center md:text-left line-clamp-1 pb-1">
+                        {subText}
+                      </h2>
+                    );
+                  })()}
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-[11px] sm:text-[12px] md:text-[14px] font-medium text-white">
@@ -369,7 +371,7 @@ const Hero = ({ movie, movies = EMPTY_MOVIES }) => {
                     onError={(e) => {
                       if (!e.target.dataset.fallback) {
                         e.target.dataset.fallback = 'true';
-                        e.target.src = `https://img.ophim.live/uploads/movies/${item.slug}-thumb.jpg`;
+                        e.target.src = item?.poster_url || item?.thumb_url || '/apple-touch-icon.png';
                       } else {
                         e.target.src = '/apple-touch-icon.png';
                       }

@@ -27,7 +27,8 @@ const LoginBanner = () => {
           src={UNSPLASH_BG_OPTIMIZED}
           alt=""
           className="absolute inset-0 w-full h-full object-cover opacity-60"
-          fetchPriority="high"
+          loading="lazy"
+          fetchPriority="low"
           decoding="async"
           aria-hidden="true"
         />

@@ -56,27 +56,31 @@ export const usePosterFallback = (
     loadedUrl === currentSrc
   );
 
-  const advanceToNext = useCallback(() => {
+  const advanceToNext = useCallback((failedSrc) => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     setRetryIndex((prev) => {
+      // Đảm bảo không bị nhảy cóc (double-increment) khi cả thẻ <img> DOM và probe nền cùng báo lỗi cho một URL
+      if (failedSrc && posterFallbackChain[prev] !== failedSrc) {
+        return prev;
+      }
       const nextIdx = prev + 1;
       if (nextIdx >= posterFallbackChain.length && typeof onLoadedOrFailed === "function") {
         onLoadedOrFailed();
       }
       return nextIdx;
     });
-  }, [posterFallbackChain.length, onLoadedOrFailed]);
+  }, [posterFallbackChain, onLoadedOrFailed]);
 
   const handlePosterError = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    advanceToNext();
-  }, [advanceToNext]);
+    advanceToNext(currentSrc);
+  }, [advanceToNext, currentSrc]);
 
   const handlePosterLoad = useCallback(() => {
     if (timerRef.current) {
@@ -115,7 +119,7 @@ export const usePosterFallback = (
 
     probe.onerror = () => {
       if (isCancelled) return;
-      advanceToNext();
+      advanceToNext(currentSrc);
     };
 
     // Với link upload/vod bị nghẽn: giới hạn 2000ms. Link khác 2500ms.
@@ -125,7 +129,7 @@ export const usePosterFallback = (
       if (isCancelled) return;
       // TIMEOUT: Ngắt kết nối probe để giải phóng socket
       probe.src = "";
-      advanceToNext();
+      advanceToNext(currentSrc);
     }, timeoutMs);
 
     probe.src = currentSrc;
