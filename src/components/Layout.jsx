@@ -6,6 +6,7 @@ import BackToTop from '@/components/BackToTop.jsx';
 import { AnimatePresence } from "framer-motion";
 import PageTransition from '@/components/PageTransition.jsx';
 import PullToRefresh from '@/components/PullToRefresh.jsx';
+import FloatingTabBar from '@/components/navigation/FloatingTabBar.jsx';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -30,7 +31,7 @@ const Layout = ({ children }) => {
           isHome || isDetail
             ? "pt-0 md:pt-0 lg:pt-24"
             : "pt-[calc(3.5rem+env(safe-area-inset-top,0px))] md:pt-24"
-        } pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]`}
+        } pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]`}
       >
         <AnimatePresence mode="wait">
           <PageTransition key={location.pathname}>
@@ -40,6 +41,8 @@ const Layout = ({ children }) => {
       </main>
       <Footer />
       <BackToTop />
+      {/* Floating Tab Bar – chỉ hiển thị Mobile/Tablet (lg:hidden bên trong component) */}
+      <FloatingTabBar />
     </div>
   );
 };
