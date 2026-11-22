@@ -41,6 +41,7 @@ const Profile = () => {
   const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     if (!user && !loading) {
@@ -66,6 +67,10 @@ const Profile = () => {
     // Use centralized getProxiedAvatar with 200px size for profile page
     return getProxiedAvatar(rawUrl, 200);
   }, [user, userProfile]);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
 
   if (loading) {
     return (
@@ -101,19 +106,19 @@ const Profile = () => {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-8 border-b border-white/5">
         <div className="relative group shrink-0">
-          <div className="size-28 sm:h-32 sm:w-32 rounded-full border-4 border-white/10 bg-white/5 overflow-hidden shadow-2xl transition-transform hover:scale-105 duration-300">
-            {avatarUrl ? (
+          <div className="size-28 sm:size-32 rounded-full border-4 border-white/10 bg-white/5 overflow-hidden shadow-2xl transition-transform hover:scale-105 duration-300 aspect-square">
+            {avatarUrl && !imgError ? (
               <img
                 src={avatarUrl}
                 alt="avatar"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover aspect-square"
                 loading="lazy"
-
-                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                onError={() => setImgError(true)}
               />
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-emerald-950 font-bold text-3xl">
-                {(user?.email || "").charAt(0).toUpperCase()}
+              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-emerald-400/70 to-cyan-500/70 text-emerald-950 font-bold text-3xl select-none">
+                {(user?.displayName || user?.email || "U").charAt(0).toUpperCase()}
               </div>
             )}
           </div>

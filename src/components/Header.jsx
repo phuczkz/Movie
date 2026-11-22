@@ -549,13 +549,13 @@ const Header = () => {
                 </Suspense>
                 <Link
                   to="/profile"
-                  className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30"
+                  className="size-10 rounded-full border border-white/15 bg-white/10 overflow-hidden shadow-lg shadow-slate-900/40 hover:border-white/30 shrink-0 aspect-square"
                 >
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
                       alt="avatar"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover aspect-square"
                       loading="lazy"
                       referrerPolicy="no-referrer"
                     />
@@ -651,10 +651,16 @@ const Header = () => {
                   onClick={handleNavigation}
                   className="flex items-center gap-3.5 group cursor-pointer active:scale-[0.98] transition-transform"
                 >
-                  <div className="size-13 sm:size-14 rounded-2xl border-2 border-emerald-500/20 bg-slate-800 p-0.5 shadow-xl group-hover:border-emerald-500/40 transition-all shrink-0">
-                    <div className="h-full w-full rounded-[14px] overflow-hidden bg-slate-700">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-2 border-emerald-500/20 bg-slate-800 p-0.5 shadow-xl group-hover:border-emerald-500/40 transition-all shrink-0 aspect-square overflow-hidden">
+                    <div className="h-full w-full rounded-[14px] overflow-hidden bg-slate-700 flex items-center justify-center">
                       {avatarUrl ? (
-                        <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                        <img
+                          src={avatarUrl}
+                          alt="avatar"
+                          className="h-full w-full object-cover aspect-square"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                        />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-white font-semibold text-lg uppercase bg-gradient-to-br from-slate-700 to-slate-800">
                           {(user.email || "U").charAt(0)}

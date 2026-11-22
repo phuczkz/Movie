@@ -215,12 +215,27 @@ export const toOptimizedHeroImage = (url, w = 640, q = 85) => {
  * @returns {string|null}
  */
 export const getProxiedAvatar = (url, size = 100) => {
-  if (!url) return null;
-  // DiceBear SVGs and local paths don't need proxying
-  if (url.includes("dicebear.com") || url.startsWith("/")) return url;
+  if (!url || typeof url !== "string") return null;
+
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  // Data URLs (e.g. user-uploaded base64 avatars), Blob URLs, DiceBear SVGs,
+  // and local/relative paths do not need proxying and must be used directly.
+  if (
+    trimmed.startsWith("data:") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.includes("dicebear.com") ||
+    trimmed.startsWith("/") ||
+    !trimmed.startsWith("http")
+  ) {
+    return trimmed;
+  }
 
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
+    const parsed = new URL(trimmed);
+    const hostname = parsed.hostname.toLowerCase();
+    if (!hostname) return trimmed;
 
     // If the avatar host is in our Worker whitelist, use /img/ route
     const IMAGE_PROXY_HOSTS = [
@@ -233,15 +248,15 @@ export const getProxiedAvatar = (url, size = 100) => {
     );
 
     if (isProxyable && STREAM_PROXY) {
-      return buildImageProxyUrl(url);
+      return buildImageProxyUrl(trimmed);
     }
 
     // Fallback to wsrv.nl for other domains (Google, Facebook avatar URLs, etc.)
     return `https://wsrv.nl/?url=${encodeURIComponent(
-      url
+      trimmed
     )}&w=${size}&h=${size}&fit=cover&output=webp&q=80`;
   } catch {
-    return url;
+    return trimmed;
   }
 };
 
