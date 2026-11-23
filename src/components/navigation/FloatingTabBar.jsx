@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import {
@@ -195,9 +195,10 @@ const FloatingTabBar = () => {
       />
 
       {/* ── Fixed Wrapper ở đáy màn hình (z-[98] để nổi lên trên Bottom Sheet ở z-[95]) ── */}
+      {/* Dùng inset-x-0 bottom-0 thay vì left/right riêng để không bị ảnh hưởng khi body position:fixed */}
       <div
         className={`
-          lg:hidden fixed bottom-0 left-0 right-0 z-[98]
+          lg:hidden fixed inset-x-0 bottom-0 z-[98]
           flex items-end justify-center gap-2.5
           transition-transform duration-300 ease-out pointer-events-none
           ${isBarShown ? "translate-y-0" : "translate-y-[120%]"}
@@ -206,6 +207,8 @@ const FloatingTabBar = () => {
           paddingBottom: "max(16px, env(safe-area-inset-bottom, 16px))",
           paddingLeft: "max(12px, env(safe-area-inset-left, 12px))",
           paddingRight: "max(12px, env(safe-area-inset-right, 12px))",
+          /* Ghim thẳng vào viewport thực, tránh bị body-fixed làm lệch */
+          willChange: "transform",
         }}
       >
         {/* ─── Cụm 1: Capsule ─── */}

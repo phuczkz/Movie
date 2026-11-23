@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
@@ -117,32 +117,23 @@ const ExploreSheet = ({ open, onClose }) => {
       ? rawCountries.map((c) => ({ label: c.name, to: `/country/${c.slug}` }))
       : STATIC_COUNTRIES;
 
-  // Khóa cuộn trang 100% triệt để trên iOS Safari, Android Chrome & Desktop
+  // Khóa cuộn trang KHÔNG dùng body position:fixed (gây viewport resize trên mobile)
+  // Thay vào đó dùng overflow:hidden trên #root để giữ nguyên viewport height
   useEffect(() => {
     if (!open) return;
 
     const scrollY = window.scrollY;
-    const originalBodyPosition = document.body.style.position;
-    const originalBodyTop = document.body.style.top;
-    const originalBodyLeft = document.body.style.left;
-    const originalBodyRight = document.body.style.right;
-    const originalBodyWidth = document.body.style.width;
-    const originalBodyOverflow = document.body.style.overflow;
+    const root = document.getElementById("root") || document.documentElement;
+    const originalOverflow = root.style.overflow;
+    const originalHeight = root.style.height;
 
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.left = "0";
-    document.body.style.right = "0";
-    document.body.style.width = "100%";
-    document.body.style.overflow = "hidden";
+    // Giữ scroll position bằng scrollTop thay vì body position:fixed
+    root.style.overflow = "hidden";
+    root.style.height = "100%";
 
     return () => {
-      document.body.style.position = originalBodyPosition;
-      document.body.style.top = originalBodyTop;
-      document.body.style.left = originalBodyLeft;
-      document.body.style.right = originalBodyRight;
-      document.body.style.width = originalBodyWidth;
-      document.body.style.overflow = originalBodyOverflow;
+      root.style.overflow = originalOverflow;
+      root.style.height = originalHeight;
       window.scrollTo(0, scrollY);
     };
   }, [open]);

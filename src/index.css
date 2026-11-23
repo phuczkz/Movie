@@ -368,6 +368,9 @@ body {
 
 #root {
   min-height: 100vh;
+  /* Cần thiết để overflow:hidden trên #root (khi popup mở) hoạt động đúng,
+     không làm thay đổi viewport height trên mobile như body position:fixed */
+  position: relative;
 }
 
 ::-webkit-scrollbar {
