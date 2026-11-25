@@ -8,6 +8,11 @@ import {
   useState,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  normalizeBirthday,
+  normalizePhoneNumber,
+  pickFirstValue,
+} from "@/features/auth/utils/profile-format.js";
 
 let firebaseSdkPromise = null;
 
@@ -268,13 +273,21 @@ export const AuthProvider = ({ children }) => {
 
               const data = snapshot.data();
               const { Timestamp } = firestoreMod;
-              const normalizeDate = (value) => {
-                if (!value) return "";
-                if (Timestamp && value instanceof Timestamp)
-                  return value.toDate().toISOString().slice(0, 10);
-                if (typeof value === "string") return value;
-                return "";
-              };
+
+              const rawPhone = pickFirstValue(
+                data.phoneNumber,
+                data.phone,
+                data.tel,
+                data.sdt,
+                currentUser.phoneNumber
+              );
+              const rawBirthday = pickFirstValue(
+                data.birthday,
+                data.birthDate,
+                data.dob,
+                data.dateOfBirth,
+                data.ngaySinh
+              );
 
               const role =
                 data.role ||
@@ -285,11 +298,8 @@ export const AuthProvider = ({ children }) => {
                 email: data.email || currentUser.email,
                 displayName:
                   data.displayName || currentUser.displayName || "Người dùng",
-                phoneNumber:
-                  typeof data.phoneNumber === "string"
-                    ? data.phoneNumber.trim()
-                    : "",
-                birthday: normalizeDate(data.birthday),
+                phoneNumber: normalizePhoneNumber(rawPhone),
+                birthday: normalizeBirthday(rawBirthday),
                 role,
                 isWhitelisted: data.isWhitelisted === true,
                 readAnnouncements: data.readAnnouncements || [],
@@ -418,10 +428,21 @@ export const AuthProvider = ({ children }) => {
               currentUser.uid
             );
 
-            if (data.displayName) {
+            const nextData = { ...data };
+            if (typeof nextData.displayName === "string") {
+              nextData.displayName = nextData.displayName.trim();
+            }
+            if ("birthday" in nextData) {
+              nextData.birthday = normalizeBirthday(nextData.birthday);
+            }
+            if ("phoneNumber" in nextData) {
+              nextData.phoneNumber = normalizePhoneNumber(nextData.phoneNumber);
+            }
+
+            if (nextData.displayName) {
               console.log("Updating displayName in Firebase Auth...");
               await authMod.updateProfile(currentUser, {
-                displayName: data.displayName,
+                displayName: nextData.displayName,
               });
               console.log("Auth displayName updated.");
             }
@@ -429,12 +450,12 @@ export const AuthProvider = ({ children }) => {
             console.log("Updating Firestore document...");
             await firestoreMod.setDoc(
               userRef,
-              { ...data, updatedAt: firestoreMod.serverTimestamp() },
+              { ...nextData, updatedAt: firestoreMod.serverTimestamp() },
               { merge: true }
             );
             console.log("Firestore document updated.");
 
-            setUserProfile((prev) => ({ ...prev, ...data }));
+            setUserProfile((prev) => ({ ...prev, ...nextData }));
             return true;
           })();
 

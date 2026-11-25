@@ -1,12 +1,9 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { AnimatePresence, motion as Motion } from "framer-motion";
+import { AnimatePresence, m as Motion } from "framer-motion";
 import { Bell, Trash2, X, Megaphone, LogIn } from "lucide-react";
-import {
-  useNotificationsList,
-  formatNotificationTime,
-} from "@/features/notifications/hooks/useNotificationsList.js";
+import { formatNotificationTime } from "@/features/notifications/hooks/useNotificationsList.js";
 
 const SheetNotificationItem = ({ notif, onSelect, onDelete }) => {
   return (
@@ -86,7 +83,7 @@ const SheetNotificationItem = ({ notif, onSelect, onDelete }) => {
   );
 };
 
-export default function NotificationSheet({ open, onClose }) {
+function NotificationSheet({ open, onClose, notificationsData }) {
   const {
     user,
     allNotifications,
@@ -94,7 +91,7 @@ export default function NotificationSheet({ open, onClose }) {
     handleNotificationClick,
     handleDeleteNotification,
     handleClearAll,
-  } = useNotificationsList();
+  } = notificationsData;
 
   const sheetRef = useRef(null);
 
@@ -286,4 +283,6 @@ export default function NotificationSheet({ open, onClose }) {
     document.body
   );
 }
+
+export default memo(NotificationSheet);
 

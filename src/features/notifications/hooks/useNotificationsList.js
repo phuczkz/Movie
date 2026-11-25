@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
@@ -84,13 +84,23 @@ export function useNotificationsList() {
     return () => unsubscribe();
   }, [user, isAdmin]);
 
-  const localReadList = JSON.parse(
-    localStorage.getItem("readAnnouncements") || "[]"
-  );
-  const userReadList = userProfile?.readAnnouncements || [];
-  const readList = [...new Set([...localReadList, ...userReadList])];
+  const [localReadTick, setLocalReadTick] = useState(0);
 
-  const markAnnouncementRead = async (versionKey, docId) => {
+  const readList = useMemo(() => {
+    let localReadList = [];
+    try {
+      localReadList = JSON.parse(
+        localStorage.getItem("readAnnouncements") || "[]"
+      );
+    } catch {
+      localReadList = [];
+    }
+    const userReadList = userProfile?.readAnnouncements || [];
+    return [...new Set([...localReadList, ...userReadList])];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile?.readAnnouncements, localReadTick]);
+
+  const markAnnouncementRead = useCallback(async (versionKey, docId) => {
     try {
       const localRead = JSON.parse(
         localStorage.getItem("readAnnouncements") || "[]"
@@ -106,6 +116,7 @@ export function useNotificationsList() {
       }
       if (updatedLocal) {
         localStorage.setItem("readAnnouncements", JSON.stringify(localRead));
+        setLocalReadTick((t) => t + 1);
       }
     } catch (e) {
       console.error(e);
@@ -119,54 +130,61 @@ export function useNotificationsList() {
         console.error(e);
       }
     }
-  };
+  }, [userProfile, markAnnouncementAsRead]);
 
-  const systemNotifs = announcements.map((ann) => {
-    const updatedAtMillis = ann.updatedAt?.toMillis
-      ? ann.updatedAt.toMillis()
-      : ann.createdAt?.toMillis
-      ? ann.createdAt.toMillis()
-      : 0;
-    const versionKey = `${ann.id}_${updatedAtMillis}`;
-    const isRead =
-      readList.includes(versionKey) ||
-      readList.includes(ann.id);
-
-    const cleanContent = stripHtmlAndDecode(ann.content);
-
-    return {
-      id: `sys_${ann.id}`,
-      announcementId: ann.id,
-      versionKey,
-      type: "announcement",
-      senderName: "Ban Quản Trị",
-      senderAvatar: "/apple-touch-icon.png",
-      movieName: ann.title || "Thông báo hệ thống",
-      movieSlug: ann.movieSlug || "",
-      content: cleanContent ? cleanContent.slice(0, 90) : "",
-      isRead,
-      createdAt: ann.updatedAt || ann.createdAt,
-      isSystemAnnouncement: true,
-    };
-  });
-
-  const allNotifications = [...systemNotifs, ...notifications]
-    .sort((a, b) => {
-      const timeA = a.createdAt?.toMillis
-        ? a.createdAt.toMillis()
-        : a.createdAt?.seconds
-        ? a.createdAt.seconds * 1000
+  const systemNotifs = useMemo(() => {
+    return announcements.map((ann) => {
+      const updatedAtMillis = ann.updatedAt?.toMillis
+        ? ann.updatedAt.toMillis()
+        : ann.createdAt?.toMillis
+        ? ann.createdAt.toMillis()
         : 0;
-      const timeB = b.createdAt?.toMillis
-        ? b.createdAt.toMillis()
-        : b.createdAt?.seconds
-        ? b.createdAt.seconds * 1000
-        : 0;
-      return timeB - timeA;
-    })
-    .slice(0, 20);
+      const versionKey = `${ann.id}_${updatedAtMillis}`;
+      const isRead =
+        readList.includes(versionKey) ||
+        readList.includes(ann.id);
 
-  const unreadCount = allNotifications.filter((n) => !n.isRead).length;
+      const cleanContent = stripHtmlAndDecode(ann.content);
+
+      return {
+        id: `sys_${ann.id}`,
+        announcementId: ann.id,
+        versionKey,
+        type: "announcement",
+        senderName: "Ban Quản Trị",
+        senderAvatar: "/apple-touch-icon.png",
+        movieName: ann.title || "Thông báo hệ thống",
+        movieSlug: ann.movieSlug || "",
+        content: cleanContent ? cleanContent.slice(0, 90) : "",
+        isRead,
+        createdAt: ann.updatedAt || ann.createdAt,
+        isSystemAnnouncement: true,
+      };
+    });
+  }, [announcements, readList]);
+
+  const allNotifications = useMemo(() => {
+    return [...systemNotifs, ...notifications]
+      .sort((a, b) => {
+        const timeA = a.createdAt?.toMillis
+          ? a.createdAt.toMillis()
+          : a.createdAt?.seconds
+          ? a.createdAt.seconds * 1000
+          : 0;
+        const timeB = b.createdAt?.toMillis
+          ? b.createdAt.toMillis()
+          : b.createdAt?.seconds
+          ? b.createdAt.seconds * 1000
+          : 0;
+        return timeB - timeA;
+      })
+      .slice(0, 20);
+  }, [systemNotifs, notifications]);
+
+  const unreadCount = useMemo(
+    () => allNotifications.filter((n) => !n.isRead).length,
+    [allNotifications]
+  );
 
   const handleMarkAsRead = async (id) => {
     try {

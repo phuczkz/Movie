@@ -401,6 +401,43 @@ body {
   display: none;
 }
 
+/* ─── Floating Tab Bar Long-Label Marquee (GPU Composited) ──────── */
+@keyframes tab-label-pan {
+  0%,
+  18% {
+    transform: translate3d(0, 0, 0);
+  }
+  45%,
+  63% {
+    transform: translate3d(var(--tab-marquee-offset, 0px), 0, 0);
+  }
+  90%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.tab-marquee-active {
+  animation: tab-label-pan 4.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.tab-label-mask {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 10%,
+    #000 90%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    #000 10%,
+    #000 90%,
+    transparent 100%
+  );
+}
+
 /* Hide native media controls for our custom player UI on mobile */
 .player-native::-webkit-media-controls,
 .player-native::-webkit-media-controls-enclosure,
@@ -410,7 +447,21 @@ body {
   display: none !important;
 }
 
-/* Custom styles for date input calendar icon */
+/* Custom styles for date input & iOS PWA width containment */
+input[type="date"] {
+  color-scheme: dark;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   filter: invert(1);

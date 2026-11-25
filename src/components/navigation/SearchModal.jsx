@@ -178,7 +178,50 @@ const SearchModal = ({ open, onClose }) => {
               marginBottom: "calc(74px + max(12px, env(safe-area-inset-bottom, 12px)))",
             }}
           >
-            {/* Thanh nhập tìm kiếm - màu tối đồng bộ giao diện, không bị trắng */}
+            {/* Chỉ hiển thị kết quả ở phía trên khi có từ khóa đã nhập */}
+            {hasQuery && (
+              <div className="flex-1 min-h-0 flex flex-col px-3 pt-3 pb-2.5 border-b border-white/5">
+                <div className="mb-2 px-1 flex-shrink-0">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    {isFetching ? "Đang tìm..." : `Kết quả cho "${debouncedQuery}"`}
+                  </span>
+                </div>
+
+                {displayResults.length === 0 && !isFetching ? (
+                  <div className="py-6 text-center text-slate-400 text-xs">
+                    Không tìm thấy phim phù hợp
+                  </div>
+                ) : (
+                  <div className="flex-1 min-h-0 max-h-[280px] overflow-y-auto overscroll-y-contain custom-scrollbar touch-pan-y space-y-1 pr-0.5">
+                    {displayResults.map((movie) => (
+                      <QuickResultItem
+                        key={movie.slug}
+                        movie={movie}
+                        onSelect={handleSelect}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {displayResults.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="
+                      flex-shrink-0 w-full mt-2.5 py-2.5 rounded-xl
+                      bg-white/5 border border-white/10
+                      text-xs font-semibold text-slate-200
+                      hover:bg-white/10 hover:text-white
+                      active:scale-[0.99] transition-all
+                    "
+                  >
+                    Xem tất cả kết quả
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Thanh nhập tìm kiếm đặt ở dưới cùng để không bị che khi bàn phím Mobile mở */}
             <form
               onSubmit={handleSubmit}
               className="flex items-center gap-2 p-3 flex-shrink-0"
@@ -230,49 +273,6 @@ const SearchModal = ({ open, onClose }) => {
                 Hủy
               </button>
             </form>
-
-            {/* Chỉ hiển thị kết quả khi có từ khóa đã nhập */}
-            {hasQuery && (
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-3 pb-3 custom-scrollbar touch-pan-y border-t border-white/5 pt-2">
-                <div className="mb-2 px-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    {isFetching ? "Đang tìm..." : `Kết quả cho "${debouncedQuery}"`}
-                  </span>
-                </div>
-
-                {displayResults.length === 0 && !isFetching ? (
-                  <div className="py-6 text-center text-slate-400 text-xs">
-                    Không tìm thấy phim phù hợp
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {displayResults.map((movie) => (
-                      <QuickResultItem
-                        key={movie.slug}
-                        movie={movie}
-                        onSelect={handleSelect}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {displayResults.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    className="
-                      w-full mt-2.5 py-2.5 rounded-xl
-                      bg-white/5 border border-white/10
-                      text-xs font-semibold text-slate-200
-                      hover:bg-white/10 hover:text-white
-                      active:scale-[0.99] transition-all
-                    "
-                  >
-                    Xem tất cả kết quả
-                  </button>
-                )}
-              </div>
-            )}
           </Motion.div>
         </>
       )}
